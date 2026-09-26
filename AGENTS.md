@@ -7,8 +7,17 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 
 ## Current state
 
-- F1 (player skeleton), F2 (2D layer), and F3 (3D core) are **done** — F3's
-  four-target gate is green (ci run 36122872839: native suites incl. all
+- F1 (player skeleton), F2 (2D layer), F3 (3D core), and F4a (lighting +
+  Phong materials) are **done** — F4a's four-target gate is green (ci run
+  36271736775: native suites incl. all nineteen goldens on
+  Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
+  goldens). F4a delivers the fixed light bank (`setLight` /
+  `setDirectionalLight`), per-surface Phong materials
+  (`setMeshSurfaceMaterial` + `createMeshData`'s `materials` array;
+  no global material state — ADR 0024), world-space lit `drawMesh`
+  (ADR 0026), and the CPU lighting reference. F4b (per-channel maps +
+  alpha masks) is the remaining half of F4. F3's four-target gate is also
+  green (ci run 36122872839: native suites incl. all
   twelve goldens on Linux/Windows/macOS, Emscripten ctest + web goldens)
   after the D3D11/Metal clip-depth fix recorded in ADR 0025. F3 delivers
   multi-surface meshes
@@ -47,16 +56,19 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `setClearColor`, `createImageData`, `createTexture`, `whiteTexture` —
   and F3's 3D core — `setCamera3D`, multi-surface `createMeshData` /
   `createMesh` / `drawMesh`, `efx.mat4`/`efx.vec3`/`efx.quat`,
-  `makeCube`/`makePlane`/`makeSphere` — cataloged in `docs/js-api.md`
-  (F1/F2/F3 entries are current behavior; materials bind per surface from
-  F4 — ADR 0024 — there is no global setMaterial).
+  `makeCube`/`makePlane`/`makeSphere` — plus F4a's lighting — `setLight`,
+  `setDirectionalLight`, `setMeshSurfaceMaterial`, and `createMeshData`'s
+  `materials` array — cataloged in `docs/js-api.md`
+  (F1/F2/F3/F4a entries are current behavior; materials bind per surface —
+  ADR 0024 — there is no global setMaterial).
 - Verification: ctest runs smoke + headless display-list/JS-API unit tests
   everywhere (on Emscripten the smoke suite runs the same portable scripts
   through the native bridge with the host JS engine as the runtime, plus
   `tools/run_web_compare.mjs` diffs desktop vs web output); golden-image
-  tests (13 committed scenes under `tests/goldens/` — seven 2D + six 3D;
-  `examples/browser/main.js`, the Pages gallery, cycles the same thirteen
-  through the public API and should gain a scene whenever a golden does)
+  tests (19 committed scenes under `tests/goldens/` — seven 2D + twelve
+  3D/lighting; `examples/browser/main.js`, the Pages gallery, cycles the
+  same nineteen through the public API and should gain a scene whenever a
+  golden does)
   run where a display exists — Linux CI under `xvfb-run` + llvmpipe,
   Emscripten in pinned headless Chrome (ADR 0020). Local builds without a display configure with
   `-DEFX_BUILD_GOLDEN_TESTS=OFF` (the default); if a local build dir was
@@ -139,7 +151,7 @@ implements.
 | F1 | Player skeleton | CMake + vendored Sokol/QuickJS, window, resource root, `main.js` hooks, `--script` run mode | Builds on Win/Linux/macOS/Emscripten; script smoke test crosses the JS/C boundary and exits 0 on each | done |
 | F2 | 2D layer | `drawQuad`, ortho camera, texture slots, blending modes, display list (record → playback); golden-image harness is a first-class deliverable | Golden-image pixel-diff within tolerance + display-list unit tests, all four targets | done — full four-target CI matrix green; `f2a` (shdc) + `f2b` (web runtime) archived, ADR 0021/0022 |
 | F3 | 3D core | Camera, multi-surface mesh resources (ADR 0024), `drawMesh` with depth test, GLM math wrapper, vertex colors, procedural primitives, pure-JS math layer | Golden images + math unit tests | done — four-target gate green (run 36122872839); ADR 0024/0025 |
-| F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | planned |
+| F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | F4a done — four-target gate green (run 36271736775); ADR 0026; F4b planned |
 | F5 | Render targets + post FX | RTT, fullscreen-quad passes, color filter, blur | Golden images | planned |
 | F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | planned |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, play/pause/blend | FK joint-transform tests vs CPU reference + golden images | planned |
