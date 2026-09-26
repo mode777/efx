@@ -41,6 +41,7 @@ const CASES = [
     { name: 'resource_lifecycle', script: 'tests/scripts/s_resource_lifecycle.js', args: [] },
     { name: '3d_validation', script: 'tests/scripts/s_3d_validation.js', args: [] },
     { name: '3d_math', script: 'tests/scripts/s_3d_math.js', args: [] },
+    { name: '4a_validation', script: 'tests/scripts/s_4a_validation.js', args: [] },
 ];
 
 function run(cmd, args) {
