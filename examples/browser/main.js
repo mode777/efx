@@ -1,8 +1,9 @@
-// Golden gallery (f2c visual demo, extended in F3): cycles the thirteen
-// golden-image scenes — seven 2D (F2 API) and six 3D (F3 API). Each scene
-// reproduces its committed capture under tests/goldens/<name>/golden.png on
-// a 640x480 virtual frame; a 2D progress strip at the bottom shows the
-// cycle position (drawn over the 3D scenes too: 2D records ignore depth).
+// Golden gallery (f2c visual demo, extended in F3/F4a): cycles the
+// golden-image scenes — seven 2D (F2 API), six 3D (F3 API) and six lighting
+// (F4a API). Each scene reproduces its committed capture under
+// tests/goldens/<name>/golden.png on a 640x480 virtual frame; a 2D progress
+// strip at the bottom shows the cycle position (drawn over the 3D scenes
+// too: 2D records ignore depth).
 const FRAMES_PER_SCENE = 150;
 const FRAME = [640, 480];
 
@@ -11,7 +12,19 @@ const FRAME = [640, 480];
 function camera3d(opts) {
     efx.setCamera2D({ frame: FRAME });
     efx.setCamera3D(opts);
+    efx.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+    efx.setLight(1, { pos: [-3.0, 1.5, -1.5], color: [0.22, 0.26, 0.4, 1], range: 25 });
+    efx.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
+    efx.setBlendMode('alpha');
 }
+
+// default lit material for the plain 3D scenes (F4a)
+const MAT = {
+    ambient:  { color: [0.12, 0.12, 0.14, 1] },
+    diffuse:  { color: [1, 1, 1, 1] },
+    specular: { color: [1, 1, 1, 1], shininess: 24 },
+    emissive: { color: [0, 0, 0, 1] },
+};
 
 function card(z, s, rgb) {
     return {
@@ -166,6 +179,7 @@ const scenes = [
             camera3d({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
             if (!this.cube) {
                 this.cube = efx.createMesh(efx.makeCube({ size: 1.4 }));
+                efx.setMeshSurfaceMaterial(this.cube, 0, MAT);
                 const yaw = efx.mat4.rotate(efx.mat4.identity(), 35, [0, 1, 0]);
                 this.pose = efx.mat4.rotate(yaw, 22, [1, 0, 0]);
             }
@@ -190,6 +204,8 @@ const scenes = [
                 this.triTinted = efx.createMesh(efx.createMeshData({
                     positions: P, colors: C, indices: [0, 1, 2],
                 }));
+                efx.setMeshSurfaceMaterial(this.tri, 0, MAT);
+                efx.setMeshSurfaceMaterial(this.triTinted, 0, MAT);
             }
         },
         render() {
@@ -215,6 +231,14 @@ const scenes = [
                         card(1.2, 0.55, [1.0, 0.6, 0.1]),
                     ],
                 }));
+                efx.setMeshSurfaceMaterial(this.two, 0, MAT);
+                efx.setMeshSurfaceMaterial(this.two, 0, MAT);
+                efx.setMeshSurfaceMaterial(this.two, 1, {
+                    ambient:  { color: [0.16, 0.12, 0.10, 1] },
+                    diffuse:  { color: [1, 1, 1, 1] },
+                    specular: { color: [1, 1, 1, 1], shininess: 48 },
+                    emissive: { color: [0, 0, 0, 1] },
+                });
             }
         },
         render() {
@@ -228,6 +252,7 @@ const scenes = [
             camera3d({ pos: [0, 1.4, 4.5], target: [0, 0, 0.6], fov: 55 });
             if (!this.cube) {
                 this.cube = efx.createMesh(efx.makeCube({ size: 1.1 }));
+                efx.setMeshSurfaceMaterial(this.cube, 0, MAT);
             }
         },
         render() {
@@ -248,6 +273,7 @@ const scenes = [
             camera3d({ pos: [0, 2.2, 5.2], target: [0, 0, 0], fov: 55 });
             if (!this.cube) {
                 this.cube = efx.createMesh(efx.makeCube({ size: 0.9 }));
+                efx.setMeshSurfaceMaterial(this.cube, 0, MAT);
             }
         },
         render() {
@@ -271,6 +297,8 @@ const scenes = [
             if (!this.plane) {
                 this.plane = efx.createMesh(efx.makePlane({ size: 4, segments: 4 }));
                 this.ball = efx.createMesh(efx.makeSphere({ radius: 0.7, segments: 24 }));
+                efx.setMeshSurfaceMaterial(this.plane, 0, MAT);
+                efx.setMeshSurfaceMaterial(this.ball, 0, MAT);
                 this.tilt = efx.mat4.rotate(efx.mat4.identity(), 12, [1, 0, 0]);
                 this.up = efx.mat4.translate(efx.mat4.identity(), [0, 0.7, 0]);
             }
@@ -280,6 +308,137 @@ const scenes = [
                            color: [0.55, 0.62, 0.75, 1] });
             efx.drawMesh({ mesh: this.ball, transform: this.up,
                            color: [0.95, 0.8, 0.25, 1] });
+        },
+    },
+    {
+        name: 'light_ambient',
+        setup() {
+            efx.setClearColor([0.02, 0.02, 0.03, 1]);
+            camera3d({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.red) {
+                this.red = efx.createMesh(efx.makeSphere({ radius: 0.85, segments: 24 }));
+                this.blue = efx.createMesh(efx.makeSphere({ radius: 0.85, segments: 24 }));
+                efx.setMeshSurfaceMaterial(this.red, 0, {
+                    ambient: { color: [0.65, 0.18, 0.18, 1] }, diffuse: { color: [0, 0, 0, 1] },
+                    specular: { color: [0, 0, 0, 1] }, emissive: { color: [0, 0, 0, 1] },
+                });
+                efx.setMeshSurfaceMaterial(this.blue, 0, {
+                    ambient: { color: [0.18, 0.38, 0.7, 1] }, diffuse: { color: [0, 0, 0, 1] },
+                    specular: { color: [0, 0, 0, 1] }, emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.red, transform: efx.mat4.translate(efx.mat4.identity(), [-1.15, 0, 0]) });
+            efx.drawMesh({ mesh: this.blue, transform: efx.mat4.translate(efx.mat4.identity(), [1.15, 0, 0]) });
+        },
+    },
+    {
+        name: 'light_directional',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.05, 1]);
+            camera3d({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight({ dir: [-0.6, -0.5, -0.6], color: [1.0, 0.95, 0.9, 1] });
+            if (!this.ball) {
+                this.ball = efx.createMesh(efx.makeSphere({ radius: 1.1, segments: 32 }));
+                efx.setMeshSurfaceMaterial(this.ball, 0, {
+                    ambient: { color: [0.04, 0.04, 0.06, 1] }, diffuse: { color: [1, 1, 1, 1] },
+                    specular: { color: [0.3, 0.3, 0.3, 1], shininess: 24 }, emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.ball, color: [0.85, 0.82, 0.75, 1] });
+        },
+    },
+    {
+        name: 'light_specular',
+        setup() {
+            efx.setClearColor([0.01, 0.01, 0.02, 1]);
+            camera3d({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, { pos: [0.6, 2.2, 3.0], color: [1, 1, 1, 1] });
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.ball) {
+                this.ball = efx.createMesh(efx.makeSphere({ radius: 1.15, segments: 32 }));
+                efx.setMeshSurfaceMaterial(this.ball, 0, {
+                    ambient: { color: [0.01, 0.01, 0.01, 1] }, diffuse: { color: [0.06, 0.07, 0.1, 1] },
+                    specular: { color: [1, 1, 1, 1], shininess: 64 }, emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.ball });
+        },
+    },
+    {
+        name: 'light_attenuation',
+        setup() {
+            efx.setClearColor([0.01, 0.01, 0.02, 1]);
+            camera3d({ pos: [0, 0, 6], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, { pos: [-2.0, 0, 2.0], color: [1.0, 0.2, 0.15, 1], range: 7.5 });
+            efx.setLight(1, { pos: [2.0, 0, 2.0], color: [0.2, 0.4, 1.0, 1], range: 2.6 });
+            efx.setDirectionalLight(null);
+            if (!this.slab) {
+                const P = [-3, -2, 0, 3, -2, 0, 3, 2, 0, -3, -2, 0, 3, 2, 0, -3, 2, 0];
+                const N = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
+                this.slab = efx.createMesh(efx.createMeshData({ positions: P, normals: N }));
+                efx.setMeshSurfaceMaterial(this.slab, 0, {
+                    ambient: { color: [0.02, 0.02, 0.03, 1] }, diffuse: { color: [1, 1, 1, 1] },
+                    specular: { color: [0, 0, 0, 1] }, emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.slab });
+        },
+    },
+    {
+        name: 'light_emissive',
+        setup() {
+            efx.setClearColor([0.01, 0.01, 0.02, 1]);
+            camera3d({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.ball) {
+                this.ball = efx.createMesh(efx.makeSphere({ radius: 1.1, segments: 32 }));
+                efx.setMeshSurfaceMaterial(this.ball, 0, {
+                    ambient: { color: [0, 0, 0, 1] }, diffuse: { color: [0, 0, 0, 1] },
+                    specular: { color: [0, 0, 0, 1] }, emissive: { color: [0.15, 0.75, 0.35, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.ball, color: [0.1, 0.1, 0.1, 1] });
+        },
+    },
+    {
+        name: 'light_multimaterial',
+        setup() {
+            efx.setClearColor([0.06, 0.05, 0.09, 1]);
+            camera3d({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+            if (!this.pair) {
+                const left = { positions: [-1.95, -0.9, 0, -0.15, -0.9, 0, -0.15, 0.9, 0, -1.95, 0.9, 0],
+                    normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], indices: [0, 1, 2, 0, 2, 3] };
+                const right = { positions: [0.15, -0.9, 0, 1.95, -0.9, 0, 1.95, 0.9, 0, 0.15, 0.9, 0],
+                    normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], indices: [0, 1, 2, 0, 2, 3] };
+                this.pair = efx.createMesh(efx.createMeshData({
+                    surfaces: [left, right],
+                    materials: [{
+                        ambient: { color: [0.1, 0.1, 0.12, 1] }, diffuse: { color: [0.85, 0.25, 0.2, 1] },
+                        specular: { color: [0.8, 0.8, 0.8, 1], shininess: 32 }, emissive: { color: [0, 0, 0, 1] },
+                    }, null],
+                }));
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.pair });
         },
     },
 ];

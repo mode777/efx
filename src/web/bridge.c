@@ -419,6 +419,89 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_mesh(double handle,
     return efx_render_mesh((uint64_t)handle, transform, color);
 }
 
+/* ------------------------------------------------- F4a (lighting) */
+
+/* mat layout: ambient[4], diffuse[4], specular[4], emissive[4], shininess */
+static void bridge_mat_from_floats(efx_material *m, const float *f) {
+    if (!f) {
+        efx_material_default(m);
+        return;
+    }
+    for (int i = 0; i < 4; i++) {
+        m->ambient[i] = f[i];
+        m->diffuse[i] = f[4 + i];
+        m->specular[i] = f[8 + i];
+        m->emissive[i] = f[12 + i];
+    }
+    m->shininess = f[16];
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_set_point_light(int slot, int enabled,
+                                                     float px, float py,
+                                                     float pz, float r, float g,
+                                                     float b, float a,
+                                                     float range) {
+    (void)a; /* alpha ignored by lighting */
+    if (!enabled) {
+        efx_render_set_point_light(slot, NULL);
+        return;
+    }
+    efx_point_light l;
+    memset(&l, 0, sizeof(l));
+    l.enabled = 1;
+    l.pos[0] = px; l.pos[1] = py; l.pos[2] = pz;
+    l.color[0] = r; l.color[1] = g; l.color[2] = b; l.color[3] = 1;
+    l.range = range;
+    efx_render_set_point_light(slot, &l);
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_set_directional_light(int enabled,
+                                                           float dx, float dy,
+                                                           float dz, float r,
+                                                           float g, float b,
+                                                           float a) {
+    (void)a;
+    if (!enabled) {
+        efx_render_set_directional_light(NULL);
+        return;
+    }
+    efx_dir_light l;
+    memset(&l, 0, sizeof(l));
+    l.enabled = 1;
+    l.dir[0] = dx; l.dir[1] = dy; l.dir[2] = dz;
+    l.color[0] = r; l.color[1] = g; l.color[2] = b; l.color[3] = 1;
+    efx_render_set_directional_light(&l);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_set_material(double handle, int index,
+                                                      const float *mat, int has) {
+    efx_material m;
+    if (has) {
+        bridge_mat_from_floats(&m, mat);
+    } else {
+        efx_material_default(&m);
+    }
+    return efx_render_mesh_set_material((uint64_t)handle, index,
+                                        has ? &m : NULL, has);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_set_material(int id, int index,
+                                                          const float *mat,
+                                                          int has) {
+    wmd_slot *s = wmd_get(id);
+    if (!s || !s->alive || !s->md) {
+        return -1;
+    }
+    efx_material m;
+    if (has) {
+        bridge_mat_from_floats(&m, mat);
+    } else {
+        efx_material_default(&m);
+    }
+    efx_meshdata_set_material(s->md, index, has ? &m : NULL, has);
+    return 0;
+}
+
 static int web_frame(void *ud, double dt) {
     (void)ud;
     int stop = 0;

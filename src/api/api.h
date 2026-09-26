@@ -26,6 +26,11 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val, int argc, J
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F4a — lighting + Phong materials */
+JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 

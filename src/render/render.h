@@ -26,6 +26,7 @@
 #define EFX_RENDER_ERR_PERMANENT 3   /* engine-owned resource */
 #define EFX_RENDER_ERR_SINK 4        /* no sink installed */
 #define EFX_RENDER_ERR_NOMEM 5
+#define EFX_RENDER_ERR_INDEX 6       /* surface index out of range (F4a) */
 
 /* mesh data validation failures (range-level; type-level errors are
  * reported by the binding while extracting JS values) */
@@ -38,8 +39,11 @@
 /* fixed limit: surfaces per mesh (vision.md fixed limits, F3) */
 #define EFX_MESH_MAX_SURFACES 16
 
-/* hard per-frame record budget (design D4) */
-#define EFX_RENDER_RECORD_BUDGET_BYTES (16 * 1024 * 1024)
+/* hard per-frame record budget (design D4). Raised in F4a so the larger
+ * mesh record (light snapshot, design D4) keeps the documented ~170k quad
+ * capacity: the budget is charged per record as sizeof(efx_record), and the
+ * mesh record's union member now sets that size. */
+#define EFX_RENDER_RECORD_BUDGET_BYTES (64 * 1024 * 1024)
 
 /* row-major 2D affine: x' = a*x + c*y + tx ; y' = b*x + d*y + ty */
 typedef struct efx_affine {
@@ -60,6 +64,42 @@ typedef struct efx_camera3d {
     float near_z, far_z;
 } efx_camera3d;
 
+/* Fixed light bank (vision.md limits, F4a design D4). Lights are plain
+ * value state: a mesh record snapshots the whole set at record time
+ * (ADR 0019). A light is disabled unless explicitly set. */
+#define EFX_MAX_POINT_LIGHTS 4
+
+typedef struct efx_point_light {
+    int enabled;
+    float pos[3];
+    float color[4];   /* rgb used; alpha ignored */
+    float range;      /* 0 = no attenuation */
+} efx_point_light;
+
+typedef struct efx_dir_light {
+    int enabled;
+    float dir[3];     /* direction the light travels */
+    float color[4];   /* rgb used; alpha ignored */
+} efx_dir_light;
+
+typedef struct efx_light_set {
+    efx_point_light points[EFX_MAX_POINT_LIGHTS];
+    efx_dir_light directional;
+} efx_light_set;
+
+/* Per-surface Phong material snapshot (F4a design D5/D6): plain values,
+ * JS-managed on the script side (no native handle, no destroy). */
+typedef struct efx_material {
+    float ambient[4];
+    float diffuse[4];
+    float specular[4];
+    float emissive[4];
+    float shininess;
+} efx_material;
+
+/* documented default material: white diffuse Phong, no maps */
+void efx_material_default(efx_material *m);
+
 /* one quad (design D1/D3; ~96 bytes) */
 typedef struct efx_quad_record {
     efx_affine m;          /* local -> frame, composed at record time */
@@ -79,6 +119,7 @@ typedef struct efx_mesh_record {
     float transform[16];   /* column-major model matrix */
     float color[4];        /* tint */
     efx_camera3d camera;
+    efx_light_set lights;  /* value snapshot at record time (F4a D4) */
     uint8_t blend;
 } efx_mesh_record;
 
@@ -122,6 +163,8 @@ typedef struct efx_surface {
     int vertex_count, index_count;
     float *positions, *normals, *uvs, *colors; /* NULL when absent */
     uint32_t *indices;                          /* NULL when non-indexed */
+    int has_material;                           /* F4a: explicit binding */
+    efx_material material;
 } efx_surface;
 
 typedef struct efx_meshdata {
@@ -133,6 +176,11 @@ typedef struct efx_meshdata {
 efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
                                   int *err);
 void efx_meshdata_destroy(efx_meshdata *md); /* idempotent, NULL safe */
+
+/* per-surface material binding on CPU MeshData (copied at createMesh);
+ * has=0 clears the binding (engine default) */
+void efx_meshdata_set_material(efx_meshdata *md, int index,
+                               const efx_material *mat, int has);
 
 /* one GPU surface as handed to the sink: vertices interleaved
  * pos(3f) normal(3f) uv(2f) color(4f) = 12 floats/vertex (design D1;
@@ -172,6 +220,12 @@ void efx_render_clear_color(float out_rgba[4]);
 void efx_render_camera3d(float out_pos[3], float out_target[3], float *out_fov,
                          float *out_near, float *out_far);
 
+/* fixed light bank (F4a design D4); NULL disables the slot / the single
+ * directional light. Slot outside 0..EFX_MAX_POINT_LIGHTS-1 is ignored. */
+void efx_render_set_point_light(int slot, const efx_point_light *light);
+void efx_render_set_directional_light(const efx_dir_light *light);
+void efx_render_lights(efx_light_set *out);
+
 /* textures; handles are opaque, 0 = invalid */
 uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba);
 int efx_render_texture_destroy(uint64_t h); /* deferred to frame end */
@@ -187,6 +241,16 @@ int efx_render_mesh_destroy(uint64_t h);
 int efx_render_mesh_alive(uint64_t h);
 int efx_render_mesh_surface_count(uint64_t h);
 void *efx_render_mesh_native(uint64_t h);
+
+/* per-surface material binding on a live Mesh (F4a); has=0 restores the
+ * default material. Returns EFX_RENDER_OK / EFX_RENDER_ERR_HANDLE /
+ * EFX_RENDER_ERR_INDEX. */
+int efx_render_mesh_set_material(uint64_t h, int surface,
+                                 const efx_material *mat, int has);
+/* fills *out with the surface's material (or the default) and returns 1
+ * when a material is explicitly bound, 0 for the default; -1 on bad mesh */
+int efx_render_mesh_surface_material(uint64_t h, int surface,
+                                     efx_material *out);
 
 /* recording */
 int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
@@ -208,5 +272,14 @@ efx_affine efx_camera_matrix(const efx_camera2d *cam, float fw, float fh);
 efx_affine efx_quad_matrix(float x, float y,
                            float origin_x, float origin_y,
                            float rotation_deg, float scale);
+
+/* CPU reference implementation of the F4a Phong equation (design D8).
+ * `normal` may be non-unit (normalized internally); `albedo` is the
+ * per-fragment vertex color × tint. out[4] receives the per-channel
+ * clamped lit color with out[3] = albedo[3]. */
+void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
+                        const float world_pos[3], const float normal[3],
+                        const float camera_pos[3], const float albedo[4],
+                        float out[4]);
 
 #endif

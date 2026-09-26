@@ -40,6 +40,7 @@ add_player_test(smoke_2d_validation ARGS "--script;${S}/s_2d_validation.js" EXPE
 add_player_test(smoke_resource_lifecycle ARGS "--script;${S}/s_resource_lifecycle.js" EXPECT 0)
 add_player_test(smoke_3d_validation ARGS "--script;${S}/s_3d_validation.js" EXPECT 0 EXPECT_OUT "s-3d-validation-ok")
 add_player_test(smoke_3d_math ARGS "--script;${S}/s_3d_math.js" EXPECT 0 EXPECT_OUT "s-3d-math-ok")
+add_player_test(smoke_4a_validation ARGS "--script;${S}/s_4a_validation.js" EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
 endif()
 
 # web native-runtime tests (ADR 0022): the host JS engine (Node in this
@@ -91,6 +92,7 @@ if(EMSCRIPTEN)
     add_web_test(web_resource_lifecycle ${S}/s_resource_lifecycle.js EXPECT 0)
     add_web_test(web_3d_validation ${S}/s_3d_validation.js EXPECT 0 EXPECT_OUT "s-3d-validation-ok")
     add_web_test(web_3d_math ${S}/s_3d_math.js EXPECT 0 EXPECT_OUT "s-3d-math-ok")
+    add_web_test(web_4a_validation ${S}/s_4a_validation.js EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
 endif()
 
 endif() # NOT EFX_HEADLESS
@@ -116,7 +118,8 @@ foreach(CASE
     compose_camera compose_quad value_snapshot default_camera_viewport
     blend_snapshot record_budget texture_lifecycle record_fields batching
     meshdata_validation mesh_lifecycle mesh_pending_upload
-    mesh_record_fields mesh_record_order mesh_record_budget)
+    mesh_record_fields mesh_record_order mesh_record_budget
+    lights_state light_snapshot material_binding lighting_reference)
     add_unit_test(efx_render_tests ${CASE})
 endforeach()
 if(NOT EMSCRIPTEN)
@@ -124,7 +127,7 @@ foreach(CASE
     white quad_record size_derivation origin_pivot quad_validation
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
-    meshdata_cap_js mesh_js camera3d_js)
+    meshdata_cap_js mesh_js camera3d_js f4a_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()
@@ -148,7 +151,10 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
     # a scene's test activates once its golden image is committed (the
     # golden bootstrap produces them via the manual workflow job)
     foreach(SCENE clear solid srcrect pivot blend camera origin
-                cube3d vertcolor3d surfaces3d depth3d transform3d plane3d)
+                cube3d vertcolor3d surfaces3d depth3d transform3d plane3d
+                light_ambient light_directional light_specular
+                light_attenuation light_emissive light_multimaterial
+                light_reference)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

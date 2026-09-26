@@ -32,7 +32,7 @@ expectThrow('md-idx-frac', RE, () => efx.createMeshData({ positions: P, indices:
 expectThrow('md-nonidx-div', RE, () => efx.createMeshData({ positions: [0, 0, 0, 1, 0, 0] }));
 expectThrow('md-norm-short', RE, () => efx.createMeshData({ positions: P, normals: [0, 0, 1] }));
 expectThrow('md-unknown', TE, () => efx.createMeshData({ positions: P, pixles: 1 }));
-expectThrow('md-materials-f4', TE, () => efx.createMeshData({ positions: P, materials: [] }));
+expectThrow('md-materials-mismatch', RE, () => efx.createMeshData({ positions: P, materials: [] }));
 expectThrow('md-elem-type', TE, () => efx.createMeshData({ positions: ['a', 0, 0, 1, 0, 0, 0, 1, 0] }));
 expectThrow('md-elem-nan', RE, () => efx.createMeshData({ positions: [NaN, 0, 0, 1, 0, 0, 0, 1, 0] }));
 

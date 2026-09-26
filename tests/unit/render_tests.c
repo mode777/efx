@@ -627,6 +627,239 @@ static int mesh_record_budget(void) {
     return 0;
 }
 
+static int lights_state(void) {
+    install_mock_sink();
+    efx_light_set ls;
+    efx_render_lights(&ls);
+    for (int i = 0; i < EFX_MAX_POINT_LIGHTS; i++) {
+        if (ls.points[i].enabled) return fail("points default disabled");
+    }
+    if (ls.directional.enabled) return fail("directional default disabled");
+
+    efx_point_light p;
+    memset(&p, 0, sizeof(p));
+    p.enabled = 1;
+    p.pos[0] = 1; p.pos[1] = 2; p.pos[2] = 3;
+    p.color[0] = 1; p.color[1] = 0.5f; p.color[2] = 0.25f; p.color[3] = 1;
+    p.range = 10;
+    efx_render_set_point_light(0, &p);
+    efx_render_lights(&ls);
+    if (!ls.points[0].enabled) return fail("slot 0 enabled");
+    if (!feq(ls.points[0].pos[1], 2) || !feq(ls.points[0].range, 10))
+        return fail("slot 0 values");
+    if (ls.points[1].enabled) return fail("slot 1 untouched");
+
+    /* replace only that slot */
+    efx_point_light q = p;
+    q.pos[0] = 9;
+    efx_render_set_point_light(0, &q);
+    efx_render_lights(&ls);
+    if (!feq(ls.points[0].pos[0], 9)) return fail("slot replaced");
+
+    /* null disables */
+    efx_render_set_point_light(0, NULL);
+    efx_render_lights(&ls);
+    if (ls.points[0].enabled) return fail("null disables point");
+
+    efx_dir_light dl;
+    memset(&dl, 0, sizeof(dl));
+    dl.enabled = 1;
+    dl.dir[0] = 0; dl.dir[1] = -1; dl.dir[2] = 0;
+    dl.color[0] = 0.2f; dl.color[1] = 0.3f; dl.color[2] = 0.4f; dl.color[3] = 1;
+    efx_render_set_directional_light(&dl);
+    efx_render_lights(&ls);
+    if (!ls.directional.enabled || !feq(ls.directional.dir[1], -1))
+        return fail("directional set");
+    efx_render_set_directional_light(NULL);
+    efx_render_lights(&ls);
+    if (ls.directional.enabled) return fail("null disables directional");
+
+    /* out-of-range slot ignored (binding raises RangeError before this) */
+    efx_render_set_point_light(9, &p);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int light_snapshot(void) {
+    install_mock_sink();
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t idx[3] = {0, 1, 2};
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9;
+    s.positions = pos;
+    s.indices_len = 3;
+    s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("fixture");
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m) return fail("mesh create");
+
+    efx_point_light p;
+    memset(&p, 0, sizeof(p));
+    p.enabled = 1;
+    p.pos[0] = 1; p.pos[1] = 1; p.pos[2] = 1;
+    p.color[0] = 1; p.color[3] = 1;
+    efx_render_set_point_light(0, &p);
+    if (efx_render_mesh(m, NULL, NULL) != EFX_RENDER_OK)
+        return fail("record");
+    /* later light change must not alter the recorded snapshot */
+    efx_render_set_point_light(0, NULL);
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 1) return fail("record count");
+    if (!recs[0].u.mesh.lights.points[0].enabled ||
+        !feq(recs[0].u.mesh.lights.points[0].pos[0], 1))
+        return fail("light snapshot in record");
+    if (recs[0].u.mesh.lights.directional.enabled)
+        return fail("directional snapshot default");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int material_binding(void) {
+    install_mock_sink();
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t idx[3] = {0, 1, 2};
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9;
+    s.positions = pos;
+    s.indices_len = 3;
+    s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("fixture");
+
+    efx_material m;
+    efx_material_default(&m);
+    m.diffuse[0] = 0.25f;
+    efx_meshdata_set_material(md, 0, &m, 1);
+    if (!md->surfaces[0].has_material) return fail("meshdata material set");
+
+    uint64_t h = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!h) return fail("mesh create");
+
+    efx_material got;
+    if (efx_render_mesh_surface_material(h, 0, &got) != 1)
+        return fail("material carried over at upload");
+    if (!feq(got.diffuse[0], 0.25f)) return fail("material value copied");
+
+    /* rebind + null reset */
+    efx_material m2;
+    efx_material_default(&m2);
+    m2.emissive[1] = 0.5f;
+    if (efx_render_mesh_set_material(h, 0, &m2, 1) != EFX_RENDER_OK)
+        return fail("rebind");
+    if (efx_render_mesh_surface_material(h, 0, &got) != 1 ||
+        !feq(got.emissive[1], 0.5f))
+        return fail("rebind value");
+    if (efx_render_mesh_set_material(h, 0, NULL, 0) != EFX_RENDER_OK)
+        return fail("null reset");
+    if (efx_render_mesh_surface_material(h, 0, &got) != 0)
+        return fail("default after reset");
+    if (!feq(got.diffuse[0], 1.0f) || !feq(got.diffuse[1], 1.0f))
+        return fail("default material white diffuse");
+    if (!feq(got.shininess, 32.0f)) return fail("default shininess");
+
+    /* out-of-range index and dead handle */
+    if (efx_render_mesh_set_material(h, 5, &m, 1) != EFX_RENDER_ERR_INDEX)
+        return fail("index range");
+    if (efx_render_mesh_set_material(h + 1, 0, &m, 1) != EFX_RENDER_ERR_HANDLE)
+        return fail("dead handle");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int lighting_reference(void) {
+    efx_material mat;
+    efx_material_default(&mat);
+    efx_light_set ls;
+    memset(&ls, 0, sizeof(ls));
+    float alb[4] = {1, 1, 1, 1};
+    float out[4];
+    float world[3] = {0, 0, 0};
+    float cam[3] = {0, 0, 5};
+
+    /* no lights: default material is black */
+    float n[3] = {0, 0, 1};
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    if (!feq(out[0], 0) || !feq(out[1], 0) || !feq(out[2], 0))
+        return fail("no lights -> black");
+    if (!feq(out[3], 1)) return fail("alpha = albedo alpha");
+
+    /* head-on point light: full diffuse */
+    ls.points[0].enabled = 1;
+    ls.points[0].pos[0] = 0; ls.points[0].pos[1] = 0; ls.points[0].pos[2] = 1;
+    ls.points[0].color[0] = 1; ls.points[0].color[1] = 1; ls.points[0].color[2] = 1;
+    ls.points[0].range = 0;
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    if (!feq(out[0], 1) || !feq(out[1], 1) || !feq(out[2], 1))
+        return fail("diffuse maximum");
+
+    /* facing away: zero diffuse */
+    float back[3] = {0, 0, -1};
+    efx_lighting_shade(&mat, &ls, world, back, cam, alb, out);
+    if (!feq(out[0], 0)) return fail("zero diffuse facing away");
+
+    /* white albedo scaled by tint */
+    float grey[4] = {0.5f, 0.5f, 0.5f, 1};
+    efx_lighting_shade(&mat, &ls, world, n, cam, grey, out);
+    if (!feq(out[0], 0.5f)) return fail("albedo scales diffuse");
+
+    /* ambient-only flat */
+    efx_material amb;
+    efx_material_default(&amb);
+    amb.ambient[0] = 0.5f; amb.ambient[1] = 0.5f; amb.ambient[2] = 0.5f;
+    efx_light_set none;
+    memset(&none, 0, sizeof(none));
+    efx_lighting_shade(&amb, &none, world, n, cam, alb, out);
+    if (!feq(out[0], 0.5f) || !feq(out[1], 0.5f)) return fail("ambient flat");
+
+    /* emissive unmodulated by a dark albedo */
+    efx_material em;
+    efx_material_default(&em);
+    em.diffuse[0] = em.diffuse[1] = em.diffuse[2] = 0;
+    em.emissive[0] = 0.25f;
+    float zero[4] = {0, 0, 0, 1};
+    efx_lighting_shade(&em, &none, world, n, cam, zero, out);
+    if (!feq(out[0], 0.25f)) return fail("emissive unmodulated");
+
+    /* specular peak: H == N when L == V == N */
+    efx_material spec;
+    efx_material_default(&spec);
+    spec.diffuse[0] = spec.diffuse[1] = spec.diffuse[2] = 0;
+    spec.specular[0] = spec.specular[1] = spec.specular[2] = 1;
+    spec.shininess = 32;
+    efx_lighting_shade(&spec, &ls, world, n, cam, alb, out);
+    if (!feq(out[0], 1)) return fail("specular peak");
+
+    /* attenuation reaches zero at range */
+    ls.points[0].pos[2] = 4;   /* distance 4 */
+    ls.points[0].range = 4;    /* atten = 1 - 4/4 = 0 */
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    if (!feq(out[0], 0)) return fail("atten zero at range");
+    ls.points[0].pos[2] = 2;   /* distance 2, range 4 -> atten 0.5 */
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    if (!feq(out[0], 0.5f)) return fail("atten half at range/2");
+
+    /* directional-only: dir travels -Z, so L = +Z */
+    efx_light_set dls;
+    memset(&dls, 0, sizeof(dls));
+    dls.directional.enabled = 1;
+    dls.directional.dir[0] = 0; dls.directional.dir[1] = 0; dls.directional.dir[2] = -1;
+    dls.directional.color[0] = 1; dls.directional.color[1] = 0; dls.directional.color[2] = 0;
+    efx_lighting_shade(&mat, &dls, world, n, cam, alb, out);
+    if (!feq(out[0], 1) || !feq(out[1], 0)) return fail("directional");
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_render_tests <case>\n");
@@ -648,6 +881,10 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "mesh_record_fields")) return mesh_record_fields();
     if (!strcmp(c, "mesh_record_order")) return mesh_record_order();
     if (!strcmp(c, "mesh_record_budget")) return mesh_record_budget();
+    if (!strcmp(c, "lights_state")) return lights_state();
+    if (!strcmp(c, "light_snapshot")) return light_snapshot();
+    if (!strcmp(c, "material_binding")) return material_binding();
+    if (!strcmp(c, "lighting_reference")) return lighting_reference();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

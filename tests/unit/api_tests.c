@@ -472,7 +472,7 @@ static int meshdata_js(void) {
         "t(() => efx.createMeshData({ positions: P, indices: [0,1,3] }), RangeError);"
         "t(() => efx.createMeshData({ positions: P, indices: [0,1] }), RangeError);"
         "t(() => efx.createMeshData({ positions: P, frobnicate: 1 }), TypeError);"
-        "t(() => efx.createMeshData({ positions: P, materials: [] }), TypeError);"
+        "t(() => efx.createMeshData({ positions: P, materials: [] }), RangeError);"
         "t(() => efx.createMeshData({ positions: ['a',0,0, 1,0,0, 0,1,0] }), TypeError);"
         "t(() => efx.createMeshData({ positions: [NaN,0,0, 1,0,0, 0,1,0] }), RangeError);"
         "t(() => efx.createMeshData({ positions: P, normals: [0,0,1] }), RangeError);"
@@ -618,6 +618,63 @@ static int camera3d_js(void) {
     return 0;
 }
 
+/* F4a: lights + per-surface materials through the real JS runtime */
+static int f4a_js(void) {
+    const char *code =
+        "efx.setLight(0, { pos: [3,4,2], color: [1,0.95,0.9,1], range: 20 });"
+        "efx.setDirectionalLight({ dir: [-0.5,-1,-0.3], color: [0.2,0.25,0.35,1] });"
+        "const P=[0,0,0, 1,0,0, 0,1,0];"
+        "const M={ ambient:{color:[0.05,0.05,0.05,1]},"
+        "  diffuse:{color:[0.8,0.3,0.2,1]},"
+        "  specular:{color:[1,1,1,1], shininess:64},"
+        "  emissive:{color:[0,0,0,1]} };"
+        "const md=efx.createMeshData({"
+        "  surfaces:[{positions:P, indices:[0,1,2]}], materials:[M] });"
+        "const mesh=efx.createMesh(md);"
+        "efx.setMeshSurfaceMaterial(mesh, 0, { diffuse:{color:[0.1,0.2,0.3,1]} });"
+        "efx.setCamera3D({pos:[0,2,5], target:[0,0,0], fov:60});"
+        "efx.drawMesh({ mesh });"
+        "function t(fn, kind){"
+        "  try{fn();throw new Error('no');}catch(e){"
+        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
+        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
+        "  }"
+        "}"
+        "t(()=>efx.setLight(4,{pos:[0,0,0],color:[1,1,1,1]}), RangeError);"
+        "t(()=>efx.setLight(0,{color:[1,1,1,1]}), TypeError);"
+        "t(()=>efx.setLight(0,{pos:[0,0,0],color:[1,1,1,1],range:-1}), RangeError);"
+        "t(()=>efx.setDirectionalLight({dir:[0,0,0],color:[1,1,1,1]}), TypeError);"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh, 1, M), RangeError);"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh, 0, {diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
+        "t(()=>efx.createMeshData({positions:P, materials:[]}), RangeError);"
+        "t(()=>efx.createMeshData({positions:P, materials:[{specular:{color:[1,1,1,1],shininess:0}}]}), RangeError);"
+        "mesh.destroy(); md.destroy();";
+    if (ok_js(code)) {
+        end_js();
+        return fail("f4a js");
+    }
+    const efx_record *r = efx_render_records(NULL);
+    int n = rec_count();
+    if (n != 1 || r[0].type != EFX_RECORD_MESH) {
+        end_js();
+        return fail("f4a record");
+    }
+    if (!r[0].u.mesh.lights.points[0].enabled) {
+        end_js();
+        return fail("point light snapshot");
+    }
+    if (!feq(r[0].u.mesh.lights.points[0].range, 20)) {
+        end_js();
+        return fail("light range snapshot");
+    }
+    if (!r[0].u.mesh.lights.directional.enabled) {
+        end_js();
+        return fail("directional snapshot");
+    }
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -642,6 +699,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "meshdata_cap_js")) return meshdata_cap_js();
     if (!strcmp(c, "mesh_js")) return mesh_js();
     if (!strcmp(c, "camera3d_js")) return camera3d_js();
+    if (!strcmp(c, "f4a_js")) return f4a_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

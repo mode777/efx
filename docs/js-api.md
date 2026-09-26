@@ -1,10 +1,10 @@
 # EmotionFX JavaScript API Reference
 
-**Status:** F1 (including explicit lifecycle hook registration), F2, and
-F3 are implemented (current behavior). Everything from F4 onward is a
-provisional contract — names and signatures may be reshaped by the change
-that delivers them (every API change must update this document in the same
-change). See
+**Status:** F1 (including explicit lifecycle hook registration), F2, F3, and
+F4a (lighting + Phong materials on solids/vertex colors) are implemented
+(current behavior). Everything from F4b onward is a provisional contract —
+names and signatures may be reshaped by the change that delivers them (every
+API change must update this document in the same change). See
 `vision.md` for product goals and `openspec/specs/feature-roadmap` for the
 milestone ladder.
 
@@ -141,12 +141,12 @@ per-surface materials: ADR 0024 — all under `docs/decisions/`).
 |---|---|---|---|---|---|
 | MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive; ADR 0024); skinned meshes add `joints`/`weights` per surface (F7, glTF-style) | Native class | CPU | F3 | `createMeshData` / `loadMeshData` (F6); read-only `surfaceCount` |
 | ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6) |
-| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (inert until F4) | Native class | GPU | F3 | `createMesh(meshData)` / `loadMesh`; `mesh.destroy()`; read-only `surfaceCount` |
+| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)` / `loadMesh`; `mesh.destroy()`; read-only `surfaceCount` |
 | Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData)`; `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target | Native class | GPU | F5 | `createRenderTarget`; `rt.destroy()` |
-| Materials (Phong parameter objects) | — | JS-managed | — | F4 | Bound per surface via `efx.setMeshSurfaceMaterial` (ADR 0024) |
+| Materials (Phong parameter objects) | — | JS-managed | — | F4a | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024) |
 | Fonts (atlas + quad layout) | — | JS-managed | — | F8 | Pure JS over Texture; passed to `drawText` |
-| Lights | — | Slot-based | — | F4 | 4 point slots + 1 directional (fixed) |
+| Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
 
 **Resource lifecycle rules:**
 
@@ -355,7 +355,7 @@ function render() { // global hook (or efx.registerRenderHook(fn))
 Scope from roadmap F3: camera, mesh slots, `drawMesh`, matrix math, depth
 test, vertex colors, procedural primitives. The mesh data model is
 **multi-surface, Godot-style** (ADR 0024): a mesh holds 1..16 surfaces,
-each with its own attribute arrays and — from F4 — its own material.
+each with its own attribute arrays and — from F4a — its own material.
 
 ```js
 // F3 · C · current — desktop binding `C · quickjs`, web binding `C · bridge`;
@@ -382,26 +382,26 @@ efx.drawMesh(opts)         // { mesh, transform?, color? } — whole mesh, depth
     non-indexed (vertex count then divisible by 3).
   Element rules: non-number → `TypeError`, non-finite → `RangeError`;
   count/length/range problems → `RangeError`; unknown fields →
-  `TypeError`. A `materials` array (creation-time surface bindings)
-  arrives with F4 and is an unknown field until then. Read-only query
+  `TypeError`. From F4a a parallel `materials` array (creation-time surface
+  bindings — see the F4a section) is accepted. Read-only query
   property `surfaceCount`; native byte cost counts toward GC pressure
   (ADR 0012).
 - **Mesh** is a copy: `createMesh` uploads every surface to the GPU, and
   the source MeshData can be destroyed afterwards. Read-only query
   property `surfaceCount`. Opaque native-backed class (ADR 0011/0013):
   `destroy()` releases deterministically, is idempotent, and use after
-  destroy throws. Each surface carries a material binding slot — inert
-  until F4, filled at creation from F4's `materials` array, rebindable
-  from F4 via `setMeshSurfaceMaterial`; an unbound surface renders with
+  destroy throws. Each surface carries a material binding slot — filled at
+  creation from the `materials` array or rebound via
+  `setMeshSurfaceMaterial` (F4a); an unbound surface renders with
   the engine default material.
 - **`drawMesh({ mesh, transform?, color? })`** draws the whole mesh:
   every surface in surface order under the recorded camera, depth-tested
   against earlier 3D records (equal depth resolves by record order).
   `transform` is a flat column-major 16-number array (default identity;
   wrong length → `RangeError`), `color` a tint multiplying vertex colors
-  (default opaque white). No single-surface draw — split the mesh. F3's
-  canned fill is unlit (F4 lights it); surface `uvs` are validated and
-  stored but affect rendering only from F4b's maps. 2D records are
+  (default opaque white). No single-surface draw — split the mesh. From F4a
+  the fill is lit Phong (see the F4a section); surface `uvs` are validated
+  and stored but affect rendering only from F4b's maps. 2D records are
   untouched by mesh depth (painter's order, no depth write).
 
 ```js
@@ -447,18 +447,18 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F4 — Materials & lights (provisional)
+### F4a — Materials & lights (current)
 
-Scope from roadmap F4a/F4b: 4 point + 1 directional light; 4-channel Phong
-(Ambient, Diffuse, Specular, Emissive) on solids/vertex colors (F4a);
-per-channel maps + alpha masks (F4b).
+Scope from roadmap F4a: 4 point + 1 directional light; a 4-channel Phong
+material (Ambient, Diffuse, Specular, Emissive) on solids and vertex colors.
+Per-channel maps and alpha masks are F4b and remain provisional below.
 
 ```js
-// F4a · C · provisional
-efx.setLight(slot, opts)         // slot 0..3 — point light { pos, color, range? }
-efx.setDirectionalLight(opts)    // { dir, color } — the single directional light
+// F4a · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
+efx.setLight(slot, opts)         // slot 0..3 — point light { pos, color, range? }; null disables
+efx.setDirectionalLight(opts)    // { dir, color } — the single directional light; null disables
 // Materials bind to SURFACES — there is no global material state (ADR 0024):
-efx.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)
+efx.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)   // mat object or null (default)
 // mat: Phong channels; omitted channels take defaults:
 // {
 //   ambient:  { color },             // default: black
@@ -470,25 +470,34 @@ efx.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)
 // (white diffuse Phong, no maps)
 ```
 
-```js
-// F4b · C · provisional — per-channel maps and alpha masks extend the same material object
-// {
-//   ambient:  { color, map: tex },      // tex: a Texture object
-//   diffuse:  { color, map: tex },
-//   specular: { color, shininess, map: tex },
-//   emissive: { color, map: tex },
-//   alphaMask: tex,
-// }
-```
+- **Lights** are a fixed bank — four point slots + one directional light, all
+  disabled at startup (vision.md fixed limits; the only slot-based resource).
+  `setLight(slot, opts)` with `slot` an integer `0..3` sets
+  `{ pos: [x,y,z], color: [r,g,b,a], range? }`: `range` is a finite
+  attenuation radius (`>= 0`, default `0` = no falloff; attenuation is
+  `clamp(1 - d/range, 0, 1)`); the color alpha is ignored. Passing `null`
+  disables the slot. `setDirectionalLight({ dir, color })` sets the single
+  directional light; `dir` is the direction the light **travels** (the
+  direction to the light is `-dir`), and `null` disables it. Malformed bags
+  throw `TypeError`; an out-of-range slot or negative/non-finite `range`
+  throws `RangeError`.
+- **`mat` is a JS-managed object** (no native handle, no `destroy()`); the
+  engine reads (snapshots) it at binding time, so later mutation of the
+  script object does not change the bound material. Re-calling
+  `setMeshSurfaceMaterial` switches that surface's material; `null` restores
+  the default. A channel's alpha is ignored in F4a. `createMeshData` also
+  accepts a parallel `materials` array with one entry per surface
+  (`materials[i]` — an object or `null` for the default), bound at creation
+  and carried over at `createMesh`.
+- **Lit shading** is world-space Phong, per fragment: albedo = vertex color ×
+  `drawMesh` tint; `ambient·albedo + emissive + Σ(diffuse·albedo·N·L +
+  specular·(N·H)^shininess)·lightColor·atten`, clamped to `[0,1]`. Emissive
+  is added unmodulated; specular is not modulated by the albedo; a surface
+  without `normals` uses the default normal `(0,0,1)`. With no lights, a
+  default-material surface renders black (ADR 0026).
 
-- `mat` is a **JS-managed** object; the engine reads (snapshots) it at
-  `setMeshSurfaceMaterial` time. Re-calling with a different object switches
-  that surface's material. `createMeshData` also accepts a parallel
-  `materials` array from F4: `materials[i]` (or `null` for the default)
-  becomes surface `i`'s initial binding, carried over at `createMesh`.
-
 ```js
-// main.js — F4 sample (provisional API)
+// main.js — F4a sample (current API)
 const ball = efx.createMesh(efx.makeSphere({ radius: 1, segments: 24 }));
 efx.setClearColor([0.05, 0.05, 0.08, 1]);
 efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });
@@ -504,6 +513,22 @@ efx.setMeshSurfaceMaterial(ball, 0, {
 efx.registerRenderHook(() => {
     efx.drawMesh({ mesh: ball });
 });
+```
+
+### F4b — per-channel maps & alpha masks (provisional)
+
+Scope from roadmap F4b: per-channel maps and alpha masks extend the same
+material object; `uvs` (validated and stored since F3) are consumed here.
+
+```js
+// F4b · C · provisional — maps extend the F4a material object
+// {
+//   ambient:  { color, map: tex },      // tex: a Texture object
+//   diffuse:  { color, map: tex },
+//   specular: { color, shininess, map: tex },
+//   emissive: { color, map: tex },
+//   alphaMask: tex,
+// }
 ```
 
 ### F5 — Render targets & post FX (provisional)

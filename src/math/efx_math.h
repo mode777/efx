@@ -43,6 +43,10 @@ void efx_math_rotate(float out[16], const float m[16], float deg,
 /* out = m·S(v); out may alias m */
 void efx_math_scale(float out[16], const float m[16], const float v[3]);
 
+/* out = transpose(inverse(mat3(model))) expanded to mat4 with zero
+ * translation — the normal matrix for the F4a lit mesh shader (D3) */
+void efx_math_normal_matrix(float out[16], const float model[16]);
+
 /* vec3 helpers (pure, out may not alias) */
 void efx_vec3_add(float out[3], const float a[3], const float b[3]);
 void efx_vec3_sub(float out[3], const float a[3], const float b[3]);

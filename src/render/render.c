@@ -38,6 +38,8 @@ typedef struct {
     int surface_count;
     void *native;
     mesh_pending pending;
+    efx_material *materials;  /* surface_count entries (F4a) */
+    uint8_t *has_material;    /* surface_count flags */
 } mesh_slot;
 
 static struct {
@@ -45,6 +47,7 @@ static struct {
     int viewport_w, viewport_h;
     efx_camera2d camera;      /* frame_w == 0 => default camera */
     efx_camera3d camera3d;
+    efx_light_set lights;     /* fixed bank; all disabled until set (F4a) */
     float clear_color[4];
     int blend;
     tex_slot *slots;
@@ -82,6 +85,7 @@ void efx_render_viewport(int *out_w, int *out_h) {
 static int state_ready;
 static void default_camera(efx_camera2d *cam);
 static void default_camera3d(efx_camera3d *cam);
+static void default_lights(efx_light_set *lights);
 
 static void ensure_state(void) {
     if (state_ready) {
@@ -89,6 +93,7 @@ static void ensure_state(void) {
     }
     default_camera(&R.camera);
     default_camera3d(&R.camera3d);
+    default_lights(&R.lights);
     R.clear_color[0] = 0.0f;
     R.clear_color[1] = 0.0f;
     R.clear_color[2] = 0.0f;
@@ -118,9 +123,30 @@ static void default_camera3d(efx_camera3d *cam) {
     cam->far_z = 100.0f;
 }
 
+static void default_lights(efx_light_set *lights) {
+    memset(lights, 0, sizeof(*lights)); /* every light disabled */
+}
+
+void efx_material_default(efx_material *m) {
+    if (!m) {
+        return;
+    }
+    /* ambient/specular/emissive black, diffuse white, shininess 32 */
+    m->ambient[0] = 0.0f; m->ambient[1] = 0.0f;
+    m->ambient[2] = 0.0f; m->ambient[3] = 1.0f;
+    m->diffuse[0] = 1.0f; m->diffuse[1] = 1.0f;
+    m->diffuse[2] = 1.0f; m->diffuse[3] = 1.0f;
+    m->specular[0] = 0.0f; m->specular[1] = 0.0f;
+    m->specular[2] = 0.0f; m->specular[3] = 1.0f;
+    m->emissive[0] = 0.0f; m->emissive[1] = 0.0f;
+    m->emissive[2] = 0.0f; m->emissive[3] = 1.0f;
+    m->shininess = 32.0f;
+}
+
 void efx_render_reset_state(void) {
     default_camera(&R.camera);
     default_camera3d(&R.camera3d);
+    default_lights(&R.lights);
     R.clear_color[0] = 0.0f;
     R.clear_color[1] = 0.0f;
     R.clear_color[2] = 0.0f;
@@ -166,6 +192,36 @@ void efx_render_set_clear_color(const float rgba[4]) {
         for (int i = 0; i < 4; i++) {
             R.clear_color[i] = rgba[i];
         }
+    }
+}
+
+void efx_render_set_point_light(int slot, const efx_point_light *light) {
+    ensure_state();
+    if (slot < 0 || slot >= EFX_MAX_POINT_LIGHTS) {
+        return;
+    }
+    if (!light || !light->enabled) {
+        R.lights.points[slot].enabled = 0;
+        return;
+    }
+    R.lights.points[slot] = *light;
+    R.lights.points[slot].enabled = 1;
+}
+
+void efx_render_set_directional_light(const efx_dir_light *light) {
+    ensure_state();
+    if (!light || !light->enabled) {
+        R.lights.directional.enabled = 0;
+        return;
+    }
+    R.lights.directional = *light;
+    R.lights.directional.enabled = 1;
+}
+
+void efx_render_lights(efx_light_set *out) {
+    ensure_state();
+    if (out) {
+        *out = R.lights;
     }
 }
 
@@ -503,6 +559,21 @@ void efx_meshdata_destroy(efx_meshdata *md) {
     free(md);
 }
 
+void efx_meshdata_set_material(efx_meshdata *md, int index,
+                               const efx_material *mat, int has) {
+    if (!md || index < 0 || index >= md->surface_count) {
+        return;
+    }
+    efx_surface *s = &md->surfaces[index];
+    if (has && mat) {
+        s->material = *mat;
+        s->has_material = 1;
+    } else {
+        s->has_material = 0;
+        efx_material_default(&s->material);
+    }
+}
+
 /* ------------------------------------------------------------- meshes */
 
 /* build the interleaved GPU layout (design D1) into a pending block: one
@@ -592,6 +663,8 @@ static int pending_build(mesh_pending *p, const efx_meshdata *md) {
     return EFX_RENDER_OK;
 }
 
+static void mesh_materials_free(mesh_slot *m);
+
 static void pending_free(mesh_pending *p) {
     free(p->data);
     free(p->surfs);
@@ -651,11 +724,38 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
     m->surface_count = md->surface_count;
     m->native = native;
     m->pending = pending;
+    /* per-surface material bindings (F4a): copy the MeshData snapshot */
+    m->materials = calloc((size_t)md->surface_count, sizeof(efx_material));
+    m->has_material = calloc((size_t)md->surface_count, sizeof(uint8_t));
+    if (!m->materials || !m->has_material) {
+        mesh_materials_free(m);
+        pending_free(&m->pending);
+        if (native && R.sink && R.sink->destroy_mesh) {
+            R.sink->destroy_mesh(R.sink->ud, native);
+        }
+        m->native = NULL;
+        m->used = 0;
+        return 0;
+    }
+    for (int i = 0; i < md->surface_count; i++) {
+        efx_material_default(&m->materials[i]);
+        if (md->surfaces[i].has_material) {
+            m->materials[i] = md->surfaces[i].material;
+            m->has_material[i] = 1;
+        }
+    }
     uint32_t idx = (uint32_t)(m - R.meshes) + 1;
     if ((int)idx > R.mesh_count) {
         R.mesh_count = (int)idx;
     }
     return ((uint64_t)gen << 32) | (uint64_t)idx;
+}
+
+static void mesh_materials_free(mesh_slot *m) {
+    free(m->materials);
+    free(m->has_material);
+    m->materials = NULL;
+    m->has_material = NULL;
 }
 
 static int mesh_release(uint64_t h, mesh_slot **out) {
@@ -670,6 +770,7 @@ static int mesh_release(uint64_t h, mesh_slot **out) {
     if (m->pending.data) {
         /* upload never happened; release the slot right away */
         pending_free(&m->pending);
+        mesh_materials_free(m);
         m->used = 0;
         return EFX_RENDER_OK;
     }
@@ -709,6 +810,42 @@ int efx_render_mesh_surface_count(uint64_t h) {
 void *efx_render_mesh_native(uint64_t h) {
     mesh_slot *m = mesh_get(h);
     return m ? m->native : NULL;
+}
+
+int efx_render_mesh_set_material(uint64_t h, int surface,
+                                 const efx_material *mat, int has) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive) {
+        return EFX_RENDER_ERR_HANDLE;
+    }
+    if (surface < 0 || surface >= m->surface_count) {
+        return EFX_RENDER_ERR_INDEX;
+    }
+    if (has && mat) {
+        m->materials[surface] = *mat;
+        m->has_material[surface] = 1;
+    } else {
+        efx_material_default(&m->materials[surface]);
+        m->has_material[surface] = 0;
+    }
+    return EFX_RENDER_OK;
+}
+
+int efx_render_mesh_surface_material(uint64_t h, int surface,
+                                     efx_material *out) {
+    /* no alive check: playback may still reference a mesh destroyed earlier
+     * in the same frame (native and materials release at frame end) */
+    mesh_slot *m = mesh_get(h);
+    if (!m || surface < 0 || surface >= m->surface_count) {
+        if (out) {
+            efx_material_default(out);
+        }
+        return -1;
+    }
+    if (out) {
+        *out = m->materials[surface];
+    }
+    return m->has_material[surface] ? 1 : 0;
 }
 
 /* -------------------------------------------------------------- affine */
@@ -872,6 +1009,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
         mr->color[i] = color ? color[i] : 1.0f;
     }
     mr->camera = R.camera3d;
+    mr->lights = R.lights;   /* value snapshot (F4a design D4) */
     mr->blend = (uint8_t)R.blend;
     rec.sort_key = (uint32_t)R.record_count;
     return record_push(rec, sizeof(efx_record));
@@ -943,6 +1081,7 @@ void efx_render_end_frame(void) {
             int idx = R.deferred_mesh[i];
             R.sink->destroy_mesh(R.sink->ud, R.meshes[idx].native);
             R.meshes[idx].native = NULL;
+            mesh_materials_free(&R.meshes[idx]);
             R.meshes[idx].used = 0;
         }
     }
@@ -965,6 +1104,7 @@ void efx_render_shutdown(void) {
                 R.sink->destroy_mesh(R.sink->ud, R.meshes[i].native);
             }
             pending_free(&R.meshes[i].pending);
+            mesh_materials_free(&R.meshes[i]);
         }
         if (R.sink->shutdown) {
             R.sink->shutdown(R.sink->ud);
@@ -977,4 +1117,106 @@ void efx_render_shutdown(void) {
     free(R.deferred_mesh);
     memset(&R, 0, sizeof(R));
     state_ready = 0;
+}
+
+/* ------------------------------------------------------- CPU lighting (F4a) */
+
+static float lclampf(float v, float lo, float hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+}
+
+static void lnormalize3(float out[3], const float v[3]) {
+    float len = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (len > 0.0f) {
+        out[0] = v[0] / len;
+        out[1] = v[1] / len;
+        out[2] = v[2] / len;
+    } else {
+        out[0] = 0.0f;
+        out[1] = 0.0f;
+        out[2] = 0.0f;
+    }
+}
+
+/* one light's contribution (shares the exact D7 formula with the shader) */
+static void lighting_term(const efx_material *mat, const float contrib[3],
+                          float atten, const float N[3], const float V[3],
+                          const float L[3], const float albedo[3],
+                          float out[3]) {
+    float ndl = N[0] * L[0] + N[1] * L[1] + N[2] * L[2];
+    if (ndl < 0.0f) {
+        ndl = 0.0f;
+    }
+    float H[3] = {L[0] + V[0], L[1] + V[1], L[2] + V[2]};
+    float Hn[3];
+    lnormalize3(Hn, H);
+    float ndh = N[0] * Hn[0] + N[1] * Hn[1] + N[2] * Hn[2];
+    if (ndh < 0.0f) {
+        ndh = 0.0f;
+    }
+    float sp = powf(ndh, mat->shininess);
+    float scale = atten;
+    for (int c = 0; c < 3; c++) {
+        float d = mat->diffuse[c] * albedo[c] * ndl;
+        float s = mat->specular[c] * sp;
+        out[c] += (d + s) * contrib[c] * scale;
+    }
+}
+
+void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
+                        const float world_pos[3], const float normal[3],
+                        const float camera_pos[3], const float albedo[4],
+                        float out[4]) {
+    efx_material def;
+    efx_light_set empty;
+    if (!mat) {
+        efx_material_default(&def);
+        mat = &def;
+    }
+    if (!lights) {
+        memset(&empty, 0, sizeof(empty));
+        lights = &empty;
+    }
+    float N[3];
+    lnormalize3(N, normal);
+    float V[3] = {camera_pos[0] - world_pos[0],
+                  camera_pos[1] - world_pos[1],
+                  camera_pos[2] - world_pos[2]};
+    lnormalize3(V, V);
+
+    float col[3];
+    for (int c = 0; c < 3; c++) {
+        col[c] = mat->ambient[c] * albedo[c] + mat->emissive[c];
+    }
+    for (int i = 0; i < EFX_MAX_POINT_LIGHTS; i++) {
+        const efx_point_light *p = &lights->points[i];
+        if (!p->enabled) {
+            continue;
+        }
+        float toL[3] = {p->pos[0] - world_pos[0],
+                        p->pos[1] - world_pos[1],
+                        p->pos[2] - world_pos[2]};
+        float d = sqrtf(toL[0] * toL[0] + toL[1] * toL[1] + toL[2] * toL[2]);
+        float L[3];
+        if (d > 0.0f) {
+            L[0] = toL[0] / d;
+            L[1] = toL[1] / d;
+            L[2] = toL[2] / d;
+        } else {
+            L[0] = 0.0f; L[1] = 1.0f; L[2] = 0.0f;
+        }
+        float atten = p->range > 0.0f ? lclampf(1.0f - d / p->range, 0.0f, 1.0f)
+                                      : 1.0f;
+        lighting_term(mat, p->color, atten, N, V, L, albedo, col);
+    }
+    if (lights->directional.enabled) {
+        const efx_dir_light *dl = &lights->directional;
+        float L[3] = {-dl->dir[0], -dl->dir[1], -dl->dir[2]};
+        lnormalize3(L, L);
+        lighting_term(mat, dl->color, 1.0f, N, V, L, albedo, col);
+    }
+    out[0] = lclampf(col[0], 0.0f, 1.0f);
+    out[1] = lclampf(col[1], 0.0f, 1.0f);
+    out[2] = lclampf(col[2], 0.0f, 1.0f);
+    out[3] = albedo[3];
 }

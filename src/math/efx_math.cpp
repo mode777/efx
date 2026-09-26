@@ -13,7 +13,9 @@
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
 
@@ -66,6 +68,12 @@ void efx_math_rotate(float out[16], const float m[16], float deg,
 
 void efx_math_scale(float out[16], const float m[16], const float v[3]) {
     store(out, glm::scale(load(m), glm::make_vec3(v)));
+}
+
+void efx_math_normal_matrix(float out[16], const float model[16]) {
+    const glm::mat3 n =
+        glm::transpose(glm::inverse(glm::mat3(load(model))));
+    store(out, glm::mat4(n));
 }
 
 void efx_vec3_add(float out[3], const float a[3], const float b[3]) {

@@ -1024,6 +1024,109 @@ static int check_known_fields(JSContext *ctx, JSValueConst obj,
 
 static const char *MD_KEYS[] = {"positions", "normals", "uvs",
                                 "colors", "indices"};
+static const char *MD_KEYS_MAT[] = {"positions", "normals", "uvs",
+                                    "colors", "indices", "materials"};
+
+/* read a [x,y,z] array (array or typed array) */
+static int read_vec3(JSContext *ctx, JSValueConst v, float out[3],
+                     const char *what) {
+    float *buf = NULL;
+    int len = 0;
+    if (read_number_array(ctx, v, &buf, &len, what) != 0) {
+        return -1;
+    }
+    if (len != 3) {
+        free(buf);
+        range_error(ctx, "expected 3 numbers");
+        return -1;
+    }
+    memcpy(out, buf, sizeof(float) * 3);
+    free(buf);
+    return 0;
+}
+
+/* parse one Phong channel color: required 4-element array */
+static int read_channel_color(JSContext *ctx, JSValueConst channel,
+                              const char *name, float out[4]) {
+    JSValue cv = JS_GetPropertyStr(ctx, channel, "color");
+    if (JS_IsUndefined(cv)) {
+        JS_FreeValue(ctx, cv);
+        JS_ThrowTypeError(ctx, "%s channel requires color", name);
+        return -1;
+    }
+    int rc = get_float_array(ctx, cv, out, 4);
+    JS_FreeValue(ctx, cv);
+    return rc == 0 ? 0 : -1;
+}
+
+/* parse a material object into the engine snapshot (F4a spec: channel
+ * defaults, specular.shininess, unknown-field/map rejection) */
+static int read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
+    if (!JS_IsObject(v)) {
+        type_error(ctx, "material must be an object");
+        return -1;
+    }
+    efx_material_default(out);
+    static const char *known[] = {"ambient", "diffuse", "specular", "emissive"};
+    if (check_known_fields(ctx, v, known, 4, "material") != 0) {
+        return -1;
+    }
+    static const char *chan_keys[] = {"ambient", "diffuse", "specular", "emissive"};
+    float *outs[] = {out->ambient, out->diffuse, out->specular, out->emissive};
+    for (int i = 0; i < 4; i++) {
+        JSValue ch = JS_GetPropertyStr(ctx, v, chan_keys[i]);
+        if (JS_IsUndefined(ch) || JS_IsNull(ch)) {
+            JS_FreeValue(ctx, ch);
+            continue;
+        }
+        if (!JS_IsObject(ch)) {
+            JS_FreeValue(ctx, ch);
+            JS_ThrowTypeError(ctx, "%s channel must be an object", chan_keys[i]);
+            return -1;
+        }
+        static const char *spec_keys[] = {"color", "shininess"};
+        const char **ck = chan_keys + i; /* single "color" for non-specular */
+        static const char *just_color[] = {"color"};
+        int nk = 1;
+        if (i == 2) {
+            ck = spec_keys;
+            nk = 2;
+        } else {
+            ck = just_color;
+        }
+        if (check_known_fields(ctx, ch, ck, nk, chan_keys[i]) != 0) {
+            JS_FreeValue(ctx, ch);
+            return -1;
+        }
+        if (read_channel_color(ctx, ch, chan_keys[i], outs[i]) != 0) {
+            JS_FreeValue(ctx, ch);
+            return -1;
+        }
+        if (i == 2) {
+            JSValue sv = JS_GetPropertyStr(ctx, ch, "shininess");
+            if (!JS_IsUndefined(sv)) {
+                double d = 0;
+                int bad = !JS_IsNumber(sv) || JS_ToFloat64(ctx, &d, sv) < 0;
+                JS_FreeValue(ctx, sv);
+                if (bad) {
+                    JS_FreeValue(ctx, ch);
+                    type_error(ctx, "shininess must be a number");
+                    return -1;
+                }
+                if (!isfinite(d) || d <= 0) {
+                    JS_FreeValue(ctx, ch);
+                    range_error(ctx, "shininess must be Finite and > 0");
+                    return -1;
+                }
+                out->shininess = (float)d;
+            } else {
+                JS_FreeValue(ctx, sv);
+            }
+        }
+        JS_FreeValue(ctx, ch);
+    }
+    return 0;
+}
 
 /* buffers extracted from JS for one createMeshData call; every allocation
  * is registered here the moment it exists so a single release path frees
@@ -1048,13 +1151,15 @@ static void md_owned_free(md_owned *o) {
 /* extract one surface object into an efx_surface_src; buffers are owned
  * by *own (the caller releases them, on success and on failure alike) */
 static int read_surface(JSContext *ctx, JSValueConst obj, efx_surface_src *s,
-                        md_owned *own) {
+                        md_owned *own, int allow_materials) {
     memset(s, 0, sizeof(*s));
     if (!JS_IsObject(obj)) {
         type_error(ctx, "surfaces must be objects");
         return -1;
     }
-    if (check_known_fields(ctx, obj, MD_KEYS, 5, "surface") != 0) {
+    if (allow_materials
+            ? check_known_fields(ctx, obj, MD_KEYS_MAT, 6, "surface") != 0
+            : check_known_fields(ctx, obj, MD_KEYS, 5, "surface") != 0) {
         return -1;
     }
     static const char *keys[] = {"positions", "normals", "uvs", "colors"};
@@ -1109,8 +1214,8 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
     }
     JSValueConst opts = argv[0];
     static const char *bag_keys[] = {"surfaces", "positions", "normals",
-                                     "uvs", "colors", "indices"};
-    if (check_known_fields(ctx, opts, bag_keys, 6, "createMeshData") != 0) {
+                                     "uvs", "colors", "indices", "materials"};
+    if (check_known_fields(ctx, opts, bag_keys, 7, "createMeshData") != 0) {
         return JS_EXCEPTION;
     }
 
@@ -1152,7 +1257,7 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
         }
         for (int32_t i = 0; i < len; i++) {
             JSValue sv = JS_GetPropertyUint32(ctx, surfaces, (uint32_t)i);
-            int rc = read_surface(ctx, sv, &src[i], &own);
+            int rc = read_surface(ctx, sv, &src[i], &own, 0);
             JS_FreeValue(ctx, sv);
             if (rc != 0) {
                 JS_FreeValue(ctx, surfaces);
@@ -1164,13 +1269,50 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
     } else {
         JS_FreeValue(ctx, surfaces);
         /* the bag itself is the single surface */
-        int rc = read_surface(ctx, opts, &src[0], &own);
+        int rc = read_surface(ctx, opts, &src[0], &own, 1);
         JS_FreeValue(ctx, positions);
         if (rc != 0) {
             goto fail;
         }
         count = 1;
     }
+
+    /* F4a: optional parallel materials array (one entry per surface) */
+    efx_material mats[EFX_MESH_MAX_SURFACES];
+    uint8_t mat_has[EFX_MESH_MAX_SURFACES];
+    memset(mat_has, 0, sizeof(mat_has));
+    JSValue materials = JS_GetPropertyStr(ctx, opts, "materials");
+    if (!JS_IsUndefined(materials)) {
+        if (!JS_IsArray(materials)) {
+            JS_FreeValue(ctx, materials);
+            type_error(ctx, "materials must be an array");
+            goto fail;
+        }
+        JSValue mlenv = JS_GetPropertyStr(ctx, materials, "length");
+        int32_t mlen = -1;
+        JS_ToInt32(ctx, &mlen, mlenv);
+        JS_FreeValue(ctx, mlenv);
+        if (mlen != count) {
+            JS_FreeValue(ctx, materials);
+            range_error(ctx, "materials must have one entry per surface");
+            goto fail;
+        }
+        for (int32_t i = 0; i < count; i++) {
+            JSValue mv = JS_GetPropertyUint32(ctx, materials, (uint32_t)i);
+            if (JS_IsNull(mv) || JS_IsUndefined(mv)) {
+                JS_FreeValue(ctx, mv);
+                continue;
+            }
+            if (read_material(ctx, mv, &mats[i]) != 0) {
+                JS_FreeValue(ctx, mv);
+                JS_FreeValue(ctx, materials);
+                goto fail;
+            }
+            mat_has[i] = 1;
+            JS_FreeValue(ctx, mv);
+        }
+    }
+    JS_FreeValue(ctx, materials);
 
     {
         int err = 0;
@@ -1182,6 +1324,10 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
                 return range_error(ctx, "invalid mesh data");
             }
             return generic_error(ctx, "out of memory");
+        }
+        for (int i = 0; i < count; i++) {
+            efx_meshdata_set_material(md, i, mat_has[i] ? &mats[i] : NULL,
+                                      mat_has[i]);
         }
         efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
         if (!wrap) {
@@ -1402,5 +1548,164 @@ JSValue efx_js_setCamera3D(JSContext *ctx, JSValueConst this_val,
         JS_FreeValue(ctx, v);
     }
     efx_render_set_camera3d(&cam);
+    return JS_UNDEFINED;
+}
+
+/* ------------------------------------------------------------ F4a bindings */
+
+JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val,
+                        int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 2) {
+        return type_error(ctx, "setLight requires (slot, opts)");
+    }
+    int32_t slot = -1;
+    if (!JS_IsNumber(argv[0]) || JS_ToInt32(ctx, &slot, argv[0]) < 0) {
+        return range_error(ctx, "light slot must be an integer 0..3");
+    }
+    if (slot < 0 || slot >= EFX_MAX_POINT_LIGHTS) {
+        return range_error(ctx, "light slot out of range (0..3)");
+    }
+    if (JS_IsNull(argv[1]) || JS_IsUndefined(argv[1])) {
+        efx_render_set_point_light((int)slot, NULL);
+        return JS_UNDEFINED;
+    }
+    if (!JS_IsObject(argv[1])) {
+        return type_error(ctx, "setLight options must be an object or null");
+    }
+    static const char *known[] = {"pos", "color", "range"};
+    if (check_known_fields(ctx, argv[1], known, 3, "setLight") != 0) {
+        return JS_EXCEPTION;
+    }
+    efx_point_light l;
+    memset(&l, 0, sizeof(l));
+    JSValue pv = JS_GetPropertyStr(ctx, argv[1], "pos");
+    if (JS_IsUndefined(pv)) {
+        JS_FreeValue(ctx, pv);
+        return type_error(ctx, "setLight requires pos");
+    }
+    if (read_vec3(ctx, pv, l.pos, "pos") != 0) {
+        JS_FreeValue(ctx, pv);
+        return JS_EXCEPTION;
+    }
+    JS_FreeValue(ctx, pv);
+    JSValue cv = JS_GetPropertyStr(ctx, argv[1], "color");
+    if (JS_IsUndefined(cv)) {
+        JS_FreeValue(ctx, cv);
+        return type_error(ctx, "setLight requires color");
+    }
+    if (get_float_array(ctx, cv, l.color, 4) != 0) {
+        JS_FreeValue(ctx, cv);
+        return JS_EXCEPTION;
+    }
+    JS_FreeValue(ctx, cv);
+    JSValue rv = JS_GetPropertyStr(ctx, argv[1], "range");
+    if (JS_IsUndefined(rv)) {
+        JS_FreeValue(ctx, rv);
+        l.range = 0.0f;
+    } else {
+        double d = 0;
+        int bad = !JS_IsNumber(rv) || JS_ToFloat64(ctx, &d, rv) < 0;
+        JS_FreeValue(ctx, rv);
+        if (bad) {
+            return type_error(ctx, "range must be a number");
+        }
+        if (!isfinite(d) || d < 0) {
+            return range_error(ctx, "range must be a finite number >= 0");
+        }
+        l.range = (float)d;
+    }
+    l.enabled = 1;
+    efx_render_set_point_light((int)slot, &l);
+    return JS_UNDEFINED;
+}
+
+JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val,
+                                   int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx, "setDirectionalLight requires an options object or null");
+    }
+    if (JS_IsNull(argv[0]) || JS_IsUndefined(argv[0])) {
+        efx_render_set_directional_light(NULL);
+        return JS_UNDEFINED;
+    }
+    if (!JS_IsObject(argv[0])) {
+        return type_error(ctx, "setDirectionalLight options must be an object or null");
+    }
+    static const char *known[] = {"dir", "color"};
+    if (check_known_fields(ctx, argv[0], known, 2, "setDirectionalLight") != 0) {
+        return JS_EXCEPTION;
+    }
+    efx_dir_light l;
+    memset(&l, 0, sizeof(l));
+    JSValue dv = JS_GetPropertyStr(ctx, argv[0], "dir");
+    if (JS_IsUndefined(dv)) {
+        JS_FreeValue(ctx, dv);
+        return type_error(ctx, "setDirectionalLight requires dir");
+    }
+    if (read_vec3(ctx, dv, l.dir, "dir") != 0) {
+        JS_FreeValue(ctx, dv);
+        return JS_EXCEPTION;
+    }
+    JS_FreeValue(ctx, dv);
+    if (l.dir[0] == 0.0f && l.dir[1] == 0.0f && l.dir[2] == 0.0f) {
+        return type_error(ctx, "dir must be non-zero");
+    }
+    JSValue cv = JS_GetPropertyStr(ctx, argv[0], "color");
+    if (JS_IsUndefined(cv)) {
+        JS_FreeValue(ctx, cv);
+        return type_error(ctx, "setDirectionalLight requires color");
+    }
+    if (get_float_array(ctx, cv, l.color, 4) != 0) {
+        JS_FreeValue(ctx, cv);
+        return JS_EXCEPTION;
+    }
+    JS_FreeValue(ctx, cv);
+    l.enabled = 1;
+    efx_render_set_directional_light(&l);
+    return JS_UNDEFINED;
+}
+
+JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val,
+                                      int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 3) {
+        return type_error(ctx,
+                          "setMeshSurfaceMaterial requires (mesh, surfaceIndex, mat)");
+    }
+    efxjs_mesh *mesh = get_live_mesh(ctx, argv[0]);
+    if (!mesh) {
+        return JS_EXCEPTION;
+    }
+    int32_t index = -1;
+    if (!JS_IsNumber(argv[1]) || JS_ToInt32(ctx, &index, argv[1]) < 0) {
+        return type_error(ctx, "surfaceIndex must be a number");
+    }
+    int count = efx_render_mesh_surface_count(mesh->handle);
+    if (index < 0 || index >= count) {
+        return range_error(ctx, "surfaceIndex out of range");
+    }
+    efx_material mat;
+    int has = 0;
+    if (JS_IsNull(argv[2]) || JS_IsUndefined(argv[2])) {
+        has = 0;
+    } else {
+        if (read_material(ctx, argv[2], &mat) != 0) {
+            return JS_EXCEPTION;
+        }
+        has = 1;
+    }
+    int rc = efx_render_mesh_set_material(mesh->handle, (int)index,
+                                          has ? &mat : NULL, has);
+    if (rc == EFX_RENDER_ERR_HANDLE) {
+        return type_error(ctx, "expected a live Mesh");
+    }
+    if (rc == EFX_RENDER_ERR_INDEX) {
+        return range_error(ctx, "surfaceIndex out of range");
+    }
+    if (rc != EFX_RENDER_OK) {
+        return generic_error(ctx, "setMeshSurfaceMaterial failed");
+    }
     return JS_UNDEFINED;
 }

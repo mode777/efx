@@ -168,6 +168,9 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         JS_CFUNC_DEF("createMeshData", 1, efx_js_createMeshData),
         JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
         JS_CFUNC_DEF("drawMesh", 1, efx_js_drawMesh),
+        JS_CFUNC_DEF("setLight", 2, efx_js_setLight),
+        JS_CFUNC_DEF("setDirectionalLight", 1, efx_js_setDirectionalLight),
+        JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));

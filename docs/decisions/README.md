@@ -35,6 +35,7 @@ directory holds only what stays true after a change is archived.
 | [0023](0023-tag-triggered-ci-and-releases.md) | Accepted | CI runs on `v*` tags and manual dispatch only, and every run publishes four downloadable target archives (tag runs attach them to the release) |
 | [0024](0024-multi-surface-meshes.md) | Accepted | Meshes are multi-surface (Godot-style, 1..16); materials bind per surface; the global `setMaterial` never ships |
 | [0025](0025-engine-owned-clip-depth-remap.md) | Accepted | The engine folds the GL→0..1 clip-depth remap into the MVP at playback on `origin_top_left` backends; sokol normalizes depth state, not depth range, nor attachment formats |
+| [0026](0026-lighting-and-canned-shader-strategy.md) | Accepted | F4a lighting is world-space Phong from one uniform-driven mesh shader (no permutations); lights are value state snapshotted per mesh record |
 
 ## Adding a decision
 

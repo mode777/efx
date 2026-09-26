@@ -324,6 +324,64 @@ function __efxEnsureApi() {
         return out;
     }
 
+    /* Parse a Phong material object into the 17-float wire layout
+       [ambient(4), diffuse(4), specular(4), emissive(4), shininess] with the
+       F4a defaults (desktop parity); unknown fields (maps, alphaMask) throw. */
+    function __efxMaterial(v) {
+        if (!__efxIsObject(v)) {
+            throw new TypeError('material must be an object');
+        }
+        var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1 };
+        var names = Object.getOwnPropertyNames(v);
+        for (var i = 0; i < names.length; i++) {
+            if (!known[names[i]]) {
+                throw new TypeError("unknown material option '" + names[i] + "'");
+            }
+        }
+        var out = new Float32Array(17);
+        out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;   /* ambient */
+        out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;   /* diffuse */
+        out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1; /* specular */
+        out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
+        out[16] = 32;                                     /* shininess */
+        var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
+        for (var ci = 0; ci < 4; ci++) {
+            var ch = v[chan[ci]];
+            if (ch === undefined || ch === null) {
+                continue;
+            }
+            if (!__efxIsObject(ch)) {
+                throw new TypeError(chan[ci] + ' channel must be an object');
+            }
+            var ck = ci === 2 ? { color: 1, shininess: 1 } : { color: 1 };
+            var cnames = Object.getOwnPropertyNames(ch);
+            for (var k = 0; k < cnames.length; k++) {
+                if (!ck[cnames[k]]) {
+                    throw new TypeError("unknown " + chan[ci] +
+                        " option '" + cnames[k] + "'");
+                }
+            }
+            if (ch.color === undefined) {
+                throw new TypeError(chan[ci] + ' channel requires color');
+            }
+            var c = __efxFloatArray(ch.color, 4);
+            out[ci * 4] = c[0];
+            out[ci * 4 + 1] = c[1];
+            out[ci * 4 + 2] = c[2];
+            out[ci * 4 + 3] = c[3];
+            if (ci === 2 && ch.shininess !== undefined) {
+                if (typeof ch.shininess !== 'number') {
+                    throw new TypeError('shininess must be a number');
+                }
+                if (!isFinite(ch.shininess) || ch.shininess <= 0) {
+                    throw new RangeError('shininess must be Finite and > 0');
+                }
+                out[16] = ch.shininess;
+            }
+        }
+        return out;
+    }
+
     function mallocCopyF32(arr) {
         var ptr = bridge['_malloc'](arr.length * 4);
         HEAPF32.set(arr, ptr >> 2);
@@ -718,7 +776,7 @@ function __efxEnsureApi() {
                 throw new TypeError('createMeshData requires an options object');
             }
             var bagKnown = { surfaces: 1, positions: 1, normals: 1,
-                uvs: 1, colors: 1, indices: 1 };
+                uvs: 1, colors: 1, indices: 1, materials: 1 };
             var bagNames = Object.getOwnPropertyNames(opts);
             for (var bi = 0; bi < bagNames.length; bi++) {
                 if (!bagKnown[bagNames[bi]]) {
@@ -804,6 +862,27 @@ function __efxEnsureApi() {
                 bridge['_efx_bridge_meshdata_destroy'](id);
                 throw new RangeError('invalid mesh data');
             }
+            var materials = opts['materials'];
+            if (materials !== undefined) {
+                if (!Array.isArray(materials)) {
+                    bridge['_efx_bridge_meshdata_destroy'](id);
+                    throw new TypeError('materials must be an array');
+                }
+                if (materials.length !== list.length) {
+                    bridge['_efx_bridge_meshdata_destroy'](id);
+                    throw new RangeError('materials must have one entry per surface');
+                }
+                for (var mi = 0; mi < materials.length; mi++) {
+                    var mv = materials[mi];
+                    if (mv === null || mv === undefined) {
+                        continue;
+                    }
+                    var mf = __efxMaterial(mv);
+                    var mptr = mallocCopyF32(mf);
+                    bridge['_efx_bridge_meshdata_set_material'](id, mi, mptr, 1);
+                    bridge['_efx_bridge_mem_free'](mptr);
+                }
+            }
             return new EfxMeshData(id);
         },
         createMesh: function (meshData) {
@@ -870,6 +949,112 @@ function __efxEnsureApi() {
             if (rc !== 0) {
                 throw new Error('drawMesh failed');
             }
+        },
+        setLight: function (slot, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('setLight requires (slot, opts)');
+            }
+            if (typeof slot !== 'number' || (slot | 0) !== slot) {
+                throw new RangeError('light slot must be an integer 0..3');
+            }
+            if (slot < 0 || slot > 3) {
+                throw new RangeError('light slot out of range (0..3)');
+            }
+            if (opts === null || opts === undefined) {
+                bridge['_efx_bridge_set_point_light'](slot, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setLight options must be an object or null');
+            }
+            var lk = { pos: 1, color: 1, range: 1 };
+            var lnames = Object.getOwnPropertyNames(opts);
+            for (var li = 0; li < lnames.length; li++) {
+                if (!lk[lnames[li]]) {
+                    throw new TypeError("unknown setLight option '" + lnames[li] + "'");
+                }
+            }
+            if (opts['pos'] === undefined) {
+                throw new TypeError('setLight requires pos');
+            }
+            var pv = __efxFloat32Array(opts['pos'], 'pos');
+            if (pv.length !== 3) {
+                throw new RangeError('pos must hold 3 numbers');
+            }
+            if (opts['color'] === undefined) {
+                throw new TypeError('setLight requires color');
+            }
+            var lc = __efxFloatArray(opts['color'], 4);
+            var range = 0;
+            if (opts['range'] !== undefined) {
+                if (typeof opts['range'] !== 'number') {
+                    throw new TypeError('range must be a number');
+                }
+                if (!isFinite(opts['range']) || opts['range'] < 0) {
+                    throw new RangeError('range must be a finite number >= 0');
+                }
+                range = opts['range'];
+            }
+            bridge['_efx_bridge_set_point_light'](slot, 1,
+                pv[0], pv[1], pv[2], lc[0], lc[1], lc[2], lc[3], range);
+        },
+        setDirectionalLight: function (opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('setDirectionalLight requires an options object or null');
+            }
+            if (opts === null || opts === undefined) {
+                bridge['_efx_bridge_set_directional_light'](0, 0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setDirectionalLight options must be an object or null');
+            }
+            var dk = { dir: 1, color: 1 };
+            var dnames = Object.getOwnPropertyNames(opts);
+            for (var di = 0; di < dnames.length; di++) {
+                if (!dk[dnames[di]]) {
+                    throw new TypeError("unknown setDirectionalLight option '" + dnames[di] + "'");
+                }
+            }
+            if (opts['dir'] === undefined) {
+                throw new TypeError('setDirectionalLight requires dir');
+            }
+            var dv = __efxFloat32Array(opts['dir'], 'dir');
+            if (dv.length !== 3) {
+                throw new RangeError('dir must hold 3 numbers');
+            }
+            if (dv[0] === 0 && dv[1] === 0 && dv[2] === 0) {
+                throw new TypeError('dir must be non-zero');
+            }
+            if (opts['color'] === undefined) {
+                throw new TypeError('setDirectionalLight requires color');
+            }
+            var dc = __efxFloatArray(opts['color'], 4);
+            bridge['_efx_bridge_set_directional_light'](1,
+                dv[0], dv[1], dv[2], dc[0], dc[1], dc[2], dc[3]);
+        },
+        setMeshSurfaceMaterial: function (mesh, index, mat) {
+            if (arguments.length < 3) {
+                throw new TypeError(
+                    'setMeshSurfaceMaterial requires (mesh, surfaceIndex, mat)');
+            }
+            var m = liveMesh(mesh);
+            if (typeof index !== 'number' || (index | 0) !== index) {
+                throw new TypeError('surfaceIndex must be a number');
+            }
+            var count = bridge['_efx_bridge_mesh_surface_count'](m.__handle);
+            if (index < 0 || index >= count) {
+                throw new RangeError('surfaceIndex out of range');
+            }
+            if (mat === null || mat === undefined) {
+                bridge['_efx_bridge_mesh_set_material'](m.__handle, index, 0, 0);
+                return;
+            }
+            var f = __efxMaterial(mat);
+            var ptr = mallocCopyF32(f);
+            bridge['_efx_bridge_mesh_set_material'](m.__handle, index, ptr, 1);
+            bridge['_efx_bridge_mem_free'](ptr);
         },
     };
 

@@ -339,25 +339,62 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect) {
 
     vs_params_t vs;
     memcpy(vs.mvp, mvp, sizeof(mvp));
+    memcpy(vs.model, mr->transform, sizeof(vs.model));
+    efx_math_normal_matrix(vs.normal_mat, mr->transform);
+
     fs_params_t fs;
+    memset(&fs, 0, sizeof(fs));
     fs.tint[0] = mr->color[0];
     fs.tint[1] = mr->color[1];
     fs.tint[2] = mr->color[2];
     fs.tint[3] = mr->color[3];
+    fs.camera_pos[0] = mr->camera.pos[0];
+    fs.camera_pos[1] = mr->camera.pos[1];
+    fs.camera_pos[2] = mr->camera.pos[2];
+    for (int i = 0; i < EFX_MAX_POINT_LIGHTS; i++) {
+        const efx_point_light *p = &mr->lights.points[i];
+        if (!p->enabled) {
+            continue;
+        }
+        fs.point_pos[i][0] = p->pos[0];
+        fs.point_pos[i][1] = p->pos[1];
+        fs.point_pos[i][2] = p->pos[2];
+        fs.point_pos[i][3] = p->range;
+        fs.point_color[i][0] = p->color[0];
+        fs.point_color[i][1] = p->color[1];
+        fs.point_color[i][2] = p->color[2];
+        fs.point_color[i][3] = 1.0f;
+    }
+    if (mr->lights.directional.enabled) {
+        fs.dir_dir[0] = mr->lights.directional.dir[0];
+        fs.dir_dir[1] = mr->lights.directional.dir[1];
+        fs.dir_dir[2] = mr->lights.directional.dir[2];
+        fs.dir_dir[3] = 1.0f;
+        fs.dir_color[0] = mr->lights.directional.color[0];
+        fs.dir_color[1] = mr->lights.directional.color[1];
+        fs.dir_color[2] = mr->lights.directional.color[2];
+    }
 
     sg_apply_pipeline(P.mesh_pip[mr->blend]);
+    sg_apply_uniforms(UB_vs_params, &(sg_range){.ptr = &vs, .size = sizeof(vs)});
     for (int i = 0; i < m->surface_count; i++) {
         pipe_mesh_surface *s = &m->surfaces[i];
         if (!s->index_count) {
             continue;
         }
+        efx_material mat;
+        efx_render_mesh_surface_material(mr->mesh, i, &mat);
+        memcpy(fs.ambient, mat.ambient, sizeof(fs.ambient));
+        memcpy(fs.diffuse, mat.diffuse, sizeof(fs.diffuse));
+        memcpy(fs.specular, mat.specular, sizeof(fs.specular));
+        memcpy(fs.emissive, mat.emissive, sizeof(fs.emissive));
+        fs.mat_params[0] = mat.shininess;
+
         sg_bindings bnd = {0};
         bnd.vertex_buffers[0] = s->vbuf;
         bnd.index_buffer = s->ibuf;
         sg_apply_bindings(&bnd);
         /* documented order: pipeline -> bindings -> uniforms -> draw */
-        sg_apply_uniforms(UB_vs_params,
-                          &(sg_range){.ptr = &vs, .size = sizeof(vs)});
         sg_apply_uniforms(UB_fs_params,
                           &(sg_range){.ptr = &fs, .size = sizeof(fs)});
         sg_draw(0, s->index_count, 1);
