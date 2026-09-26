@@ -1559,15 +1559,15 @@ JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val,
     if (argc < 2) {
         return type_error(ctx, "setLight requires (slot, opts)");
     }
-    int32_t slot = -1;
-    if (!JS_IsNumber(argv[0]) || JS_ToInt32(ctx, &slot, argv[0]) < 0) {
+    double slot_d = 0;
+    if (!JS_IsNumber(argv[0]) || JS_ToFloat64(ctx, &slot_d, argv[0]) < 0 ||
+        !isfinite(slot_d) || slot_d != floor(slot_d) || slot_d < 0 ||
+        slot_d > (double)(EFX_MAX_POINT_LIGHTS - 1)) {
         return range_error(ctx, "light slot must be an integer 0..3");
     }
-    if (slot < 0 || slot >= EFX_MAX_POINT_LIGHTS) {
-        return range_error(ctx, "light slot out of range (0..3)");
-    }
+    int slot = (int)slot_d;
     if (JS_IsNull(argv[1]) || JS_IsUndefined(argv[1])) {
-        efx_render_set_point_light((int)slot, NULL);
+        efx_render_set_point_light(slot, NULL);
         return JS_UNDEFINED;
     }
     if (!JS_IsObject(argv[1])) {
@@ -1678,10 +1678,12 @@ JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val,
     if (!mesh) {
         return JS_EXCEPTION;
     }
-    int32_t index = -1;
-    if (!JS_IsNumber(argv[1]) || JS_ToInt32(ctx, &index, argv[1]) < 0) {
-        return type_error(ctx, "surfaceIndex must be a number");
+    double index_d = 0;
+    if (!JS_IsNumber(argv[1]) || JS_ToFloat64(ctx, &index_d, argv[1]) < 0 ||
+        !isfinite(index_d) || index_d != floor(index_d)) {
+        return range_error(ctx, "surfaceIndex must be an integer");
     }
+    int index = (int)index_d;
     int count = efx_render_mesh_surface_count(mesh->handle);
     if (index < 0 || index >= count) {
         return range_error(ctx, "surfaceIndex out of range");
@@ -1697,8 +1699,7 @@ JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val,
         has = 1;
     }
     int rc = efx_render_mesh_set_material(mesh->handle, (int)index,
-                                          has ? &mat : NULL, has);
-    if (rc == EFX_RENDER_ERR_HANDLE) {
+                                          has ? &mat : NULL, has);    if (rc == EFX_RENDER_ERR_HANDLE) {
         return type_error(ctx, "expected a live Mesh");
     }
     if (rc == EFX_RENDER_ERR_INDEX) {

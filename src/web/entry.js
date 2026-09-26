@@ -805,6 +805,11 @@ function __efxEnsureApi() {
             }
             var surfKnown = { positions: 1, normals: 1, uvs: 1,
                 colors: 1, indices: 1 };
+            /* the shorthand form passes the whole bag as the surface, so the
+               bag-level materials field is allowed there (desktop parity) */
+            if (surfaces === undefined) {
+                surfKnown.materials = 1;
+            }
             var id = bridge['_efx_bridge_meshdata_create'](list.length);
             if (!id) {
                 throw new Error('out of memory');
@@ -1041,7 +1046,7 @@ function __efxEnsureApi() {
             }
             var m = liveMesh(mesh);
             if (typeof index !== 'number' || (index | 0) !== index) {
-                throw new TypeError('surfaceIndex must be a number');
+                throw new RangeError('surfaceIndex must be an integer');
             }
             var count = bridge['_efx_bridge_mesh_surface_count'](m.__handle);
             if (index < 0 || index >= count) {
