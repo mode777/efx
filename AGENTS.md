@@ -167,6 +167,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `gh workflow run ci.yml --ref <branch>` — no separate commit/push request
   is needed for feature verification. Keep commits scoped to the change under
   verification and never sweep in unrelated working-tree changes.
+- **After a successful apply, merge to `main` and push.** Once a change's
+  verification (the pre-CI server suites and the four-target gate) is green,
+  an agent SHALL merge its branch into `main` and push, without waiting for a
+  separate merge request. This keeps `main` current and triggers the Pages
+  deployment (`pages.yml` runs on pushes to `main`); archive the change
+  afterwards and push that too.
 - `package.json` exists only to install the OpenSpec CLI. The
   `openspec` binary is not on PATH: run `npm install` once, then invoke
   commands as `npx openspec <command>` from the repo root (e.g.
