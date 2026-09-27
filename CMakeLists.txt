@@ -341,6 +341,7 @@ if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)
     add_executable(efx_dev_harness
         tests/dev_harness.c
         src/player/player.c
+        src/player/repl.c
     )
     target_link_libraries(efx_dev_harness PRIVATE efx_core efx_platform)
     if(MSVC)
@@ -348,5 +349,8 @@ if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)
         target_compile_options(efx_dev_harness PRIVATE /W4 /WX)
     else()
         target_compile_options(efx_dev_harness PRIVATE -Wall -Wextra -Werror)
+        if(UNIX)
+            target_compile_definitions(efx_dev_harness PRIVATE _POSIX_C_SOURCE=200809L)
+        endif()
     endif()
 endif()
