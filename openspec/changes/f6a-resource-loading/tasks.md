@@ -91,6 +91,6 @@
   findings; only then Windows, then macOS. Verify via
   `python3 tools/verify_remote.py all <branch>` before dispatching
   `gh workflow run ci.yml --ref <branch>`.
-- [ ] 6.3 Confirm the four-target gate is green (native suites incl. all
+- [x] 6.3 Confirm the four-target gate is green (native suites incl. all
   goldens on Linux/Windows/macOS, Emscripten ctest + web goldens) before
   archiving.
