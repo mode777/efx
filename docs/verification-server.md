@@ -20,6 +20,12 @@ gate runs on `ubuntu-latest`:
    pinned emsdk, compared via `efx_imgdiff` against the committed
    goldens in pinned `chrome-headless-shell` (SwiftShader WebGL) —
    the same setup as the `golden-web` job in `ci.yml`.
+3. **gallery** — builds the raw web player (`player_web` + the Node
+   `player`), runs `tools/test_web_override.mjs` to prove the host
+   entry-source hook (ADR 0030), then builds the `gallery/` site
+   (`npm ci` + Vite) and runs `tools/run_gallery_smoke.mjs` in pinned
+   `chrome-headless-shell` (boots, runs several samples in sequence, no
+   console errors).
 
 **Policy: the server suites must pass before the GitHub Actions gate is
 dispatched. If verification on the server fails, do not run
@@ -48,7 +54,8 @@ error and touches nothing. Requires `paramiko`
 # normal flow: commit your change, push the branch, then:
 python3 tools/verify_remote.py native        # native golden suite
 python3 tools/verify_remote.py web           # emscripten golden suite
-python3 tools/verify_remote.py all           # both, native first
+python3 tools/verify_remote.py gallery       # web player hook + gallery smoke
+python3 tools/verify_remote.py all           # all suites, native first
 
 # then, only if green:
 gh workflow run ci.yml --ref <branch>

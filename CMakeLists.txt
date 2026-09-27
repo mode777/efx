@@ -123,6 +123,10 @@ if(EMSCRIPTEN)
         -sMAX_WEBGL_VERSION=2
         -sNODERAWFS=1 -sENVIRONMENT=node)
 
+    # Raw web player + downloadable bundle. Its preloaded root
+    # (examples/browser) is only the standalone fallback demo; the public
+    # sample gallery is a separate site under gallery/ (ADR 0030) and feeds
+    # the engine a host-provided entry script at boot.
     add_executable(player_web src/web/web_main.c)
     target_link_libraries(player_web PRIVATE efx_core efx_platform)
     set_target_properties(player_web PROPERTIES

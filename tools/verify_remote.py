@@ -6,9 +6,10 @@ suites here BEFORE dispatching the GitHub Actions gate. If this fails, do
 not dispatch `gh workflow run ci.yml`.
 
 Usage:
-    python3 tools/verify_remote.py native [ref]
-    python3 tools/verify_remote.py web    [ref]
-    python3 tools/verify_remote.py all    [ref]
+    python3 tools/verify_remote.py native   [ref]
+    python3 tools/verify_remote.py web      [ref]
+    python3 tools/verify_remote.py gallery  [ref]
+    python3 tools/verify_remote.py all      [ref]
 
     ref   branch name on origin to verify (default: the current branch).
           The ref must be pushed; the normal flow is:
@@ -34,6 +35,22 @@ import time
 
 NATIVE_TIMEOUT = 1800  # configure + build + ctest under Xvfb
 WEB_TIMEOUT = 3600     # emcmake + build + chrome-headless-shell run
+GALLERY_TIMEOUT = 2400  # emcmake build + npm ci/build + chrome smoke
+
+# Pinned chrome-headless-shell helpers shared by the web and gallery suites.
+CHROME_ENSURE_CMD = (
+    "CHROME_BIN=$(ls ~/browsers/chrome-headless-shell/*/"
+    "chrome-headless-shell-*/chrome-headless-shell 2>/dev/null | head -1);"
+    ' if [ -z "$CHROME_BIN" ]; then npx --yes @puppeteer/browsers install'
+    " chrome-headless-shell@131 --path ~/browsers;"
+    " CHROME_BIN=$(ls ~/browsers/chrome-headless-shell/*/"
+    "chrome-headless-shell-*/chrome-headless-shell | head -1); fi;"
+    ' echo "chrome-shell: $CHROME_BIN"'
+)
+CHROME_PATH_CMD = (
+    'CHROME_SHELL_PATH=$(ls ~/browsers/chrome-headless-shell/*/'
+    'chrome-headless-shell-*/chrome-headless-shell | head -1)'
+)
 
 
 def die(msg, code=2):
@@ -159,29 +176,57 @@ WEB_STEPS = [
      " cmake --build build-web-golden --target player_web_golden -j{JOBS}",
      1800),
     ("ensure chrome-headless-shell@131",
-     "CHROME_BIN=$(ls ~/browsers/chrome-headless-shell/*/"
-     "chrome-headless-shell-*/chrome-headless-shell 2>/dev/null | head -1);"
-     ' if [ -z "$CHROME_BIN" ]; then npx --yes @puppeteer/browsers install'
-     " chrome-headless-shell@131 --path ~/browsers;"
-     " CHROME_BIN=$(ls ~/browsers/chrome-headless-shell/*/"
-     "chrome-headless-shell-*/chrome-headless-shell | head -1); fi;"
-     ' echo "chrome-shell: $CHROME_BIN"',
+     CHROME_ENSURE_CMD,
      600),
     ("ensure node deps",
      "test -d node_modules/puppeteer-core ||"
      " npm install --no-save puppeteer-core @puppeteer/browsers",
      600),
     ("web golden tests",
-     'CHROME_SHELL_PATH=$(ls ~/browsers/chrome-headless-shell/*/'
-     'chrome-headless-shell-*/chrome-headless-shell | head -1)'
+     CHROME_PATH_CMD +
      " node tools/run_web_goldens.mjs",
+     900),
+]
+
+# Gallery (web-gallery / ADR 0030): build the raw web player, verify the
+# host entry-source hook, build the gallery site, and run the headless smoke.
+GALLERY_STEPS = [
+    ("configure web build",
+     "source /opt/emsdk/emsdk_env.sh >/dev/null &&"
+     " emcmake cmake -B build-web -DCMAKE_BUILD_TYPE=Release",
+     300),
+    ("build web player (browser + node)",
+     "source /opt/emsdk/emsdk_env.sh >/dev/null &&"
+     " cmake --build build-web --target player_web player -j{JOBS}",
+     1800),
+    ("web override hook test",
+     "node tools/test_web_override.mjs build-web/player.js",
+     120),
+    ("install gallery deps",
+     "npm --prefix gallery ci",
+     900),
+    ("bundle player into gallery",
+     "EFX_WEB_BUILD=build-web npm --prefix gallery run prepare:player",
+     120),
+    ("build gallery site",
+     "npm --prefix gallery run build",
+     600),
+    ("ensure chrome-headless-shell@131",
+     CHROME_ENSURE_CMD,
+     600),
+    ("ensure node deps",
+     "test -d node_modules/puppeteer-core ||"
+     " npm install --no-save puppeteer-core @puppeteer/browsers",
+     600),
+    ("gallery smoke",
+     CHROME_PATH_CMD + " node tools/run_gallery_smoke.mjs",
      900),
 ]
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("suite", choices=["native", "web", "all"])
+    ap.add_argument("suite", choices=["native", "web", "gallery", "all"])
     ap.add_argument("ref", nargs="?", default=None)
     ap.add_argument("--dir", default="~/emotion-fx")
     ap.add_argument("--jobs", type=int, default=0,
@@ -205,6 +250,8 @@ def main():
             suites.append(("native", NATIVE_STEPS, NATIVE_TIMEOUT))
         if args.suite in ("web", "all"):
             suites.append(("web", WEB_STEPS, WEB_TIMEOUT))
+        if args.suite in ("gallery", "all"):
+            suites.append(("gallery", GALLERY_STEPS, GALLERY_TIMEOUT))
 
         failed = []
         for name, steps, _ in suites:

@@ -1,0 +1,30 @@
+[
+  {
+    "file": "hello-cube.js",
+    "id": "curated:hello-cube",
+    "title": "Hello Cube",
+    "category": "Showcase",
+    "description": "A lit, spinning cube — the smallest complete 3D scene."
+  },
+  {
+    "file": "bouncing-sprites.js",
+    "id": "curated:bouncing-sprites",
+    "title": "Bouncing Sprites",
+    "category": "Showcase",
+    "description": "Eight textured quads bouncing inside a 640x480 virtual frame."
+  },
+  {
+    "file": "light-show.js",
+    "id": "curated:light-show",
+    "title": "Light Show",
+    "category": "Showcase",
+    "description": "Four colored point lights orbiting a Phong sphere in real time."
+  },
+  {
+    "file": "post-bloom-tv.js",
+    "id": "curated:post-bloom-tv",
+    "title": "CRT Bloom",
+    "category": "Showcase",
+    "description": "A declarative post-effect chain: bloom plus a color filter."
+  }
+]

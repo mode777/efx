@@ -1,10 +1,11 @@
 name: pages
 
-# Public web player deployment (ADR 0023, amended by
-# separate-pages-deploy). Pages is deliberately NOT a job in the ci gate
-# workflow: the github-pages environment only permits the default branch,
-# so a gate run on a feature branch would fail on deploy and mask the
-# verification result. This workflow owns build + deploy instead.
+# Public sample gallery deployment (ADR 0023, amended by
+# separate-pages-deploy; gallery embedding contract ADR 0030). Pages is
+# deliberately NOT a job in the ci gate workflow: the github-pages
+# environment only permits the default branch, so a gate run on a feature
+# branch would fail on deploy and mask the verification result. This
+# workflow owns build + deploy instead.
 on:
   push:
     branches: [main]
@@ -12,7 +13,7 @@ on:
 
 jobs:
   deploy:
-    name: deploy web player (github pages)
+    name: deploy sample gallery (github pages)
     # manual dispatch from any other ref is a no-op (protected environment)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -35,20 +36,33 @@ jobs:
           emcmake cmake -B build-web -DCMAKE_BUILD_TYPE=Release
           cmake --build build-web --target player_web
 
-      - name: Collect pages content
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: gallery/package-lock.json
+
+      - name: Install gallery deps
+        run: npm ci --prefix gallery
+
+      - name: Bundle player into the gallery
+        run: EFX_WEB_BUILD=build-web npm --prefix gallery run prepare:player
+
+      - name: Build gallery
+        run: npm --prefix gallery run build
+
+      - name: Check gallery outputs
         run: |
           set -euo pipefail
-          for f in player_web.html player_web.js player_web.wasm player_web.data; do
-            test -f "build-web/$f" || { echo "missing build-web/$f" >&2; exit 1; }
+          for f in index.html runner.html \
+                   player/player_web.js player/player_web.wasm player/player_web.data; do
+            test -f "gallery/dist/$f" || { echo "missing gallery/dist/$f" >&2; exit 1; }
           done
-          mkdir pages
-          cp build-web/player_web.html pages/index.html
-          cp build-web/player_web.js build-web/player_web.wasm build-web/player_web.data pages/
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: pages
+          path: gallery/dist
 
       - name: Deploy to GitHub Pages
         id: deployment

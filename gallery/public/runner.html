@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>EmotionFX runner</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #02030a;
+        overflow: hidden;
+      }
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" tabindex="-1"></canvas>
+    <script>
+      // Isolated per-run engine host. The parent gallery creates a fresh
+      // iframe for every run (design D1) and hands the source over before the
+      // player boots (design D2/D4). Navigating this document away releases
+      // the WebGL context.
+      (function () {
+        var PLAYER = './player/player_web.js';
+        var booted = false;
+
+        function post(message) {
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage(message, window.location.origin);
+            }
+          } catch (e) {}
+        }
+
+        // entry.js reports script errors through console.error; forward them
+        // so the gallery can surface the error inline.
+        var origError = console.error;
+        console.error = function () {
+          var parts = [];
+          for (var i = 0; i < arguments.length; i++) {
+            var a = arguments[i];
+            parts.push(a && a.message ? a.message : String(a));
+          }
+          post({ type: 'error', message: parts.join(' ') });
+          origError.apply(console, arguments);
+        };
+
+        window.addEventListener('error', function (ev) {
+          post({ type: 'error', message: ev.message || 'script error' });
+        });
+        window.addEventListener('unhandledrejection', function (ev) {
+          var r = ev.reason;
+          post({ type: 'error', message: (r && r.message) || String(r) });
+        });
+
+        function boot(code) {
+          if (booted) return;
+          booted = true;
+          globalThis.__efx_main_js = code;
+          // Anchor the player's sidecar files (wasm + preloaded data) to
+          // ./player/, independent of the document base URL.
+          globalThis.Module = Object.assign(globalThis.Module || {}, {
+            locateFile: function (path) {
+              return './player/' + path;
+            },
+          });
+          var script = document.createElement('script');
+          script.src = PLAYER;
+          script.onerror = function () {
+            post({ type: 'error', message: 'failed to load the web player (' + PLAYER + ')' });
+          };
+          document.body.appendChild(script);
+        }
+
+        window.addEventListener('message', function (ev) {
+          if (ev.origin !== window.location.origin) return;
+          var data = ev.data || {};
+          if (data.type === 'run') {
+            boot(String(data.code == null ? '' : data.code));
+          }
+        });
+
+        post({ type: 'ready' });
+      })();
+    </script>
+  </body>
+</html>
