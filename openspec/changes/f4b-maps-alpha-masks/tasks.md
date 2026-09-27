@@ -39,10 +39,10 @@ Implements F4b (per-channel maps + alpha masks). Decisions D1–D10 refer to
 
 - [x] 6.1 Write ADR `docs/decisions/0027-mesh-material-maps-and-alpha-mask.md` per TEMPLATE.md (single uniform-driven shader with four channel samplers + a mask sampler and white-texture fallback, no permutations — upholding ADR 0026; binary `alpha < 0.5` cutout; bound-map texture retention) and add it to the `docs/decisions/README.md` index; verify the file exists and is indexed
 - [x] 6.2 Move the `docs/js-api.md` F4b entries (`map` per channel, `alphaMask`, uv consumption, retained map textures) from provisional to current, state the neutral-absent-map and binary-mask behavior, and keep the `uv`-transform/wrap notes as explicit non-goals; verify every signature matches the implementation
-- [ ] 6.3 Update AGENTS.md (current-state section and the roadmap status table for F4b, including the shader/lifetime decision and the new ADR); verify the table matches reality at the time of the update
+- [x] 6.3 Update AGENTS.md (current-state section and the roadmap status table for F4b, including the shader/lifetime decision and the new ADR); verify the table matches reality at the time of the update
 
 ## 7. F4b gate (verification order per AGENTS.md)
 
 - [x] 7.1 Host verification: full `ctest` green (smoke + headless display-list/material tests + extended CPU lighting reference + golden suite incl. the new F4b scenes) with the F2/F3/F4a goldens unchanged; verify via host ctest output
 - [x] 7.2 Commit → push branch → `python3 tools/verify_remote.py all <branch>` (Linux golden-bearing jobs as the pre-filter); fix and re-verify until green before any GitHub Actions run
-- [ ] 7.3 Dispatch `gh workflow run ci.yml --ref <branch>`; the full four-target gate passes in Linux → Windows → macOS order (native suites incl. goldens on each, Emscripten suite + web goldens), per the rendering-milestone gate; verify via the Actions run summary
+- [x] 7.3 Dispatch `gh workflow run ci.yml --ref <branch>`; the full four-target gate passes in Linux → Windows → macOS order (native suites incl. goldens on each, Emscripten suite + web goldens), per the rendering-milestone gate; verify via the Actions run summary
