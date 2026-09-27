@@ -2,8 +2,9 @@
 
 **Status:** F1 (including explicit lifecycle hook registration), F2, F3, F4a
 (lighting + Phong materials on solids/vertex colors), F4b (per-channel
-maps + alpha masks), and F5a (render targets) are implemented (current
-behavior). Everything from F5b onward is a provisional contract — names and
+maps + alpha masks), F5a (render targets), and F5b (post-effect chain +
+render scale) are implemented (current behavior). Everything from F6
+onward is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
 the same change). See `vision.md` for product goals and
@@ -147,6 +148,7 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 | Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData)`; `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
 | Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
+| Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | F5b | Plain objects snapshotted at `setPostEffects` call time; no native handle and no `destroy()`. The native passes they drive are engine-owned and never script-visible (ADR 0029) |
 | Fonts (atlas + quad layout) | — | JS-managed | — | F8 | Pure JS over Texture; passed to `drawText` |
 | Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
 
@@ -175,6 +177,7 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 | Directional lights | 1 |
 | Cameras | 1 3D camera (set, never created); the F2 2D projection frame is a separate projection state |
 | Surfaces per mesh | 16 |
+| Post-effect chain | 8 entries (F5b) |
 | Render-target size | 4096 per side (width and height, positive integers; F5a) |
 
 ## API catalog
@@ -650,21 +653,82 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F5b — Post FX (provisional)
+### F5b — Post FX (current)
 
-Scope from roadmap F5's second half: full-screen effect chain, per-effect
-mix, render scale. The declarative single-entry shape below supersedes the
-earlier provisional `setColorFilter` / `setBlur` globals (never shipped —
-retired before delivery, `f5b-post-fx`).
+Scope from roadmap F5's second half: a full-screen post-effect chain, a
+per-effect `mix`, and render-resolution decoupling (ADR 0029). The
+declarative single-entry shape below supersedes the earlier provisional
+`setColorFilter` / `setBlur` globals (never shipped — retired before
+delivery, `f5b-post-fx`).
 
 ```js
-// F5b · C · provisional — declarative post-effect chain (≤ 8 entries)
+// F5b · C — desktop binding `C · quickjs`, web binding `C · bridge`
 efx.setPostEffects(list | null)   // [{ effect, ...options, mix? }], null/[] clears
 efx.setRenderScale(scale, opts?)  // scene resolution vs surface; { filter: 'nearest' | 'linear' }
 ```
 
+**Chain declaration** — `setPostEffects(list)` sets the frame's ordered
+chain; `null` or `[]` clears it. Each entry is a plain object
+`{ effect, ...options, mix? }`. The call validates **eagerly and
+atomically**: a non-array `list`, a non-object entry, a missing or
+unregistered `effect`, an unknown option field, or a wrongly-typed value
+throws `TypeError`; an out-of-range number, a `mix` outside 0..1, or more
+than 8 entries throws `RangeError` — and on throw the previously set chain
+stays in effect. Entries are JS-managed: the engine **snapshots** their
+values at call time, so later mutation of a script-held entry object does
+not change the applied chain. The chain is plain engine state (the
+`setClearColor` model): the most recent value at frame resolve applies and
+it persists across frames until changed.
+
+**Effect set (v1)** — each effect has pinned defaults; every entry may set
+`mix` (0..1, default 1), the entry's input/output blend:
+
+| Effect | Options (default) | Bounds | Passes |
+|---|---|---|---|
+| `colorFilter` | `brightness` (1), `contrast` (1), `saturation` (1), `tint` ([1,1,1,1]) | `brightness`/`contrast`/`saturation` finite ≥ 0; `tint` 4 finite components in 0..1 | one |
+| `blur` | `radius` (1) | finite > 0 and ≤ 64 (scene pixels) | several internal (separable gaussian below an internal threshold, downsample chain above) |
+| `bloom` | `threshold` (0.8), `strength` (0.5) | both finite in 0..1 | composite (bright pass → downsample blur → additive up) |
+
+- `colorFilter` — `brightness` multiplies the color, `contrast` pivots at
+  0.5 grey, `saturation` 0 yields fully desaturated (grey) output and 1 is
+  unchanged, `tint` multiplies rgb (alpha ignored). With all defaults the
+  output is the input (identity).
+- `blur` — radius in scene pixels; the pass structure and downsampling are
+  engine-owned and invisible (the script-visible result is only "blurred by
+  radius").
+- `bloom` — texels whose luminance is below `threshold` contribute nothing;
+  `strength` is the additive contribution.
+- The written result of every entry is `lerp(input, output, mix)` — `mix: 0`
+  leaves the input unchanged. Entries apply in array order and the order is
+  observable (a chain and its reverse differ deterministically).
+
+**Resolve pipeline and fast path** — with no chain and `scale` 1 the frame
+renders direct to the default target, byte-identical to the pre-F5b path
+(every committed golden stays valid, no re-baselining). Otherwise the
+default segment renders into an engine-owned **implicit scene target**
+(sized by the render scale), the chain runs in array order through
+engine-owned ping-pong temporaries, and the final pass blits to the default
+target. The implicit scene target and temporaries are never script-visible
+(no handles, no class). The chain applies to the **default target's
+resolve only**: draws recorded into user RenderTargets render raw and their
+sampled contents are unfiltered — only the final screen resolve passes
+through the chain.
+
+**Render scale** — `setRenderScale(scale, opts?)` sets the ratio between
+the scene render resolution and the default target's size: `scale` a finite
+number in (0, 2] (`RangeError` otherwise; default 1), `opts.filter` one of
+`'nearest'` or `'linear'` (default `'linear'`; unknown fields or values
+throw `TypeError`). The scene target is the surface size multiplied by
+`scale`, rounded up; the final blit scales the scene to the surface with
+the chosen filter (nearest gives crisp 2×2 blocks at half resolution,
+linear interpolates). Render scale is orthogonal to the 2D camera frame:
+the frame maps onto the scene target (the active rendering surface), which
+then maps onto the output surface. It is plain engine state, applies to the
+default target's resolve, and with scale 1 and no chain the fast path
+renders direct.
+
 ```js
-// main.js — F5b sample (provisional API)
+// main.js — F5b sample (current API)
 efx.setCamera2D({ frame: [640, 480] });
 efx.setPostEffects([
     { effect: 'colorFilter', brightness: 1.1, saturation: 0.6 },
@@ -672,6 +736,9 @@ efx.setPostEffects([
     { effect: 'bloom', threshold: 0.8, strength: 0.5, mix: 0.5 },
 ]);
 efx.setRenderScale(0.5, { filter: 'nearest' });
+
+efx.setPostEffects(null);   // back to the byte-identical fast path
+efx.setRenderScale(1);
 ```
 
 ### F6 — Resources (provisional)
@@ -810,7 +877,7 @@ section (or an open question below):
 | Phong material system, 4 channels + maps | F4a/F4b (`setMeshSurfaceMaterial`) |
 | Alpha masks | F4b (`alphaMask`) |
 | Rendering to textures | F5a (render targets — `createRenderTarget` / `beginRenderTarget`) |
-| Simple post processing (color filter, blur) | F5b (`setPostEffects`, provisional) |
+| Simple post processing (color filter, blur) | F5b (`setPostEffects`, current) |
 | Resource folder / zip root (`res://`-like) | F6 (load paths, zip in F6) |
 | REPL console mode | F6 (drives the same `efx` namespace) |
 | Skinning and animations | F7 |

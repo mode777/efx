@@ -190,9 +190,13 @@ if(EFX_SHDC)
         COMMAND ${EFX_SHDC} -i ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.glsl
                 -o ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.h
                 --slang glsl410:glsl300es:hlsl4:metal_macos -f sokol_impl
+        COMMAND ${EFX_SHDC} -i ${CMAKE_CURRENT_SOURCE_DIR}/shaders/post.glsl
+                -o ${CMAKE_CURRENT_SOURCE_DIR}/shaders/post.h
+                --slang glsl410:glsl300es:hlsl4:metal_macos -f sokol_impl
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/quad.glsl
                 ${CMAKE_CURRENT_SOURCE_DIR}/shaders/mesh.glsl
-        COMMENT "Regenerating shaders/quad.h and shaders/mesh.h via sokol-shdc")
+                ${CMAKE_CURRENT_SOURCE_DIR}/shaders/post.glsl
+        COMMENT "Regenerating shaders/quad.h, shaders/mesh.h and shaders/post.h via sokol-shdc")
 endif()
 
 enable_testing()

@@ -43,6 +43,7 @@ add_player_test(smoke_3d_math ARGS "--script;${S}/s_3d_math.js" EXPECT 0 EXPECT_
 add_player_test(smoke_4a_validation ARGS "--script;${S}/s_4a_validation.js" EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
 add_player_test(smoke_4b_validation ARGS "--script;${S}/s_4b_validation.js" EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
 add_player_test(smoke_5a_validation ARGS "--script;${S}/s_5a_validation.js" EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
+add_player_test(smoke_5b_validation ARGS "--script;${S}/s_5b_validation.js" EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
 endif()
 
 # web native-runtime tests (ADR 0022): the host JS engine (Node in this
@@ -97,6 +98,7 @@ if(EMSCRIPTEN)
     add_web_test(web_4a_validation ${S}/s_4a_validation.js EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
     add_web_test(web_4b_validation ${S}/s_4b_validation.js EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
     add_web_test(web_5a_validation ${S}/s_5a_validation.js EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
+    add_web_test(web_5b_validation ${S}/s_5b_validation.js EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
 endif()
 
 endif() # NOT EFX_HEADLESS
@@ -126,7 +128,9 @@ foreach(CASE
     lights_state light_snapshot material_binding lighting_reference
     material_maps map_retention lighting_maps
     render_target_lifecycle target_deferred_release segmentation
-    target_redirection feedback_guard)
+    target_redirection feedback_guard
+    post_registry post_fast_path post_render_scale post_surface_size
+    post_user_target_raw)
     add_unit_test(efx_render_tests ${CASE})
 endforeach()
 if(NOT EMSCRIPTEN)
@@ -134,7 +138,7 @@ foreach(CASE
     white quad_record size_derivation origin_pivot quad_validation
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
-    meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js)
+    meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()
@@ -164,7 +168,10 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 light_reference
                 map_diffuse map_ambient map_specular map_emissive
                 map_alpha_mask map_multimap map_reference
-                rt_quad2d rt_scene3d rt_camera rt_materialmap)
+                rt_quad2d rt_scene3d rt_camera rt_materialmap
+                post_colorfilter post_blur_small post_blur_large post_bloom
+                post_mix post_scale_nearest post_scale_linear
+                post_order_a post_order_b post_user_rt)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

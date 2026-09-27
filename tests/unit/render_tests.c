@@ -1245,6 +1245,252 @@ static int feedback_guard(void) {
     return 0;
 }
 
+static int post_registry(void) {
+    install_mock_sink();
+    efx_render_set_viewport(640, 480);
+    efx_post_entry e;
+    memset(&e, 0, sizeof(e));
+    e.effect = EFX_POST_COLOR_FILTER;
+    e.mix = 1.0f;
+    e.u.color_filter.brightness = 1.0f;
+    e.u.color_filter.contrast = 1.0f;
+    e.u.color_filter.saturation = 1.0f;
+    e.u.color_filter.tint[0] = 1.0f;
+    e.u.color_filter.tint[1] = 1.0f;
+    e.u.color_filter.tint[2] = 1.0f;
+    e.u.color_filter.tint[3] = 1.0f;
+    if (efx_render_set_post_effects(&e, 1) != EFX_POST_OK)
+        return fail("valid colorFilter rejected");
+    efx_post_entry got[EFX_POST_MAX_ENTRIES];
+    int n = 0;
+    efx_render_post_effects(got, &n);
+    if (n != 1 || got[0].effect != EFX_POST_COLOR_FILTER)
+        return fail("stored chain");
+    /* unknown effect is rejected and leaves the previous chain */
+    efx_post_entry bad = e;
+    bad.effect = 99;
+    if (efx_render_set_post_effects(&bad, 1) != EFX_POST_ERR_UNKNOWN)
+        return fail("unknown effect accepted");
+    efx_render_post_effects(got, &n);
+    if (n != 1 || got[0].effect != EFX_POST_COLOR_FILTER)
+        return fail("previous chain lost on unknown effect");
+    /* count cap */
+    efx_post_entry many[EFX_POST_MAX_ENTRIES + 1];
+    for (int i = 0; i <= EFX_POST_MAX_ENTRIES; i++) many[i] = e;
+    if (efx_render_set_post_effects(many, EFX_POST_MAX_ENTRIES + 1) !=
+        EFX_POST_ERR_COUNT)
+        return fail("over-long chain accepted");
+    /* option bounds */
+    efx_post_entry blur;
+    memset(&blur, 0, sizeof(blur));
+    blur.effect = EFX_POST_BLUR;
+    blur.mix = 1.0f;
+    blur.u.blur.radius = 0.0f;
+    if (efx_render_set_post_effects(&blur, 1) != EFX_POST_ERR_RANGE)
+        return fail("radius 0 accepted");
+    blur.u.blur.radius = 65.0f;
+    if (efx_render_set_post_effects(&blur, 1) != EFX_POST_ERR_RANGE)
+        return fail("radius 65 accepted");
+    blur.u.blur.radius = 4.0f;
+    if (efx_render_set_post_effects(&blur, 1) != EFX_POST_OK)
+        return fail("valid blur rejected");
+    efx_post_entry bloom;
+    memset(&bloom, 0, sizeof(bloom));
+    bloom.effect = EFX_POST_BLOOM;
+    bloom.mix = 1.0f;
+    bloom.u.bloom.threshold = 1.5f;
+    bloom.u.bloom.strength = 0.5f;
+    if (efx_render_set_post_effects(&bloom, 1) != EFX_POST_ERR_RANGE)
+        return fail("threshold 1.5 accepted");
+    bloom.u.bloom.threshold = 0.8f;
+    bloom.u.bloom.strength = 1.5f;
+    if (efx_render_set_post_effects(&bloom, 1) != EFX_POST_ERR_RANGE)
+        return fail("strength 1.5 accepted");
+    efx_post_entry neg = e;
+    neg.u.color_filter.brightness = -1.0f;
+    if (efx_render_set_post_effects(&neg, 1) != EFX_POST_ERR_RANGE)
+        return fail("negative brightness accepted");
+    neg = e;
+    neg.u.color_filter.tint[0] = 2.0f;
+    if (efx_render_set_post_effects(&neg, 1) != EFX_POST_ERR_RANGE)
+        return fail("tint > 1 accepted");
+    neg = e;
+    neg.mix = 1.5f;
+    if (efx_render_set_post_effects(&neg, 1) != EFX_POST_ERR_RANGE)
+        return fail("mix > 1 accepted");
+    /* snapshot: the caller's buffer is copied in, not referenced */
+    e.u.color_filter.brightness = 1.0f;
+    efx_render_set_post_effects(&e, 1);
+    e.u.color_filter.brightness = 0.25f;
+    efx_render_post_effects(got, &n);
+    if (!feq(got[0].u.color_filter.brightness, 1.0f))
+        return fail("entry not snapshotted");
+    /* clear */
+    if (efx_render_set_post_effects(NULL, 0) != EFX_POST_OK)
+        return fail("clear failed");
+    efx_render_post_effects(got, &n);
+    if (n != 0) return fail("chain not cleared");
+    efx_render_shutdown();
+    return 0;
+}
+
+static int post_fast_path(void) {
+    install_mock_sink();
+    efx_render_set_viewport(640, 480);
+    /* nothing set: inactive, and no scene target is ever allocated */
+    if (efx_render_post_active()) return fail("active with defaults");
+    if (efx_render_post_scene_handle() != 0)
+        return fail("scene target allocated on the fast path");
+    efx_post_entry e;
+    memset(&e, 0, sizeof(e));
+    e.effect = EFX_POST_BLUR;
+    e.mix = 1.0f;
+    e.u.blur.radius = 2.0f;
+    if (efx_render_set_post_effects(&e, 1) != EFX_POST_OK)
+        return fail("set blur");
+    if (!efx_render_post_active()) return fail("chain did not engage");
+    /* the scene target is allocated lazily by the resolve (here, directly) */
+    uint64_t scene = efx_render_post_scene_target(320, 240);
+    if (!scene) return fail("scene target create");
+    if (efx_render_post_scene_handle() != scene)
+        return fail("scene handle mismatch");
+    /* clearing the chain returns to the fast path (scale still 1) */
+    efx_render_set_post_effects(NULL, 0);
+    if (efx_render_post_active()) return fail("active after clear");
+    /* a render scale alone engages the scene target */
+    if (efx_render_set_render_scale(0.5f, EFX_FILTER_NEAREST) != EFX_POST_OK)
+        return fail("set scale");
+    if (!efx_render_post_active()) return fail("scale did not engage");
+    efx_render_set_render_scale(1.0f, EFX_FILTER_LINEAR);
+    if (efx_render_post_active()) return fail("scale 1 still active");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int post_render_scale(void) {
+    install_mock_sink();
+    if (efx_render_set_render_scale(0.0f, EFX_FILTER_LINEAR) !=
+        EFX_POST_ERR_RANGE)
+        return fail("scale 0 accepted");
+    if (efx_render_set_render_scale(2.5f, EFX_FILTER_LINEAR) !=
+        EFX_POST_ERR_RANGE)
+        return fail("scale 2.5 accepted");
+    if (efx_render_set_render_scale(-1.0f, EFX_FILTER_LINEAR) !=
+        EFX_POST_ERR_RANGE)
+        return fail("negative scale accepted");
+    if (efx_render_set_render_scale(INFINITY, EFX_FILTER_LINEAR) !=
+        EFX_POST_ERR_RANGE)
+        return fail("infinite scale accepted");
+    if (efx_render_set_render_scale(1.0f, 99) != EFX_POST_ERR_FILTER)
+        return fail("unknown filter accepted");
+    if (efx_render_set_render_scale(0.5f, EFX_FILTER_NEAREST) != EFX_POST_OK)
+        return fail("valid scale rejected");
+    float sc = 0;
+    int f = -1;
+    efx_render_render_scale(&sc, &f);
+    if (!feq(sc, 0.5f) || f != EFX_FILTER_NEAREST)
+        return fail("scale state");
+    /* a rejected call leaves the previous scale in effect */
+    if (efx_render_set_render_scale(0.0f, EFX_FILTER_LINEAR) !=
+        EFX_POST_ERR_RANGE)
+        return fail("second scale 0 accepted");
+    efx_render_render_scale(&sc, &f);
+    if (!feq(sc, 0.5f) || f != EFX_FILTER_NEAREST)
+        return fail("scale state changed on failure");
+    efx_render_shutdown();
+    return 0;
+}
+
+static int post_surface_size(void) {
+    install_mock_sink();
+    efx_render_set_viewport(640, 480);
+    int w = 0, h = 0;
+    efx_render_surface_size(&w, &h);
+    if (w != 640 || h != 480) return fail("default surface size");
+    efx_render_set_render_scale(0.5f, EFX_FILTER_LINEAR);
+    efx_render_surface_size(&w, &h);
+    if (w != 320 || h != 240) return fail("half surface size");
+    efx_render_set_render_scale(1.5f, EFX_FILTER_LINEAR);
+    efx_render_surface_size(&w, &h);
+    if (w != 960 || h != 720) return fail("upscaled surface size");
+    /* a chain alone (scale 1) keeps the surface size */
+    efx_render_set_render_scale(1.0f, EFX_FILTER_LINEAR);
+    efx_post_entry e;
+    memset(&e, 0, sizeof(e));
+    e.effect = EFX_POST_BLUR;
+    e.mix = 1.0f;
+    e.u.blur.radius = 3.0f;
+    efx_render_set_post_effects(&e, 1);
+    efx_render_surface_size(&w, &h);
+    if (w != 640 || h != 480) return fail("chain changed surface size");
+    /* the active render target still wins (segments render raw) */
+    uint64_t rt = efx_render_target_create(100, 50);
+    efx_render_begin_target(rt);
+    efx_render_surface_size(&w, &h);
+    if (w != 100 || h != 50) return fail("active target surface size");
+    efx_render_end_target();
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int post_user_target_raw(void) {
+    install_mock_sink();
+    efx_render_set_viewport(640, 480);
+    uint64_t rt = efx_render_target_create(64, 64);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    if (!rt || !tex) return fail("fixtures");
+    efx_post_entry e;
+    memset(&e, 0, sizeof(e));
+    e.effect = EFX_POST_BLUR;
+    e.mix = 1.0f;
+    e.u.blur.radius = 4.0f;
+    if (efx_render_set_post_effects(&e, 1) != EFX_POST_OK)
+        return fail("set chain");
+    if (!efx_render_post_active()) return fail("chain not active");
+    /* a chained frame: a screen quad, a user-target segment, then a screen
+       sample of that target */
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
+    efx_render_quad(0, 0, 64, 64, rt, NULL, 0, 1, NULL, 0, 32, 32);
+
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    int saw_begin = 0, saw_end = 0, seg_quads = 0, screen_quads = 0;
+    for (int i = 0; i < count; i++) {
+        if (recs[i].type == EFX_RECORD_BEGIN_TARGET) {
+            if (recs[i].target != rt) return fail("begin target tag");
+            saw_begin = 1;
+        } else if (recs[i].type == EFX_RECORD_END_TARGET) {
+            if (recs[i].target != rt) return fail("end target tag");
+            saw_end = 1;
+        } else if (recs[i].type == EFX_RECORD_QUAD) {
+            if (recs[i].target == rt) {
+                seg_quads++;
+            } else if (recs[i].target == 0) {
+                screen_quads++;
+            } else {
+                return fail("unexpected quad target");
+            }
+        }
+    }
+    if (!saw_begin || !saw_end) return fail("segment controls missing");
+    /* the user segment renders raw (its own records, its own target); only the
+       two default-surface records go through the scene-target resolve */
+    if (seg_quads != 1) return fail("segment quad not tagged to its target");
+    if (screen_quads != 2) return fail("default-surface quads");
+    /* the chain is engine state and the default surface stays the scene size */
+    int w = 0, h = 0;
+    efx_render_surface_size(&w, &h);
+    if (w != 640 || h != 480) return fail("chained default surface size");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_render_tests <case>\n");
@@ -1278,6 +1524,11 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "segmentation")) return segmentation();
     if (!strcmp(c, "target_redirection")) return target_redirection();
     if (!strcmp(c, "feedback_guard")) return feedback_guard();
+    if (!strcmp(c, "post_registry")) return post_registry();
+    if (!strcmp(c, "post_fast_path")) return post_fast_path();
+    if (!strcmp(c, "post_render_scale")) return post_render_scale();
+    if (!strcmp(c, "post_surface_size")) return post_surface_size();
+    if (!strcmp(c, "post_user_target_raw")) return post_user_target_raw();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

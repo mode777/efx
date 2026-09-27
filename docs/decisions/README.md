@@ -40,6 +40,8 @@ directory holds only what stays true after a change is archived.
 
 | [0028](0028-render-targets-sampled-directly.md) | Accepted | F5a render targets are sampled directly wherever a Texture is (no alias object), segmented in the display list, and released on the Texture lifecycle |
 
+| [0029](0029-post-chain-architecture.md) | Accepted | F5b post-processing is one declarative chain over an implicit scene target (fast path preserved) with an engine-owned, non-script-visible effect registry and per-entry `mix` |
+
 ## Adding a decision
 
 Copy [`TEMPLATE.md`](TEMPLATE.md) to `NNNN-short-slug.md`, fill it in,

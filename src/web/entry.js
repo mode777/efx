@@ -449,6 +449,83 @@ function __efxEnsureApi() {
         return ptr;
     }
 
+    /* F5b: parse one post-effect chain entry into the 9-float wire layout
+       (desktop parity: unknown field -> TypeError, non-number -> TypeError,
+       non-finite -> RangeError; bounds are enforced engine-side). */
+    function __efxPostNumber(v, what) {
+        if (typeof v !== 'number') {
+            throw new TypeError(what + ' must be a number');
+        }
+        if (!isFinite(v)) {
+            throw new RangeError(what + ' must be a finite number');
+        }
+        return v;
+    }
+    function __efxPostEntry(v) {
+        if (!__efxIsObject(v)) {
+            throw new TypeError('post-effect entry must be an object');
+        }
+        var effect = v['effect'];
+        if (typeof effect !== 'string') {
+            throw new TypeError('post-effect entry requires an effect name');
+        }
+        var known;
+        var out = new Float32Array(9);
+        out[1] = 1;
+        if (effect === 'colorFilter') {
+            known = { effect: 1, mix: 1, brightness: 1, contrast: 1,
+                      saturation: 1, tint: 1 };
+            out[0] = 0; out[2] = 1; out[3] = 1; out[4] = 1;
+            out[5] = 1; out[6] = 1; out[7] = 1; out[8] = 1;
+        } else if (effect === 'blur') {
+            known = { effect: 1, mix: 1, radius: 1 };
+            out[0] = 1; out[2] = 1;
+        } else if (effect === 'bloom') {
+            known = { effect: 1, mix: 1, threshold: 1, strength: 1 };
+            out[0] = 2; out[2] = 0.8; out[3] = 0.5;
+        } else {
+            throw new TypeError('unknown post effect');
+        }
+        var names = Object.getOwnPropertyNames(v);
+        for (var i = 0; i < names.length; i++) {
+            if (!known[names[i]]) {
+                throw new TypeError("unknown post effect option '" + names[i] + "'");
+            }
+        }
+        if (v['mix'] !== undefined) {
+            out[1] = __efxPostNumber(v['mix'], 'mix');
+        }
+        if (effect === 'colorFilter') {
+            if (v['brightness'] !== undefined) {
+                out[2] = __efxPostNumber(v['brightness'], 'brightness');
+            }
+            if (v['contrast'] !== undefined) {
+                out[3] = __efxPostNumber(v['contrast'], 'contrast');
+            }
+            if (v['saturation'] !== undefined) {
+                out[4] = __efxPostNumber(v['saturation'], 'saturation');
+            }
+            if (v['tint'] !== undefined) {
+                var t = __efxFloatArray(v['tint'], 4);
+                for (var k = 0; k < 4; k++) {
+                    out[5 + k] = t[k];
+                }
+            }
+        } else if (effect === 'blur') {
+            if (v['radius'] !== undefined) {
+                out[2] = __efxPostNumber(v['radius'], 'radius');
+            }
+        } else {
+            if (v['threshold'] !== undefined) {
+                out[2] = __efxPostNumber(v['threshold'], 'threshold');
+            }
+            if (v['strength'] !== undefined) {
+                out[3] = __efxPostNumber(v['strength'], 'strength');
+            }
+        }
+        return out;
+    }
+
     /* persistent scratch for per-draw uniforms (drawMesh is a hot path):
        16 floats transform + 4 floats color, allocated once */
     var drawScratch = 0;
@@ -736,6 +813,86 @@ function __efxEnsureApi() {
             }
             if (rc !== 0) {
                 throw new Error('endRenderTarget failed');
+            }
+        },
+        setPostEffects: function (list) {
+            if (arguments.length < 1) {
+                throw new TypeError('setPostEffects requires an array or null');
+            }
+            if (list === null || list === undefined) {
+                bridge['_efx_bridge_set_post_effects'](0, 0);
+                return;
+            }
+            if (!Array.isArray(list)) {
+                throw new TypeError('setPostEffects requires an array or null');
+            }
+            if (list.length > 8) {
+                throw new RangeError('post-effect chain is limited to 8 entries');
+            }
+            var wire = new Float32Array(list.length * 9);
+            for (var i = 0; i < list.length; i++) {
+                var e = __efxPostEntry(list[i]);
+                wire.set(e, i * 9);
+            }
+            var ptr = wire.length ? mallocCopyF32(wire) : 0;
+            var rc = bridge['_efx_bridge_set_post_effects'](ptr, list.length);
+            if (ptr) {
+                bridge['_efx_bridge_mem_free'](ptr);
+            }
+            if (rc === 1) {
+                throw new TypeError('unknown post effect');
+            }
+            if (rc === 2) {
+                throw new RangeError('post-effect chain is limited to 8 entries');
+            }
+            if (rc === 3) {
+                throw new RangeError('post-effect option out of range');
+            }
+            if (rc !== 0) {
+                throw new Error('setPostEffects failed');
+            }
+        },
+        setRenderScale: function (scale, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('setRenderScale requires a scale number');
+            }
+            if (typeof scale !== 'number') {
+                throw new TypeError('scale must be a number');
+            }
+            if (!isFinite(scale) || scale <= 0 || scale > 2) {
+                throw new RangeError('scale must be in (0, 2]');
+            }
+            var filter = 1;
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('setRenderScale options must be an object');
+                }
+                var kn = { filter: 1 };
+                var names = Object.getOwnPropertyNames(opts);
+                for (var i = 0; i < names.length; i++) {
+                    if (!kn[names[i]]) {
+                        throw new TypeError("unknown setRenderScale option '" + names[i] + "'");
+                    }
+                }
+                if (opts['filter'] !== undefined) {
+                    if (opts['filter'] === 'nearest') {
+                        filter = 0;
+                    } else if (opts['filter'] === 'linear') {
+                        filter = 1;
+                    } else {
+                        throw new TypeError('unknown filter');
+                    }
+                }
+            }
+            var rc = bridge['_efx_bridge_set_render_scale'](scale, filter);
+            if (rc === 3) {
+                throw new RangeError('scale must be in (0, 2]');
+            }
+            if (rc === 4) {
+                throw new TypeError('unknown filter');
+            }
+            if (rc !== 0) {
+                throw new Error('setRenderScale failed');
             }
         },
         drawQuad: function (x, y, texture, opts) {

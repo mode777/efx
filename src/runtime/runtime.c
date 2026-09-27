@@ -174,6 +174,8 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         JS_CFUNC_DEF("createRenderTarget", 1, efx_js_createRenderTarget),
         JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
         JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
+        JS_CFUNC_DEF("setPostEffects", 1, efx_js_setPostEffects),
+        JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));

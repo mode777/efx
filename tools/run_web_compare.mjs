@@ -43,6 +43,8 @@ const CASES = [
     { name: '3d_math', script: 'tests/scripts/s_3d_math.js', args: [] },
     { name: '4a_validation', script: 'tests/scripts/s_4a_validation.js', args: [] },
     { name: '4b_validation', script: 'tests/scripts/s_4b_validation.js', args: [] },
+    { name: '5a_validation', script: 'tests/scripts/s_5a_validation.js', args: [] },
+    { name: '5b_validation', script: 'tests/scripts/s_5b_validation.js', args: [] },
 ];
 
 function run(cmd, args) {

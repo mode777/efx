@@ -318,7 +318,9 @@ int efx_render_sample_alive(uint64_t h);
 void efx_render_sample_size(uint64_t h, int *out_w, int *out_h);
 void *efx_render_sample_native(uint64_t h);
 /* active rendering surface size (default target or active render target);
- * backs the default 2D camera frame and the 3D projection aspect (F5a) */
+ * backs the default 2D camera frame and the 3D projection aspect (F5a).
+ * With an active post chain or a render scale != 1 the default surface is
+ * the implicit scene target, so this reports the scaled scene size (F5b). */
 void efx_render_surface_size(int *out_w, int *out_h);
 
 /* per-surface material binding on a live Mesh (F4a); has=0 restores the
@@ -330,6 +332,76 @@ int efx_render_mesh_set_material(uint64_t h, int surface,
  * when a material is explicitly bound, 0 for the default; -1 on bad mesh */
 int efx_render_mesh_surface_material(uint64_t h, int surface,
                                      efx_material *out);
+
+/* ------------------------------------------------------- F5b post effects */
+
+/* fixed limit: post-effect chain entries per frame (vision.md fixed limits) */
+#define EFX_POST_MAX_ENTRIES 8
+
+/* registered effects (F5b v1) */
+#define EFX_POST_COLOR_FILTER 0
+#define EFX_POST_BLUR 1
+#define EFX_POST_BLOOM 2
+
+/* render-scale blit filter */
+#define EFX_FILTER_NEAREST 0
+#define EFX_FILTER_LINEAR 1
+
+/* native validation results; the binding maps these to JS exception types
+ * (unknown effect/filter -> TypeError, count/range -> RangeError) */
+#define EFX_POST_OK 0
+#define EFX_POST_ERR_UNKNOWN 1
+#define EFX_POST_ERR_COUNT 2
+#define EFX_POST_ERR_RANGE 3
+#define EFX_POST_ERR_FILTER 4
+
+/* one post-effect chain entry: plain values, JS-managed on the script side
+ * (no native handle, no destroy). The option union carries the registered
+ * effect's pinned fields; `mix` (0..1, default 1) lerps input to output. */
+typedef struct efx_post_entry {
+    int effect;
+    float mix;
+    union {
+        struct {
+            float brightness, contrast, saturation;
+            float tint[4];
+        } color_filter;
+        struct {
+            float radius; /* scene pixels, > 0 and <= 64 */
+        } blur;
+        struct {
+            float threshold; /* luminance cut 0..1 */
+            float strength;  /* additive contribution 0..1 */
+        } bloom;
+    } u;
+} efx_post_entry;
+
+/* validate + store the chain (value snapshot; count 0 clears). Validates
+ * every field against the registered effect's bounds: unknown effect ->
+ * ERR_UNKNOWN, count outside 0..EFX_POST_MAX_ENTRIES -> ERR_COUNT, an
+ * out-of-range option -> ERR_RANGE. On failure the previous chain remains. */
+int efx_render_set_post_effects(const efx_post_entry *entries, int count);
+/* current chain (out may be NULL; count optional) */
+void efx_render_post_effects(efx_post_entry *out, int *count);
+/* 1 when the frame needs the implicit scene target (chain set or scale != 1) */
+int efx_render_post_active(void);
+
+/* render scale: scene resolution / surface size, finite in (0, 2]; filter
+ * EFX_FILTER_NEAREST / EFX_FILTER_LINEAR. Returns EFX_POST_OK /
+ * EFX_POST_ERR_RANGE / EFX_POST_ERR_FILTER; on failure state is unchanged. */
+int efx_render_set_render_scale(float scale, int filter);
+void efx_render_render_scale(float *out_scale, int *out_filter);
+
+/* engine-owned implicit scene target and ping-pong temporaries (F5b). Never
+ * script-visible: no handles cross the binding, no class entry. Sizes are
+ * reallocated lazily; the returned handle is 0 on failure. Full-size temp
+ * slots 0/1 are the entry ping-pong outputs, 2/3 the blur tap internals. */
+uint64_t efx_render_post_scene_target(int w, int h);
+uint64_t efx_render_post_temp_target(int slot, int w, int h);
+/* half-size temporaries for the blur/bloom downsample chain (slots 0/1) */
+uint64_t efx_render_post_half_target(int slot, int w, int h);
+/* test/introspection: the allocated scene target handle (0 = fast path) */
+uint64_t efx_render_post_scene_handle(void);
 
 /* recording */
 int efx_render_quad(float x, float y, float w, float h, uint64_t texture,

@@ -1,7 +1,8 @@
-// Golden gallery (f2c visual demo, extended in F3/F4a/F4b/F5a): cycles the
-// golden-image scenes — seven 2D (F2 API), six 3D (F3 API), six lighting
-// (F4a API), seven material-map/mask (F4b API) and four render-target
-// (F5a API). Each scene reproduces its committed capture under
+// Golden gallery (f2c visual demo, extended in F3/F4a/F4b/F5a/F5b): cycles
+// the golden-image scenes — seven 2D (F2 API), six 3D (F3 API), six lighting
+// (F4a API), seven material-map/mask (F4b API), four render-target (F5a API)
+// and ten post-effect/render-scale (F5b API). Each scene reproduces its
+// committed capture under
 // tests/goldens/<name>/golden.png on a 640x480 virtual frame; a 2D progress
 // strip at the bottom shows the cycle position (drawn over the 3D scenes
 // too: 2D records ignore depth).
@@ -41,6 +42,24 @@ function mapTex(r, g, b, a) {
     return efx.createTexture(efx.createImageData({
         width: 1, height: 1, pixels: [r, g, b, a === undefined ? 255 : a],
     }));
+}
+
+// F5b post-effect demo base: the same 2x2 gradient + hard-edged bars scene
+// the post goldens use, so the gallery mirrors the committed captures
+function postBaseTex() {
+    return efx.createTexture(efx.createImageData({
+        width: 2, height: 2,
+        pixels: [230, 40, 40, 255, 40, 210, 80, 255,
+                 40, 80, 230, 255, 240, 220, 60, 255],
+    }));
+}
+
+function postBaseRender(tex) {
+    efx.drawQuad(0, 0, tex, { size: [640, 480] });
+    efx.drawQuad(120, 110, efx.whiteTexture, { size: [170, 70], color: [1, 1, 1, 1] });
+    efx.drawQuad(350, 150, tex, { size: [150, 150], color: [0.9, 0.35, 0.2, 1], rotation: 18 });
+    efx.drawQuad(180, 300, tex, { size: [130, 130], color: [0.2, 0.7, 0.95, 1], rotation: -12 });
+    efx.drawQuad(430, 330, tex, { size: [110, 110], color: [0.6, 0.9, 0.3, 1] });
 }
 
 // a camera-facing plane with uvs, sized to the default 3D view
@@ -759,6 +778,122 @@ const scenes = [
             efx.drawMesh({ mesh: this.plane });
         },
     },
+    {
+        name: 'post_colorfilter',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([{
+                effect: 'colorFilter', brightness: 1.1, contrast: 1.3,
+                saturation: 0.4, tint: [1.0, 0.8, 0.6, 1],
+            }]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_blur_small',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([{ effect: 'blur', radius: 3 }]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_blur_large',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([{ effect: 'blur', radius: 24 }]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_bloom',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([{ effect: 'bloom', threshold: 0.7, strength: 0.8 }]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_mix',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([{ effect: 'blur', radius: 10, mix: 0.5 }]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_scale_nearest',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setRenderScale(0.5, { filter: 'nearest' });
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_scale_linear',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setRenderScale(0.5, { filter: 'linear' });
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_order_a',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([
+                { effect: 'colorFilter', saturation: 0 },
+                { effect: 'colorFilter', tint: [1, 0.2, 0.2, 1] },
+            ]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_order_b',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            efx.setPostEffects([
+                { effect: 'colorFilter', tint: [1, 0.2, 0.2, 1] },
+                { effect: 'colorFilter', saturation: 0 },
+            ]);
+        },
+        render() { postBaseRender(this.tex); },
+    },
+    {
+        name: 'post_user_rt',
+        setup() {
+            efx.setClearColor([0.02, 0.03, 0.06, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = postBaseTex();
+            this.rt = efx.createRenderTarget({ width: 320, height: 240 });
+            efx.setPostEffects([{ effect: 'blur', radius: 6 }]);
+        },
+        render() {
+            efx.beginRenderTarget(this.rt);
+            efx.drawQuad(0, 0, this.tex, { size: [640, 480] });
+            efx.drawQuad(160, 120, efx.whiteTexture, { size: [320, 100], color: [1, 1, 1, 1] });
+            efx.endRenderTarget();
+            efx.drawQuad(160, 120, this.rt);
+        },
+    },
 ];
 
 let scene = -1;
@@ -768,6 +903,8 @@ function enter(i) {
     scene = i;
     frameInScene = 0;
     efx.setBlendMode('alpha');
+    efx.setPostEffects(null);   /* F5b: no chain leaks between scenes */
+    efx.setRenderScale(1);
     scenes[scene].setup();
     efx.log('browser hello: golden scene ' + scenes[scene].name);
 }

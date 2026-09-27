@@ -806,6 +806,102 @@ static int f5a_js(void) {
     return 0;
 }
 
+static int f5b_js(void) {
+    const char *matrix =
+        "function t(fn,kind){"
+        "  try{fn();throw new Error('no');}catch(e){"
+        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
+        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
+        "  }"
+        "}"
+        "t(()=>efx.setPostEffects('x'), TypeError);"
+        "t(()=>efx.setPostEffects([1]), TypeError);"
+        "t(()=>efx.setPostEffects([{effect:'vortex'}]), TypeError);"
+        "t(()=>efx.setPostEffects([{effect:'blur',radius:0}]), RangeError);"
+        "t(()=>efx.setPostEffects([{effect:'blur',radius:65}]), RangeError);"
+        "t(()=>efx.setPostEffects([{effect:'blur',radius:'x'}]), TypeError);"
+        "t(()=>efx.setPostEffects([{effect:'blur',frob:1}]), TypeError);"
+        "t(()=>efx.setPostEffects([{effect:'bloom',strength:1.5}]), RangeError);"
+        "t(()=>efx.setPostEffects([{effect:'colorFilter',tint:[1,1]}]), RangeError);"
+        "t(()=>efx.setPostEffects([{effect:'blur',mix:2}]), RangeError);"
+        "t(()=>efx.setPostEffects(new Array(9).fill({effect:'blur'})), RangeError);"
+        "t(()=>efx.setRenderScale(0), RangeError);"
+        "t(()=>efx.setRenderScale(2.5), RangeError);"
+        "t(()=>efx.setRenderScale('x'), TypeError);"
+        "t(()=>efx.setRenderScale(1,{filter:'bogus'}), TypeError);"
+        "t(()=>efx.setRenderScale(1,{frob:1}), TypeError);"
+        /* atomicity: a failed set leaves the previous chain */
+        "efx.setPostEffects([{effect:'blur',radius:5,mix:0.25}]);"
+        "t(()=>efx.setPostEffects([{effect:'nope'}]), TypeError);"
+        "t(()=>efx.setPostEffects([{effect:'blur',radius:0}]), RangeError);"
+        /* snapshot: later mutation of the entry must not change the chain */
+        "const entry={effect:'blur',radius:3,mix:0.5};"
+        "efx.setPostEffects([entry]);"
+        "entry.radius=60; entry.mix=0.1; entry.effect='bloom';";
+    if (ok_js(matrix)) {
+        end_js();
+        return fail("f5b js matrix");
+    }
+    efx_post_entry got[EFX_POST_MAX_ENTRIES];
+    int n = 0;
+    efx_render_post_effects(got, &n);
+    if (n != 1 || got[0].effect != EFX_POST_BLUR)
+        return fail("chain atomicity");
+    if (!feq(got[0].u.blur.radius, 3.0f) || !feq(got[0].mix, 0.5f))
+        return fail("chain snapshot");
+    end_js();
+
+    /* defaults are neutral and the chain persists across frames */
+    if (ok_js("efx.setPostEffects([{effect:'colorFilter'}]);")) {
+        end_js();
+        return fail("f5b js defaults");
+    }
+    efx_render_post_effects(got, &n);
+    if (n != 1 || got[0].effect != EFX_POST_COLOR_FILTER)
+        return fail("colorFilter stored");
+    if (!feq(got[0].u.color_filter.brightness, 1.0f) ||
+        !feq(got[0].u.color_filter.contrast, 1.0f) ||
+        !feq(got[0].u.color_filter.saturation, 1.0f) ||
+        !feq(got[0].u.color_filter.tint[0], 1.0f) ||
+        !feq(got[0].u.color_filter.tint[3], 1.0f) || !feq(got[0].mix, 1.0f))
+        return fail("colorFilter defaults");
+    efx_render_begin_frame(); /* next frame: plain engine state persists */
+    efx_render_post_effects(got, &n);
+    if (n != 1) return fail("chain did not persist across frames");
+    efx_render_end_frame();
+    end_js();
+
+    /* null and [] both clear */
+    if (ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects(null);")) {
+        end_js();
+        return fail("f5b js null clear");
+    }
+    efx_render_post_effects(got, &n);
+    if (n != 0) return fail("null did not clear");
+    end_js();
+    if (ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects([]);")) {
+        end_js();
+        return fail("f5b js empty clear");
+    }
+    efx_render_post_effects(got, &n);
+    if (n != 0) return fail("[] did not clear");
+    end_js();
+
+    /* render scale persists and a rejected call leaves it in effect */
+    if (ok_js("efx.setRenderScale(0.5,{filter:'nearest'});"
+              "try{efx.setRenderScale(0);}catch(e){}")) {
+        end_js();
+        return fail("f5b js scale");
+    }
+    float sc = 0;
+    int f = -1;
+    efx_render_render_scale(&sc, &f);
+    if (!feq(sc, 0.5f) || f != EFX_FILTER_NEAREST)
+        return fail("scale state after failed call");
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -833,6 +929,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "f4a_js")) return f4a_js();
     if (!strcmp(c, "f4b_js")) return f4b_js();
     if (!strcmp(c, "f5a_js")) return f5a_js();
+    if (!strcmp(c, "f5b_js")) return f5b_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }
