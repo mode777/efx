@@ -18,13 +18,13 @@
 ## 4. Script API bindings
 
 - [x] 4.1 Bind `efx.setPostEffects(list | null)` in `src/api` and the `src/web` bridge with eager atomic validation (≤ 8 entries, snapshot at call, throw leaves the previous chain); verify headless unit tests for atomicity, snapshot semantics, null-clear, and persistence across frames
-- [ ] 4.2 Keep bridge parity: verify `tools/run_web_compare.mjs` diffs desktop vs web at zero for a chained scene and the Emscripten ctest smoke suite runs the same portable scripts green
+- [x] 4.2 Keep bridge parity: verify `tools/run_web_compare.mjs` diffs desktop vs web at zero for a chained scene and the Emscripten ctest smoke suite runs the same portable scripts green
 
 ## 5. Golden scenes and unit tests
 
-- [ ] 5.1 Author the F5b golden scenes (colorFilter on a known scene, blur radius small and large, bloom, a `mix: 0.5` blend, render-scale nearest and linear, chain-order determinism pair) and capture baselines server-side via the llvmpipe recipe in `docs/verification-server.md`; verify the scenes appear under `tests/goldens/` and `examples/browser/main.js` cycles them
+- [x] 5.1 Author the F5b golden scenes (colorFilter on a known scene, blur radius small and large, bloom, a `mix: 0.5` blend, render-scale nearest and linear, chain-order determinism pair) and capture baselines server-side via the llvmpipe recipe in `docs/verification-server.md`; verify the scenes appear under `tests/goldens/` and `examples/browser/main.js` cycles them
 - [x] 5.2 Add the headless unit tests for the `post-fx` capability (validation matrix, defaults-are-neutral, mix-zero identity, chain persistence, render-scale validation) to the ctest suite; verify they run green in an `EFX_HEADLESS=ON` local build
-- [ ] 5.3 Verify the fast path: run the full committed golden suite with no chain set and confirm every pre-F5b golden is byte-identical (no re-baselining)
+- [x] 5.3 Verify the fast path: run the full committed golden suite with no chain set and confirm every pre-F5b golden is byte-identical (no re-baselining)
 
 ## 6. Docs and ADR
 
