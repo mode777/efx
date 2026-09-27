@@ -1541,6 +1541,7 @@ function __efxResolveAssets() {
 }
 
 function __efxEvaluateEntry() {
+    var st = __efxState();
     /* Host-provided entry source (web gallery embedding): when the embedding
        page supplies `globalThis.__efx_main_js` before boot it replaces the
        resource-root `main.js`. The channel is consumed and deleted before the
