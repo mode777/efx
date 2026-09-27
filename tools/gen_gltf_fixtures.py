@@ -336,11 +336,13 @@ def gen_quad_glb():
                0.5, -1, 0, 1.5, -1, 0, 0.5, 1, 0, 1.5, 1, 0])
     nrm = f32([0, 0, 1] * 8)
     uv = f32([0, 0, 1, 0, 0, 1, 1, 1] * 2)
-    idx = u16([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7])
+    idx = u16([0, 1, 2, 2, 1, 3])
+    idx2 = u16([4, 5, 6, 6, 5, 7])
     pv = b.view(pos, TARGET_ARRAY)
     nv = b.view(nrm, TARGET_ARRAY)
     uvv = b.view(uv, TARGET_ARRAY)
     iv = b.view(idx, TARGET_ELEMENT, align=2)
+    iv2 = b.view(idx2, TARGET_ELEMENT, align=2)
     tex = png(2, 2, bytes([255, 0, 0, 255, 0, 255, 0, 255,
                            0, 0, 255, 255, 255, 255, 255, 255]))
     tv = b.view(tex, align=4)
@@ -353,7 +355,7 @@ def gen_quad_glb():
             {"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2},
              "indices": 3, "material": 0},
             {"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2},
-             "indices": 3, "material": 1},
+             "indices": 4, "material": 1},
         ]}],
         "materials": [
             {
@@ -377,7 +379,7 @@ def gen_quad_glb():
         "samplers": [{"magFilter": 9728, "minFilter": 9728,
                       "wrapS": 33071, "wrapT": 33071}],
         "textures": [{"source": 0, "sampler": 0}],
-        "images": [{"bufferView": 4, "mimeType": "image/png"}],
+        "images": [{"bufferView": 5, "mimeType": "image/png"}],
         "accessors": [
             {"bufferView": 0, "componentType": COMP_FLOAT, "count": 8,
              "type": "VEC3"},
@@ -385,10 +387,12 @@ def gen_quad_glb():
              "type": "VEC3"},
             {"bufferView": 2, "componentType": COMP_FLOAT, "count": 8,
              "type": "VEC2"},
-            {"bufferView": 3, "componentType": COMP_U16, "count": 12,
+            {"bufferView": 3, "componentType": COMP_U16, "count": 6,
+             "type": "SCALAR"},
+            {"bufferView": 4, "componentType": COMP_U16, "count": 6,
              "type": "SCALAR"},
         ],
-        "bufferViews": [pv, nv, uvv, iv, tv],
+        "bufferViews": [pv, nv, uvv, iv, iv2, tv],
         "buffers": [{"byteLength": b.size()}],
     }
     blob = glb_from(gltf, bytes(b.data))
