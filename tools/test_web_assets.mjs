@@ -58,3 +58,22 @@ if (!ok) {
     process.exit(1);
 }
 console.log('web assets test PASSED: fetched zip mounted and entry script ran');
+
+// Failure case: an unreachable asset URL must surface a diagnostic and a
+// non-zero exit code before the entry script runs.
+const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'efx-assets-bad-'));
+const bad = spawn(process.execPath, ['--require', PRELOAD, path.resolve(player)], {
+    cwd: tmp2,
+    env: { ...process.env, EFX_ASSETS_URL: 'http://127.0.0.1:1/nope.zip' },
+});
+let badErr = '';
+bad.stderr.on('data', (d) => { badErr += d; });
+const badStatus = await new Promise((r) => bad.on('exit', r));
+fs.rmSync(tmp2, { recursive: true, force: true });
+
+if (badStatus === 0 || !badErr.includes('asset root fetch failed')) {
+    console.error(`web assets failure-case FAILED (exit ${badStatus})`);
+    process.exit(1);
+}
+console.log('web assets failure case PASSED: fetch failure exits non-zero');
+
