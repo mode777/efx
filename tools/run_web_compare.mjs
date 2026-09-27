@@ -49,6 +49,7 @@ const CASES = [
       assets: ['tests/scripts/resource_probe.txt', 'tests/scripts/resource_probe.png'] },
     { name: '6b_gltf', script: 'tests/scripts/s_6b_gltf.js', args: [],
       assets: ['tests/scripts/gltf_probe.glb', 'tests/scripts/gltf_corrupt.gltf'] },
+    { name: '6c_skin', script: 'tests/scripts/s_6c_skin.js', args: [] },
 ];
 
 function run(cmd, args) {

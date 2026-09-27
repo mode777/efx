@@ -464,6 +464,165 @@ def gen_dedup():
     write(os.path.join(FIX, "dedup.png"), tex)
 
 
+def gen_skin():
+    """F6c skinned fixture: a two-joint skeleton, a quad primitive carrying
+    JOINTS_0/WEIGHTS_0, and three clips (LINEAR, STEP, CUBICSPLINE). The
+    joints attribute ships in u16 (skin.gltf) and u8 (skin_u8.gltf) variants
+    over one shared buffer; the golden scene reuses skin.gltf/skin.bin."""
+    b = Bin()
+    pos = b.view(f32([-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0]), TARGET_ARRAY)
+    nrm = b.view(f32([0, 0, 1] * 4), TARGET_ARRAY)
+    idx = b.view(u16([0, 1, 2, 2, 1, 3]), TARGET_ELEMENT, align=2)
+    ju16 = b.view(u16([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
+                  TARGET_ARRAY, align=2)
+    ju8 = b.view(u8([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
+                 TARGET_ARRAY, align=1)
+    wts = b.view(f32([1, 0, 0, 0] * 4), TARGET_ARRAY)
+    # inverse bind matrices: Mid at y=1, Tip at y=2 (column-major)
+    ibm = b.view(f32([
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -1, 0, 1,
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -2, 0, 1,
+    ]), TARGET_ARRAY)
+    lin_t = b.view(f32([0.0, 0.5, 1.0]), TARGET_ARRAY)
+    lin_v = b.view(f32([0, 1, 0, 0, 2, 0, 0, 1, 0]), TARGET_ARRAY)
+    step_t = b.view(f32([0.0, 0.5, 1.0]), TARGET_ARRAY)
+    s = 0.70710678
+    step_v = b.view(f32([0, 0, 0, 1, 0, 0, s, s, 0, 0, 0, 1]), TARGET_ARRAY)
+    cub_t = b.view(f32([0.0, 1.0]), TARGET_ARRAY)
+    # CUBICSPLINE output: in-tangent, value, out-tangent per keyframe
+    cub_v = b.view(f32([
+        0, 0, 0, 0, 1, 0, 0, 0.5, 0,
+        0, -0.5, 0, 0, 2, 0, 0, 0, 0,
+    ]), TARGET_ARRAY)
+
+    def make(joints_accessor, uri, out_name):
+        gltf = {
+            "asset": base_asset(),
+            "scene": 0,
+            "scenes": [{"nodes": [0, 3]}],
+            "nodes": [
+                {"name": "Root", "children": [1], "translation": [0, 0, 0]},
+                {"name": "Mid", "children": [2], "translation": [0, 1, 0]},
+                {"name": "Tip", "translation": [0, 1, 0]},
+                {"name": "Body", "mesh": 0, "skin": 0},
+            ],
+            "skins": [{
+                "name": "rig",
+                "joints": [1, 2],
+                "inverseBindMatrices": 6,
+            }],
+            "meshes": [{"name": "m", "primitives": [{
+                "attributes": {"POSITION": 0, "NORMAL": 1,
+                               "JOINTS_0": joints_accessor,
+                               "WEIGHTS_0": 5},
+                "indices": 2, "material": 0,
+            }]}],
+            "materials": [{
+                "name": "skin-mat",
+                "pbrMetallicRoughness": {
+                    "baseColorFactor": [0.8, 0.4, 0.2, 1.0],
+                    "metallicFactor": 0.0, "roughnessFactor": 0.5,
+                },
+            }],
+            "animations": [
+                {
+                    "name": "move",
+                    "channels": [{
+                        "sampler": 0,
+                        "target": {"node": 1, "path": "translation"},
+                    }],
+                    "samplers": [{
+                        "input": 7, "output": 8, "interpolation": "LINEAR",
+                    }],
+                },
+                {
+                    "name": "turn",
+                    "channels": [{
+                        "sampler": 0,
+                        "target": {"node": 2, "path": "rotation"},
+                    }],
+                    "samplers": [{
+                        "input": 9, "output": 10, "interpolation": "STEP",
+                    }],
+                },
+                {
+                    "channels": [{
+                        "sampler": 0,
+                        "target": {"node": 1, "path": "translation"},
+                    }],
+                    "samplers": [{
+                        "input": 11, "output": 12,
+                        "interpolation": "CUBICSPLINE",
+                    }],
+                },
+            ],
+            "accessors": [
+                {"bufferView": 0, "componentType": COMP_FLOAT, "count": 4,
+                 "type": "VEC3"},
+                {"bufferView": 1, "componentType": COMP_FLOAT, "count": 4,
+                 "type": "VEC3"},
+                {"bufferView": 2, "componentType": COMP_U16, "count": 6,
+                 "type": "SCALAR"},
+                {"bufferView": 3, "componentType": COMP_U16, "count": 4,
+                 "type": "VEC4"},
+                {"bufferView": 4, "componentType": COMP_U8, "count": 4,
+                 "type": "VEC4"},
+                {"bufferView": 5, "componentType": COMP_FLOAT, "count": 4,
+                 "type": "VEC4"},
+                {"bufferView": 6, "componentType": COMP_FLOAT, "count": 2,
+                 "type": "MAT4"},
+                {"bufferView": 7, "componentType": COMP_FLOAT, "count": 3,
+                 "type": "SCALAR"},
+                {"bufferView": 8, "componentType": COMP_FLOAT, "count": 3,
+                 "type": "VEC3"},
+                {"bufferView": 9, "componentType": COMP_FLOAT, "count": 3,
+                 "type": "SCALAR"},
+                {"bufferView": 10, "componentType": COMP_FLOAT, "count": 3,
+                 "type": "VEC4"},
+                {"bufferView": 11, "componentType": COMP_FLOAT, "count": 2,
+                 "type": "SCALAR"},
+                {"bufferView": 12, "componentType": COMP_FLOAT, "count": 6,
+                 "type": "VEC3"},
+            ],
+            "bufferViews": [pos, nrm, idx, ju16, ju8, wts, ibm,
+                            lin_t, lin_v, step_t, step_v, cub_t, cub_v],
+            "buffers": [{"uri": uri, "byteLength": b.size()}],
+        }
+        write(os.path.join(FIX, out_name),
+              json.dumps(gltf, indent=2) + "\n")
+
+    make(3, "skin.bin", "skin.gltf")
+    make(4, "skin.bin", "skin_u8.gltf")
+    write(os.path.join(FIX, "skin.bin"), bytes(b.data))
+
+    # malformed companions: joints without weights, and a joints count that
+    # does not match the primitive's vertex count
+    with open(os.path.join(FIX, "skin.gltf")) as f:
+        base_variant = json.load(f)
+    unpaired = json.loads(json.dumps(base_variant))
+    del unpaired["meshes"][0]["primitives"][0]["attributes"]["WEIGHTS_0"]
+    write(os.path.join(FIX, "skin_unpaired.gltf"),
+          json.dumps(unpaired, indent=2) + "\n")
+    mismatch = json.loads(json.dumps(base_variant))
+    mismatch["accessors"].append({"bufferView": 3, "componentType": COMP_U16,
+                                  "count": 3, "type": "VEC4"})
+    mismatch["meshes"][0]["primitives"][0]["attributes"]["JOINTS_0"] = 13
+    write(os.path.join(FIX, "skin_mismatch.gltf"),
+          json.dumps(mismatch, indent=2) + "\n")
+
+    # golden scene asset: the u16 variant, resource root = scene dir
+    gold_skin = os.path.join(ROOT, "tests", "goldens", "skin_import")
+    os.makedirs(gold_skin, exist_ok=True)
+    variant = json.loads(open(os.path.join(FIX, "skin.gltf")).read())
+    write(os.path.join(gold_skin, "skin.gltf"),
+          json.dumps(variant, indent=2) + "\n")
+    write(os.path.join(gold_skin, "skin.bin"), bytes(b.data))
+    with zipfile.ZipFile(os.path.join(gold_skin, "assets.zip"), "w",
+                         zipfile.ZIP_DEFLATED) as z:
+        z.writestr("skin.gltf", json.dumps(variant, indent=2) + "\n")
+        z.writestr("skin.bin", bytes(b.data))
+
+
 def gen_cap():
     """One mesh with 17 primitives (over the fixed 16-surface cap)."""
     b = Bin()
@@ -511,6 +670,7 @@ def main():
     gen_transform()
     gen_materials()
     gen_accessors()
+    gen_skin()
     gen_required_ext()
     gen_corrupt()
     gen_bad_image()

@@ -428,6 +428,59 @@ static int meshdata_validation(void) {
     return 0;
 }
 
+/* F6c: joints/weights are a paired, four-influences-per-vertex attribute */
+static int meshdata_skinning(void) {
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t joints[12] = {0, 1, 2, 3, 0, 0, 0, 0, 1, 1, 1, 1};
+    float weights[12] = {1, 0, 0, 0, 0.5f, 0.5f, 0, 0, 1, 0, 0, 0};
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9;
+    s.positions = pos;
+
+    int err = -1;
+    /* unpaired: joints without weights is rejected */
+    s.joints_len = 12;
+    s.joints = joints;
+    if (efx_meshdata_create(&s, 1, &err)) return fail("unpaired joints ok?");
+    if (err != EFX_MESHERR_LEN) return fail("wrong error for unpaired");
+
+    /* unpaired: weights without joints is rejected */
+    s.joints_len = 0;
+    s.joints = NULL;
+    s.weights_len = 12;
+    s.weights = weights;
+    if (efx_meshdata_create(&s, 1, &err)) return fail("unpaired weights ok?");
+    if (err != EFX_MESHERR_LEN) return fail("wrong error for unpaired w");
+
+    /* valid pair: retained and deep-copied */
+    s.joints_len = 12;
+    s.joints = joints;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("valid skinned surface rejected");
+    if (!md->surfaces[0].joints || !md->surfaces[0].weights)
+        return fail("skinned attributes not retained");
+    if (md->surfaces[0].joints[1] != 1) return fail("joint value");
+    if (!feq(md->surfaces[0].weights[4], 0.5f)) return fail("weight value");
+    joints[0] = 99;
+    weights[0] = 99.0f;
+    if (md->surfaces[0].joints[0] != 0 || !feq(md->surfaces[0].weights[0], 1.0f))
+        return fail("skinned attributes not deep-copied");
+    efx_meshdata_destroy(md);
+
+    /* count mismatch: joints shorter than vertexCount*4 */
+    s.joints_len = 8;
+    if (efx_meshdata_create(&s, 1, &err)) return fail("short joints ok?");
+    if (err != EFX_MESHERR_LEN) return fail("wrong error for short joints");
+
+    /* count mismatch: weights shorter than vertexCount*4 */
+    s.joints_len = 12;
+    s.weights_len = 4;
+    if (efx_meshdata_create(&s, 1, &err)) return fail("short weights ok?");
+    if (err != EFX_MESHERR_LEN) return fail("wrong error for short weights");
+    return 0;
+}
+
 static int mesh_lifecycle(void) {
     install_mock_sink();
     efx_meshdata *md = make_two_surface_mesh();
@@ -1508,6 +1561,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "record_fields")) return record_fields();
     if (!strcmp(c, "batching")) return batching();
     if (!strcmp(c, "meshdata_validation")) return meshdata_validation();
+    if (!strcmp(c, "meshdata_skinning")) return meshdata_skinning();
     if (!strcmp(c, "mesh_lifecycle")) return mesh_lifecycle();
     if (!strcmp(c, "mesh_pending_upload")) return mesh_pending_upload();
     if (!strcmp(c, "mesh_record_fields")) return mesh_record_fields();

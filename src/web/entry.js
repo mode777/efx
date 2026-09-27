@@ -373,19 +373,20 @@ function __efxEnsureApi() {
         return out;
     }
 
-    function __efxUint32Array(v) {
+    function __efxUint32Array(v, what) {
+        what = what || 'indices';
         if (!Array.isArray(v) && !ArrayBuffer.isView(v)) {
-            throw new TypeError('indices must be an array');
+            throw new TypeError(what + ' must be an array');
         }
         var n = v.length;
         var out = new Uint32Array(n);
         for (var i = 0; i < n; i++) {
             var d = v[i];
             if (typeof d !== 'number') {
-                throw new TypeError('indices must be numbers');
+                throw new TypeError('array elements must be numbers');
             }
             if (!isFinite(d) || d < 0 || d > 4294967295 || d !== Math.floor(d)) {
-                throw new RangeError('indices must be integers in [0, 2^32-1]');
+                throw new RangeError('array elements must be integers in [0, 2^32-1]');
             }
             out[i] = d;
         }
@@ -1225,7 +1226,8 @@ function __efxEnsureApi() {
                 throw new TypeError('createMeshData requires an options object');
             }
             var bagKnown = { surfaces: 1, positions: 1, normals: 1,
-                uvs: 1, colors: 1, indices: 1, materials: 1 };
+                uvs: 1, colors: 1, joints: 1, weights: 1, indices: 1,
+                materials: 1 };
             var bagNames = Object.getOwnPropertyNames(opts);
             for (var bi = 0; bi < bagNames.length; bi++) {
                 if (!bagKnown[bagNames[bi]]) {
@@ -1253,7 +1255,7 @@ function __efxEnsureApi() {
                 list = [opts];
             }
             var surfKnown = { positions: 1, normals: 1, uvs: 1,
-                colors: 1, indices: 1 };
+                colors: 1, joints: 1, weights: 1, indices: 1 };
             /* the shorthand form passes the whole bag as the surface, so the
                bag-level materials field is allowed there (desktop parity) */
             if (surfaces === undefined) {
@@ -1291,20 +1293,29 @@ function __efxEnsureApi() {
                     ? __efxFloat32Array(sv['uvs'], 'uvs') : new Float32Array(0);
                 var cols = sv['colors'] !== undefined
                     ? __efxFloat32Array(sv['colors'], 'colors') : new Float32Array(0);
+                var joints = sv['joints'] !== undefined
+                    ? __efxUint32Array(sv['joints'], 'joints') : new Uint32Array(0);
+                var weights = sv['weights'] !== undefined
+                    ? __efxFloat32Array(sv['weights'], 'weights') : new Float32Array(0);
                 var idx = sv['indices'] !== undefined
                     ? __efxUint32Array(sv['indices']) : new Uint32Array(0);
                 var pPtr = mallocCopyF32(pos);
                 var nPtr = mallocCopyF32(nrm);
                 var uPtr = mallocCopyF32(uvs);
                 var cPtr = mallocCopyF32(cols);
+                var jPtr = mallocCopyU32(joints);
+                var wPtr = mallocCopyF32(weights);
                 var iPtr = mallocCopyU32(idx);
                 var rc = bridge['_efx_bridge_meshdata_surface'](id, i,
                     pPtr, pos.length, nPtr, nrm.length, uPtr, uvs.length,
-                    cPtr, cols.length, iPtr, idx.length);
+                    cPtr, cols.length, jPtr, joints.length, wPtr, weights.length,
+                    iPtr, idx.length);
                 bridge['_efx_bridge_mem_free'](pPtr);
                 bridge['_efx_bridge_mem_free'](nPtr);
                 bridge['_efx_bridge_mem_free'](uPtr);
                 bridge['_efx_bridge_mem_free'](cPtr);
+                bridge['_efx_bridge_mem_free'](jPtr);
+                bridge['_efx_bridge_mem_free'](wPtr);
                 bridge['_efx_bridge_mem_free'](iPtr);
                 if (rc !== 0) {
                     bridge['_efx_bridge_meshdata_destroy'](id);

@@ -466,6 +466,101 @@ static int gltf_errors(void) {
     return ok ? 0 : fail("glTF error taxonomy");
 }
 
+static int gltf_skin(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "skin.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import skin.gltf");
+    int ok = md->surface_count == 1;
+    const efx_surface *s = &md->surfaces[0];
+    ok = ok && s->vertex_count == 4 && s->joints && s->weights;
+    ok = ok && s->joints[0] == 0 && s->joints[4] == 1 &&
+         feq(s->weights[0], 1.0f) && feq(s->weights[1], 0.0f);
+    efx_rig *rig = md->rig;
+    ok = ok && rig && rig->joint_count == 2;
+    ok = ok && rig->joint_nodes[0] == 1 && rig->joint_nodes[1] == 2;
+    /* Mid is a joint-hierarchy root (its parent, Root, is not a joint) */
+    ok = ok && rig->joint_parents[0] == -1 && rig->joint_parents[1] == 0;
+    /* Tip's inverse bind matrix translation is (0,-2,0) column-major */
+    ok = ok && feq(rig->inverse_bind[16 + 13], -2.0f) &&
+         feq(rig->inverse_bind[16 + 15], 1.0f);
+    /* clips: "move" LINEAR, "turn" STEP, unnamed CUBICSPLINE -> "clip2" */
+    ok = ok && rig->clip_count == 3;
+    const efx_animation_clip *move = &rig->clips[0];
+    ok = ok && move->name && strcmp(move->name, "move") == 0 &&
+         move->channel_count == 1;
+    const efx_anim_channel *mch = &move->channels[0];
+    ok = ok && mch->path == EFX_ANIM_PATH_TRANSLATION &&
+         mch->interpolation == EFX_ANIM_INTERP_LINEAR && mch->components == 3 &&
+         mch->times_len == 3 && mch->values_len == 9;
+    ok = ok && feq(mch->times[1], 0.5f) && feq(mch->values[3], 0.0f) &&
+         feq(mch->values[4], 2.0f);
+    const efx_animation_clip *turn = &rig->clips[1];
+    ok = ok && turn->name && strcmp(turn->name, "turn") == 0 &&
+         turn->channel_count == 1;
+    const efx_anim_channel *tch = &turn->channels[0];
+    ok = ok && tch->path == EFX_ANIM_PATH_ROTATION &&
+         tch->interpolation == EFX_ANIM_INTERP_STEP && tch->components == 4 &&
+         tch->values_len == 12;
+    const efx_animation_clip *cub = &rig->clips[2];
+    ok = ok && cub->name && strcmp(cub->name, "clip2") == 0 &&
+         cub->channel_count == 1;
+    const efx_anim_channel *cch = &cub->channels[0];
+    /* CUBICSPLINE -> LINEAR: middle value per keyframe, tangents dropped */
+    ok = ok && cch->interpolation == EFX_ANIM_INTERP_LINEAR &&
+         cch->times_len == 2 && cch->values_len == 6;
+    ok = ok && feq(cch->values[0], 0.0f) && feq(cch->values[1], 1.0f) &&
+         feq(cch->values[3], 0.0f) && feq(cch->values[4], 2.0f);
+
+    /* payload carry: create the Mesh, destroy the MeshData, rig survives */
+    uint64_t mesh = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    const efx_rig *mrig = efx_render_mesh_rig(mesh);
+    ok = ok && mrig && mrig->joint_count == 2 && mrig->clip_count == 3 &&
+         feq(mrig->inverse_bind[16 + 13], -2.0f);
+    efx_render_mesh_destroy(mesh);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return ok ? 0 : fail("skin import / rig payload");
+}
+
+static int gltf_skin_u8(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "skin_u8.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import skin_u8.gltf");
+    const efx_surface *s = &md->surfaces[0];
+    int ok = s->joints && s->joints[4] == 1 && s->joints[12] == 1 &&
+             feq(s->weights[0], 1.0f);
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("u8 joints normalization");
+}
+
+static int gltf_skin_errors(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    int ok = 1;
+    efx_meshdata *md = gltf_import(r, "skin_unpaired.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_PARSE;
+    efx_meshdata_destroy(md);
+    md = gltf_import(r, "skin_mismatch.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_PARSE;
+    efx_meshdata_destroy(md);
+    /* a static asset carries no rig payload */
+    md = gltf_import(r, "triangle.gltf", NULL, &err);
+    ok = ok && md && md->rig == NULL;
+    efx_meshdata_destroy(md);
+    efx_resource_close(r);
+    efx_render_shutdown();
+    return ok ? 0 : fail("skin error taxonomy / static rig");
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_resource_tests <case>\n");
@@ -493,6 +588,9 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "gltf_glb")) return gltf_glb();
     if (!strcmp(c, "gltf_dedup")) return gltf_dedup();
     if (!strcmp(c, "gltf_errors")) return gltf_errors();
+    if (!strcmp(c, "gltf_skin")) return gltf_skin();
+    if (!strcmp(c, "gltf_skin_u8")) return gltf_skin_u8();
+    if (!strcmp(c, "gltf_skin_errors")) return gltf_skin_errors();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }
