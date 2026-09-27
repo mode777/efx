@@ -1,8 +1,10 @@
-// F5a golden: the 2D camera's default frame follows the active rendering
-// surface. The first target (200x200) is drawn with pixel coordinates
-// against its own extent (no setCamera2D call); the second (320x240) is
-// drawn with an explicit 640x480 frame stretched onto it. Both targets are
-// then sampled at fixed frame positions.
+// F5a golden: the 2D camera frame inside render targets. The first target
+// (200x200) is drawn under a frame equal to the target's extent — the same
+// pixels the default camera produces (the default frame is the active
+// rendering surface's extent); the second (320x240) is drawn with an
+// explicit 640x480 frame stretched onto it. Camera state persists across
+// frames, so both frames are set explicitly per segment (frame-stable).
+// Both targets are then sampled at fixed frame positions.
 efx.setClearColor([0.1, 0.1, 0.25, 1]);
 const pixels = [];
 for (let y = 0; y < 4; y++) {
@@ -17,6 +19,7 @@ const rt = efx.createRenderTarget({ width: 200, height: 200 });
 const rt2 = efx.createRenderTarget({ width: 320, height: 240 });
 function update() {}
 function render() {
+    efx.setCamera2D({ frame: [200, 200] });
     efx.beginRenderTarget(rt);
     efx.drawQuad(10, 10, tex, { size: [90, 90] });
     efx.drawQuad(105, 105, tex, { size: [85, 85] });
