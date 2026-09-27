@@ -62,6 +62,8 @@ typedef struct {
     sg_pipeline quad_pip[3];
     sg_shader mesh_shd;
     sg_pipeline mesh_pip[3];
+    sg_pipeline mesh_pip_cw[3]; /* GL-family RT passes: projection y-flip
+                                   mirrors winding (F5a) */
     sg_sampler smp;
     sg_view white_view; /* engine white texture, used for absent F4b maps */
     sg_buffer vbuf;
@@ -72,12 +74,14 @@ typedef struct {
     int run_cap;
     int installed;
     int depth_remap; /* D3D11/Metal: fold 0..1 depth range into MVP */
+    int rt_flip;     /* GL-family: flip y when rendering into RTs (F5a) */
     sg_attachments default_atts; /* invalid id = swapchain (capture only) */
     /* view-projection cache: consecutive mesh records usually share the
        camera snapshot, so recompose only when it (or the aspect) changes */
     int pv_valid;
     efx_camera3d pv_cam;
     float pv_aspect;
+    int pv_flip;
     float pv[16];
 } pipe_state;
 
@@ -230,7 +234,7 @@ static uint32_t pack_color(const float c[4]) {
     return (a << 24) | (b << 16) | (g << 8) | r;
 }
 
-static pipe_vertex emit_vert(const efx_quad_record *r, int i) {
+static pipe_vertex emit_vert(const efx_quad_record *r, int i, int flip_y) {
     /* corner i in strip order: TL, TR, BL, BR; local space is 0..w, 0..h */
     static const float lu[4] = {0, 1, 0, 1};
     static const float lv[4] = {0, 0, 1, 1};
@@ -243,6 +247,14 @@ static pipe_vertex emit_vert(const efx_quad_record *r, int i) {
         float fy = r->m.b * lu[i] * r->w + r->m.d * lv[i] * r->h + r->m.ty;
         v.x = 2.0f * fx / r->frame_w - 1.0f;
         v.y = 1.0f - 2.0f * fy / r->frame_h;
+        /* GL-family backends land offscreen render output top-at-v=1,
+           while sokol's image convention (and every upload) is top-at-v=0
+           (ADR 0028: origin conventions are engine-owned). Rendering INTO
+           a render target is flipped here so sampled content is upright
+           on every backend; the default framebuffer is unaffected. */
+        if (flip_y) {
+            v.y = -v.y;
+        }
         v.u = (r->sx + su[i] * r->sw) / r->tw;
         v.v = (r->sy + sv[i] * r->sh) / r->th;
         v.r = (uint8_t)(packed & 0xff);
@@ -253,22 +265,24 @@ static pipe_vertex emit_vert(const efx_quad_record *r, int i) {
     return v;
 }
 
-static pipe_vertex *emit_quad(pipe_vertex *v, const efx_quad_record *r) {
+static pipe_vertex *emit_quad(pipe_vertex *v, const efx_quad_record *r,
+                              int flip_y) {
     for (int i = 0; i < 4; i++) {
-        *v++ = emit_vert(r, i);
+        *v++ = emit_vert(r, i, flip_y);
     }
     return v;
 }
 
-static pipe_vertex *emit_quad_bridged(pipe_vertex *v, const efx_quad_record *r) {
+static pipe_vertex *emit_quad_bridged(pipe_vertex *v, const efx_quad_record *r,
+                                      int flip_y) {
     /* continue a strip: duplicate last vertex, then first vertex of the new
        quad twice, then the remaining three (two degenerate triangles) */
     v[0] = v[-1];
-    v[1] = emit_vert(r, 0);
+    v[1] = emit_vert(r, 0, flip_y);
     v[2] = v[1];
     v += 3;
     for (int i = 1; i < 4; i++) {
-        *v++ = emit_vert(r, i);
+        *v++ = emit_vert(r, i, flip_y);
     }
     return v;
 }
@@ -346,11 +360,16 @@ void efx_pipeline_install(void) {
             .sample_count = 1,
         };
         P.mesh_pip[i] = sg_make_pipeline(&md);
+        md.face_winding = SG_FACEWINDING_CW;
+        P.mesh_pip_cw[i] = sg_make_pipeline(&md);
     }
 
     /* D3D11/Metal use a 0..1 depth range: fold the GL-style (-1..1)
        projection into clip space at playback (design D3/D4) */
     P.depth_remap = sg_query_features().origin_top_left ? 1 : 0;
+    /* GL-family backends land offscreen render output top-at-v=1 (ADR
+       0028): rendering INTO a render target flips y engine-side */
+    P.rt_flip = P.depth_remap ? 0 : 1;
 
     P.smp = sg_make_sampler(&(sg_sampler_desc){.min_filter = SG_FILTER_LINEAR,
                                                .mag_filter = SG_FILTER_LINEAR});
@@ -376,8 +395,9 @@ void efx_pipeline_install(void) {
  * recorded camera and draw every surface in surface order (design
  * D3/D4/D7); equal-depth fragments resolve by record order because the
  * playback order is the record order */
-static const float *view_projection(const efx_camera3d *cam, float aspect) {
-    if (P.pv_valid && P.pv_aspect == aspect &&
+static const float *view_projection(const efx_camera3d *cam, float aspect,
+                                    int flip) {
+    if (P.pv_valid && P.pv_aspect == aspect && P.pv_flip == flip &&
         memcmp(&P.pv_cam, cam, sizeof(*cam)) == 0) {
         return P.pv;
     }
@@ -386,8 +406,17 @@ static const float *view_projection(const efx_camera3d *cam, float aspect) {
     efx_math_look_at(view, cam->pos, cam->target, up);
     efx_math_perspective(proj, cam->fov, aspect, cam->near_z, cam->far_z);
     efx_math_mul(P.pv, proj, view);
+    if (flip) {
+        /* GL-family RT passes: flip y so the attachment lands in sokol's
+           top-at-v=0 image convention (F5a, ADR 0028); winding is
+           compensated by the CW pipeline variants */
+        for (int c = 0; c < 4; c++) {
+            P.pv[c * 4 + 1] = -P.pv[c * 4 + 1];
+        }
+    }
     P.pv_cam = *cam;
     P.pv_aspect = aspect;
+    P.pv_flip = flip;
     P.pv_valid = 1;
     return P.pv;
 }
@@ -439,13 +468,13 @@ static sg_view view_for_handle(uint64_t h) {
     return rt ? rt->color_tex : (sg_view){0};
 }
 
-static void play_mesh_record(const efx_mesh_record *mr, float aspect) {
+static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) {
     pipe_mesh *m = (pipe_mesh *)efx_render_mesh_native(mr->mesh);
     if (!m) {
         return;
     }
     float mvp[16];
-    efx_math_mul(mvp, view_projection(&mr->camera, aspect), mr->transform);
+    efx_math_mul(mvp, view_projection(&mr->camera, aspect, flip), mr->transform);
     if (P.depth_remap) {
         /* row 2 of the clip matrix: z' = 0.5*z_clip + 0.5*w_clip maps the
            GL-style (-1..1) range onto the D3D11/Metal (0..1) range;
@@ -496,7 +525,7 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect) {
         fs.dir_color[2] = mr->lights.directional.color[2];
     }
 
-    sg_apply_pipeline(P.mesh_pip[mr->blend]);
+    sg_apply_pipeline(flip ? P.mesh_pip_cw[mr->blend] : P.mesh_pip[mr->blend]);
     sg_apply_uniforms(UB_vs_params, &(sg_range){.ptr = &vs, .size = sizeof(vs)});
     uint64_t white = efx_render_white_texture(); /* absent-map fallback (D3) */
     pipe_tex *white_tex = (pipe_tex *)efx_render_texture_native(white);
@@ -593,10 +622,12 @@ void efx_pipeline_play(void) {
         run_first[ri] = (int)(v - P.scratch);
         int start = (int)(v - P.scratch);
         for (int q = 0; q < runs[ri].count; q++) {
+            int flip = P.rt_flip &&
+                       records[runs[ri].start + q].target != 0;
             if (q > 0) {
-                v = emit_quad_bridged(v, &records[runs[ri].start + q].u.quad);
+                v = emit_quad_bridged(v, &records[runs[ri].start + q].u.quad, flip);
             } else {
-                v = emit_quad(v, &records[runs[ri].start + q].u.quad);
+                v = emit_quad(v, &records[runs[ri].start + q].u.quad, flip);
             }
         }
         run_verts[ri] = (int)(v - P.scratch) - start;
@@ -676,7 +707,8 @@ void efx_pipeline_play(void) {
                 i += runs[run_i - 1].count - 1;
             }
         } else if (r->type == EFX_RECORD_MESH) {
-            play_mesh_record(&r->u.mesh, aspect);
+            play_mesh_record(&r->u.mesh, aspect,
+                             P.rt_flip && r->target != 0);
         }
     }
     sg_end_pass();
@@ -689,6 +721,7 @@ void efx_pipeline_shutdown(void) {
     for (int i = 0; i < 3; i++) {
         sg_destroy_pipeline(P.quad_pip[i]);
         sg_destroy_pipeline(P.mesh_pip[i]);
+        sg_destroy_pipeline(P.mesh_pip_cw[i]);
     }
     sg_destroy_sampler(P.smp);
     sg_destroy_buffer(P.vbuf);
