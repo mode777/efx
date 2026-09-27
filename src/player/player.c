@@ -1,4 +1,5 @@
 #include "player/player.h"
+#include "player/repl.h"
 #include "runtime/runtime.h"
 #include "platform/platform.h"
 #include "render/render.h"
@@ -23,6 +24,7 @@ static int usage(void) {
             "  player <resource-root>            run a resource folder or zip\n"
             "  player --script <file> [--root <dir|zip>] [args...]\n"
             "                                    run a single script headless\n"
+            "  player --repl [<root>]            interactive console (desktop)\n"
             "  player --capture-frame <N> --capture-output <file> <resource-root>\n"
             "                                    render N frames, write PNG, exit (golden tests)\n");
     return 1;
@@ -102,6 +104,28 @@ static int run_script_mode(const char *path, const char *root_override,
     efx_runtime_destroy(rt);
     efx_resource_close(res);
     return exit_code;
+}
+
+/* F6d interactive console: validate/open the optional root, then hand off to
+ * the windowed REPL loop. The root is borrowed by the runtime and released
+ * only after the platform teardown. */
+static int run_repl_mode(const char *root) {
+    efx_resource *res = NULL;
+    if (root) {
+        if (!is_dir(root) && !is_file(root)) {
+            fprintf(stderr, "player: resource root is not a directory: %s\n", root);
+            return 1;
+        }
+        int e = EFX_RESOURCE_OK;
+        res = efx_resource_open(root, &e);
+        if (!res) {
+            fprintf(stderr, "player: cannot open resource root: %s\n", root);
+            return 1;
+        }
+    }
+    int rc = efx_repl_run(res);
+    efx_resource_close(res);
+    return rc;
 }
 
 int efx_player_frame(void *ud, double dt) {
@@ -239,6 +263,10 @@ int efx_player_main(int argc, char **argv) {
         int rc = run_script_mode(argv[2], root_override, sargs, sn);
         free(sargs);
         return rc;
+    }
+    if (strcmp(argv[1], "--repl") == 0) {
+        const char *root = (argc >= 3) ? argv[2] : NULL;
+        return run_repl_mode(root);
     }
     /* capture flags must precede the resource root */
     efx_platform_capture capture;

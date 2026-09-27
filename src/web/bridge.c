@@ -24,6 +24,7 @@ static struct {
     char root[EFX_WEB_ROOT_MAX];
     int dom;
     int golden_mode;
+    int repl_requested;
     efx_platform_capture capture;
     double frame_last_now;
     int frame_have_now;
@@ -86,6 +87,13 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_exit_code(void) {
         return W.quit_code;
     }
     return 0;
+}
+
+/* F6d: the interactive console has no stdin on the web build; the boot JS
+ * checks this to report unavailability (and a non-zero exit) instead of
+ * silently ignoring `--repl`. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_repl_requested(void) {
+    return W.repl_requested;
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_arg_count(void) {
@@ -791,7 +799,13 @@ int efx_web_main(int argc, char *const *argv) {
         W.capture.frame = 2;
         W.capture.output = outbuf;
     } else {
-        if (argc >= 2) {
+        if (argc >= 2 && strcmp(argv[1], "--repl") == 0) {
+            /* no stdin console on the web build (F6d) */
+            W.repl_requested = 1;
+            W.in_error = 1;
+            fprintf(stderr, "player: repl mode is unavailable on the web build\n");
+            fflush(stderr);
+        } else if (argc >= 2) {
             if (argv[1][0] == '/') {
                 snprintf(W.root, sizeof(W.root), "%s", argv[1]);
             } else {

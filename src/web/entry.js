@@ -1579,6 +1579,15 @@ function __efxBoot() {
         return;
     }
     st.started = true;
+    /* F6d: --repl has no stdin console on the web build; report it through
+       the exit contract without booting the entry script */
+    if (Module['_efx_bridge_repl_requested'] &&
+        Module['_efx_bridge_repl_requested']()) {
+        __efxSyncExit();
+        __efxMarkEnded();
+        __efxNodeExit();
+        return;
+    }
     __efxEnsureApi();
     __efxSyncExit();
     __efxResolveAssets();

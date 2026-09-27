@@ -4,8 +4,11 @@
 // and grows with it. Update this file in the same change as any script-facing
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
-// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b are current behavior. F6c+
-// entries are provisional and will be added when delivered.
+// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c are current
+// behavior. F6d (the `--repl [<root>]` interactive console) adds no API —
+// it drives this same namespace from stdin; `.help`/`.exit` are host
+// commands, not `efx` functions. F7+ entries are provisional and will be
+// added when delivered.
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
 // gallery editor (Monaco `addExtraLib`) and type-checked by `tsc`.

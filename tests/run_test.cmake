@@ -23,8 +23,13 @@ else()
     set(FULL_COMMAND ${PLAYER_COMMAND} ${ARG_LINE})
 endif()
 
+set(INPUT_ARGS "")
+if(INPUT_FILE)
+    set(INPUT_ARGS INPUT_FILE "${INPUT_FILE}")
+endif()
 execute_process(
     COMMAND ${FULL_COMMAND}
+    ${INPUT_ARGS}
     RESULT_VARIABLE RC
     OUTPUT_VARIABLE OUT
     ERROR_VARIABLE ERR
