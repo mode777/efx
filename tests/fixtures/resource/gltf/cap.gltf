@@ -1,0 +1,133 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "efx-fixture-gen"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "m",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 0
+          }
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 36,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "cap.bin",
+      "byteLength": 36
+    }
+  ]
+}

@@ -160,6 +160,15 @@ interface RenderScaleOptions {
   filter?: 'nearest' | 'linear';
 }
 
+interface TextureOptions {
+  wrap?: 'repeat' | 'clamp' | 'mirror';
+  filter?: 'linear' | 'nearest';
+}
+
+interface LoadMeshDataOptions {
+  mesh?: number | string;
+}
+
 interface EfxMat4 {
   identity(): Mat4;
   perspective(fovY: number, aspect: number, near: number, far: number): Mat4;
@@ -198,7 +207,7 @@ interface Efx {
   setClearColor(color: Color): void;
   setCamera2D(opts: Camera2DOptions): void;
   createImageData(opts: CreateImageDataOptions): EfxImageData;
-  createTexture(imageData: EfxImageData): EfxTexture;
+  createTexture(imageData: EfxImageData, opts?: TextureOptions): EfxTexture;
   readonly whiteTexture: EfxTexture;
   drawQuad(x: number, y: number, texture: EfxSample, opts?: DrawQuadOptions): void;
   setBlendMode(mode: 'alpha' | 'additive' | 'subtractive'): void;
@@ -235,6 +244,9 @@ interface Efx {
   loadText(path: string): string;
   loadImage(path: string): EfxImageData;
   loadTexture(path: string): EfxTexture;
+
+  // F6b — glTF 2.0 static import
+  loadMeshData(path: string, opts?: LoadMeshDataOptions): EfxMeshData;
 }
 
 declare const efx: Efx;

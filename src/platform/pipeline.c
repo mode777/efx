@@ -36,6 +36,7 @@ typedef struct {
 typedef struct {
     sg_image img;
     sg_view view;
+    int wrap, filter; /* F6b per-texture sampler state */
 } pipe_tex;
 
 /* F5a offscreen render target: env-default color+depth attachments plus a
@@ -71,6 +72,7 @@ typedef struct {
     sg_pipeline post_pip[6];
     sg_sampler smp;
     sg_sampler smp_nearest; /* render-scale nearest blit */
+    sg_sampler tex_smp[3][2]; /* F6b per-texture samplers, cached by (wrap,filter) */
     sg_view white_view; /* engine white texture, used for absent F4b maps */
     sg_buffer vbuf;
     size_t vbuf_size;       /* bytes; grown on demand (dynamic quad batch) */
@@ -117,7 +119,8 @@ typedef struct {
 
 #include "sokol_glue.h" /* sglue_swapchain + sglue_environment (impl in platform.c) */
 
-static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba) {
+static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba,
+                                 int wrap, int filter) {
     (void)ud;
     pipe_tex *t = calloc(1, sizeof(pipe_tex));
     t->img = sg_make_image(&(sg_image_desc){
@@ -129,6 +132,8 @@ static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba) {
     t->view = sg_make_view(&(sg_view_desc){
         .texture.image = t->img,
     });
+    t->wrap = wrap;
+    t->filter = filter;
     return t;
 }
 
@@ -524,6 +529,34 @@ static sg_view view_for_handle(uint64_t h) {
     return rt ? rt->color_tex : (sg_view){0};
 }
 
+/* F6b: get-or-create the cached sampler for a (wrap, filter) pair */
+static sg_sampler tex_sampler(int wrap, int filter) {
+    if (wrap < 0 || wrap > 2) {
+        wrap = EFX_TEX_WRAP_REPEAT;
+    }
+    if (filter != EFX_FILTER_NEAREST && filter != EFX_FILTER_LINEAR) {
+        filter = EFX_FILTER_LINEAR;
+    }
+    if (P.tex_smp[wrap][filter].id == SG_INVALID_ID) {
+        sg_filter f = filter == EFX_FILTER_NEAREST ? SG_FILTER_NEAREST
+                                                   : SG_FILTER_LINEAR;
+        sg_wrap w = wrap == EFX_TEX_WRAP_CLAMP
+                        ? SG_WRAP_CLAMP_TO_EDGE
+                        : wrap == EFX_TEX_WRAP_MIRROR ? SG_WRAP_MIRRORED_REPEAT
+                                                      : SG_WRAP_REPEAT;
+        P.tex_smp[wrap][filter] = sg_make_sampler(&(sg_sampler_desc){
+            .min_filter = f, .mag_filter = f, .wrap_u = w, .wrap_v = w});
+    }
+    return P.tex_smp[wrap][filter];
+}
+
+/* per-sample sampler: a texture's own sampler, or the default for absent
+ * maps / render targets / non-texture handles */
+static sg_sampler sampler_for_handle(uint64_t h) {
+    pipe_tex *t = (pipe_tex *)efx_render_texture_native(h);
+    return t ? tex_sampler(t->wrap, t->filter) : P.smp;
+}
+
 static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) {
     pipe_mesh *m = (pipe_mesh *)efx_render_mesh_native(mr->mesh);
     if (!m) {
@@ -610,7 +643,7 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         for (int k = 0; k < 5; k++) {
             sg_view map_view = view_for_handle(maps[k]);
             bnd.views[k] = map_view.id != SG_INVALID_ID ? map_view : white_view;
-            bnd.samplers[k] = P.smp;
+            bnd.samplers[k] = sampler_for_handle(maps[k]);
         }
         sg_apply_bindings(&bnd);
         /* documented order: pipeline -> bindings -> uniforms -> draw */
@@ -949,7 +982,7 @@ void efx_pipeline_play(void) {
                 sg_view view = view_for_handle(runs[run_i].texture);
                 if (view.id != SG_INVALID_ID) {
                     bnd.views[0] = view;
-                    bnd.samplers[0] = P.smp;
+                    bnd.samplers[0] = sampler_for_handle(runs[run_i].texture);
                     sg_apply_bindings(&bnd);
                     sg_draw(run_first[run_i], run_verts[run_i], 1);
                 }
@@ -982,6 +1015,13 @@ void efx_pipeline_shutdown(void) {
     }
     sg_destroy_sampler(P.smp);
     sg_destroy_sampler(P.smp_nearest);
+    for (int w = 0; w < 3; w++) {
+        for (int f = 0; f < 2; f++) {
+            if (P.tex_smp[w][f].id != SG_INVALID_ID) {
+                sg_destroy_sampler(P.tex_smp[w][f]);
+            }
+        }
+    }
     sg_destroy_buffer(P.vbuf);
     sg_destroy_buffer(P.post_vbuf);
     sg_destroy_shader(P.quad_shd);

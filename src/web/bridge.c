@@ -8,6 +8,7 @@
 #include "platform/platform.h"
 #include "render/render.h"
 #include "prelude/prelude.h"
+#include "resource/gltf.h"
 #include "resource/image.h"
 #include "resource/resource.h"
 #include "web/web.h"
@@ -179,12 +180,14 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_imagedata_destroy(int id) {
     s->pixels = NULL;
 }
 
-EMSCRIPTEN_KEEPALIVE double efx_bridge_texture_create(int id) {
+EMSCRIPTEN_KEEPALIVE double efx_bridge_texture_create(int id, int wrap,
+                                                      int filter) {
     img_slot *s = img_get(id);
     if (!s || !s->alive) {
         return 0;
     }
-    return (double)efx_render_texture_create(s->w, s->h, s->pixels);
+    return (double)efx_render_texture_create(s->w, s->h, s->pixels, wrap,
+                                             filter);
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_texture_destroy(double handle) {
@@ -553,6 +556,45 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_meshdata_destroy(int id) {
     }
     s->alive = 0;
     wmd_release(s);
+}
+
+/* F6b: import a glTF mesh straight into a MeshData slot (same slot table as
+ * createMeshData, so createMesh/surfaceCount/destroy are unchanged). Returns
+ * the 1-based slot id, or 0 on failure. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_load_meshdata(const char *path, int has_mesh,
+                                                  int is_name, int index,
+                                                  const char *name) {
+    if (!W.resource || !path) {
+        return 0;
+    }
+    efx_gltf_mesh_opts opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.has_mesh = has_mesh;
+    opts.is_name = is_name;
+    opts.mesh_index = index;
+    opts.mesh_name = name;
+    int e = EFX_GLTF_OK;
+    efx_meshdata *md = efx_gltf_load_meshdata(W.resource, path, &opts, &e);
+    if (!md) {
+        return 0;
+    }
+    if (WMD.count >= WMD.cap) {
+        int cap = WMD.cap ? WMD.cap * 2 : 16;
+        wmd_slot *grown = realloc(WMD.slots, (size_t)cap * sizeof(wmd_slot));
+        if (!grown) {
+            efx_meshdata_destroy(md);
+            return 0;
+        }
+        WMD.slots = grown;
+        WMD.cap = cap;
+    }
+    wmd_slot *s = &WMD.slots[WMD.count];
+    memset(s, 0, sizeof(*s));
+    s->md = md;
+    s->alive = 1;
+    s->surface_count = md->surface_count;
+    WMD.count++;
+    return WMD.count;
 }
 
 EMSCRIPTEN_KEEPALIVE double efx_bridge_mesh_create(int id) {

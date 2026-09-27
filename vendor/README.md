@@ -11,6 +11,7 @@ replacing the snapshot and editing the table below.
 | `stb/` | nothings/stb | master @ `2c980bb59875b0d32144a71867fbdebb2f77cd20` (`stb_image` v2.30, `stb_image_write` v1.16) | https://github.com/nothings/stb (only `stb_image.h`, `stb_image_write.h`) |
 | `miniz/` | richgel999/miniz | 3.1.2 @ `77d0dce8627735138c51770d1799a1ef48f2117d` | https://github.com/richgel999/miniz (`miniz-3.1.2.zip` release amalgamation: `miniz.c`, `miniz.h`, `LICENSE`) |
 | `glm/` | g-truc/glm | 1.0.3 @ `8d1fd52e5ab5590e2c81768ace50c72bae28f2ed` | https://github.com/g-truc/glm (core headers + `detail/` + `simd/` + `ext/` + `gtc/`; excludes `gtx/`, the C++20 module `glm.cppm`, `CMakeLists.txt`, umbrella `ext.hpp`) |
+| `cgltf/` | jkuhlmann/cgltf | v1.15 @ `360db1a95480fe102ae9c69b27c5d101167ff5ba` | https://github.com/jkuhlmann/cgltf (`cgltf.h` single header; MIT, in-header notice) |
 | — (tool, not vendored) | floooh/sokol-tools-bin | master @ `11d0cf678105d614d675e6d9bd2aaf3eeff12f8c` (2026-08-29) | https://github.com/floooh/sokol-tools-bin (`bin/linux/sokol-shdc`) — generation-time tool for `shaders/quad.h`; never linked into the player |
 
 Notes:
@@ -51,3 +52,8 @@ Notes:
   (`mz_zip_reader`): the release is a single-file amalgamation (`miniz.c` +
   `miniz.h`, no external zlib), MIT. It is linked into `efx_core` on all four
   targets. Evaluation record: `openspec/changes/f6a-resource-loading/`.
+- cgltf is vendored for the F6b glTF 2.0 importer: a single-header C99 parser
+  (carries its own jsmn JSON parser, no external deps), MIT. The implementation
+  is compiled once in `src/resource/cgltf_impl.c` with warnings relaxed (same
+  treatment as the vendored stb/miniz TUs); the engine includes only the
+  declarations. Evaluation record: `openspec/changes/f6b-gltf-import/`.

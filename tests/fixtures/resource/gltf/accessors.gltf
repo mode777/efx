@@ -1,0 +1,140 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "efx-fixture-gen"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "m",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 2
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 3
+          }
+        },
+        {
+          "attributes": {
+            "POSITION": 4
+          }
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5123,
+      "count": 3,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5123,
+      "count": 3,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5121,
+      "count": 3,
+      "type": "VEC3",
+      "normalized": true
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 3,
+      "type": "VEC3",
+      "sparse": {
+        "count": 2,
+        "indices": {
+          "bufferView": 5,
+          "byteOffset": 0,
+          "componentType": 5123
+        },
+        "values": {
+          "bufferView": 6,
+          "byteOffset": 0
+        }
+      }
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 36,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 36,
+      "byteLength": 6,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 42,
+      "byteLength": 18,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 60,
+      "byteLength": 9,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 72,
+      "byteLength": 36,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 108,
+      "byteLength": 4
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 112,
+      "byteLength": 24
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "accessors.bin",
+      "byteLength": 136
+    }
+  ]
+}

@@ -178,6 +178,7 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
         JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
         JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
+        JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));

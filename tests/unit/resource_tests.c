@@ -2,10 +2,13 @@
  * Headless unit tests for the F6a resource provider (directory backend and
  * path safety). Usage: efx_resource_tests <case-name> ; exit 0 = pass.
  */
+#include "resource/gltf.h"
 #include "resource/image.h"
 #include "resource/resource.h"
+#include "render/render.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef EFX_RES_FIXTURES
@@ -230,6 +233,239 @@ static int zip_bad_root(void) {
     return err == EFX_RESOURCE_ERR_OPEN ? 0 : fail("bad zip err code");
 }
 
+/* ---------------------------------------------------------- F6b glTF import */
+
+static void *gltf_mock_create(void *ud, int w, int h, const uint8_t *rgba,
+                              int wrap, int filter) {
+    (void)ud; (void)w; (void)h; (void)rgba; (void)wrap; (void)filter;
+    return malloc(8);
+}
+
+static void gltf_mock_destroy(void *ud, void *native) {
+    (void)ud;
+    free(native);
+}
+
+static const efx_render_sink gltf_sink = {
+    NULL, gltf_mock_create, gltf_mock_destroy, NULL, NULL, NULL, NULL, NULL,
+};
+
+static efx_resource *gltf_root(int *err) {
+    return efx_resource_open(EFX_RES_FIXTURES "/gltf", err);
+}
+
+static efx_meshdata *gltf_import(efx_resource *r, const char *file,
+                                 const efx_gltf_mesh_opts *opts, int *err) {
+    efx_render_install_sink(&gltf_sink);
+    return efx_gltf_load_meshdata(r, file, opts, err);
+}
+
+static int feq(float a, float b) {
+    return (a - b) < 0.001f && (b - a) < 0.001f;
+}
+
+static int gltf_triangle(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "triangle.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import triangle.gltf");
+    int ok = md->surface_count == 1 &&
+             md->surfaces[0].vertex_count == 3 &&
+             md->surfaces[0].index_count == 3 &&
+             md->surfaces[0].has_material == 0 &&
+             feq(md->surfaces[0].positions[0], -1) &&
+             feq(md->surfaces[0].positions[3], 1) &&
+             feq(md->surfaces[0].positions[7], 1) &&
+             md->surfaces[0].indices[2] == 2;
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("triangle geometry/surface");
+}
+
+static int gltf_zip(void) {
+    int err = 0;
+    efx_resource *r = efx_resource_open(EFX_RES_FIXTURES "/gltf_pack.zip",
+                                        &err);
+    if (!r) return fail("open gltf_pack.zip");
+    efx_meshdata *md = gltf_import(r, "triangle.gltf", NULL, &err);
+    if (!md || err != EFX_GLTF_OK) {
+        efx_resource_close(r);
+        return fail("import triangle.gltf from zip");
+    }
+    int ok = md->surface_count == 1 && md->surfaces[0].vertex_count == 3;
+    efx_meshdata_destroy(md);
+    /* external image inside the zip */
+    efx_meshdata *md2 = gltf_import(r, "textured.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md2 || err != EFX_GLTF_OK) return fail("import textured.gltf from zip");
+    ok = ok && md2->surfaces[0].has_material &&
+         md2->surfaces[0].material.diffuse_map != 0;
+    efx_meshdata_destroy(md2);
+    efx_render_shutdown();
+    return ok ? 0 : fail("zip import results");
+}
+
+static int gltf_transform(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "transform.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import transform.gltf");
+    /* the node translation/scale is not baked in */
+    int ok = feq(md->surfaces[0].positions[0], -1) &&
+             feq(md->surfaces[0].positions[3], 1) &&
+             feq(md->surfaces[0].positions[7], 1);
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("node transform applied");
+}
+
+static int gltf_materials(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "materials.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import materials.gltf");
+    const efx_surface *m = &md->surfaces[0];
+    int ok = md->surface_count == 2 && m->has_material &&
+             feq(m->material.diffuse[0], 0.2f) &&
+             feq(m->material.diffuse[1], 0.4f) &&
+             feq(m->material.diffuse[2], 0.6f) &&
+             feq(m->material.diffuse[3], 1.0f) &&
+             feq(m->material.specular[0], 0.1f) &&
+             feq(m->material.specular[1], 0.2f) &&
+             feq(m->material.specular[2], 0.3f) &&
+             feq(m->material.shininess, 32.0f) &&
+             feq(m->material.emissive[0], 0.1f) &&
+             feq(m->material.emissive[1], 0.2f) &&
+             feq(m->material.emissive[2], 0.3f) &&
+             !md->surfaces[1].has_material;
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("PBR->Phong conversion");
+}
+
+static int gltf_accessors(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "accessors.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import accessors.gltf");
+    int ok = md->surface_count == 4;
+    const float *s0 = md->surfaces[0].positions;
+    const float *s1 = md->surfaces[1].positions;
+    const float *s2 = md->surfaces[2].positions;
+    const float *s3 = md->surfaces[3].positions;
+    ok = ok && feq(s0[0], -1) && feq(s0[3], 1) && md->surfaces[0].index_count == 3;
+    ok = ok && feq(s1[3], 100) && feq(s1[7], 200);
+    ok = ok && feq(s2[3], 1.0f) && feq(s2[7], 128.0f / 255.0f);
+    ok = ok && feq(s3[3], 5) && feq(s3[7], 6);
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("accessor normalization/sparse");
+}
+
+static int gltf_glb(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "quad.glb", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import quad.glb");
+    const efx_surface *s0 = &md->surfaces[0];
+    const efx_surface *s1 = &md->surfaces[1];
+    int wrap = -1, filter = -1;
+    efx_render_texture_sampler(s0->material.diffuse_map, &wrap, &filter);
+    int ok = md->surface_count == 2 && s0->has_material && s1->has_material &&
+             s0->material.diffuse_map != 0 && s0->material.alpha_mask != 0 &&
+             s0->material.alpha_mask == s0->material.diffuse_map &&
+             s1->material.diffuse_map == 0 && s1->material.emissive_map == 0 &&
+             feq(s1->material.emissive[1], 1.0f) &&
+             wrap == EFX_TEX_WRAP_CLAMP && filter == EFX_FILTER_NEAREST;
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("glb import / material / sampler");
+}
+
+static int gltf_dedup(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "dedup.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import dedup.gltf");
+    uint64_t h0 = md->surfaces[0].material.diffuse_map;
+    uint64_t h1 = md->surfaces[1].material.diffuse_map;
+    uint64_t h2 = md->surfaces[2].material.diffuse_map;
+    int wrap0 = -1, wrap2 = -1;
+    efx_render_texture_sampler(h0, &wrap0, NULL);
+    efx_render_texture_sampler(h2, &wrap2, NULL);
+    int ok = h0 != 0 && h0 == h1 && h2 != h0 &&
+             efx_render_texture_ref_count(h0) == 2 &&
+             wrap0 == EFX_TEX_WRAP_REPEAT && wrap2 == EFX_TEX_WRAP_REPEAT;
+    /* h0 uses the linear sampler, h2 the nearest one */
+    int f0 = -1, f2 = -1;
+    efx_render_texture_sampler(h0, NULL, &f0);
+    efx_render_texture_sampler(h2, NULL, &f2);
+    ok = ok && f0 == EFX_FILTER_LINEAR && f2 == EFX_FILTER_NEAREST;
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return ok ? 0 : fail("texture dedup / sampler mapping");
+}
+
+static int gltf_errors(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md;
+    int ok = 1;
+    md = gltf_import(r, "corrupt.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_PARSE;
+    efx_meshdata_destroy(md);
+    md = gltf_import(r, "required_ext.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_UNSUPPORTED;
+    efx_meshdata_destroy(md);
+    md = gltf_import(r, "bad_image.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_IMAGE;
+    efx_meshdata_destroy(md);
+    md = gltf_import(r, "cap.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_CAP;
+    efx_meshdata_destroy(md);
+    md = gltf_import(r, "nope.gltf", NULL, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_IO;
+    efx_meshdata_destroy(md);
+    efx_gltf_mesh_opts opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.has_mesh = 1;
+    opts.is_name = 1;
+    opts.mesh_name = "NoSuchMesh";
+    md = gltf_import(r, "triangle.gltf", &opts, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_SELECTION;
+    efx_meshdata_destroy(md);
+    memset(&opts, 0, sizeof(opts));
+    opts.has_mesh = 1;
+    opts.mesh_index = 5;
+    md = gltf_import(r, "triangle.gltf", &opts, &err);
+    ok = ok && !md && err == EFX_GLTF_ERR_SELECTION;
+    efx_meshdata_destroy(md);
+    /* by-name success and the default selection */
+    memset(&opts, 0, sizeof(opts));
+    opts.has_mesh = 1;
+    opts.is_name = 1;
+    opts.mesh_name = "m";
+    md = gltf_import(r, "triangle.gltf", &opts, &err);
+    ok = ok && md && md->surface_count == 1;
+    efx_meshdata_destroy(md);
+    efx_resource_close(r);
+    efx_render_shutdown();
+    return ok ? 0 : fail("glTF error taxonomy");
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_resource_tests <case>\n");
@@ -249,6 +485,14 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "zip_image")) return zip_image();
     if (!strcmp(c, "zip_missing")) return zip_missing();
     if (!strcmp(c, "zip_bad_root")) return zip_bad_root();
+    if (!strcmp(c, "gltf_triangle")) return gltf_triangle();
+    if (!strcmp(c, "gltf_zip")) return gltf_zip();
+    if (!strcmp(c, "gltf_transform")) return gltf_transform();
+    if (!strcmp(c, "gltf_materials")) return gltf_materials();
+    if (!strcmp(c, "gltf_accessors")) return gltf_accessors();
+    if (!strcmp(c, "gltf_glb")) return gltf_glb();
+    if (!strcmp(c, "gltf_dedup")) return gltf_dedup();
+    if (!strcmp(c, "gltf_errors")) return gltf_errors();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

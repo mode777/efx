@@ -27,8 +27,9 @@ static int g_last_mesh_surf_count;
 static int g_last_mesh_vert_total;
 static int g_last_mesh_index_total;
 
-static void *mock_create(void *ud, int w, int h, const uint8_t *rgba) {
-    (void)ud; (void)w; (void)h; (void)rgba;
+static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
+                         int wrap, int filter) {
+    (void)ud; (void)w; (void)h; (void)rgba; (void)wrap; (void)filter;
     g_tex_created++;
     return malloc(8);
 }
@@ -262,7 +263,7 @@ static int record_budget(void) {
 static int texture_lifecycle(void) {
     install_mock_sink();
     uint8_t px[4] = {255, 0, 0, 255};
-    uint64_t t1 = efx_render_texture_create(2, 2, px);
+    uint64_t t1 = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!t1 || !efx_render_texture_alive(t1)) return fail("texture create");
     int w = 0, h = 0;
     efx_render_texture_size(t1, &w, &h);
@@ -279,7 +280,7 @@ static int texture_lifecycle(void) {
         return fail("dead handle destroy");
     /* stale handle (generation bump) */
     uint64_t stale = t1;
-    uint64_t t2 = efx_render_texture_create(1, 1, px);
+    uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!t2 || t2 == stale) return fail("handle reuse");
     if (efx_render_texture_alive(stale)) return fail("stale handle alive");
     if (efx_render_texture_destroy(stale) == EFX_RENDER_OK)
@@ -299,7 +300,7 @@ static int texture_lifecycle(void) {
 static int record_fields(void) {
     install_mock_sink();
     uint8_t px[4] = {0, 0, 255, 255};
-    uint64_t tex = efx_render_texture_create(64, 32, px);
+    uint64_t tex = efx_render_texture_create(64, 32, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     float color[4] = {1, 0.5, 0.25, 0.125};
     float src[4] = {8, 4, 16, 8};
     efx_render_quad(1, 2, 30, 40, tex, color, 45, 2, src, 1, 15, 20);
@@ -329,8 +330,8 @@ static int record_fields(void) {
 static int batching(void) {
     install_mock_sink();
     uint8_t px[4] = {255, 255, 255, 255};
-    uint64_t t1 = efx_render_texture_create(4, 4, px);
-    uint64_t t2 = efx_render_texture_create(4, 4, px);
+    uint64_t t1 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
+    uint64_t t2 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     /* sequence: A A B A  -> three runs (t1x2, t2, t1) */
     efx_render_quad(0, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2);
     efx_render_quad(5, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2);
@@ -477,7 +478,7 @@ static int mesh_pending_upload(void) {
     /* no sink: create queues; installing the sink flushes (headless
        parity with texture pending uploads) */
     uint8_t px[4] = {255, 0, 0, 255};
-    uint64_t t = efx_render_texture_create(2, 2, px);
+    uint64_t t = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     (void)t;
     if (g_tex_created != 0) return fail("texture created without sink");
     efx_meshdata *md = make_two_surface_mesh();
@@ -576,7 +577,7 @@ static int mesh_record_order(void) {
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
     uint8_t px[4] = {255, 255, 255, 255};
-    uint64_t t = efx_render_texture_create(4, 4, px);
+    uint64_t t = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     /* quads A A, mesh, quad B: quad runs must not span the mesh record */
     efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
     efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
@@ -888,7 +889,7 @@ static int material_maps(void) {
         return fail("default has no maps");
 
     install_mock_sink();
-    uint64_t tex = efx_render_texture_create(1, 1, px);
+    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!tex) return fail("texture create");
     m.diffuse_map = tex;
     m.alpha_mask = tex;
@@ -929,7 +930,7 @@ static int map_retention(void) {
     uint32_t idx[3] = {0, 1, 2};
 
     install_mock_sink();
-    uint64_t tex = efx_render_texture_create(1, 1, px);
+    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!tex) return fail("texture create");
     if (efx_render_texture_ref_count(tex) != 0) return fail("fresh ref count");
 
@@ -1095,7 +1096,7 @@ static int render_target_lifecycle(void) {
 static int target_deferred_release(void) {
     install_mock_sink();
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!rt || !tex) return fail("fixtures");
     /* binding an RT as a material map retains it (F4b rule extended) */
     efx_meshdata *md = make_two_surface_mesh();
@@ -1129,7 +1130,7 @@ static int segmentation(void) {
     install_mock_sink();
     efx_render_set_viewport(640, 480);
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!rt || !tex) return fail("fixtures");
     /* screen quad, target segment, screen quad again */
     efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
@@ -1210,7 +1211,7 @@ static int target_redirection(void) {
 static int feedback_guard(void) {
     install_mock_sink();
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!rt || !tex) return fail("fixtures");
     efx_meshdata *md = make_two_surface_mesh();
     uint64_t mesh = efx_render_mesh_create(md);
@@ -1439,7 +1440,7 @@ static int post_user_target_raw(void) {
     install_mock_sink();
     efx_render_set_viewport(640, 480);
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR);
     if (!rt || !tex) return fail("fixtures");
     efx_post_entry e;
     memset(&e, 0, sizeof(e));

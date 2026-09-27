@@ -21,8 +21,19 @@ static int fail(const char *what) {
     return 1;
 }
 
-static void *mock_create(void *ud, int w, int h, const uint8_t *rgba) {
+#define GLTF_SEQ_MAX 8
+static int g_seq_wrap[GLTF_SEQ_MAX];
+static int g_seq_filter[GLTF_SEQ_MAX];
+static int g_seq_n;
+
+static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
+                         int wrap, int filter) {
     (void)ud; (void)rgba;
+    if (g_seq_n < GLTF_SEQ_MAX) {
+        g_seq_wrap[g_seq_n] = wrap;
+        g_seq_filter[g_seq_n] = filter;
+    }
+    g_seq_n++;
     return malloc((size_t)(w * h * 4 > 0 ? w * h * 4 : 1));
 }
 
@@ -946,6 +957,88 @@ static int resource_js(void) {
     return 0;
 }
 
+/* F6b: createTexture sampler options reach the native texture create */
+static int createTexture_js(void) {
+    const char *code =
+        "var img = efx.createImageData({ width: 1, height: 1,"
+        "  pixels: new Uint8Array([1, 2, 3, 4]) });"
+        "efx.createTexture(img);"
+        "efx.createTexture(img, { wrap: 'clamp', filter: 'nearest' });"
+        "efx.createTexture(img, { wrap: 'mirror', filter: 'nearest' });"
+        "function boom(fn) { try { fn(); } catch (e) {"
+        "  return (e instanceof TypeError) ? 1 : 2; } return 0; }"
+        "if (boom(function () { efx.createTexture(img, { wrap: 'bogus' }); }) !== 1)"
+        "  throw new Error('bad wrap');"
+        "if (boom(function () { efx.createTexture(img, { filter: 'bogus' }); }) !== 1)"
+        "  throw new Error('bad filter');"
+        "if (boom(function () { efx.createTexture(img, { nope: 1 }); }) !== 1)"
+        "  throw new Error('unknown field');";
+    g_seq_n = 0;
+    if (ok_js(code)) {
+        end_js();
+        return fail("createTexture options snippet");
+    }
+    int ok = g_seq_n == 3 &&
+             g_seq_wrap[0] == EFX_TEX_WRAP_REPEAT &&
+             g_seq_filter[0] == EFX_FILTER_LINEAR &&
+             g_seq_wrap[1] == EFX_TEX_WRAP_CLAMP &&
+             g_seq_filter[1] == EFX_FILTER_NEAREST &&
+             g_seq_wrap[2] == EFX_TEX_WRAP_MIRROR &&
+             g_seq_filter[2] == EFX_FILTER_NEAREST;
+    end_js();
+    return ok ? 0 : fail("createTexture sampler option mapping");
+}
+
+/* F6b: loadMeshData imports a fixture and wires createMesh */
+static int gltf_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) return fail("runtime");
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_RES_FIXTURES "/gltf", &err);
+    if (!res) {
+        end_js();
+        return fail("open gltf fixtures");
+    }
+    efx_runtime_set_resource(g_rt, res);
+    int rc = efx_runtime_eval_string(g_rt, "test",
+        "var md = efx.loadMeshData('triangle.gltf');"
+        "if (!(md instanceof Object) || md.surfaceCount !== 1) throw new Error('tri surfaceCount');"
+        "var mesh = efx.createMesh(md);"
+        "if (mesh.surfaceCount !== 1) throw new Error('mesh surfaceCount');"
+        "mesh.destroy(); md.destroy();"
+        "var q = efx.loadMeshData('quad.glb', { mesh: 'm' });"
+        "if (q.surfaceCount !== 2) throw new Error('quad surfaceCount');"
+        "q.destroy();"
+        "var q2 = efx.loadMeshData('quad.glb', { mesh: 0 });"
+        "if (q2.surfaceCount !== 2) throw new Error('quad index select');"
+        "q2.destroy();"
+        "function kind(fn) { try { fn(); } catch (e) {"
+        "  if (e instanceof TypeError) return 'TypeError';"
+        "  if (e instanceof Error) return 'Error';"
+        "  return 'other'; } return 'none'; }"
+        "if (kind(function () { efx.loadMeshData('corrupt.gltf'); }) !== 'Error')"
+        "  throw new Error('corrupt not Error');"
+        "if (kind(function () { efx.loadMeshData('triangle.gltf', { mesh: 'nope' }); }) !== 'Error')"
+        "  throw new Error('unknown mesh not Error');"
+        "if (kind(function () { efx.loadMeshData('triangle.gltf', { nope: 1 }); }) !== 'TypeError')"
+        "  throw new Error('unknown field not TypeError');"
+        "if (kind(function () { efx.loadMeshData('triangle.gltf', { mesh: {} }); }) !== 'TypeError')"
+        "  throw new Error('bad mesh type not TypeError');"
+        "if (kind(function () { efx.loadMeshData(5); }) !== 'TypeError')"
+        "  throw new Error('bad path not TypeError');");
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_resource_close(res);
+    if (rc != 0) return fail("gltf js snippet raised");
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -975,6 +1068,8 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "f5a_js")) return f5a_js();
     if (!strcmp(c, "f5b_js")) return f5b_js();
     if (!strcmp(c, "resource_js")) return resource_js();
+    if (!strcmp(c, "createTexture_js")) return createTexture_js();
+    if (!strcmp(c, "gltf_js")) return gltf_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }
