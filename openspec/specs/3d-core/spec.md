@@ -184,11 +184,15 @@ a column-major 4×4 matrix, default identity (a wrong length throws
 recorded camera, with the depth test enabled and depth writing on: a
 nearer surface occludes a farther one regardless of record order, and
 equal-depth fragments resolve by record order (deterministic). Per-surface
-shading SHALL be the F4a lit result (see the `lighting` capability) with
-albedo equal to the tint multiplied by the surface's vertex color where the
-`colors` attribute is present, or the tint alone otherwise. 2D quad records
-SHALL be untouched by mesh depth (F2 behavior and goldens unchanged). Mesh
-draws participate in the per-frame record budget like any record.
+shading SHALL be the `lighting` capability's F4 lit result — the F4a Phong
+equation **including the F4b per-channel maps and alpha mask** — with albedo
+equal to the tint multiplied by the surface's vertex color where the
+`colors` attribute is present, or the tint alone otherwise. The surface
+`uvs` attribute (validated and stored since F3) SHALL be consumed by that
+shading as the map/alpha-mask texture coordinate; a surface without `uvs`
+uses the `(0, 0)` default, so shading stays defined for every mesh. 2D quad
+records SHALL be untouched by mesh depth (F2 behavior and goldens unchanged).
+Mesh draws participate in the per-frame record budget like any record.
 
 #### Scenario: Multi-surface mesh draws all surfaces
 
@@ -217,6 +221,13 @@ draws participate in the per-frame record budget like any record.
   (e.g. translation versus identity)
 - **THEN** the two renders appear at different world positions per the
   recorded matrices
+
+#### Scenario: Surface uvs drive bound maps
+
+- **WHEN** two surfaces of the same mesh have different `uvs` and a bound
+  `diffuse.map`
+- **THEN** each surface samples the map at its own interpolated `uv`, and a
+  surface with no `uvs` samples `(0, 0)`
 
 #### Scenario: Validation errors
 

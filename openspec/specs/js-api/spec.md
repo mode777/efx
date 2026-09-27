@@ -62,14 +62,21 @@ implicit Mesh payload — loaded with the mesh and posed by the script
 requires a `js-api` delta. Phong **materials** (the parameter objects bound
 per mesh surface from F4a) SHALL be classified as JS-managed: the engine
 snapshots their channel values at binding time and they hold no native handle
-or `destroy()`. Every resource requiring native storage MUST be a
+or `destroy()`. A JS-managed material MAY carry per-channel maps that
+reference native-backed `Texture` objects (F4b); the engine snapshots the
+texture handles at binding time and **retains** the referenced textures while
+the material stays bound, so the material does not own the texture and its
+classification and release contract are unchanged. Every resource requiring
+native storage MUST be a
 native-backed class — released deterministically by its `destroy()`,
 reclaimed by its GC finalizer if the script never calls it, and finalized
 at runtime teardown — unless its count is fixed by design, in which case it
 is slot-based. The runtime MUST factor native allocation sizes (CPU and GPU)
 into GC pressure and MUST run collection at frame end, bounding
 unreferenced native waste to roughly one frame. Resources recorded into the
-display list MUST stay alive until playback completes. The reference SHALL
+display list MUST stay alive until playback completes, and a `Texture`
+referenced by a bound material map MUST stay alive until that binding is
+released. The reference SHALL
 document the engine's fixed limits: 4 point lights, 1 directional light,
 1 camera, and 16 surfaces per mesh (F3); lights are the only slot bank.
 
@@ -106,6 +113,14 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 - **WHEN** the reference document's material entries are read
 - **THEN** materials are stated to be plain JS objects with no native handle
   and no `destroy()`, and lights are stated to be the only slot-based bank
+
+#### Scenario: Material maps reference native textures
+
+- **WHEN** a material with a map is bound and the reference document's
+  material entry is read
+- **THEN** it states that the map references a native-backed `Texture` that
+  the engine retains while bound, and that the material itself remains
+  JS-managed with no `destroy()`
 
 #### Scenario: Resource without a classification
 
