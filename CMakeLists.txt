@@ -274,6 +274,9 @@ target_include_directories(efx_resource_tests PRIVATE src)
 target_include_directories(efx_resource_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
 target_link_libraries(efx_resource_tests PRIVATE efx_miniz)
+if(UNIX)
+    target_link_libraries(efx_resource_tests PRIVATE m)
+endif()
 target_compile_definitions(efx_resource_tests PRIVATE
     EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
 if(MSVC)
