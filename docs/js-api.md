@@ -2,8 +2,9 @@
 
 **Status:** F1 (including explicit lifecycle hook registration), F2, F3, F4a
 (lighting + Phong materials on solids/vertex colors), F4b (per-channel
-maps + alpha masks), F5a (render targets), and F5b (post-effect chain +
-render scale) are implemented (current behavior). Everything from F6
+maps + alpha masks), F5a (render targets), F5b (post-effect chain +
+render scale), and F6a (resource root + text/image loading) are
+implemented (current behavior). Everything from F6b
 onward is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
@@ -57,7 +58,8 @@ Every rule below traces to vision.md or to F1's implemented behavior.
   model](#resource--memory-model)); `res.destroy()` releases
   deterministically and GC is the backstop. Native-backed classes are
   otherwise fully opaque except for documented read-only query properties —
-  Texture's `width`/`height` and MeshData's/Mesh's `surfaceCount`.
+  Texture's `width`/`height`, ImageData's `width`/`height`, and
+  MeshData's/Mesh's `surfaceCount`.
 - **Parameters**: hot immediate-mode calls take scalar arguments first
   (`drawQuad(x, y, texture, opts?)`); configuration beyond ~3 values
   goes in a trailing option object. Optionality is explicit at two levels:
@@ -137,13 +139,13 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 | Class | Meaning | Release path |
 |---|---|---|
 | **JS-managed** | Plain data objects; garbage collected | Drop the reference |
-| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; all others: none); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
+| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
 | **Slot-based** | Fixed pre-allocated bank of indexed resources | Overwrite the slot |
 
 | Resource | Contents | Class | Side | Delivered | Notes |
 |---|---|---|---|---|---|
 | MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive; ADR 0024); skinned meshes add `joints`/`weights` per surface (F7, glTF-style) | Native class | CPU | F3 | `createMeshData` / `loadMeshData` (F6); read-only `surfaceCount` |
-| ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6) |
+| ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6a); read-only `width` / `height` (throw `TypeError` when destroyed) |
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)` / `loadMesh`; `mesh.destroy()`; read-only `surfaceCount` |
 | Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData)`; `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
@@ -741,34 +743,67 @@ efx.setPostEffects(null);   // back to the byte-identical fast path
 efx.setRenderScale(1);
 ```
 
-### F6 — Resources (provisional)
+### F6a — Resource loading (current)
 
-Scope from roadmap F6: zip resource root, glTF 2.0 asset import (meshes,
-images, skins, animation clips — the glTF profile is decided here),
-interactive REPL. Paths are relative to the resource root
-(`res://`-style: `loadText('data/level.json')`).
+Scope from roadmap F6's first slice: a resource root (directory or zip),
+text/image loading, and the web boot that mounts a host-provided zip before
+the entry script runs. Paths are relative to the resource root
+(`res://`-style: `loadText('data/level.json')`). The root is set by the player
+(`player <dir|zip>`, or `--script <file> [--root <dir|zip>]`), and on the web
+by a host asset-root URL.
 
 ```js
-// F6 · C · provisional — signatures final once the glTF profile is decided (F6)
-efx.loadText(path)        // → string
-efx.loadImage(path)       // → ImageData
-efx.loadMeshData(path)    // → MeshData — one surface per glTF mesh.primitives[i]
-efx.loadMesh(path)        // → Mesh — one surface per primitive, each primitive's
-                          //   material bound to its surface; skin, skeleton, and
-                          //   clips bundle into the Mesh when the asset has them
+// F6a · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
+efx.loadText(path)        // → string (UTF-8)
+efx.loadImage(path)       // → ImageData (PNG/JPEG decoded to rgba8)
 
-// F6 · JS · provisional — convenience composition on the public C layer
+// F6a · JS · current — convenience composition on the public C layer
 efx.loadTexture(path)     // → Texture (createTexture(loadImage(path)))
 ```
 
-- The console/REPL run mode drives this same `efx` namespace interactively;
-  no separate API.
+- `path` is a non-empty string; a non-string throws `TypeError`. A missing,
+  unreadable, or undecodable resource throws a standard `Error`; no resource
+  is returned. A path that escapes the root (`..` or an absolute path) throws
+  `Error`.
+- `loadImage` decodes PNG/JPEG to RGBA8; JPEG (no alpha) decodes fully opaque.
+  The returned `ImageData` exposes read-only `width`/`height` and the usual
+  `destroy()` lifecycle.
+- Loading is synchronous on every target. On the web a host-provided zip is
+  fetched and mounted once before `main.js` runs; scripts never see a promise
+  or a loading hook.
+- Without a resource root, `load*` throws `Error`.
+
+```js
+// main.js — F6a sample (current API)
+const tex = efx.loadTexture('images/logo.png');
+efx.log(efx.loadText('data/welcome.txt'));
+efx.setCamera2D({ frame: [640, 480] });
+
+efx.registerRenderHook(() => {
+    efx.drawQuad(32, 32, tex, { size: [128, 128] });
+});
+```
+
+### F6b–F6d — glTF import, rigs, REPL (provisional)
+
+Scope from the rest of roadmap F6: glTF 2.0 static import (F6b), skin +
+animation import (F6c), and the interactive REPL (F6d). The glTF profile
+(container, references, material mapping) is settled by the F6b change, so the
+signature below stays provisional until then.
+
+```js
+// F6b · C · provisional — signatures final once the glTF profile is decided
+efx.loadMeshData(path, opts?)  // → MeshData — one surface per glTF primitive of
+                               //   the selected mesh; materials converted and bound
+```
+
+- The console/REPL run mode (F6d) drives this same `efx` namespace
+  interactively; no separate API.
 
 ```js
 // main.js — F6 sample (provisional API)
-efx.log(efx.loadText('data/welcome.txt'));
 efx.setCamera3D({ pos: [0, 1, 4], target: [0, 0, 0], fov: 60 });
-const teapot = efx.loadMesh('models/teapot.mesh');
+const teapot = efx.createMesh(efx.loadMeshData('models/teapot.glb'));
 
 efx.registerRenderHook(() => {
     efx.drawMesh({ mesh: teapot });
@@ -878,8 +913,8 @@ section (or an open question below):
 | Alpha masks | F4b (`alphaMask`) |
 | Rendering to textures | F5a (render targets — `createRenderTarget` / `beginRenderTarget`) |
 | Simple post processing (color filter, blur) | F5b (`setPostEffects`, current) |
-| Resource folder / zip root (`res://`-like) | F6 (load paths, zip in F6) |
-| REPL console mode | F6 (drives the same `efx` namespace) |
+| Resource folder / zip root (`res://`-like) | F6a (load paths + dir/zip provider, current) |
+| REPL console mode | F6d (drives the same `efx` namespace) |
 | Skinning and animations | F7 |
 | High-level functions in pure JS (`drawModel`, `drawText`) | F8 |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
@@ -900,10 +935,11 @@ API for them:
   change with a `js-api` delta.
 - **Audio** — absent from vision.md. Same treatment as input.
 - **Asset format** — glTF 2.0 is pinned as the import format (meshes,
-  images, skins, animation clips — roadmap F6, data model per ADR 0014);
-  the F6 change settles only the *profile*: .glb vs .gltf container,
-  allowed extensions, image embedding. Until then `load*` signatures stay
-  provisional.
+  images, skins, animation clips — roadmap F6, data model per ADR 0014).
+  F6a delivered the resource root (directory or zip) and text/image loading
+  (current); the F6b change settles the *profile*: .glb vs .gltf container,
+  allowed extensions, image embedding. Until then the `loadMeshData`
+  signature stays provisional.
 - **Procedural rigs** — F7 bundles skins/skeletons/clips at *import* only;
   constructing a rig procedurally (from `createMeshData` + skeleton data)
   has no path yet. Deferred until a concrete need appears.

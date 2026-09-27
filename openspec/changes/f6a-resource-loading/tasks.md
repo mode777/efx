@@ -72,13 +72,13 @@
 
 ## 5. Docs and ADR
 
-- [ ] 5.1 Write `docs/decisions/0031-*` for the provider + fetch-once-at-boot
+- [x] 5.1 Write `docs/decisions/0031-*` for the provider + fetch-once-at-boot
   decision (per `TEMPLATE.md`) and add it to `docs/decisions/README.md`.
-- [ ] 5.2 Amend ADR 0016 (pre-boot mount) and ADR 0030 (host asset channel).
-- [ ] 5.3 Update `docs/js-api.md` (move F6a entries to current behavior with
+- [x] 5.2 Amend ADR 0016 (pre-boot mount) and ADR 0030 (host asset channel).
+- [x] 5.3 Update `docs/js-api.md` (move F6a entries to current behavior with
   layer tags, errors, and lifecycle) and `gallery/src/api/efx.d.ts` in the same
   change.
-- [ ] 5.4 Update the AGENTS.md current-state and roadmap rows to note the F6a
+- [x] 5.4 Update the AGENTS.md current-state and roadmap rows to note the F6a
   slice.
 
 ## 6. Verification

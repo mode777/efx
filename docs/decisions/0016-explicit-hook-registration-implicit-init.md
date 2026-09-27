@@ -2,7 +2,8 @@
 
 Status: Accepted (2026-09, change `js-api-reference`; amended 2026-09,
 change `explicit-hook-registration`: the readiness guarantee is scoped to
-the script-visible API)
+the script-visible API; amended 2026-09, change `f6a-resource-loading`: a
+host-provided resource archive may be fetched and mounted before evaluation)
 Supersedes: the `init()` hook portion of the D9 sketch in
 `openspec/changes/archive/2026-09-21-js-api-reference/design.md`
 
@@ -35,7 +36,10 @@ readiness before script evaluation, top-level code *is* the init.
   The rendering surface is initialized when the frame loop starts and is not
   script-visible at load time, so moving window/GL-context creation ahead of
   evaluation is **not** required for this contract and stays deferred (see
-  Consequences).
+  Consequences). On the web the boot may first fetch and mount a
+  host-provided resource archive (F6a, ADR 0031); that delays evaluation but
+  does not change the guarantee — `efx` is still fully ready before
+  `main.js` runs, and the load API stays synchronous.
 - **F1's global `update`/`render` remain supported as load-time sugar**: if
   defined after evaluation, the engine registers them in load order. F1
   examples, the smoke suite, and the player-runtime gate contract stay

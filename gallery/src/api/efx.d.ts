@@ -4,8 +4,8 @@
 // and grows with it. Update this file in the same change as any script-facing
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
-// Status: F1, F2, F3, F4a, F4b, F5a, F5b are current behavior. F6+ entries
-// are provisional and will be added when delivered.
+// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a are current behavior. F6b+
+// entries are provisional and will be added when delivered.
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
 // gallery editor (Monaco `addExtraLib`) and type-checked by `tsc`.
@@ -17,6 +17,8 @@ type Mat4 = number[];
 type Quat = number[];
 
 interface EfxImageData {
+  readonly width: number;
+  readonly height: number;
   destroy(): void;
 }
 
@@ -228,6 +230,11 @@ interface Efx {
   // F5b — post effects & render scale
   setPostEffects(list: EfxPostEffect[] | null): void;
   setRenderScale(scale: number, opts?: RenderScaleOptions): void;
+
+  // F6a — resource loading (paths relative to the resource root)
+  loadText(path: string): string;
+  loadImage(path: string): EfxImageData;
+  loadTexture(path: string): EfxTexture;
 }
 
 declare const efx: Efx;
