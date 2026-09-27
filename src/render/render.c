@@ -419,6 +419,7 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
         s->permanent = 0;
         s->bind_refs = 0;
         s->release_pending = 0;
+        s->gen = 0; /* fresh slot: memory may be uninitialized after realloc */
         s->gen++;
         s->w = w;
         s->h = h;
