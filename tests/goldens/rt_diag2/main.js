@@ -1,7 +1,9 @@
 // F5a DIAGNOSTIC 2 (temporary): the same 8x8 red|blue render target shown
 // three ways — quad sample (full), quad sample (left-half sourceRect), and
 // mesh diffuse map. Isolates target content vs quad sampling vs mesh-map
-// sampling.
+// sampling. Camera state is set once at load: an explicit setCamera2D
+// inside render() would persist into the next frame's target segment and
+// shrink the fill quads (the default frame must stay the target extent).
 // Expected when everything works: three panels, each a hard red|blue split
 // (a ~1-texel blend at the seam from linear filtering).
 efx.setClearColor([0, 1, 0, 1]);
@@ -25,16 +27,15 @@ efx.setMeshSurfaceMaterial(plane, 0, {
     specular: { color: [0, 0, 0, 1] },
     emissive: { color: [0, 0, 0, 1] },
 });
+efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+efx.setLight(0, null);
+efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
 function update() {}
 function render() {
     efx.beginRenderTarget(map);
     efx.drawQuad(0, 0, red, { size: [4, 8] });
     efx.drawQuad(4, 0, blue, { size: [4, 8] });
     efx.endRenderTarget();
-    efx.setCamera2D({ frame: [640, 480] });
-    efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
-    efx.setLight(0, null);
-    efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
     efx.drawQuad(20, 120, map, { size: [180, 180] });
     efx.drawQuad(220, 120, map, {
         sourceRect: { x: 0, y: 0, w: 4, h: 8 },
