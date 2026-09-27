@@ -70,12 +70,12 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Commit fixtures: a `.glb`, a `.gltf` package with external `.bin`/
+- [x] 7.1 Commit fixtures: a `.glb`, a `.gltf` package with external `.bin`/
   `.png`, and a multi-material + alpha-MASK asset.
-- [ ] 7.2 Add a golden that imports and draws a committed asset; capture the
+- [x] 7.2 Add a golden that imports and draws a committed asset; capture the
   golden server-side (llvmpipe, per `docs/verification-server.md`) and commit
   it. Verify the native and web golden suites pass.
-- [ ] 7.3 Run the Linux pipeline first (ctest smoke + goldens), then Windows,
+- [x] 7.3 Run the Linux pipeline first (ctest smoke + goldens), then Windows,
   then macOS; verify via `python3 tools/verify_remote.py all <branch>` before
   dispatching `gh workflow run ci.yml --ref <branch>`.
-- [ ] 7.4 Confirm the four-target gate is green before archiving.
+- [x] 7.4 Confirm the four-target gate is green before archiving.
