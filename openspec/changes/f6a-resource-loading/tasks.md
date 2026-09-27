@@ -26,26 +26,26 @@
 - [x] 2.2 Implement image decoding to `rgba8` over the provider (PNG alpha
   preserved, JPEG forced opaque, corrupt input errors). Verify with a headless
   unit test over committed PNG/JPEG fixtures, including a corrupt-file case.
-- [ ] 2.3 Expose `loadText` and `loadImage` through the quickjs binding
+- [x] 2.3 Expose `loadText` and `loadImage` through the quickjs binding
   (`src/api/`), returning a string and a native-backed `ImageData`
   respectively. Verify a ctest `--script` test that loads text and an image
   next to the script, and asserts missing/malformed paths throw.
-- [ ] 2.4 Add the pure-JS `loadTexture(path)` to the engine prelude and
+- [x] 2.4 Add the pure-JS `loadTexture(path)` to the engine prelude and
   `efx` object. Verify a script test asserts a live Texture with the decoded
   dimensions and `destroy()` lifecycle.
-- [ ] 2.5 Thread the desktop resource root from `player.c` into runtime/api
+- [x] 2.5 Thread the desktop resource root from `player.c` into runtime/api
   state and read `main.js` through the provider. Verify existing smoke tests
   (`smoke_root_ok`, `smoke_root_no_entry`) still pass.
 
 ## 3. Zip backend
 
-- [ ] 3.1 Implement the zip backend using miniz behind the same provider
+- [x] 3.1 Implement the zip backend using miniz behind the same provider
   interface. Verify with a headless unit test over a committed zip fixture
   (entry read, missing entry error, corrupt archive error).
-- [ ] 3.2 Accept a zip archive as the player resource root and read `main.js`
+- [x] 3.2 Accept a zip archive as the player resource root and read `main.js`
   from it. Verify a new smoke test launches with a zip fixture and exits 0 with
   the expected log output.
-- [ ] 3.3 Resolve the `--script` resource root to the script file's directory,
+- [x] 3.3 Resolve the `--script` resource root to the script file's directory,
   with an optional `--root <directory|archive>` override. Verify one script
   test loads an adjacent resource with no flags and another loads from an
   explicit zip via `--root`.
