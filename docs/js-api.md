@@ -134,7 +134,8 @@ classes**; only the fixed light bank is slot-based (model: ADR 0011,
 memory discipline: ADR 0012, glTF data model: ADR 0014, implicit rig
 payload + `skinned` flag: ADR 0017, multi-surface mesh data model +
 per-surface materials: ADR 0024, per-channel maps + alpha mask + retained
-map textures: ADR 0027 — all under `docs/decisions/`).
+map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
+`docs/decisions/`).
 
 | Class | Meaning | Release path |
 |---|---|---|
@@ -144,9 +145,9 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 
 | Resource | Contents | Class | Side | Delivered | Notes |
 |---|---|---|---|---|---|
-| MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive; ADR 0024); skinned meshes add `joints`/`weights` per surface (F7, glTF-style) | Native class | CPU | F3 | `createMeshData` / `loadMeshData` (F6); read-only `surfaceCount` |
+| MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive; ADR 0024); skinned meshes add `joints`/`weights` per surface (F6c, glTF-style) | Native class | CPU | F3 | `createMeshData` / `loadMeshData` (F6); read-only `surfaceCount` |
 | ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6a); read-only `width` / `height` (throw `TypeError` when destroyed) |
-| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)`; `mesh.destroy()`; read-only `surfaceCount` |
+| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally (F6c, ADR 0017/0033); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)`; `mesh.destroy()`; read-only `surfaceCount` |
 | Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData, opts?)` (`opts.wrap`/`opts.filter`, F6b); `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
 | Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
@@ -391,6 +392,11 @@ efx.drawMesh(opts)         // { mesh, transform?, color? } — whole mesh, depth
   - `positions` — required flat xyz (array or typed array),
   - `normals?` / `uvs?` / `colors?` — flat arrays matching the vertex
     count (×3 / ×2 / ×4),
+  - `joints?` / `weights?` — flat arrays of four joint indices / four
+    joint weights per vertex matching the vertex count (×4 / ×4; skinned
+    meshes, F6c). An unpaired attribute, a non-4-per-vertex count, or a
+    count that does not match `positions` throws `RangeError`; a non-number
+    element throws `TypeError`. `joints` values are non-negative integers.
   - `indices?` — triangle list of integers `< vertexCount`; omitted =
     non-indexed (vertex count then divisible by 3).
   Element rules: non-number → `TypeError`, non-finite → `RangeError`;
@@ -828,15 +834,39 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F6c–F6d — rigs, REPL (provisional)
+### F6c — glTF rig import (current)
 
-Scope from the rest of roadmap F6: skin + animation import (F6c) and the
-interactive REPL (F6d).
+Scope from roadmap F6's third slice: skin + animation **import** on top of
+F6b. `loadMeshData` fills each primitive's `JOINTS_0`/`WEIGHTS_0` into the
+surface's `joints`/`weights` attributes and bundles the skin (joint
+hierarchy + inverse bind matrices) and every `animations[]` clip into the
+returned `MeshData` as an opaque rig payload, carried onto the `Mesh` by
+`createMesh`. The model and interpolation policy are pinned by ADR 0033;
+playback is F7.
 
-- Skin/animation import (F6c) extends `loadMeshData` to carry a rig:
-  `JOINTS_0`/`WEIGHTS_0` per surface and skeleton/clip payload (ADR 0014/0017).
-- The console/REPL run mode (F6d) drives this same `efx` namespace
-  interactively; no separate API.
+```js
+// F6c · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
+efx.createMeshData({ positions, joints, weights, ... }) // skinned surface attributes
+efx.loadMeshData(path, opts?) // additionally imports JOINTS_0/WEIGHTS_0 + skeleton + clips
+```
+
+- `joints`/`weights` are accepted by `createMeshData` exactly as described
+  in the F3 MeshData section (four influences per vertex, paired, vertex
+  count matched); they are CPU-only and not uploaded to the GPU in F6c.
+- `loadMeshData` normalizes `JOINTS_0` component types (u8/u16) to the
+  engine's integer joints, bundles the selected mesh's node→skin skeleton,
+  and imports each clip with LINEAR/STEP exact and CUBICSPLINE approximated
+  as LINEAR (tangents dropped). A primitive whose joints and weights counts
+  do not match its vertices fails the import.
+- **Opaque rig.** No resource, function, or read-only query property is
+  added for the skeleton or clips; the only new script-visible data is the
+  `joints`/`weights` surface attributes. The rig is released with its
+  `MeshData`/`Mesh`.
+
+### F6d — REPL (provisional)
+
+The console/REPL run mode drives this same `efx` namespace interactively;
+no separate API.
 
 ### F7 — Skinning & animation (provisional)
 

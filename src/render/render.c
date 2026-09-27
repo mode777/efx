@@ -61,6 +61,7 @@ typedef struct {
     mesh_pending pending;
     efx_material *materials;  /* surface_count entries (F4a) */
     uint8_t *has_material;    /* surface_count flags */
+    efx_rig *rig;             /* owned deep copy of MeshData rig (F6c) */
 } mesh_slot;
 
 static struct {
@@ -1050,6 +1051,18 @@ efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
             if (err) *err = EFX_MESHERR_LEN;
             return NULL;
         }
+        /* F6c: joints and weights are an all-or-nothing pair, four
+         * influences per vertex (glTF JOINTS_0 / WEIGHTS_0) */
+        if ((s->joints_len == 0) != (s->weights_len == 0)) {
+            if (err) *err = EFX_MESHERR_LEN;
+            return NULL;
+        }
+        if (s->joints_len &&
+            (s->joints_len != vcount * EFX_JOINTS_PER_VERTEX ||
+             s->weights_len != vcount * EFX_WEIGHTS_PER_VERTEX)) {
+            if (err) *err = EFX_MESHERR_LEN;
+            return NULL;
+        }
         if (s->indices_len % 3 != 0) {
             if (err) *err = EFX_MESHERR_LEN;
             return NULL;
@@ -1102,6 +1115,14 @@ efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
             if (d->colors) memcpy(d->colors, s->colors,
                                   (size_t)s->colors_len * fb);
         }
+        if (s->joints_len) {
+            d->joints = malloc((size_t)s->joints_len * sizeof(uint32_t));
+            if (d->joints) memcpy(d->joints, s->joints,
+                                  (size_t)s->joints_len * sizeof(uint32_t));
+            d->weights = malloc((size_t)s->weights_len * fb);
+            if (d->weights) memcpy(d->weights, s->weights,
+                                   (size_t)s->weights_len * fb);
+        }
         if (s->indices_len) {
             d->indices = malloc((size_t)s->indices_len * sizeof(uint32_t));
             if (d->indices) memcpy(d->indices, s->indices,
@@ -1111,6 +1132,7 @@ efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
                   (s->normals_len && !d->normals) ||
                   (s->uvs_len && !d->uvs) ||
                   (s->colors_len && !d->colors) ||
+                  (s->joints_len && (!d->joints || !d->weights)) ||
                   (s->indices_len && !d->indices);
         if (bad) {
             efx_meshdata_destroy(md);
@@ -1133,11 +1155,133 @@ void efx_meshdata_destroy(efx_meshdata *md) {
             free(s->normals);
             free(s->uvs);
             free(s->colors);
+            free(s->joints);
+            free(s->weights);
             free(s->indices);
         }
         free(md->surfaces);
     }
+    efx_rig_free(md->rig);
     free(md);
+}
+
+/* ------------------------------------------------------ F6c rig payload */
+
+void efx_rig_free(efx_rig *rig) {
+    if (!rig) {
+        return;
+    }
+    if (rig->clips) {
+        for (int i = 0; i < rig->clip_count; i++) {
+            efx_animation_clip *c = &rig->clips[i];
+            if (c->channels) {
+                for (int j = 0; j < c->channel_count; j++) {
+                    free(c->channels[j].times);
+                    free(c->channels[j].values);
+                }
+                free(c->channels);
+            }
+            free(c->name);
+        }
+        free(rig->clips);
+    }
+    free(rig->joint_nodes);
+    free(rig->joint_parents);
+    free(rig->inverse_bind);
+    free(rig);
+}
+
+static float *clone_floats(const float *src, int n) {
+    if (!src || n <= 0) {
+        return NULL;
+    }
+    float *buf = malloc((size_t)n * sizeof(float));
+    if (buf) {
+        memcpy(buf, src, (size_t)n * sizeof(float));
+    }
+    return buf;
+}
+
+static int *clone_ints(const int *src, int n) {
+    if (!src || n <= 0) {
+        return NULL;
+    }
+    int *buf = malloc((size_t)n * sizeof(int));
+    if (buf) {
+        memcpy(buf, src, (size_t)n * sizeof(int));
+    }
+    return buf;
+}
+
+efx_rig *efx_rig_clone(const efx_rig *src) {
+    if (!src) {
+        return NULL;
+    }
+    efx_rig *r = calloc(1, sizeof(efx_rig));
+    if (!r) {
+        return NULL;
+    }
+    r->joint_count = src->joint_count;
+    r->joint_nodes = clone_ints(src->joint_nodes, src->joint_count);
+    r->joint_parents = clone_ints(src->joint_parents, src->joint_count);
+    r->inverse_bind = clone_floats(src->inverse_bind, src->joint_count * 16);
+    if (src->joint_count &&
+        (!r->joint_nodes || !r->joint_parents || !r->inverse_bind)) {
+        efx_rig_free(r);
+        return NULL;
+    }
+    r->clip_count = src->clip_count;
+    if (src->clip_count > 0) {
+        r->clips = calloc((size_t)src->clip_count, sizeof(efx_animation_clip));
+        if (!r->clips) {
+            efx_rig_free(r);
+            return NULL;
+        }
+        for (int i = 0; i < src->clip_count; i++) {
+            const efx_animation_clip *sc = &src->clips[i];
+            efx_animation_clip *dc = &r->clips[i];
+            if (sc->name) {
+                size_t n = strlen(sc->name) + 1;
+                dc->name = malloc(n);
+                if (!dc->name) {
+                    efx_rig_free(r);
+                    return NULL;
+                }
+                memcpy(dc->name, sc->name, n);
+            }
+            dc->channel_count = sc->channel_count;
+            if (sc->channel_count > 0) {
+                dc->channels = calloc((size_t)sc->channel_count,
+                                      sizeof(efx_anim_channel));
+                if (!dc->channels) {
+                    efx_rig_free(r);
+                    return NULL;
+                }
+                for (int j = 0; j < sc->channel_count; j++) {
+                    const efx_anim_channel *scn = &sc->channels[j];
+                    efx_anim_channel *dcn = &dc->channels[j];
+                    *dcn = *scn;
+                    dcn->times = clone_floats(scn->times, scn->times_len);
+                    dcn->values = clone_floats(scn->values, scn->values_len);
+                    if ((scn->times_len && !dcn->times) ||
+                        (scn->values_len && !dcn->values)) {
+                        efx_rig_free(r);
+                        return NULL;
+                    }
+                }
+            }
+        }
+    }
+    return r;
+}
+
+void efx_meshdata_set_rig(efx_meshdata *md, efx_rig *rig) {
+    if (!md) {
+        efx_rig_free(rig);
+        return;
+    }
+    efx_rig_free(md->rig);
+    md->rig = rig;
 }
 
 void efx_meshdata_set_material(efx_meshdata *md, int index,
@@ -1328,6 +1472,18 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
         }
         material_retain_maps(&m->materials[i]);
     }
+    /* F6c: deep-copy the rig payload so the Mesh outlives its MeshData */
+    m->rig = efx_rig_clone(md->rig);
+    if (md->rig && !m->rig) {
+        mesh_materials_free(m);
+        pending_free(&m->pending);
+        if (native && R.sink && R.sink->destroy_mesh) {
+            R.sink->destroy_mesh(R.sink->ud, native);
+        }
+        m->native = NULL;
+        m->used = 0;
+        return 0;
+    }
     uint32_t idx = (uint32_t)(m - R.meshes) + 1;
     if ((int)idx > R.mesh_count) {
         R.mesh_count = (int)idx;
@@ -1345,6 +1501,8 @@ static void mesh_materials_free(mesh_slot *m) {
     free(m->has_material);
     m->materials = NULL;
     m->has_material = NULL;
+    efx_rig_free(m->rig);
+    m->rig = NULL;
 }
 
 static int mesh_release(uint64_t h, mesh_slot **out) {
@@ -1399,6 +1557,11 @@ int efx_render_mesh_surface_count(uint64_t h) {
 void *efx_render_mesh_native(uint64_t h) {
     mesh_slot *m = mesh_get(h);
     return m ? m->native : NULL;
+}
+
+const efx_rig *efx_render_mesh_rig(uint64_t h) {
+    mesh_slot *m = mesh_get(h);
+    return (m && m->alive) ? m->rig : NULL;
 }
 
 int efx_render_mesh_set_material(uint64_t h, int surface,

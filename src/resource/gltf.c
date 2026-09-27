@@ -8,6 +8,8 @@
 #include "resource/gltf.h"
 #include "resource/image.h"
 
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -459,16 +461,22 @@ static void surface_src_free(efx_surface_src *s) {
     free((void *)s->normals);
     free((void *)s->uvs);
     free((void *)s->colors);
+    free((void *)s->joints);
+    free((void *)s->weights);
     free((void *)s->indices);
     s->positions = NULL;
     s->normals = NULL;
     s->uvs = NULL;
     s->colors = NULL;
+    s->joints = NULL;
+    s->weights = NULL;
     s->indices = NULL;
     s->positions_len = 0;
     s->normals_len = 0;
     s->uvs_len = 0;
     s->colors_len = 0;
+    s->joints_len = 0;
+    s->weights_len = 0;
     s->indices_len = 0;
 }
 
@@ -597,6 +605,80 @@ static int build_surface(gltf_ctx *c, const cgltf_primitive *prim,
         s->colors_len = vcount * 4;
     }
 
+    /* F6c: JOINTS_0 / WEIGHTS_0 -> four influences per vertex; the pair is
+     * all-or-nothing and every component counts must match the vertices */
+    const cgltf_accessor *ja =
+        cgltf_find_accessor(prim, cgltf_attribute_type_joints, 0);
+    const cgltf_accessor *wa =
+        cgltf_find_accessor(prim, cgltf_attribute_type_weights, 0);
+    if ((ja != NULL) != (wa != NULL)) {
+        surface_src_free(s);
+        return EFX_GLTF_ERR_PARSE;
+    }
+    if (ja) {
+        if (cgltf_num_components(ja->type) != EFX_JOINTS_PER_VERTEX ||
+            (int)ja->count != vcount ||
+            cgltf_num_components(wa->type) != EFX_WEIGHTS_PER_VERTEX ||
+            (int)wa->count != vcount) {
+            surface_src_free(s);
+            return EFX_GLTF_ERR_PARSE;
+        }
+        int jlen = 0;
+        float *jraw = accessor_floats(ja, &jlen);
+        if (!jraw) {
+            surface_src_free(s);
+            return jlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+        }
+        if (jlen != vcount * EFX_JOINTS_PER_VERTEX) {
+            free(jraw);
+            surface_src_free(s);
+            return EFX_GLTF_ERR_PARSE;
+        }
+        uint32_t *joints = malloc((size_t)jlen * sizeof(uint32_t));
+        if (!joints) {
+            free(jraw);
+            surface_src_free(s);
+            return EFX_GLTF_ERR_NOMEM;
+        }
+        for (int i = 0; i < jlen; i++) {
+            /* u8/u16 component types unpack to exact small integral floats */
+            float jf = jraw[i];
+            if (!(jf >= 0.0f) || jf > 65535.0f || jf != (float)(int)jf) {
+                free(jraw);
+                free(joints);
+                surface_src_free(s);
+                return EFX_GLTF_ERR_PARSE;
+            }
+            joints[i] = (uint32_t)jf;
+        }
+        free(jraw);
+        int wlen = 0;
+        float *weights = accessor_floats(wa, &wlen);
+        if (!weights) {
+            free(joints);
+            surface_src_free(s);
+            return wlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+        }
+        if (wlen != vcount * EFX_WEIGHTS_PER_VERTEX) {
+            free(joints);
+            free(weights);
+            surface_src_free(s);
+            return EFX_GLTF_ERR_PARSE;
+        }
+        for (int i = 0; i < wlen; i++) {
+            if (!isfinite(weights[i])) {
+                free(joints);
+                free(weights);
+                surface_src_free(s);
+                return EFX_GLTF_ERR_PARSE;
+            }
+        }
+        s->joints = joints;
+        s->joints_len = jlen;
+        s->weights = weights;
+        s->weights_len = wlen;
+    }
+
     if (prim->indices) {
         size_t icount = prim->indices->count;
         if (icount % 3 != 0 || icount > 0x7fffffffu) {
@@ -621,6 +703,238 @@ static int build_surface(gltf_ctx *c, const cgltf_primitive *prim,
         s->indices_len = (int)icount;
     }
     return EFX_GLTF_OK;
+}
+
+/* --------------------------------------------------------- F6c rig */
+
+/* nearest ancestor of `node` that is one of the skin's joints, or -1 when the
+ * joint is a root of the joint hierarchy (design D3) */
+static int joint_parent(const cgltf_data *data, const cgltf_node *node,
+                        const int *joint_of_node) {
+    for (const cgltf_node *p = node->parent; p; p = p->parent) {
+        size_t idx = cgltf_node_index(data, p);
+        if (idx < data->nodes_count && joint_of_node[idx] >= 0) {
+            return joint_of_node[idx];
+        }
+    }
+    return -1;
+}
+
+/* skin -> joint hierarchy + inverse bind matrices; identity-filled when the
+ * accessor is absent (design D3) */
+static int build_skeleton(gltf_ctx *c, const cgltf_skin *skin, efx_rig *rig) {
+    int n = (int)skin->joints_count;
+    if (n <= 0) {
+        return EFX_GLTF_OK; /* a skin with no joints contributes no skeleton */
+    }
+    rig->joint_count = n;
+    rig->joint_nodes = malloc((size_t)n * sizeof(int));
+    rig->joint_parents = malloc((size_t)n * sizeof(int));
+    rig->inverse_bind = malloc((size_t)n * 16 * sizeof(float));
+    int *joint_of_node = malloc((size_t)c->data->nodes_count * sizeof(int));
+    if (!rig->joint_nodes || !rig->joint_parents || !rig->inverse_bind ||
+        !joint_of_node) {
+        free(joint_of_node);
+        return EFX_GLTF_ERR_NOMEM;
+    }
+    for (size_t i = 0; i < c->data->nodes_count; i++) {
+        joint_of_node[i] = -1;
+    }
+    for (int j = 0; j < n; j++) {
+        size_t idx = cgltf_node_index(c->data, skin->joints[j]);
+        rig->joint_nodes[j] = (int)idx;
+        if (idx < c->data->nodes_count) {
+            joint_of_node[idx] = j;
+        }
+    }
+    for (int j = 0; j < n; j++) {
+        rig->joint_parents[j] = joint_parent(c->data, skin->joints[j],
+                                             joint_of_node);
+    }
+    free(joint_of_node);
+
+    const cgltf_accessor *ibm = skin->inverse_bind_matrices;
+    for (int j = 0; j < n; j++) {
+        float *out = rig->inverse_bind + (size_t)j * 16;
+        cgltf_bool ok = 0;
+        if (ibm && ibm->type == cgltf_type_mat4 &&
+            (cgltf_size)j < ibm->count) {
+            ok = cgltf_accessor_read_float(ibm, (cgltf_size)j, out, 16);
+        }
+        if (!ok) {
+            /* identity (column-major), per glTF when the accessor is absent */
+            memset(out, 0, 16 * sizeof(float));
+            out[0] = out[5] = out[10] = out[15] = 1.0f;
+        }
+    }
+    return EFX_GLTF_OK;
+}
+
+/* stable internal clip name: the glTF name, or "clipN" when unnamed */
+static char *clip_internal_name(const cgltf_animation *anim, int index) {
+    if (anim->name && anim->name[0]) {
+        return dup_cstr(anim->name);
+    }
+    char buf[32];
+    snprintf(buf, sizeof(buf), "clip%d", index);
+    return dup_cstr(buf);
+}
+
+/* one glTF channel -> engine channel. Returns 0 imported, 1 skipped (out of
+ * scope / malformed), -2 out of memory. */
+static int build_channel(gltf_ctx *c, const cgltf_animation_channel *gc,
+                         efx_anim_channel *ch) {
+    if (!gc->target_node || !gc->sampler) {
+        return 1;
+    }
+    int path;
+    switch (gc->target_path) {
+    case cgltf_animation_path_type_translation:
+        path = EFX_ANIM_PATH_TRANSLATION;
+        break;
+    case cgltf_animation_path_type_rotation:
+        path = EFX_ANIM_PATH_ROTATION;
+        break;
+    case cgltf_animation_path_type_scale:
+        path = EFX_ANIM_PATH_SCALE;
+        break;
+    default:
+        return 1; /* morph-target weights are out of scope */
+    }
+    const cgltf_animation_sampler *s = gc->sampler;
+    if (!s->input || !s->output || s->input->count == 0) {
+        return 1;
+    }
+    int components = path == EFX_ANIM_PATH_ROTATION ? 4 : 3;
+    if ((int)cgltf_num_components(s->output->type) != components) {
+        return 1;
+    }
+    int interp;
+    if (s->interpolation == cgltf_interpolation_type_step) {
+        interp = EFX_ANIM_INTERP_STEP;
+    } else {
+        /* LINEAR and CUBICSPLINE (approximated, tangents dropped) */
+        interp = EFX_ANIM_INTERP_LINEAR;
+    }
+    int tlen = 0;
+    float *times = accessor_floats(s->input, &tlen);
+    if (!times) {
+        return tlen == -2 ? -2 : 1;
+    }
+    int keyframes = (int)s->input->count;
+    if (tlen != keyframes) {
+        free(times);
+        return 1;
+    }
+    int vlen = 0;
+    float *raw = accessor_floats(s->output, &vlen);
+    if (!raw) {
+        free(times);
+        return vlen == -2 ? -2 : 1;
+    }
+    /* CUBICSPLINE output stores in-tangent, value, out-tangent per keyframe;
+     * keep the middle value and import linearly (design D4) */
+    int stride = s->interpolation == cgltf_interpolation_type_cubic_spline ? 3
+                                                                            : 1;
+    int total = keyframes * components * stride;
+    if (vlen != total) {
+        free(times);
+        free(raw);
+        return 1;
+    }
+    float *values = malloc((size_t)keyframes * components * sizeof(float));
+    if (!values) {
+        free(times);
+        free(raw);
+        return -2;
+    }
+    int base = stride == 3 ? 1 : 0;
+    for (int k = 0; k < keyframes; k++) {
+        int src = (k * stride + base) * components;
+        for (int cc = 0; cc < components; cc++) {
+            values[k * components + cc] = raw[src + cc];
+        }
+    }
+    free(raw);
+    ch->target_node = (int)cgltf_node_index(c->data, gc->target_node);
+    ch->path = path;
+    ch->interpolation = interp;
+    ch->components = components;
+    ch->times_len = keyframes;
+    ch->values_len = keyframes * components;
+    ch->times = times;
+    ch->values = values;
+    return 0;
+}
+
+/* Build the opaque rig payload: the selected mesh's node -> skin (first node
+ * that both references the mesh and binds a skin) plus every animation clip.
+ * Returns NULL with *err untouched when the asset carries no rig. */
+static efx_rig *build_rig(gltf_ctx *c, const cgltf_mesh *mesh, int *err) {
+    const cgltf_skin *skin = NULL;
+    for (size_t i = 0; i < c->data->nodes_count; i++) {
+        const cgltf_node *node = &c->data->nodes[i];
+        if (node->mesh == mesh && node->skin) {
+            skin = node->skin;
+            break;
+        }
+    }
+    if (!skin && c->data->animations_count == 0) {
+        return NULL;
+    }
+    efx_rig *rig = calloc(1, sizeof(efx_rig));
+    if (!rig) {
+        *err = EFX_GLTF_ERR_NOMEM;
+        return NULL;
+    }
+    if (skin) {
+        int rc = build_skeleton(c, skin, rig);
+        if (rc != EFX_GLTF_OK) {
+            efx_rig_free(rig);
+            *err = rc;
+            return NULL;
+        }
+    }
+    size_t acount = c->data->animations_count;
+    if (acount > 0) {
+        rig->clips = calloc(acount, sizeof(efx_animation_clip));
+        if (!rig->clips) {
+            efx_rig_free(rig);
+            *err = EFX_GLTF_ERR_NOMEM;
+            return NULL;
+        }
+        rig->clip_count = (int)acount;
+        for (size_t a = 0; a < acount; a++) {
+            const cgltf_animation *ga = &c->data->animations[a];
+            efx_animation_clip *clip = &rig->clips[a];
+            clip->name = clip_internal_name(ga, (int)a);
+            if (!clip->name) {
+                efx_rig_free(rig);
+                *err = EFX_GLTF_ERR_NOMEM;
+                return NULL;
+            }
+            size_t cc = ga->channels_count;
+            clip->channels = calloc(cc ? cc : 1, sizeof(efx_anim_channel));
+            if (!clip->channels) {
+                efx_rig_free(rig);
+                *err = EFX_GLTF_ERR_NOMEM;
+                return NULL;
+            }
+            int n = 0;
+            for (size_t k = 0; k < cc; k++) {
+                int rc = build_channel(c, &ga->channels[k], &clip->channels[n]);
+                if (rc == 0) {
+                    n++;
+                } else if (rc == -2) {
+                    efx_rig_free(rig);
+                    *err = EFX_GLTF_ERR_NOMEM;
+                    return NULL;
+                }
+            }
+            clip->channel_count = n;
+        }
+    }
+    return rig;
 }
 
 /* ------------------------------------------------------------ importer */
@@ -771,6 +1085,21 @@ efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
             return NULL;
         }
         efx_meshdata_set_material(md, i, &mat, 1);
+    }
+
+    /* F6c: bundle the skin/clip payload into the MeshData (opaque) */
+    int rig_err = EFX_GLTF_OK;
+    efx_rig *rig = build_rig(&ctx, mesh, &rig_err);
+    if (rig_err != EFX_GLTF_OK) {
+        efx_meshdata_destroy(md);
+        ctx_destroy_textures(&ctx);
+        ctx_free(&ctx);
+        cgltf_free(data);
+        if (err) *err = rig_err;
+        return NULL;
+    }
+    if (rig) {
+        efx_meshdata_set_rig(md, rig);
     }
 
     ctx_free(&ctx);

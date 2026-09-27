@@ -189,6 +189,54 @@ typedef struct efx_draw_run {
     uint8_t blend;
 } efx_draw_run;
 
+/* four influences per vertex (glTF JOINTS_0 / WEIGHTS_0), F6c */
+#define EFX_JOINTS_PER_VERTEX 4
+#define EFX_WEIGHTS_PER_VERTEX 4
+
+/* ---------------------------------------------------- F6c rig payload */
+
+/* animation channel target path (glTF node TRS; morph weights are skipped) */
+#define EFX_ANIM_PATH_TRANSLATION 0
+#define EFX_ANIM_PATH_ROTATION 1
+#define EFX_ANIM_PATH_SCALE 2
+
+/* sampler interpolation; CUBICSPLINE imports as LINEAR with tangents dropped */
+#define EFX_ANIM_INTERP_LINEAR 0
+#define EFX_ANIM_INTERP_STEP 1
+
+/* one animation channel with its sampled keyframes inlined (opaque payload;
+ * CPU-only, never script-visible). `values` holds times_len * components
+ * floats; translation/scale are 3 components, rotation 4 (xyzw). */
+typedef struct efx_anim_channel {
+    int target_node;    /* glTF node index this channel animates */
+    int path;           /* EFX_ANIM_PATH_* */
+    int interpolation;  /* EFX_ANIM_INTERP_* */
+    int components;     /* 3 (TRS position/scale) or 4 (rotation) */
+    int times_len;      /* keyframe count */
+    int values_len;     /* times_len * components */
+    float *times;       /* seconds */
+    float *values;
+} efx_anim_channel;
+
+/* one glTF animation clip: a name (stable index-based name when unnamed) and
+ * its channels (F6c design D5). Playback resolution is F7's concern. */
+typedef struct efx_animation_clip {
+    char *name;
+    int channel_count;
+    efx_anim_channel *channels;
+} efx_animation_clip;
+
+/* opaque rig payload: the skin's joint hierarchy + inverse bind matrices and
+ * the asset's animation clips, carried MeshData -> Mesh (design D2/D3). */
+typedef struct efx_rig {
+    int joint_count;
+    int *joint_nodes;    /* glTF node index per joint */
+    int *joint_parents;  /* parent joint index, -1 for a root joint */
+    float *inverse_bind; /* joint_count * 16, column-major (identity-filled) */
+    int clip_count;
+    efx_animation_clip *clips;
+} efx_rig;
+
 /* CPU mesh data: 1..EFX_MESH_MAX_SURFACES surfaces, each with its own
  * attribute arrays + optional indices (Godot surface / glTF primitive).
  * Storage is deep-copied and engine-owned (design D8). */
@@ -197,14 +245,19 @@ typedef struct efx_surface_src {
     int normals_len;     /* floats, %3 == 0, 0 = absent */
     int uvs_len;         /* floats, %2 == 0, 0 = absent */
     int colors_len;      /* floats, %4 == 0, 0 = absent */
+    int joints_len;      /* uint32 count, 0 or vertex_count * 4 (F6c) */
+    int weights_len;     /* float count, 0 or vertex_count * 4 (F6c) */
     int indices_len;     /* uint32 count, %3 == 0, 0 = non-indexed */
-    const float *positions, *normals, *uvs, *colors;
+    const float *positions, *normals, *uvs, *colors, *weights;
+    const uint32_t *joints;
     const uint32_t *indices;
 } efx_surface_src;
 
 typedef struct efx_surface {
     int vertex_count, index_count;
     float *positions, *normals, *uvs, *colors; /* NULL when absent */
+    uint32_t *joints;                          /* NULL when static (F6c) */
+    float *weights;                            /* NULL when static (F6c) */
     uint32_t *indices;                          /* NULL when non-indexed */
     int has_material;                           /* F4a: explicit binding */
     efx_material material;
@@ -213,6 +266,7 @@ typedef struct efx_surface {
 typedef struct efx_meshdata {
     efx_surface *surfaces;
     int surface_count;
+    efx_rig *rig;   /* NULL when the asset carries no skin/clips (F6c) */
 } efx_meshdata;
 
 /* validates + deep-copies; NULL + one of the EFX_MESHERR_* codes */
@@ -224,6 +278,12 @@ void efx_meshdata_destroy(efx_meshdata *md); /* idempotent, NULL safe */
  * has=0 clears the binding (engine default) */
 void efx_meshdata_set_material(efx_meshdata *md, int index,
                                const efx_material *mat, int has);
+
+/* rig payload (F6c): takes ownership of `rig` and releases any previous one;
+ * NULL clears. clone deep-copies (used by createMesh); free releases one. */
+void efx_meshdata_set_rig(efx_meshdata *md, efx_rig *rig);
+efx_rig *efx_rig_clone(const efx_rig *rig);
+void efx_rig_free(efx_rig *rig);
 
 /* one GPU surface as handed to the sink: vertices interleaved
  * pos(3f) normal(3f) uv(2f) color(4f) = 12 floats/vertex (design D1;
@@ -304,6 +364,9 @@ int efx_render_mesh_destroy(uint64_t h);
 int efx_render_mesh_alive(uint64_t h);
 int efx_render_mesh_surface_count(uint64_t h);
 void *efx_render_mesh_native(uint64_t h);
+/* test/introspection: the rig carried by a live Mesh (NULL when static;
+ * ownership stays with the mesh). Not script-visible (F6c design D6). */
+const efx_rig *efx_render_mesh_rig(uint64_t h);
 
 /* render targets (F5a); handles are opaque, 0 = invalid; destroy is
  * deferred to frame end like textures (records and bound maps may hold

@@ -1039,6 +1039,50 @@ static int gltf_js(void) {
     return 0;
 }
 
+/* F6c: skinned surface attributes accepted through createMeshData; the rig
+ * itself stays opaque (no clip/joint query property, no new API) */
+static int skin_js(void) {
+    const char *code =
+        "const P = [0,0,0, 1,0,0, 0,1,0];"
+        "const J = [0,1,2,0, 1,0,0,0, 0,0,0,0];"
+        "const W = [1,0,0,0, 0.5,0.5,0,0, 1,0,0,0];"
+        "const md = efx.createMeshData({ positions: P, joints: J, weights: W,"
+        "  indices: [0,1,2] });"
+        "if (md.surfaceCount !== 1) throw new Error('skinned surfaceCount');"
+        "if (md.joints !== undefined || md.weights !== undefined)"
+        "  throw new Error('rig must be opaque');"
+        "if (md.clips !== undefined || md.jointCount !== undefined ||"
+        "    md.clipCount !== undefined || md.skeleton !== undefined)"
+        "  throw new Error('no rig query property');"
+        "const mesh = efx.createMesh(md);"
+        "if (mesh.clips !== undefined || mesh.jointCount !== undefined ||"
+        "    mesh.skeleton !== undefined)"
+        "  throw new Error('no rig query property on Mesh');"
+        "if ('poseMesh' in efx) throw new Error('no poseMesh in F6c');"
+        "md.destroy(); mesh.destroy();"
+        "function t(fn, kind) {"
+        "  try { fn(); throw new Error('did not throw'); }"
+        "  catch (e) {"
+        "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
+        "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
+        "  }"
+        "}"
+        "t(() => efx.createMeshData({ positions: P, joints: J }), RangeError);"
+        "t(() => efx.createMeshData({ positions: P, weights: W }), RangeError);"
+        "t(() => efx.createMeshData({ positions: P, joints: J, weights: [1,0,0,0] }), RangeError);"
+        "t(() => efx.createMeshData({ positions: P, joints: [0,1,2], weights: W }), RangeError);"
+        "t(() => efx.createMeshData({ positions: P, joints: ['a',0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), TypeError);"
+        "t(() => efx.createMeshData({ positions: P, joints: [0.5,0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), RangeError);"
+        "t(() => efx.createMeshData({ positions: P, joints: J, weights: ['x',0,0,0, 0,0,0,0, 0,0,0,0] }), TypeError);"
+        "t(() => efx.createMeshData({ positions: P, joints: J, weights: W, bogus: 1 }), TypeError);";
+    if (ok_js(code)) {
+        end_js();
+        return fail("skin js");
+    }
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -1070,6 +1114,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "resource_js")) return resource_js();
     if (!strcmp(c, "createTexture_js")) return createTexture_js();
     if (!strcmp(c, "gltf_js")) return gltf_js();
+    if (!strcmp(c, "skin_js")) return skin_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

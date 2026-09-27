@@ -440,6 +440,8 @@ static void wmd_release(wmd_slot *s) {
             free(sf->normals);
             free(sf->uvs);
             free(sf->colors);
+            free(sf->joints);
+            free(sf->weights);
             free(sf->indices);
         }
         free(s->staged);
@@ -485,6 +487,10 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_surface(int id, int index,
                                                      int uvs_len,
                                                      const float *colors,
                                                      int colors_len,
+                                                     const uint32_t *joints,
+                                                     int joints_len,
+                                                     const float *weights,
+                                                     int weights_len,
                                                      const uint32_t *indices,
                                                      int indices_len) {
     wmd_slot *s = wmd_get(id);
@@ -501,6 +507,10 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_surface(int id, int index,
     src.uvs_len = uvs_len;
     src.colors = colors;
     src.colors_len = colors_len;
+    src.joints = joints;
+    src.joints_len = joints_len;
+    src.weights = weights;
+    src.weights_len = weights_len;
     src.indices = indices;
     src.indices_len = indices_len;
     int err = 0;
@@ -545,6 +555,7 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_commit(int id) {
     }
     s->md->surface_count = s->surface_count;
     s->md->surfaces = s->staged;
+    s->md->rig = NULL; /* script-built meshes carry no rig payload */
     s->staged = NULL; /* ownership moved into the meshdata */
     return EFX_MESHERR_OK;
 }

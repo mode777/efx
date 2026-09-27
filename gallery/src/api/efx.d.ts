@@ -87,6 +87,10 @@ interface MeshSurfaceData {
   normals?: FlatNumbers;
   uvs?: FlatNumbers;
   colors?: FlatNumbers;
+  /** Four joint indices per vertex (glTF JOINTS_0); requires `weights`. */
+  joints?: FlatIndices;
+  /** Four joint weights per vertex (glTF WEIGHTS_0); requires `joints`. */
+  weights?: FlatNumbers;
   indices?: FlatIndices;
 }
 

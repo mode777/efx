@@ -1433,12 +1433,12 @@ static int read_number_array(JSContext *ctx, JSValueConst v, float **out,
 }
 
 /* indices: non-negative integers in uint32 range; non-integer → RangeError
- * (the F2 pixel-bytes precedent) */
+ * (the F2 pixel-bytes precedent). `what` names the field for messages. */
 static int read_index_array(JSContext *ctx, JSValueConst v, uint32_t **out,
-                            int *out_len) {
+                            int *out_len, const char *what) {
     int is_ta = JS_GetTypedArrayType(v);
     if (!JS_IsArray(v) && is_ta < 0) {
-        type_error(ctx, "indices must be an array");
+        type_error(ctx, what);
         return -1;
     }
     JSValue lenv = JS_GetPropertyStr(ctx, v, "length");
@@ -1446,7 +1446,7 @@ static int read_index_array(JSContext *ctx, JSValueConst v, uint32_t **out,
     JS_ToInt32(ctx, &len, lenv);
     JS_FreeValue(ctx, lenv);
     if (len < 0) {
-        range_error(ctx, "indices");
+        range_error(ctx, what);
         return -2;
     }
     uint32_t *buf = len ? malloc((size_t)len * sizeof(uint32_t)) : NULL;
@@ -1461,12 +1461,12 @@ static int read_index_array(JSContext *ctx, JSValueConst v, uint32_t **out,
         JS_FreeValue(ctx, ev);
         if (bad) {
             free(buf);
-            type_error(ctx, "indices must be numbers");
+            type_error(ctx, "array elements must be numbers");
             return -1;
         }
         if (!isfinite(d) || d < 0 || d > 4294967295.0 || d != floor(d)) {
             free(buf);
-            range_error(ctx, "indices must be integers in [0, 2^32-1]");
+            range_error(ctx, "array elements must be integers in [0, 2^32-1]");
             return -2;
         }
         buf[i] = (uint32_t)d;
@@ -1517,9 +1517,10 @@ static int check_known_fields(JSContext *ctx, JSValueConst obj,
 }
 
 static const char *MD_KEYS[] = {"positions", "normals", "uvs",
-                                "colors", "indices"};
+                                "colors", "joints", "weights", "indices"};
 static const char *MD_KEYS_MAT[] = {"positions", "normals", "uvs",
-                                    "colors", "indices", "materials"};
+                                    "colors", "joints", "weights",
+                                    "indices", "materials"};
 
 /* read a [x,y,z] array (array or typed array) */
 static int read_vec3(JSContext *ctx, JSValueConst v, float out[3],
@@ -1664,9 +1665,10 @@ static int read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
  * is registered here the moment it exists so a single release path frees
  * each exactly once on success and on every error exit */
 typedef struct {
-    float *f[EFX_MESH_MAX_SURFACES * 4];
+    float *f[EFX_MESH_MAX_SURFACES * 5];
     uint32_t *i[EFX_MESH_MAX_SURFACES];
-    int nf, ni;
+    uint32_t *j[EFX_MESH_MAX_SURFACES];
+    int nf, ni, nj;
 } md_owned;
 
 static void md_owned_free(md_owned *o) {
@@ -1676,8 +1678,12 @@ static void md_owned_free(md_owned *o) {
     for (int k = 0; k < o->ni; k++) {
         free(o->i[k]);
     }
+    for (int k = 0; k < o->nj; k++) {
+        free(o->j[k]);
+    }
     o->nf = 0;
     o->ni = 0;
+    o->nj = 0;
 }
 
 /* extract one surface object into an efx_surface_src; buffers are owned
@@ -1690,8 +1696,8 @@ static int read_surface(JSContext *ctx, JSValueConst obj, efx_surface_src *s,
         return -1;
     }
     if (allow_materials
-            ? check_known_fields(ctx, obj, MD_KEYS_MAT, 6, "surface") != 0
-            : check_known_fields(ctx, obj, MD_KEYS, 5, "surface") != 0) {
+            ? check_known_fields(ctx, obj, MD_KEYS_MAT, 8, "surface") != 0
+            : check_known_fields(ctx, obj, MD_KEYS, 7, "surface") != 0) {
         return -1;
     }
     static const char *keys[] = {"positions", "normals", "uvs", "colors"};
@@ -1718,11 +1724,43 @@ static int read_surface(JSContext *ctx, JSValueConst obj, efx_surface_src *s,
     s->uvs_len = lens[2];
     s->colors = bufs[3];
     s->colors_len = lens[3];
+    /* F6c skinned attributes: joints are integer indices, weights finite
+     * floats; pairing/count validation happens in efx_meshdata_create */
+    JSValue jv = JS_GetPropertyStr(ctx, obj, "joints");
+    if (!JS_IsUndefined(jv)) {
+        uint32_t *jb = NULL;
+        int jl = 0;
+        int rc = read_index_array(ctx, jv, &jb, &jl, "joints");
+        JS_FreeValue(ctx, jv);
+        if (rc != 0) {
+            return -1;
+        }
+        s->joints = jb;
+        s->joints_len = jl;
+        own->j[own->nj++] = jb;
+    } else {
+        JS_FreeValue(ctx, jv);
+    }
+    JSValue wv = JS_GetPropertyStr(ctx, obj, "weights");
+    if (!JS_IsUndefined(wv)) {
+        float *wb = NULL;
+        int wl = 0;
+        int rc = read_number_array(ctx, wv, &wb, &wl, "weights");
+        JS_FreeValue(ctx, wv);
+        if (rc != 0) {
+            return -1;
+        }
+        s->weights = wb;
+        s->weights_len = wl;
+        own->f[own->nf++] = wb;
+    } else {
+        JS_FreeValue(ctx, wv);
+    }
     JSValue iv = JS_GetPropertyStr(ctx, obj, "indices");
     if (!JS_IsUndefined(iv)) {
         uint32_t *ibuf = NULL;
         int ilen = 0;
-        int rc = read_index_array(ctx, iv, &ibuf, &ilen);
+        int rc = read_index_array(ctx, iv, &ibuf, &ilen, "indices");
         JS_FreeValue(ctx, iv);
         if (rc != 0) {
             return -1;
@@ -1746,8 +1784,9 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
     }
     JSValueConst opts = argv[0];
     static const char *bag_keys[] = {"surfaces", "positions", "normals",
-                                     "uvs", "colors", "indices", "materials"};
-    if (check_known_fields(ctx, opts, bag_keys, 7, "createMeshData") != 0) {
+                                     "uvs", "colors", "joints", "weights",
+                                     "indices", "materials"};
+    if (check_known_fields(ctx, opts, bag_keys, 9, "createMeshData") != 0) {
         return JS_EXCEPTION;
     }
 
