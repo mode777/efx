@@ -38,6 +38,8 @@ directory holds only what stays true after a change is archived.
 | [0026](0026-lighting-and-canned-shader-strategy.md) | Accepted | F4a lighting is world-space Phong from one uniform-driven mesh shader (no permutations); lights are value state snapshotted per mesh record |
 | [0027](0027-mesh-material-maps-and-alpha-mask.md) | Accepted | F4b maps are five always-bound samplers with a white fallback (no permutations); the alpha mask is a binary `alpha < 0.5` cutout; a bound map retains its Texture until unbound |
 
+| [0028](0028-render-targets-sampled-directly.md) | Accepted | F5a render targets are sampled directly wherever a Texture is (no alias object), segmented in the display list, and released on the Texture lifecycle |
+
 ## Adding a decision
 
 Copy [`TEMPLATE.md`](TEMPLATE.md) to `NNNN-short-slug.md`, fill it in,

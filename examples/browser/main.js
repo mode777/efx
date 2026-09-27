@@ -1,7 +1,7 @@
-// Golden gallery (f2c visual demo, extended in F3/F4a/F4b): cycles the
+// Golden gallery (f2c visual demo, extended in F3/F4a/F4b/F5a): cycles the
 // golden-image scenes — seven 2D (F2 API), six 3D (F3 API), six lighting
-// (F4a API) and seven material-map/mask (F4b API). Each scene reproduces its
-// committed capture under
+// (F4a API), seven material-map/mask (F4b API) and four render-target
+// (F5a API). Each scene reproduces its committed capture under
 // tests/goldens/<name>/golden.png on a 640x480 virtual frame; a 2D progress
 // strip at the bottom shows the cycle position (drawn over the 3D scenes
 // too: 2D records ignore depth).
@@ -635,6 +635,127 @@ const scenes = [
             }
         },
         render() {
+            efx.drawMesh({ mesh: this.plane });
+        },
+    },
+
+    // F5a — render targets
+    {
+        name: 'rt_quad2d',
+        setup() {
+            efx.setClearColor([0, 0.22, 0.05, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            this.tex = efx.createTexture(efx.createImageData({
+                width: 2, height: 2,
+                pixels: [255, 60, 40, 255, 40, 120, 255, 255,
+                         250, 220, 40, 255, 40, 200, 90, 255],
+            }));
+            this.rt = efx.createRenderTarget({ width: 320, height: 240 });
+        },
+        render() {
+            efx.beginRenderTarget(this.rt);
+            efx.drawQuad(0, 0, this.tex, { size: [160, 120] });
+            efx.drawQuad(200, 110, this.tex, { size: [90, 90], rotation: 30 });
+            efx.endRenderTarget();
+            efx.drawQuad(0, 0, this.rt);
+            efx.drawQuad(360, 260, this.rt, {
+                sourceRect: { x: 0, y: 0, w: 160, h: 120 },
+                size: [240, 180],
+            });
+        },
+    },
+    {
+        name: 'rt_scene3d',
+        setup() {
+            efx.setClearColor([0.05, 0.05, 0.1, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [3, 2.2, 4], target: [0, 0.4, 0], fov: 55 });
+            efx.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+            efx.setLight(1, null);
+            efx.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
+            this.cube = efx.createMesh(efx.makeCube({ size: 1 }));
+            this.ground = efx.createMesh(efx.makePlane({ size: 4 }));
+            this.rt = efx.createRenderTarget({ width: 400, height: 400 });
+        },
+        render() {
+            efx.beginRenderTarget(this.rt);
+            efx.drawMesh({ mesh: this.ground,
+                           transform: efx.mat4.translate(efx.mat4.identity(),
+                                                         [0, -0.5, 0]) });
+            efx.drawMesh({ mesh: this.cube,
+                           transform: efx.mat4.translate(efx.mat4.identity(),
+                                                         [0, 0.2, 0]) });
+            efx.endRenderTarget();
+            efx.drawQuad(120, 40, this.rt, { size: [400, 400] });
+        },
+    },
+    {
+        name: 'rt_camera',
+        setup() {
+            efx.setClearColor([0.1, 0.1, 0.25, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            const pixels = [];
+            for (let y = 0; y < 4; y++) {
+                for (let x = 0; x < 4; x++) {
+                    const on = (x + y) % 2 === 0;
+                    pixels.push(on ? 255 : 30, 40, on ? 30 : 200, 255);
+                }
+            }
+            this.tex = efx.createTexture(
+                efx.createImageData({ width: 4, height: 4, pixels: pixels }));
+            this.rt = efx.createRenderTarget({ width: 200, height: 200 });
+            this.rt2 = efx.createRenderTarget({ width: 320, height: 240 });
+        },
+        render() {
+            efx.beginRenderTarget(this.rt);
+            efx.drawQuad(10, 10, this.tex, { size: [90, 90] });
+            efx.drawQuad(105, 105, this.tex, { size: [85, 85] });
+            efx.endRenderTarget();
+            efx.setCamera2D({ frame: [640, 480] });
+            efx.beginRenderTarget(this.rt2);
+            efx.drawQuad(60, 40, this.tex, { size: [200, 160], rotation: 15 });
+            efx.endRenderTarget();
+            efx.drawQuad(20, 20, this.rt, { size: [200, 200] });
+            efx.drawQuad(260, 120, this.rt2);
+        },
+    },
+    {
+        name: 'rt_materialmap',
+        setup() {
+            efx.setClearColor([0, 0, 0, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
+            const red = efx.createTexture(efx.createImageData({
+                width: 1, height: 1, pixels: [255, 0, 0, 255],
+            }));
+            const blue = efx.createTexture(efx.createImageData({
+                width: 1, height: 1, pixels: [40, 80, 255, 255],
+            }));
+            this.map = efx.createRenderTarget({ width: 8, height: 8 });
+            this.red = red;
+            this.blue = blue;
+            const S = 20;
+            this.plane = efx.createMesh(efx.createMeshData({
+                positions: [-S, -S, 0, S, -S, 0, S, S, 0, -S, S, 0],
+                normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+                uvs: [0, 0, 1, 0, 1, 1, 0, 1],
+                indices: [0, 1, 2, 0, 2, 3],
+            }));
+            efx.setMeshSurfaceMaterial(this.plane, 0, {
+                ambient:  { color: [0, 0, 0, 1] },
+                diffuse:  { color: [1, 1, 1, 1], map: this.map },
+                specular: { color: [0, 0, 0, 1] },
+                emissive: { color: [0, 0, 0, 1] },
+            });
+        },
+        render() {
+            efx.beginRenderTarget(this.map);
+            efx.drawQuad(0, 0, this.red, { size: [4, 8] });
+            efx.drawQuad(4, 0, this.blue, { size: [4, 8] });
+            efx.endRenderTarget();
             efx.drawMesh({ mesh: this.plane });
         },
     },

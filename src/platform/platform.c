@@ -60,19 +60,6 @@ static void efx_sokol_log(const char *tag, uint32_t level,
     }
 }
 
-static sg_pass_action efx_pass_action(void) {
-    sg_pass_action pa;
-    memset(&pa, 0, sizeof(pa));
-    float c[4];
-    efx_render_clear_color(c);
-    pa.colors[0].load_action = SG_LOADACTION_CLEAR;
-    pa.colors[0].clear_value = (sg_color){c[0], c[1], c[2], c[3]};
-    /* F3 depth: cleared to far (1.0) each pass (design D4) */
-    pa.depth.load_action = SG_LOADACTION_CLEAR;
-    pa.depth.clear_value = 1.0f;
-    return pa;
-}
-
 #ifdef SOKOL_METAL
 static void efx_capture_setup(void) {
     const void *dev = sapp_get_environment().metal.device;
@@ -159,32 +146,13 @@ static void efx_frame_cb(void) {
 
 #ifdef SOKOL_METAL
     int use_capture_pass = g_cap_active && g_frame == g_capture.frame;
+    /* the default segment renders into the capture attachments on the
+       capture frame; playback owns its passes (pipeline.h) */
+    efx_pipeline_set_default_attachments(use_capture_pass ? g_cap_atts
+                                                          : (sg_attachments){0});
 #endif
 
-#ifdef SOKOL_METAL
-    if (use_capture_pass) {
-        sg_begin_pass(&(sg_pass){
-            .action = efx_pass_action(),
-            .attachments = g_cap_atts,
-        });
-        efx_pipeline_play();
-        sg_end_pass();
-    } else {
-        sg_begin_pass(&(sg_pass){
-            .action = efx_pass_action(),
-            .swapchain = sglue_swapchain(),
-        });
-        efx_pipeline_play();
-        sg_end_pass();
-    }
-#else
-    sg_begin_pass(&(sg_pass){
-        .action = efx_pass_action(),
-        .swapchain = sglue_swapchain(),
-    });
     efx_pipeline_play();
-    sg_end_pass();
-#endif
     sg_commit();
     efx_render_end_frame();
 

@@ -13,6 +13,7 @@
 /* ---------------------------------------------------------------- state */
 
 static void flush_pending_uploads(void);
+static int record_push(efx_record rec, size_t bytes);
 
 typedef struct {
     int used;
@@ -25,6 +26,22 @@ typedef struct {
     void *native;
     uint8_t *pending; /* RGBA bytes queued before a sink existed */
 } tex_slot;
+
+/* F5a render target: an offscreen color+depth attachment pair; native is
+ * owned by the sink and doubles as the sampling source (texture coercion,
+ * design D1). No CPU-side pixel payload: before a sink exists only the
+ * slot (with its size) is allocated. */
+typedef struct {
+    int used;
+    int alive;
+    int bind_refs;
+    int release_pending;
+    uint32_t gen;
+    int w, h;
+    void *native;
+} rt_slot;
+
+static void finalize_target_release(rt_slot *t);
 
 /* pending mesh upload: interleaved surfaces queued before a sink existed */
 typedef struct {
@@ -52,18 +69,23 @@ static struct {
     efx_light_set lights;     /* fixed bank; all disabled until set (F4a) */
     float clear_color[4];
     int blend;
+    uint64_t active_target;   /* F5a: rendering surface for new records */
     tex_slot *slots;
     int slot_count, slot_cap;
     mesh_slot *meshes;
     int mesh_count, mesh_cap;
+    rt_slot *targets;
+    int target_count, target_cap;
     uint64_t white_handle;
     efx_record *records;
     int record_count, record_cap;
-    /* deferred texture/mesh destroys (slot indexes) */
+    /* deferred texture/mesh/target destroys (slot indexes) */
     int *deferred_tex;
     int deferred_tex_count, deferred_tex_cap;
     int *deferred_mesh;
     int deferred_mesh_count, deferred_mesh_cap;
+    int *deferred_rt;
+    int deferred_rt_count, deferred_rt_cap;
 } R;
 
 void efx_render_install_sink(const efx_render_sink *sink) {
@@ -251,6 +273,9 @@ int efx_render_set_blend(int mode) {
 /* ------------------------------------------------------------ textures */
 
 static tex_slot *slot_get(uint64_t h) {
+    if ((h & 0xF0000000ull) != 0) {
+        return NULL; /* render-target tag: never a texture handle */
+    }
     uint32_t idx = (uint32_t)(h & 0xffffffffu);
     uint32_t gen = (uint32_t)(h >> 32);
     if (idx == 0 || (size_t)idx > (size_t)R.slot_count) {
@@ -274,6 +299,25 @@ static mesh_slot *mesh_get(uint64_t h) {
         return NULL;
     }
     return m;
+}
+
+static rt_slot *rt_get(uint64_t h) {
+    /* F5a handle namespaces are disjoint: render-target handles carry tag
+     * bits 28..31 (value 1) in the index half, keeping every handle small
+     * enough to stay exact through the web bridge's double wire format */
+    if ((h & 0xF0000000ull) != 0x10000000ull) {
+        return NULL;
+    }
+    uint32_t idx = (uint32_t)(h & 0x0FFFFFFFu);
+    uint32_t gen = (uint32_t)(h >> 32);
+    if (idx == 0 || (size_t)idx > (size_t)R.target_count) {
+        return NULL;
+    }
+    rt_slot *t = &R.targets[idx - 1];
+    if (!t->used || t->gen != gen) {
+        return NULL;
+    }
+    return t;
 }
 
 static void flush_pending_uploads(void) {
@@ -304,6 +348,17 @@ static void flush_pending_uploads(void) {
             m->pending.data = NULL;
             m->pending.surfs = NULL;
             m->pending.count = 0;
+        }
+    }
+    if (!R.sink->create_render_target) {
+        return;
+    }
+    for (int i = 0; i < R.target_count; i++) {
+        rt_slot *t = &R.targets[i];
+        /* create queued targets, including ones destroyed while retained
+           maps still reference them (the F4b retention rule, extended) */
+        if (t->used && (t->alive || t->bind_refs > 0) && !t->native) {
+            t->native = R.sink->create_render_target(R.sink->ud, t->w, t->h);
         }
     }
 }
@@ -407,24 +462,49 @@ static void finalize_texture_release(tex_slot *s) {
     schedule_texture_native_release(s);
 }
 
-/* F4b map retention (design D6): material bindings keep their textures alive */
+/* F4b map retention (design D6): material bindings keep their maps alive.
+ * F5a: maps may reference a Texture or a RenderTarget — the retain/ref
+ * helpers dispatch on whichever registry holds the handle. */
+static void map_bind_retain(uint64_t h) {
+    tex_slot *ts = slot_get(h);
+    if (ts) {
+        ts->bind_refs++;
+        return;
+    }
+    rt_slot *t = rt_get(h);
+    if (t) {
+        t->bind_refs++;
+    }
+}
+
 static void texture_bind_retain(uint64_t h) {
-    tex_slot *s = slot_get(h);
-    if (s) {
-        s->bind_refs++;
+    map_bind_retain(h);
+}
+
+static void map_bind_release(uint64_t h) {
+    tex_slot *ts = slot_get(h);
+    if (ts) {
+        if (ts->bind_refs > 0) {
+            ts->bind_refs--;
+        }
+        if (ts->bind_refs == 0 && ts->release_pending) {
+            ts->release_pending = 0;
+            finalize_texture_release(ts);
+        }
+        return;
+    }
+    rt_slot *t = rt_get(h);
+    if (t && t->bind_refs > 0) {
+        t->bind_refs--;
+        if (t->bind_refs == 0 && t->release_pending) {
+            t->release_pending = 0;
+            finalize_target_release(t);
+        }
     }
 }
 
 static void texture_bind_release(uint64_t h) {
-    tex_slot *s = slot_get(h);
-    if (!s || s->bind_refs <= 0) {
-        return;
-    }
-    s->bind_refs--;
-    if (s->bind_refs == 0 && s->release_pending) {
-        s->release_pending = 0;
-        finalize_texture_release(s);
-    }
+    map_bind_release(h);
 }
 
 static int texture_release(uint64_t h, tex_slot **out_slot) {
@@ -519,6 +599,204 @@ uint64_t efx_render_white_texture(void) {
         R.white_handle = h;
     }
     return h;
+}
+
+/* ------------------------------------------------------ render targets */
+
+uint64_t efx_render_target_create(int w, int h) {
+    if (w <= 0 || h <= 0 || w > EFX_RENDER_MAX_TARGET_SIZE ||
+        h > EFX_RENDER_MAX_TARGET_SIZE) {
+        return 0;
+    }
+    rt_slot *t = NULL;
+    for (int i = 0; i < R.target_count; i++) {
+        if (!R.targets[i].used) {
+            t = &R.targets[i];
+            break;
+        }
+    }
+    if (!t) {
+        if (R.target_count >= R.target_cap) {
+            int cap = R.target_cap ? R.target_cap * 2 : 16;
+            rt_slot *grown = realloc(R.targets, (size_t)cap * sizeof(rt_slot));
+            if (!grown) {
+                return 0;
+            }
+            R.targets = grown;
+            R.target_cap = cap;
+        }
+        t = &R.targets[R.target_count++];
+        t->gen = 0;
+    }
+    void *native = NULL;
+    if (R.sink && R.sink->create_render_target) {
+        native = R.sink->create_render_target(R.sink->ud, w, h);
+        if (!native) {
+            return 0;
+        }
+    }
+    t->used = 1;
+    t->alive = 1;
+    t->bind_refs = 0;
+    t->release_pending = 0;
+    t->gen++;
+    t->w = w;
+    t->h = h;
+    t->native = native;
+    uint32_t idx = (uint32_t)(t - R.targets) + 1;
+    return ((uint64_t)t->gen << 32) | 0x10000000ull | (uint64_t)idx;
+}
+
+static void schedule_target_native_release(rt_slot *t) {
+    if (!R.sink || !R.sink->destroy_render_target || !t->native) {
+        return;
+    }
+    if (R.deferred_rt_count >= R.deferred_rt_cap) {
+        int cap = R.deferred_rt_cap ? R.deferred_rt_cap * 2 : 16;
+        int *grown = realloc(R.deferred_rt, (size_t)cap * sizeof(int));
+        if (!grown) {
+            return; /* best effort; slot stays until shutdown */
+        }
+        R.deferred_rt = grown;
+        R.deferred_rt_cap = cap;
+    }
+    R.deferred_rt[R.deferred_rt_count++] = (int)(t - R.targets);
+}
+
+static void finalize_target_release(rt_slot *t) {
+    schedule_target_native_release(t);
+}
+
+int efx_render_target_destroy(uint64_t h) {
+    rt_slot *t = rt_get(h);
+    if (!t) {
+        return EFX_RENDER_ERR_HANDLE;
+    }
+    if (!t->alive) {
+        return EFX_RENDER_OK; /* destroy() is idempotent */
+    }
+    t->alive = 0;
+    if (t->bind_refs > 0) {
+        /* a bound map keeps the target alive until the binding is released */
+        t->release_pending = 1;
+        return EFX_RENDER_OK;
+    }
+    finalize_target_release(t);
+    return EFX_RENDER_OK;
+}
+
+int efx_render_target_alive(uint64_t h) {
+    rt_slot *t = rt_get(h);
+    return t && t->alive;
+}
+
+int efx_render_target_ref_count(uint64_t h) {
+    rt_slot *t = rt_get(h);
+    return t ? t->bind_refs : -1;
+}
+
+void efx_render_target_size(uint64_t h, int *out_w, int *out_h) {
+    rt_slot *t = rt_get(h);
+    if (t) {
+        if (out_w) *out_w = t->w;
+        if (out_h) *out_h = t->h;
+    }
+}
+
+void *efx_render_target_native(uint64_t h) {
+    rt_slot *t = rt_get(h);
+    return t ? t->native : NULL;
+}
+
+/* ------------------------------------------------- render redirection */
+
+uint64_t efx_render_active_target(void) {
+    return R.active_target;
+}
+
+int efx_render_begin_target(uint64_t h) {
+    ensure_state();
+    rt_slot *t = rt_get(h);
+    if (!t || !t->alive) {
+        return EFX_RENDER_ERR_HANDLE;
+    }
+    if (R.active_target) {
+        return EFX_RENDER_ERR_NESTED;
+    }
+    efx_record rec;
+    memset(&rec, 0, sizeof(rec));
+    rec.type = EFX_RECORD_BEGIN_TARGET;
+    rec.target = h;
+    rec.u.begin_target.target = h;
+    efx_render_clear_color(rec.u.begin_target.clear); /* snapshot (design D3) */
+    rec.sort_key = (uint32_t)R.record_count;
+    int rc = record_push(rec, sizeof(efx_record));
+    if (rc != EFX_RENDER_OK) {
+        return rc;
+    }
+    R.active_target = h;
+    return EFX_RENDER_OK;
+}
+
+int efx_render_end_target(void) {
+    ensure_state();
+    if (!R.active_target) {
+        return EFX_RENDER_ERR_STATE;
+    }
+    efx_record rec;
+    memset(&rec, 0, sizeof(rec));
+    rec.type = EFX_RECORD_END_TARGET;
+    rec.target = R.active_target;
+    rec.u.begin_target.target = R.active_target;
+    rec.sort_key = (uint32_t)R.record_count;
+    int rc = record_push(rec, sizeof(efx_record));
+    if (rc != EFX_RENDER_OK) {
+        return rc;
+    }
+    R.active_target = 0;
+    return EFX_RENDER_OK;
+}
+
+/* --------------------------------------------------- sample coercion */
+
+int efx_render_sample_alive(uint64_t h) {
+    if (!h) {
+        return 0;
+    }
+    tex_slot *ts = slot_get(h);
+    if (ts) {
+        return ts->alive;
+    }
+    rt_slot *t = rt_get(h);
+    return t && t->alive;
+}
+
+void efx_render_sample_size(uint64_t h, int *out_w, int *out_h) {
+    tex_slot *ts = slot_get(h);
+    if (ts) {
+        if (out_w) *out_w = ts->w;
+        if (out_h) *out_h = ts->h;
+        return;
+    }
+    efx_render_target_size(h, out_w, out_h);
+}
+
+void *efx_render_sample_native(uint64_t h) {
+    tex_slot *ts = slot_get(h);
+    if (ts) {
+        return ts->native;
+    }
+    return efx_render_target_native(h);
+}
+
+void efx_render_surface_size(int *out_w, int *out_h) {
+    ensure_state();
+    if (R.active_target) {
+        efx_render_target_size(R.active_target, out_w, out_h);
+        return;
+    }
+    if (out_w) *out_w = R.viewport_w;
+    if (out_h) *out_h = R.viewport_h;
 }
 
 /* ------------------------------------------------------ CPU mesh data */
@@ -1014,10 +1292,16 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                     const float src_rect[4], int has_src,
                     float origin_x, float origin_y) {
     ensure_state();
-    float fw = R.camera.frame_w > 0.0f ? R.camera.frame_w
-                                       : (float)(R.viewport_w ? R.viewport_w : 640);
-    float fh = R.camera.frame_h > 0.0f ? R.camera.frame_h
-                                       : (float)(R.viewport_h ? R.viewport_h : 480);
+    /* F5a: the active render target is the rendering surface — the default
+       camera frame follows it exactly as it follows the window */
+    int surf_w = 0, surf_h = 0;
+    efx_render_surface_size(&surf_w, &surf_h);
+    float fw = R.camera.frame_w > 0.0f
+                   ? R.camera.frame_w
+                   : (float)(surf_w ? surf_w : 640);
+    float fh = R.camera.frame_h > 0.0f
+                   ? R.camera.frame_h
+                   : (float)(surf_h ? surf_h : 480);
     float cx = R.camera.frame_w > 0.0f ? R.camera.x : fw * 0.5f;
     float cy = R.camera.frame_h > 0.0f ? R.camera.y : fh * 0.5f;
 
@@ -1028,9 +1312,16 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
     efx_affine model = efx_quad_matrix(x, y, origin_x, origin_y,
                                        rotation_deg, scale);
 
+    if (texture && texture == R.active_target) {
+        /* feedback-loop guard (F5a design D4): a target is never sampled
+           while it is the active attachment */
+        return EFX_RENDER_ERR_FEEDBACK;
+    }
+
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_QUAD;
+    rec.target = R.active_target;
     efx_quad_record *q = &rec.u.quad;
     q->m = efx_affine_mul(view, model);
     q->frame_w = fw;
@@ -1080,9 +1371,27 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     if (!mesh || !efx_render_mesh_alive(mesh)) {
         return EFX_RENDER_ERR_HANDLE;
     }
+    /* feedback-loop guard (F5a design D4): a mesh draw samples its bound
+       maps — none of them may be the target being drawn into */
+    if (R.active_target) {
+        int surfaces = efx_render_mesh_surface_count(mesh);
+        for (int i = 0; i < surfaces; i++) {
+            efx_material mat;
+            efx_render_mesh_surface_material(mesh, i, &mat);
+            const uint64_t maps[5] = {mat.ambient_map, mat.diffuse_map,
+                                      mat.specular_map, mat.emissive_map,
+                                      mat.alpha_mask};
+            for (int k = 0; k < 5; k++) {
+                if (maps[k] && maps[k] == R.active_target) {
+                    return EFX_RENDER_ERR_FEEDBACK;
+                }
+            }
+        }
+    }
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_MESH;
+    rec.target = R.active_target;
     efx_mesh_record *mr = &rec.u.mesh;
     mr->mesh = mesh;
     for (int i = 0; i < 16; i++) {
@@ -1153,11 +1462,14 @@ const efx_draw_run *efx_render_runs(int *count) {
 void efx_render_begin_frame(void) {
     ensure_state();
     R.record_count = 0;
+    R.active_target = 0; /* a new frame never inherits an open segment */
 }
 
 void efx_render_end_frame(void) {
     /* release deferred meshes first: destroying a mesh releases its material
-       map references, which may schedule texture releases for this frame */
+       map references, which may schedule texture/target releases for this
+       frame; textures next, render targets last (they may have been queued
+       by the mesh releases above) */
     if (R.sink && R.sink->destroy_mesh) {
         for (int i = 0; i < R.deferred_mesh_count; i++) {
             int idx = R.deferred_mesh[i];
@@ -1179,6 +1491,17 @@ void efx_render_end_frame(void) {
         }
     }
     R.deferred_tex_count = 0;
+    if (R.sink && R.sink->destroy_render_target) {
+        for (int i = 0; i < R.deferred_rt_count; i++) {
+            int idx = R.deferred_rt[i];
+            R.sink->destroy_render_target(R.sink->ud, R.targets[idx].native);
+            R.targets[idx].native = NULL;
+            R.targets[idx].bind_refs = 0;
+            R.targets[idx].release_pending = 0;
+            R.targets[idx].used = 0;
+        }
+    }
+    R.deferred_rt_count = 0;
 }
 
 /* ------------------------------------------------------------- shutdown */
@@ -1199,15 +1522,25 @@ void efx_render_shutdown(void) {
             pending_free(&R.meshes[i].pending);
             mesh_materials_free(&R.meshes[i]);
         }
+        if (R.sink->destroy_render_target) {
+            for (int i = 0; i < R.target_count; i++) {
+                if (R.targets[i].used && R.targets[i].native) {
+                    R.sink->destroy_render_target(R.sink->ud,
+                                                  R.targets[i].native);
+                }
+            }
+        }
         if (R.sink->shutdown) {
             R.sink->shutdown(R.sink->ud);
         }
     }
     free(R.slots);
     free(R.meshes);
+    free(R.targets);
     free(R.records);
     free(R.deferred_tex);
     free(R.deferred_mesh);
+    free(R.deferred_rt);
     memset(&R, 0, sizeof(R));
     state_ready = 0;
 }

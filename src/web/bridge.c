@@ -208,6 +208,41 @@ EMSCRIPTEN_KEEPALIVE double efx_bridge_white_texture(void) {
     return (double)efx_render_white_texture();
 }
 
+/* ------------------------------------------------- F5a (render targets) */
+
+EMSCRIPTEN_KEEPALIVE double efx_bridge_target_create(int w, int h) {
+    return (double)efx_render_target_create(w, h);
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_target_destroy(double handle) {
+    efx_render_target_destroy((uint64_t)handle);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_target_alive(double handle) {
+    return efx_render_target_alive((uint64_t)handle);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_target_width(double handle) {
+    int w = 0, h = 0;
+    efx_render_target_size((uint64_t)handle, &w, &h);
+    return w;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_target_height(double handle) {
+    int w = 0, h = 0;
+    efx_render_target_size((uint64_t)handle, &w, &h);
+    return h;
+}
+
+/* returns an EFX_RENDER_* code; the JS wrapper maps it to exceptions */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_target_begin(double handle) {
+    return efx_render_begin_target((uint64_t)handle);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_target_end(void) {
+    return efx_render_end_target();
+}
+
 EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_quad(double handle, float x, float y, float w, float h,
                                               float cr, float cg, float cb, float ca,
                                               float rotation, float scale,

@@ -22,6 +22,7 @@ static int feq(float a, float b) {
 
 static int g_tex_created, g_tex_destroyed;
 static int g_mesh_created, g_mesh_destroyed;
+static int g_rt_created, g_rt_destroyed;
 static int g_last_mesh_surf_count;
 static int g_last_mesh_vert_total;
 static int g_last_mesh_index_total;
@@ -61,16 +62,30 @@ static void mock_destroy_mesh(void *ud, void *native) {
     free(native);
 }
 
+static void *mock_create_rt(void *ud, int w, int h) {
+    (void)ud; (void)w; (void)h;
+    g_rt_created++;
+    return malloc(8);
+}
+
+static void mock_destroy_rt(void *ud, void *native) {
+    (void)ud;
+    g_rt_destroyed++;
+    free(native);
+}
+
 static void install_mock_sink(void) {
     static const efx_render_sink sink = {
         NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
-        NULL,
+        NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
     g_tex_created = 0;
     g_tex_destroyed = 0;
     g_mesh_created = 0;
     g_mesh_destroyed = 0;
+    g_rt_created = 0;
+    g_rt_destroyed = 0;
 }
 
 /* a two-surface fixture: surface 0 indexed with all attributes,
@@ -223,7 +238,7 @@ static int blend_snapshot(void) {
 static int record_budget(void) {
     static const efx_render_sink sink = {
         NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
-        NULL,
+        NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
     int pushed = 0;
@@ -473,7 +488,7 @@ static int mesh_pending_upload(void) {
     if (g_mesh_created != 0) return fail("created without sink");
     static const efx_render_sink sink = {
         NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
-        NULL,
+        NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
     if (g_mesh_created != 1) return fail("pending flush");
@@ -1046,6 +1061,190 @@ static int lighting_maps(void) {
     return 0;
 }
 
+/* ------------------------------------------------- F5a render targets */
+
+static int render_target_lifecycle(void) {
+    install_mock_sink();
+    efx_render_set_viewport(640, 480);
+    /* validation: 0 / negative / oversized rejected */
+    if (efx_render_target_create(0, 64) != 0) return fail("zero width accepted");
+    if (efx_render_target_create(64, -1) != 0) return fail("negative height accepted");
+    if (efx_render_target_create(EFX_RENDER_MAX_TARGET_SIZE + 1, 8) != 0)
+        return fail("oversize accepted");
+    uint64_t rt = efx_render_target_create(512, 256);
+    if (!rt) return fail("create");
+    if (!efx_render_target_alive(rt)) return fail("alive after create");
+    int w = 0, h = 0;
+    efx_render_target_size(rt, &w, &h);
+    if (w != 512 || h != 256) return fail("size");
+    if (!efx_render_sample_alive(rt)) return fail("sample alive");
+    efx_render_sample_size(rt, &w, &h);
+    if (w != 512 || h != 256) return fail("sample size");
+    if (efx_render_sample_native(rt) == NULL) return fail("sample native");
+    /* destroyed handles and unknown handles do not resolve */
+    if (efx_render_target_alive(0xdeadbeef)) return fail("stale handle alive");
+    if (efx_render_target_destroy(rt) != EFX_RENDER_OK) return fail("destroy");
+    if (efx_render_target_alive(rt)) return fail("alive after destroy");
+    if (efx_render_target_destroy(rt) != EFX_RENDER_OK) return fail("destroy idempotent");
+    efx_render_end_frame();
+    if (g_rt_created != 1 || g_rt_destroyed != 1) return fail("sink create/destroy counts");
+    efx_render_shutdown();
+    return 0;
+}
+
+static int target_deferred_release(void) {
+    install_mock_sink();
+    uint64_t rt = efx_render_target_create(64, 64);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    if (!rt || !tex) return fail("fixtures");
+    /* binding an RT as a material map retains it (F4b rule extended) */
+    efx_meshdata *md = make_two_surface_mesh();
+    uint64_t mesh = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!mesh) return fail("mesh");
+    efx_material mat;
+    efx_material_default(&mat);
+    mat.diffuse_map = rt;
+    if (efx_render_mesh_set_material(mesh, 0, &mat, 1) != EFX_RENDER_OK)
+        return fail("bind");
+    if (efx_render_target_ref_count(rt) != 1) return fail("bind ref count");
+    /* destroy while bound: the script handle dies immediately, but the
+       native storage is retained until the binding releases (the F4b
+       texture rule, extended) */
+    if (efx_render_target_destroy(rt) != EFX_RENDER_OK) return fail("destroy bound");
+    if (efx_render_target_alive(rt)) return fail("alive after destroy");
+    if (efx_render_target_ref_count(rt) != 1) return fail("ref count lost");
+    if (g_rt_destroyed != 0) return fail("native released while bound");
+    /* unbinding releases; native release lands at frame end */
+    if (efx_render_mesh_set_material(mesh, 0, NULL, 0) != EFX_RENDER_OK)
+        return fail("unbind");
+    if (efx_render_target_ref_count(rt) != 0) return fail("ref count after unbind");
+    efx_render_end_frame();
+    if (g_rt_destroyed != 1) return fail("native release after unbind");
+    efx_render_shutdown();
+    return 0;
+}
+
+static int segmentation(void) {
+    install_mock_sink();
+    efx_render_set_viewport(640, 480);
+    uint64_t rt = efx_render_target_create(64, 64);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    if (!rt || !tex) return fail("fixtures");
+    /* screen quad, target segment, screen quad again */
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 5) return fail("record count");
+    if (recs[0].type != EFX_RECORD_QUAD || recs[0].target != 0)
+        return fail("screen quad before segment");
+    if (recs[1].type != EFX_RECORD_BEGIN_TARGET || recs[1].target != rt)
+        return fail("begin control record");
+    if (recs[2].type != EFX_RECORD_QUAD || recs[2].target != rt)
+        return fail("quad carries target tag");
+    if (recs[3].type != EFX_RECORD_END_TARGET || recs[3].target != rt)
+        return fail("end control record");
+    if (recs[4].type != EFX_RECORD_QUAD || recs[4].target != 0)
+        return fail("screen quad after segment");
+    /* keys equal record order */
+    for (int i = 0; i < count; i++) {
+        if (recs[i].sort_key != (uint32_t)i) return fail("sort keys");
+    }
+    /* active target follows begin/end */
+    if (efx_render_active_target() != 0) return fail("active after end");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int target_redirection(void) {
+    install_mock_sink();
+    efx_render_set_viewport(1024, 600);
+    uint64_t rt = efx_render_target_create(256, 128);
+    if (!rt) return fail("create");
+    /* the default camera frame follows the active target */
+    if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
+    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4);
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (recs[count - 1].u.quad.frame_w != 256 ||
+        recs[count - 1].u.quad.frame_h != 128)
+        return fail("default frame follows target");
+    /* the BEGIN record value-snapshots the clear color (design D3) */
+    float blue[4] = {0, 0, 1, 1};
+    efx_render_set_clear_color(blue);
+    if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
+    if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin 2");
+    float red[4] = {1, 0, 0, 1};
+    efx_render_set_clear_color(red); /* later change must not leak backward */
+    if (efx_render_end_target() != EFX_RENDER_OK) return fail("end 2");
+    recs = efx_render_records(&count);
+    int begins = 0;
+    for (int i = 0; i < count; i++) {
+        if (recs[i].type == EFX_RECORD_BEGIN_TARGET) {
+            const float *c = recs[i].u.begin_target.clear;
+            if (begins == 1 && !feq(c[2], 1.0f)) return fail("first clear snapshot");
+            if (begins == 2 && !feq(c[0], 1.0f)) return fail("second clear snapshot");
+            begins++;
+        }
+    }
+    if (begins != 2) return fail("begin count");
+    /* error states: nesting and unbalanced end */
+    if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin 3");
+    if (efx_render_begin_target(rt) != EFX_RENDER_ERR_NESTED) return fail("nested accepted");
+    if (efx_render_end_target() != EFX_RENDER_OK) return fail("end 3");
+    if (efx_render_end_target() != EFX_RENDER_ERR_STATE) return fail("unbalanced accepted");
+    /* handle validation */
+    if (efx_render_begin_target(0x1234) != EFX_RENDER_ERR_HANDLE)
+        return fail("bad handle accepted");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int feedback_guard(void) {
+    install_mock_sink();
+    uint64_t rt = efx_render_target_create(64, 64);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL);
+    if (!rt || !tex) return fail("fixtures");
+    efx_meshdata *md = make_two_surface_mesh();
+    uint64_t mesh = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!mesh) return fail("mesh");
+    /* off-target draws are unaffected */
+    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4) != EFX_RENDER_OK)
+        return fail("sampling a non-active target must succeed");
+    /* quad sampling the active target is rejected at record time */
+    if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
+    int before = 0;
+    efx_render_records(&before);
+    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4) !=
+        EFX_RENDER_ERR_FEEDBACK)
+        return fail("quad feedback accepted");
+    /* a mesh whose maps sample the active target is rejected too */
+    efx_material mat;
+    efx_material_default(&mat);
+    mat.diffuse_map = rt;
+    efx_render_mesh_set_material(mesh, 0, &mat, 1);
+    if (efx_render_mesh(mesh, NULL, NULL) != EFX_RENDER_ERR_FEEDBACK)
+        return fail("mesh feedback accepted");
+    int after = 0;
+    efx_render_records(&after);
+    if (before != after) return fail("rejected draw recorded something");
+    if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
+    /* outside the segment the same draws record */
+    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4) != EFX_RENDER_OK)
+        return fail("sampling after end must succeed");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_render_tests <case>\n");
@@ -1074,6 +1273,11 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "material_maps")) return material_maps();
     if (!strcmp(c, "map_retention")) return map_retention();
     if (!strcmp(c, "lighting_maps")) return lighting_maps();
+    if (!strcmp(c, "render_target_lifecycle")) return render_target_lifecycle();
+    if (!strcmp(c, "target_deferred_release")) return target_deferred_release();
+    if (!strcmp(c, "segmentation")) return segmentation();
+    if (!strcmp(c, "target_redirection")) return target_redirection();
+    if (!strcmp(c, "feedback_guard")) return feedback_guard();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

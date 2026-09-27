@@ -7,23 +7,31 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 
 ## Current state
 
-- F1 (player skeleton), F2 (2D layer), F3 (3D core), and F4 (lighting +
-  Phong, split F4a/F4b) are **done**. F4b's four-target gate is green (ci
-  run 36284454599: native suites incl. all twenty-six goldens on
-  Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
-  goldens). F4b delivers per-channel Phong maps (`ambient`/`diffuse`/
-  `specular`/`emissive` `map`), a material-level binary `alphaMask`
-  (discard when sampled alpha < 0.5), `uv` consumption, and the retained
-  bound-map texture lifetime — all through the same single uniform-driven
-  mesh shader (five always-bound samplers with a white-texture fallback, no
-  permutations; ADR 0027). F4a delivers the fixed light bank (`setLight` /
-  `setDirectionalLight`), per-surface Phong materials
-  (`setMeshSurfaceMaterial` + `createMeshData`'s `materials` array;
-  no global material state — ADR 0024), world-space lit `drawMesh`
-  (ADR 0026), and the CPU lighting reference. F4a's four-target gate is
-  green (ci run 36271736775: native suites incl. all nineteen goldens on
-  Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
-  goldens). F3's four-target gate is also
+- F5a (render targets) is **implemented, gate pending** (change
+  `f5a-render-targets`): `createRenderTarget` / `beginRenderTarget` /
+  `endRenderTarget`, a live RenderTarget accepted wherever a live Texture
+  is (drawQuad, material maps, alphaMask — no alias object, ADR 0028),
+  display-list segmentation with value-snapshotted clear-per-begin, the
+  active target driving the default 2D frame and 3D aspect, and the
+  Texture lifecycle (deferred release, map retention) extended to targets.
+  Four golden scenes (`rt_quad2d`, `rt_scene3d`, `rt_camera`,
+  `rt_materialmap`) are authored; their captures activate the tests.
+  F4 (lighting + Phong, split F4a/F4b) is **done**: F4b's four-target gate
+  is green (ci run 36284454599: native suites incl. all twenty-six
+  goldens on Linux/Windows/macOS, Emscripten ctest + cross-runtime
+  compare + web goldens). F4b delivers per-channel Phong maps
+  (`ambient`/`diffuse`/`specular`/`emissive` `map`), a material-level
+  binary `alphaMask` (discard when sampled alpha < 0.5), `uv` consumption,
+  and the retained bound-map texture lifetime — all through the same
+  single uniform-driven mesh shader (five always-bound samplers with a
+  white-texture fallback, no permutations; ADR 0027). F4a delivers the
+  fixed light bank (`setLight` / `setDirectionalLight`), per-surface
+  Phong materials (`setMeshSurfaceMaterial` + `createMeshData`'s
+  `materials` array; no global material state — ADR 0024), world-space
+  lit `drawMesh` (ADR 0026), and the CPU lighting reference. F4a's
+  four-target gate is green (ci run 36271736775: native suites incl. all
+  nineteen goldens on Linux/Windows/macOS, Emscripten ctest + cross-runtime
+  compare + web goldens). F3's four-target gate is also
   green (ci run 36122872839: native suites incl. all
   twelve goldens on Linux/Windows/macOS, Emscripten ctest + web goldens)
   after the D3D11/Metal clip-depth fix recorded in ADR 0025. F3 delivers
@@ -73,10 +81,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   everywhere (on Emscripten the smoke suite runs the same portable scripts
   through the native bridge with the host JS engine as the runtime, plus
   `tools/run_web_compare.mjs` diffs desktop vs web output); golden-image
-  tests (26 committed scenes under `tests/goldens/` — seven 2D + nineteen
-  3D/lighting/material-map; `examples/browser/main.js`, the Pages gallery,
-  cycles the same twenty-six through the public API and should gain a scene
-  whenever a golden does)
+  tests (26 committed golden scenes under `tests/goldens/` — seven 2D +
+  nineteen 3D/lighting/material-map — plus the four F5a scenes
+  (`rt_quad2d`, `rt_scene3d`, `rt_camera`, `rt_materialmap`) authored
+  ahead of their server-side captures; `examples/browser/main.js`, the
+  Pages gallery, cycles the same scenes through the public API and should
+  gain a scene whenever a golden does)
   run where a display exists — Linux CI under `xvfb-run` + llvmpipe,
   Emscripten in pinned headless Chrome (ADR 0020). Local builds without a display configure with
   `-DEFX_BUILD_GOLDEN_TESTS=OFF` (the default); if a local build dir was

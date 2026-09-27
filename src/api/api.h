@@ -31,6 +31,11 @@ JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val, int argc, JSValue
 JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F5a — render targets */
+JSValue efx_js_createRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_beginRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 

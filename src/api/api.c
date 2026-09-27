@@ -70,6 +70,12 @@ static JSValue generic_error(JSContext *ctx, const char *msg) {
     return JS_ThrowInternalError(ctx, "%s", msg);
 }
 
+/* reject unknown fields on an object with a TypeError naming the field
+ * (defined with the F3 bindings; used from F2/F5a too) */
+static int check_known_fields(JSContext *ctx, JSValueConst obj,
+                              const char **known, int nknown,
+                              const char *where);
+
 /* --------------------------------------------- F1 lifecycle hooks */
 
 /* unsubscribe closure: magic selects the list (0 = update, 1 = render),
@@ -194,10 +200,16 @@ typedef struct {
     int alive;
 } efxjs_mesh;
 
+typedef struct {
+    uint64_t handle;
+    int alive;
+} efxjs_rendertarget;
+
 static JSClassID texture_class_id;
 static JSClassID imagedata_class_id;
 static JSClassID meshdata_class_id;
 static JSClassID mesh_class_id;
+static JSClassID rendertarget_class_id;
 
 static void texture_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
@@ -236,6 +248,17 @@ static void mesh_finalizer(JSRuntime *rt, JSValue val) {
             efx_render_mesh_destroy(m->handle);
         }
         free(m);
+    }
+}
+
+static void rendertarget_finalizer(JSRuntime *rt, JSValue val) {
+    (void)rt;
+    efxjs_rendertarget *t = JS_GetOpaque(val, rendertarget_class_id);
+    if (t) {
+        if (t->alive) {
+            efx_render_target_destroy(t->handle);
+        }
+        free(t);
     }
 }
 
@@ -279,6 +302,15 @@ static JSValue js_destroy_resource(JSContext *ctx, JSValueConst this_val,
         efx_render_mesh_destroy(m->handle);
         return JS_UNDEFINED;
     }
+    efxjs_rendertarget *tgt = JS_GetOpaque2(ctx, this_val, rendertarget_class_id);
+    if (tgt) {
+        if (!tgt->alive) {
+            return JS_UNDEFINED;
+        }
+        tgt->alive = 0;
+        efx_render_target_destroy(tgt->handle);
+        return JS_UNDEFINED;
+    }
     return type_error(ctx, "not a resource object");
 }
 
@@ -297,6 +329,10 @@ static JSClassDef meshdata_class_def = {
 static JSClassDef mesh_class_def = {
     "Mesh",
     .finalizer = mesh_finalizer,
+};
+static JSClassDef rendertarget_class_def = {
+    "RenderTarget",
+    .finalizer = rendertarget_finalizer,
 };
 
 /* read-only query properties (Texture.width / Texture.height), resolved
@@ -365,6 +401,38 @@ static const JSCFunctionListEntry mesh_proto_funcs[] = {
     JS_CGETSET_DEF("surfaceCount", efx_js_mesh_getSurfaceCount, NULL),
 };
 
+/* read-only query properties width/height (RenderTarget, F5a) */
+static JSValue efx_js_target_getWidth(JSContext *ctx, JSValueConst this_val) {
+    efxjs_rendertarget *t = JS_GetOpaque2(ctx, this_val, rendertarget_class_id);
+    if (!t) {
+        return type_error(ctx, "expected a RenderTarget");
+    }
+    if (!t->alive) {
+        return type_error(ctx, "using a destroyed resource");
+    }
+    int w = 0, h = 0;
+    efx_render_target_size(t->handle, &w, &h);
+    return JS_NewInt32(ctx, w);
+}
+
+static JSValue efx_js_target_getHeight(JSContext *ctx, JSValueConst this_val) {
+    efxjs_rendertarget *t = JS_GetOpaque2(ctx, this_val, rendertarget_class_id);
+    if (!t) {
+        return type_error(ctx, "expected a RenderTarget");
+    }
+    if (!t->alive) {
+        return type_error(ctx, "using a destroyed resource");
+    }
+    int w = 0, h = 0;
+    efx_render_target_size(t->handle, &w, &h);
+    return JS_NewInt32(ctx, h);
+}
+
+static const JSCFunctionListEntry rendertarget_proto_funcs[] = {
+    JS_CGETSET_DEF("width", efx_js_target_getWidth, NULL),
+    JS_CGETSET_DEF("height", efx_js_target_getHeight, NULL),
+};
+
 int efx_api_init(JSContext *ctx) {
     static int registered;
     if (registered) {
@@ -374,24 +442,28 @@ int efx_api_init(JSContext *ctx) {
     if (JS_NewClassID(rt, &texture_class_id) != texture_class_id ||
         JS_NewClassID(rt, &imagedata_class_id) != imagedata_class_id ||
         JS_NewClassID(rt, &meshdata_class_id) != meshdata_class_id ||
-        JS_NewClassID(rt, &mesh_class_id) != mesh_class_id) {
+        JS_NewClassID(rt, &mesh_class_id) != mesh_class_id ||
+        JS_NewClassID(rt, &rendertarget_class_id) != rendertarget_class_id) {
         return -1;
     }
     if (JS_NewClass(rt, texture_class_id, &texture_class_def) < 0 ||
         JS_NewClass(rt, imagedata_class_id, &imagedata_class_def) < 0 ||
         JS_NewClass(rt, meshdata_class_id, &meshdata_class_def) < 0 ||
-        JS_NewClass(rt, mesh_class_id, &mesh_class_def) < 0) {
+        JS_NewClass(rt, mesh_class_id, &mesh_class_def) < 0 ||
+        JS_NewClass(rt, rendertarget_class_id, &rendertarget_class_def) < 0) {
         return -1;
     }
     JSValue tex_proto = JS_NewObject(ctx);
     JSValue img_proto = JS_NewObject(ctx);
     JSValue md_proto = JS_NewObject(ctx);
     JSValue mesh_proto = JS_NewObject(ctx);
+    JSValue rt_proto = JS_NewObject(ctx);
     JSValue m = JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0);
     JS_SetPropertyStr(ctx, tex_proto, "destroy", JS_DupValue(ctx, m));
     JS_SetPropertyStr(ctx, img_proto, "destroy", JS_DupValue(ctx, m));
     JS_SetPropertyStr(ctx, md_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, mesh_proto, "destroy", m);
+    JS_SetPropertyStr(ctx, mesh_proto, "destroy", JS_DupValue(ctx, m));
+    JS_SetPropertyStr(ctx, rt_proto, "destroy", m);
     JS_SetPropertyFunctionList(ctx, tex_proto, texture_proto_funcs,
                                (int)(sizeof(texture_proto_funcs) /
                                      sizeof(texture_proto_funcs[0])));
@@ -401,10 +473,14 @@ int efx_api_init(JSContext *ctx) {
     JS_SetPropertyFunctionList(ctx, mesh_proto, mesh_proto_funcs,
                                (int)(sizeof(mesh_proto_funcs) /
                                      sizeof(mesh_proto_funcs[0])));
+    JS_SetPropertyFunctionList(ctx, rt_proto, rendertarget_proto_funcs,
+                               (int)(sizeof(rendertarget_proto_funcs) /
+                                     sizeof(rendertarget_proto_funcs[0])));
     JS_SetClassProto(ctx, texture_class_id, tex_proto);
     JS_SetClassProto(ctx, imagedata_class_id, img_proto);
     JS_SetClassProto(ctx, meshdata_class_id, md_proto);
     JS_SetClassProto(ctx, mesh_class_id, mesh_proto);
+    JS_SetClassProto(ctx, rendertarget_class_id, rt_proto);
     registered = 1;
     return 0;
 }
@@ -643,10 +719,11 @@ static efxjs_imagedata *get_live_imagedata(JSContext *ctx, JSValueConst v) {
     return d;
 }
 
-static efxjs_texture *get_live_texture(JSContext *ctx, JSValueConst v) {
-    efxjs_texture *t = JS_GetOpaque2(ctx, v, texture_class_id);
+static efxjs_rendertarget *get_live_render_target(JSContext *ctx,
+                                                  JSValueConst v) {
+    efxjs_rendertarget *t = JS_GetOpaque2(ctx, v, rendertarget_class_id);
     if (!t) {
-        type_error(ctx, "expected a Texture");
+        type_error(ctx, "expected a RenderTarget");
         return NULL;
     }
     if (!t->alive) {
@@ -654,6 +731,53 @@ static efxjs_texture *get_live_texture(JSContext *ctx, JSValueConst v) {
         return NULL;
     }
     return t;
+}
+
+/* F5a texture coercion: a live Texture or a live RenderTarget — either is
+ * accepted wherever a sampling source is required (drawQuad, material
+ * maps, alphaMask). Returns 0 and sets *out_handle on success. */
+static int get_live_sample(JSContext *ctx, JSValueConst v, uint64_t *out_handle) {
+    efxjs_texture *t = JS_GetOpaque(v, texture_class_id);
+    if (t) {
+        if (!t->alive) {
+            type_error(ctx, "using a destroyed resource");
+            return -1;
+        }
+        *out_handle = t->handle;
+        return 0;
+    }
+    efxjs_rendertarget *rt = JS_GetOpaque(v, rendertarget_class_id);
+    if (rt) {
+        if (!rt->alive) {
+            type_error(ctx, "using a destroyed resource");
+            return -1;
+        }
+        *out_handle = rt->handle;
+        return 0;
+    }
+    type_error(ctx, "expected a Texture or RenderTarget");
+    return -1;
+}
+
+/* map render-module errors from the F5a redirection calls to JS
+ * exceptions; returns a JS value to return from the binding */
+static JSValue target_call_error(JSContext *ctx, int rc) {
+    if (rc == EFX_RENDER_ERR_HANDLE) {
+        return type_error(ctx, "expected a live RenderTarget");
+    }
+    if (rc == EFX_RENDER_ERR_NESTED) {
+        return type_error(ctx, "a render target is already active");
+    }
+    if (rc == EFX_RENDER_ERR_STATE) {
+        return type_error(ctx, "no render target is active");
+    }
+    if (rc == EFX_RENDER_ERR_BUDGET) {
+        return range_error(ctx, "display list budget exceeded");
+    }
+    if (rc == EFX_RENDER_ERR_NOMEM) {
+        return generic_error(ctx, "out of memory");
+    }
+    return generic_error(ctx, "render target call failed");
 }
 
 JSValue efx_js_createTexture(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
@@ -677,6 +801,85 @@ JSValue efx_js_createTexture(JSContext *ctx, JSValueConst this_val, int argc, JS
     return obj;
 }
 
+/* -------------------------------------------------------- F5a bindings */
+
+JSValue efx_js_createRenderTarget(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsObject(argv[0])) {
+        return type_error(ctx, "createRenderTarget requires an options object");
+    }
+    JSValueConst opts = argv[0];
+    static const char *known[] = {"width", "height"};
+    if (check_known_fields(ctx, opts, known, 2, "createRenderTarget") != 0) {
+        return JS_EXCEPTION;
+    }
+    double w = 0, h = 0;
+    static const char *keys[] = {"width", "height"};
+    double *outs[] = {&w, &h};
+    for (int i = 0; i < 2; i++) {
+        JSValue v = JS_GetPropertyStr(ctx, opts, keys[i]);
+        if (JS_IsUndefined(v)) {
+            JS_FreeValue(ctx, v);
+            return type_error(ctx, "createRenderTarget requires width and height");
+        }
+        int bad = !JS_IsNumber(v) || JS_ToFloat64(ctx, outs[i], v) < 0;
+        JS_FreeValue(ctx, v);
+        if (bad) {
+            return type_error(ctx, "width and height must be numbers");
+        }
+        if (!isfinite(*outs[i]) || *outs[i] <= 0 ||
+            *outs[i] != floor(*outs[i]) ||
+            *outs[i] > (double)EFX_RENDER_MAX_TARGET_SIZE) {
+            return range_error(
+                ctx, "width and height must be integers in 1..4096");
+        }
+    }
+    uint64_t handle = efx_render_target_create((int)w, (int)h);
+    if (!handle) {
+        return generic_error(ctx, "render target creation failed (no GPU context?)");
+    }
+    efxjs_rendertarget *t = calloc(1, sizeof(efxjs_rendertarget));
+    if (!t) {
+        efx_render_target_destroy(handle);
+        return generic_error(ctx, "out of memory");
+    }
+    t->handle = handle;
+    t->alive = 1;
+    JSValue obj = JS_NewObjectClass(ctx, rendertarget_class_id);
+    JS_SetOpaque(obj, t);
+    return obj;
+}
+
+JSValue efx_js_beginRenderTarget(JSContext *ctx, JSValueConst this_val,
+                                 int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx, "beginRenderTarget requires a RenderTarget");
+    }
+    efxjs_rendertarget *t = get_live_render_target(ctx, argv[0]);
+    if (!t) {
+        return JS_EXCEPTION;
+    }
+    int rc = efx_render_begin_target(t->handle);
+    if (rc != EFX_RENDER_OK) {
+        return target_call_error(ctx, rc);
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv) {
+    (void)this_val;
+    (void)argc;
+    (void)argv;
+    int rc = efx_render_end_target();
+    if (rc != EFX_RENDER_OK) {
+        return target_call_error(ctx, rc);
+    }
+    return JS_UNDEFINED;
+}
+
 JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 3) {
@@ -689,8 +892,9 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
     if (!isfinite(x) || !isfinite(y)) {
         return range_error(ctx, "x and y must be finite");
     }
-    efxjs_texture *tex = get_live_texture(ctx, argv[2]);
-    if (!tex) {
+    /* F5a texture coercion: a live Texture or a live RenderTarget */
+    uint64_t tex_handle = 0;
+    if (get_live_sample(ctx, argv[2], &tex_handle) != 0) {
         return JS_EXCEPTION;
     }
 
@@ -819,7 +1023,7 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
                 return range_error(ctx, "sourceRect extent must be > 0");
             }
             int tw = 0, th = 0;
-            efx_render_texture_size(tex->handle, &tw, &th);
+            efx_render_sample_size(tex_handle, &tw, &th);
             if (src[0] < 0 || src[1] < 0 ||
                 src[0] + src[2] > (float)tw || src[1] + src[3] > (float)th) {
                 return range_error(ctx, "sourceRect outside texture bounds");
@@ -828,7 +1032,8 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
         }
     }
 
-    /* size derivation: explicit size -> sourceRect extent -> texture pixels */
+    /* size derivation: explicit size -> sourceRect extent -> texture
+     * pixels (a render target's extent plays the texture's role, F5a) */
     float w, h;
     if (has_size) {
         w = size[0];
@@ -838,7 +1043,7 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
         h = src[3];
     } else {
         int tw = 0, th = 0;
-        efx_render_texture_size(tex->handle, &tw, &th);
+        efx_render_sample_size(tex_handle, &tw, &th);
         w = (float)tw;
         h = (float)th;
     }
@@ -846,13 +1051,17 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
     float origin_y = has_origin ? origin[1] : h * 0.5f;
 
     int rc = efx_render_quad((float)x, (float)y, w, h,
-                             tex->handle, color, rotation, scale, src, has_src,
+                             tex_handle, color, rotation, scale, src, has_src,
                              origin_x, origin_y);
     if (rc == EFX_RENDER_ERR_BUDGET) {
         return range_error(ctx, "display list budget exceeded");
     }
     if (rc == EFX_RENDER_ERR_SINK) {
         return generic_error(ctx, "no render surface (draw calls need a window)");
+    }
+    if (rc == EFX_RENDER_ERR_FEEDBACK) {
+        return type_error(ctx,
+                          "cannot sample the render target being drawn into");
     }
     if (rc != EFX_RENDER_OK) {
         return generic_error(ctx, "drawQuad failed");
@@ -1059,7 +1268,8 @@ static int read_channel_color(JSContext *ctx, JSValueConst channel,
     return rc == 0 ? 0 : -1;
 }
 
-/* parse a material map field (present = live Texture; null/omitted = none) */
+/* parse a material map field (present = live Texture or RenderTarget, F5a;
+ * null/omitted = none) */
 static int read_material_map(JSContext *ctx, JSValueConst ch, const char *name,
                              uint64_t *out) {
     JSValue mv = JS_GetPropertyStr(ctx, ch, "map");
@@ -1068,13 +1278,12 @@ static int read_material_map(JSContext *ctx, JSValueConst ch, const char *name,
         *out = 0;
         return 0;
     }
-    efxjs_texture *t = get_live_texture(ctx, mv);
+    int rc = get_live_sample(ctx, mv, out);
     JS_FreeValue(ctx, mv);
-    if (!t) {
+    if (rc != 0) {
         (void)name;
         return -1;
     }
-    *out = t->handle;
     return 0;
 }
 
@@ -1155,12 +1364,11 @@ static int read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
     }
     JSValue am = JS_GetPropertyStr(ctx, v, "alphaMask");
     if (!JS_IsUndefined(am) && !JS_IsNull(am)) {
-        efxjs_texture *t = get_live_texture(ctx, am);
+        int rc = get_live_sample(ctx, am, &out->alpha_mask);
         JS_FreeValue(ctx, am);
-        if (!t) {
+        if (rc != 0) {
             return -1;
         }
-        out->alpha_mask = t->handle;
     } else {
         JS_FreeValue(ctx, am);
     }
@@ -1508,6 +1716,10 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
     }
     if (rc == EFX_RENDER_ERR_HANDLE) {
         return type_error(ctx, "expected a live Mesh");
+    }
+    if (rc == EFX_RENDER_ERR_FEEDBACK) {
+        return type_error(ctx,
+                          "cannot sample the render target being drawn into");
     }
     if (rc != EFX_RENDER_OK) {
         return generic_error(ctx, "drawMesh failed");

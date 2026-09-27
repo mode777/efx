@@ -1,9 +1,10 @@
 # EmotionFX JavaScript API Reference
 
 **Status:** F1 (including explicit lifecycle hook registration), F2, F3, F4a
-(lighting + Phong materials on solids/vertex colors), and F4b (per-channel
-maps + alpha masks) are implemented (current behavior). Everything from F5
-onward is a provisional contract — names and signatures may be reshaped by
+(lighting + Phong materials on solids/vertex colors), F4b (per-channel
+maps + alpha masks), and F5a (render targets) are implemented (current
+behavior). Everything from F5b onward is a provisional contract — names and
+signatures may be reshaped by
 the change that delivers them (every API change must update this document in
 the same change). See `vision.md` for product goals and
 `openspec/specs/feature-roadmap` for the milestone ladder.
@@ -144,7 +145,7 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 | ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6) |
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)` / `loadMesh`; `mesh.destroy()`; read-only `surfaceCount` |
 | Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData)`; `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
-| RenderTarget | GPU render target | Native class | GPU | F5 | `createRenderTarget`; `rt.destroy()` |
+| RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
 | Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
 | Fonts (atlas + quad layout) | — | JS-managed | — | F8 | Pure JS over Texture; passed to `drawText` |
 | Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
@@ -159,9 +160,10 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 - Resources recorded into the display list stay alive until playback
   finishes; `destroy()` during a frame defers the native release to frame
   end.
-- A `Texture` referenced by a bound material map (F4b) stays alive until
+- A `Texture` or `RenderTarget` referenced by a bound material map (F4b;
+  RenderTargets accepted from F5a) stays alive until
   that binding is released — rebind the surface without the map, bind
-  `null`, or destroy the owning mesh (ADR 0027).
+  `null`, or destroy the owning mesh (ADR 0027/0028).
 - Everything still alive at shutdown is finalized by runtime teardown —
   scripts cannot leak past process exit.
 
@@ -173,6 +175,7 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 | Directional lights | 1 |
 | Cameras | 1 3D camera (set, never created); the F2 2D projection frame is a separate projection state |
 | Surfaces per mesh | 16 |
+| Render-target size | 4096 per side (width and height, positive integers; F5a) |
 
 ## API catalog
 
@@ -275,7 +278,7 @@ efx.setClearColor(color)          // [r,g,b,a]; frame clear color (default black
 efx.setCamera2D(opts)             // { frame?, x?, y?, zoom?, rotation? }
 efx.createImageData(opts)         // → ImageData; { width, height, pixels, format? = 'rgba8' }
 efx.createTexture(imageData)      // → Texture; uploads CPU → GPU
-efx.drawQuad(x, y, texture, opts?)  // required texture; opts below
+efx.drawQuad(x, y, texture, opts?)  // required texture — a live Texture or RenderTarget (F5a); opts below
 efx.setBlendMode(mode)            // 'alpha' (default) | 'additive' | 'subtractive'
 efx.whiteTexture                  // engine-owned 1×1 white Texture (read-only)
 ```
@@ -301,7 +304,8 @@ rotation })`:
 **`drawQuad(x, y, texture, opts?)`** — records one quad:
 
 - `x`, `y` place the quad's **top-left corner** in frame pixels.
-- `texture` is **required** — a live Texture. Solid-color rectangles use
+- `texture` is **required** — a live Texture (or a live RenderTarget from
+  F5a). Solid-color rectangles use
   `efx.whiteTexture` with a tint; `efx.whiteTexture` is engine-owned,
   `destroy()` on it throws `TypeError`.
 - **Size derivation** — the quad's size in frame pixels is the first of:
@@ -532,7 +536,7 @@ material object.
 ```js
 // F4b · C · current — maps extend the F4a material object
 // {
-//   ambient:  { color, map: tex },      // tex: a live Texture object
+//   ambient:  { color, map: tex },      // tex: a live Texture (or RenderTarget, F5a)
 //   diffuse:  { color, map: tex },
 //   specular: { color, shininess, map: tex },
 //   emissive: { color, map: tex },
@@ -583,30 +587,58 @@ efx.setMeshSurfaceMaterial(ground, 0, {
 efx.registerRenderHook(() => { efx.drawMesh({ mesh: ground }); });
 ```
 
-### F5 — Render targets & post FX (provisional)
+### F5a — Render targets (current)
 
-Scope from roadmap F5: RTT, fullscreen-quad passes, color filter, blur.
+Scope from roadmap F5's first half: RTT with render redirection and
+texture-coerced sampling (ADR 0028).
 
 ```js
-// F5 · C · provisional — render targets are native-backed classes
+// F5a · C — desktop binding `C · quickjs`, web binding `C · bridge`
 efx.createRenderTarget(opts)      // { width, height } → RenderTarget
-efx.beginRenderTarget(rt)         // redirect drawing into the target
+efx.beginRenderTarget(rt)         // redirect subsequent records into rt
 efx.endRenderTarget()             // back to the default target
-efx.drawRenderTarget(rt, x, y, w, h, opts?)  // draw a target as a textured quad
-// rt.destroy() releases it — deferred to frame end if the list still holds it
+rt.destroy()                      // deferred to frame end while records or
+                                  // bound material maps hold it
+rt.width / rt.height              // read-only target pixels (throw when destroyed)
 ```
 
-```js
-// F5 · C · provisional — fullscreen post passes
-efx.setColorFilter(opts)  // { brightness?, contrast?, saturation?, tint? } — null disables
-efx.setBlur(opts)         // { radius } — null disables
-```
+**Resources** — `createRenderTarget({ width, height })` builds a GPU
+render target: both fields required positive integers in 1..4096
+(`RangeError` outside, `TypeError` for missing fields or unknown options).
+A RenderTarget is a native-backed class (deterministic idempotent
+`destroy()`, GC-finalizer backstop) owning a color+depth attachment pair
+in the environment-default pixel formats (ADR 0025) — `drawMesh` depth
+tests apply unchanged inside targets.
+
+**Redirection** — `beginRenderTarget(rt)` redirects all subsequently
+recorded draws into `rt` until `endRenderTarget()`; the target is then the
+*rendering surface*: the default 2D camera frame and the 3D projection
+aspect follow the target's extent exactly as they follow the window (an
+explicit `setCamera2D` frame stretches onto the target as onto the
+window). Entering a target **clears it** to the clear color in effect at
+that moment (value snapshot) — every begin starts from a cleared target,
+so a target rendered in several segments shows the last segment's
+contents. Nesting is rejected: a begin while a begin is active throws
+(`TypeError`), an end without one throws.
+
+**Sampling (texture coercion)** — a live RenderTarget is accepted wherever
+a live Texture is accepted: `drawQuad(x, y, rt, opts?)` (size derivation
+and `sourceRect` use the target's extent), per-channel material `map`s,
+and `alphaMask` — with identical validation and retention semantics as
+Textures (a bound target map is retained until the binding is released).
+A draw that names the target currently being drawn into throws
+`TypeError` and records nothing (feedback guard). Sampled content renders
+upright on every backend.
+
+**Display list** — every record carries its target; `beginRenderTarget` /
+`endRenderTarget` are records too and honor record order. The renderer's
+reordering freedom stops at segment boundaries; segments play back in
+first-record order, so a draw sampling a target always sees that target's
+completed earlier segments.
 
 ```js
-// main.js — F5 sample (provisional API)
-efx.setCamera2D({ frame: [640, 480] });
-efx.setColorFilter({ saturation: 0.6, contrast: 1.1 });
-efx.setBlur({ radius: 2 });
+// main.js — F5a sample (current API)
+efx.setClearColor([0.05, 0.05, 0.08, 1]);
 const scene = efx.createRenderTarget({ width: 512, height: 512 });
 
 efx.registerRenderHook(() => {
@@ -614,8 +646,32 @@ efx.registerRenderHook(() => {
     efx.drawQuad(96, 96, efx.whiteTexture, { size: [320, 320], color: [1, 0.4, 0.1, 1] });
     efx.endRenderTarget();
 
-    efx.drawRenderTarget(scene, 256, 144, 512, 512);
+    efx.drawQuad(64, 0, scene, { size: [512, 512] });   // sample like a texture
 });
+```
+
+### F5b — Post FX (provisional)
+
+Scope from roadmap F5's second half: full-screen effect chain, per-effect
+mix, render scale. The declarative single-entry shape below supersedes the
+earlier provisional `setColorFilter` / `setBlur` globals (never shipped —
+retired before delivery, `f5b-post-fx`).
+
+```js
+// F5b · C · provisional — declarative post-effect chain (≤ 8 entries)
+efx.setPostEffects(list | null)   // [{ effect, ...options, mix? }], null/[] clears
+efx.setRenderScale(scale, opts?)  // scene resolution vs surface; { filter: 'nearest' | 'linear' }
+```
+
+```js
+// main.js — F5b sample (provisional API)
+efx.setCamera2D({ frame: [640, 480] });
+efx.setPostEffects([
+    { effect: 'colorFilter', brightness: 1.1, saturation: 0.6 },
+    { effect: 'blur', radius: 4 },
+    { effect: 'bloom', threshold: 0.8, strength: 0.5, mix: 0.5 },
+]);
+efx.setRenderScale(0.5, { filter: 'nearest' });
 ```
 
 ### F6 — Resources (provisional)
@@ -753,8 +809,8 @@ section (or an open question below):
 | 4 point lights, 1 directional light | F4, limits table |
 | Phong material system, 4 channels + maps | F4a/F4b (`setMeshSurfaceMaterial`) |
 | Alpha masks | F4b (`alphaMask`) |
-| Rendering to textures | F5 (render targets) |
-| Simple post processing (color filter, blur) | F5 (`setColorFilter` / `setBlur`) |
+| Rendering to textures | F5a (render targets — `createRenderTarget` / `beginRenderTarget`) |
+| Simple post processing (color filter, blur) | F5b (`setPostEffects`, provisional) |
 | Resource folder / zip root (`res://`-like) | F6 (load paths, zip in F6) |
 | REPL console mode | F6 (drives the same `efx` namespace) |
 | Skinning and animations | F7 |

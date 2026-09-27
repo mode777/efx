@@ -211,11 +211,49 @@ function __efxEnsureApi() {
         },
     });
 
+    /* F5a: a render target is a native-backed class like Texture —
+       deterministic destroy, GC-reachable via JS, read-only size */
+    function EfxRenderTarget(handle) {
+        this.__handle = handle;
+        this.__alive = true;
+    }
+    EfxRenderTarget.prototype.destroy = function () {
+        if (!(this instanceof EfxRenderTarget)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_target_destroy'](this.__handle);
+    };
+    Object.defineProperty(EfxRenderTarget.prototype, 'width', {
+        get: function () {
+            if (!(this instanceof EfxRenderTarget)) {
+                throw new TypeError('expected a RenderTarget');
+            }
+            if (!this.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            return bridge['_efx_bridge_target_width'](this.__handle);
+        },
+    });
+    Object.defineProperty(EfxRenderTarget.prototype, 'height', {
+        get: function () {
+            if (!(this instanceof EfxRenderTarget)) {
+                throw new TypeError('expected a RenderTarget');
+            }
+            if (!this.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            return bridge['_efx_bridge_target_height'](this.__handle);
+        },
+    });
+
     function EfxMeshData(id) {
         this.__id = id;
         this.__alive = true;
-    }
-    EfxMeshData.prototype.destroy = function () {
+    }    EfxMeshData.prototype.destroy = function () {
         if (!(this instanceof EfxMeshData)) {
             throw new TypeError('not a resource object');
         }
@@ -327,8 +365,8 @@ function __efxEnsureApi() {
     /* Parse a Phong material object into the F4a 17-float wire layout
        [ambient(4), diffuse(4), specular(4), emissive(4), shininess] plus the
        F4b map-handle vector [ambient, diffuse, specular, emissive, alphaMask]
-       (doubles; 0 = absent). Desktop parity: unknown fields throw, a map/
-       alphaMask must be a live Texture. */
+       (doubles; 0 = absent). Desktop parity: unknown fields throw; a map/
+       alphaMask must be a live Texture or RenderTarget (F5a). */
     function __efxMaterial(v) {
         if (!__efxIsObject(v)) {
             throw new TypeError('material must be an object');
@@ -375,7 +413,7 @@ function __efxEnsureApi() {
             out[ci * 4 + 2] = c[2];
             out[ci * 4 + 3] = c[3];
             if (ch.map !== undefined && ch.map !== null) {
-                maps[ci] = liveTexture(ch.map).__handle;
+                maps[ci] = liveSample(ch.map).handle;
             }
             if (ci === 2 && ch.shininess !== undefined) {
                 if (typeof ch.shininess !== 'number') {
@@ -388,7 +426,7 @@ function __efxEnsureApi() {
             }
         }
         if (v.alphaMask !== undefined && v.alphaMask !== null) {
-            maps[4] = liveTexture(v.alphaMask).__handle;
+            maps[4] = liveSample(v.alphaMask).handle;
         }
         return { blocks: out, maps: maps };
     }
@@ -439,6 +477,33 @@ function __efxEnsureApi() {
             throw new TypeError('using a destroyed resource');
         }
         return v;
+    }
+
+    /* F5a texture coercion: a live Texture or a live RenderTarget is
+       accepted wherever a sampling source is required. Returns
+       { handle, w, h } with the size resolved through the owning registry. */
+    function liveSample(v) {
+        if (v instanceof EfxTexture) {
+            if (!v.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            return {
+                handle: v.__handle,
+                w: bridge['_efx_bridge_texture_width'](v.__handle),
+                h: bridge['_efx_bridge_texture_height'](v.__handle),
+            };
+        }
+        if (v instanceof EfxRenderTarget) {
+            if (!v.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            return {
+                handle: v.__handle,
+                w: bridge['_efx_bridge_target_width'](v.__handle),
+                h: bridge['_efx_bridge_target_height'](v.__handle),
+            };
+        }
+        throw new TypeError('expected a Texture or RenderTarget');
     }
 
     var api = {
@@ -609,6 +674,70 @@ function __efxEnsureApi() {
             }
             return new EfxTexture(handle, false);
         },
+        createRenderTarget: function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createRenderTarget requires an options object');
+            }
+            var known = { width: 1, height: 1 };
+            var names = Object.getOwnPropertyNames(opts);
+            for (var i = 0; i < names.length; i++) {
+                if (!known[names[i]]) {
+                    throw new TypeError("unknown createRenderTarget option '" +
+                        names[i] + "'");
+                }
+            }
+            var dims = [];
+            for (var k = 0; k < 2; k++) {
+                var key = k === 0 ? 'width' : 'height';
+                var v = opts[key];
+                if (v === undefined) {
+                    throw new TypeError('createRenderTarget requires width and height');
+                }
+                if (typeof v !== 'number' || !isFinite(v) || v <= 0 ||
+                    (v | 0) !== v || v > 4096) {
+                    throw new RangeError('width and height must be integers in 1..4096');
+                }
+                dims.push(v | 0);
+            }
+            var handle = bridge['_efx_bridge_target_create'](dims[0], dims[1]);
+            if (!handle) {
+                throw new Error('render target creation failed (no GPU context?)');
+            }
+            return new EfxRenderTarget(handle);
+        },
+        beginRenderTarget: function (rt) {
+            if (arguments.length < 1) {
+                throw new TypeError('beginRenderTarget requires a RenderTarget');
+            }
+            if (!(rt instanceof EfxRenderTarget)) {
+                throw new TypeError('expected a RenderTarget');
+            }
+            if (!rt.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            var rc = bridge['_efx_bridge_target_begin'](rt.__handle);
+            if (rc === 7) {
+                throw new TypeError('a render target is already active');
+            }
+            if (rc === 1) {
+                throw new RangeError('display list budget exceeded');
+            }
+            if (rc !== 0) {
+                throw new Error('beginRenderTarget failed');
+            }
+        },
+        endRenderTarget: function () {
+            var rc = bridge['_efx_bridge_target_end']();
+            if (rc === 8) {
+                throw new TypeError('no render target is active');
+            }
+            if (rc === 1) {
+                throw new RangeError('display list budget exceeded');
+            }
+            if (rc !== 0) {
+                throw new Error('endRenderTarget failed');
+            }
+        },
         drawQuad: function (x, y, texture, opts) {
             if (arguments.length < 3) {
                 throw new TypeError('drawQuad requires (x, y, texture, opts?)');
@@ -618,7 +747,7 @@ function __efxEnsureApi() {
             if (!isFinite(fx) || !isFinite(fy)) {
                 throw new RangeError('x and y must be finite');
             }
-            var tex = liveTexture(texture);
+            var tex = liveSample(texture); /* Texture or RenderTarget (F5a) */
             var color = [1, 1, 1, 1];
             var rotation = 0, scale = 1;
             var src = [0, 0, 0, 0];
@@ -678,10 +807,8 @@ function __efxEnsureApi() {
                     if (src[2] <= 0 || src[3] <= 0) {
                         throw new RangeError('sourceRect extent must be > 0');
                     }
-                    var tw = bridge['_efx_bridge_texture_width'](tex.__handle);
-                    var th = bridge['_efx_bridge_texture_height'](tex.__handle);
                     if (src[0] < 0 || src[1] < 0 ||
-                        src[0] + src[2] > tw || src[1] + src[3] > th) {
+                        src[0] + src[2] > tex.w || src[1] + src[3] > tex.h) {
                         throw new RangeError('sourceRect outside texture bounds');
                     }
                     hasSrc = true;
@@ -695,12 +822,12 @@ function __efxEnsureApi() {
                 fw = src[2];
                 fh = src[3];
             } else {
-                fw = bridge['_efx_bridge_texture_width'](tex.__handle);
-                fh = bridge['_efx_bridge_texture_height'](tex.__handle);
+                fw = tex.w;
+                fh = tex.h;
             }
             var ox = hasOrigin ? origin[0] : fw * 0.5;
             var oy = hasOrigin ? origin[1] : fh * 0.5;
-            var rc = bridge['_efx_bridge_draw_quad'](tex.__handle, fx, fy, fw, fh,
+            var rc = bridge['_efx_bridge_draw_quad'](tex.handle, fx, fy, fw, fh,
                 color[0], color[1], color[2], color[3], rotation, scale,
                 src[0], src[1], src[2], src[3], hasSrc ? 1 : 0, ox, oy);
             if (rc === 1) {
@@ -708,6 +835,9 @@ function __efxEnsureApi() {
             }
             if (rc === 4) {
                 throw new Error('no render surface (draw calls need a window)');
+            }
+            if (rc === 9) {
+                throw new TypeError('cannot sample the render target being drawn into');
             }
             if (rc !== 0) {
                 throw new Error('drawQuad failed');
@@ -970,6 +1100,9 @@ function __efxEnsureApi() {
             }
             if (rc === 2) {
                 throw new TypeError('expected a live Mesh');
+            }
+            if (rc === 9) {
+                throw new TypeError('cannot sample the render target being drawn into');
             }
             if (rc !== 0) {
                 throw new Error('drawMesh failed');

@@ -27,7 +27,7 @@ static void mock_destroy(void *ud, void *native) {
 }
 
 static const efx_render_sink g_sink = {
-    NULL, mock_create, mock_destroy, NULL, NULL, NULL,
+    NULL, mock_create, mock_destroy, NULL, NULL, NULL, NULL, NULL,
 };
 
 static efx_runtime *g_rt;
@@ -718,6 +718,94 @@ static int f4b_js(void) {
     return 0;
 }
 
+/* F5a: render targets through the JS bindings — lifecycle, validation,
+ * redirection errors, texture coercion in drawQuad and material maps */
+static int f5a_js(void) {
+    const char *code =
+        "function t(fn,kind){"
+        "  try{fn();throw new Error('no');}catch(e){"
+        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
+        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
+        "  }"
+        "}"
+        /* validation matrix */
+        "t(()=>efx.createRenderTarget({height:8}), TypeError);"
+        "t(()=>efx.createRenderTarget({width:0,height:8}), RangeError);"
+        "t(()=>efx.createRenderTarget({width:8,height:10.5}), RangeError);"
+        "t(()=>efx.createRenderTarget({width:8,height:4097}), RangeError);"
+        "t(()=>efx.createRenderTarget({width:8,height:8,frob:1}), TypeError);"
+        /* lifecycle + query properties */
+        "const rt=efx.createRenderTarget({width:256,height:128});"
+        "if(rt.width!==256||rt.height!==128) throw new Error('size');"
+        "rt.destroy(); rt.destroy();"
+        "t(()=>rt.width, TypeError);"
+        /* coercion: an RT drives drawQuad size derivation + sourceRect */
+        "const live=efx.createRenderTarget({width:64,height:32});"
+        "efx.drawQuad(0,0,live);"
+        "efx.drawQuad(0,0,live,{sourceRect:{x:0,y:0,w:16,h:16}});"
+        "t(()=>efx.drawQuad(0,0,live,{sourceRect:{x:0,y:0,w:65,h:4}}), RangeError);"
+        "t(()=>efx.drawQuad(0,0,{}), TypeError);"
+        /* redirection: records land, nesting/balance throw */
+        "efx.beginRenderTarget(live);"
+        "efx.drawQuad(0,0,efx.whiteTexture);"
+        "t(()=>efx.beginRenderTarget(live), TypeError);"
+        "t(()=>efx.drawQuad(0,0,live), TypeError);" /* feedback */
+        "efx.endRenderTarget();"
+        "t(()=>efx.endRenderTarget(), TypeError);"
+        "t(()=>efx.beginRenderTarget({}), TypeError);"
+        /* material maps accept a live RT, reject a destroyed one */
+        "const mesh=efx.createMesh(efx.createMeshData({"
+        "  positions:[0,0,0, 1,0,0, 0,1,0], uvs:[0,0, 1,0, 0,1], indices:[0,1,2]}));"
+        "efx.setCamera3D({pos:[0,0,5],target:[0,0,0],fov:60});"
+        "efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:live}});"
+        "efx.drawMesh({mesh});"
+        "efx.beginRenderTarget(live);"
+        "t(()=>efx.drawMesh({mesh}), TypeError);" /* mesh feedback */
+        "efx.endRenderTarget();"
+        "const dead=efx.createRenderTarget({width:8,height:8});"
+        "dead.destroy();"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:dead}}), TypeError);"
+        "t(()=>efx.beginRenderTarget(dead), TypeError);"
+        "mesh.destroy(); live.destroy();";
+    if (ok_js(code)) {
+        end_js();
+        return fail("f5a js");
+    }
+    /* records: drawQuad(rt) x2, BEGIN, white quad, END, mesh, BEGIN, END */
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count < 6) {
+        end_js();
+        return fail("f5a record count");
+    }
+    /* size derivation from the target extent (64x32) */
+    if (!feq(recs[0].u.quad.w, 64) || !feq(recs[0].u.quad.h, 32)) {
+        end_js();
+        return fail("rt size derivation");
+    }
+    if (!feq(recs[1].u.quad.w, 16) || !feq(recs[1].u.quad.h, 16)) {
+        end_js();
+        return fail("src extent derivation");
+    }
+    /* each BEGIN record snapshots the frame's clear color (default black) */
+    int begins = 0;
+    for (int i = 0; i < count; i++) {
+        if (recs[i].type == EFX_RECORD_BEGIN_TARGET) {
+            if (!feq(recs[i].u.begin_target.clear[3], 1.0f)) {
+                end_js();
+                return fail("clear snapshot alpha");
+            }
+            begins++;
+        }
+    }
+    if (begins != 2) {
+        end_js();
+        return fail("begin record count");
+    }
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -744,6 +832,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "camera3d_js")) return camera3d_js();
     if (!strcmp(c, "f4a_js")) return f4a_js();
     if (!strcmp(c, "f4b_js")) return f4b_js();
+    if (!strcmp(c, "f5a_js")) return f5a_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

@@ -22,11 +22,18 @@
 /* error codes */
 #define EFX_RENDER_OK 0
 #define EFX_RENDER_ERR_BUDGET 1
-#define EFX_RENDER_ERR_HANDLE 2      /* unknown texture/mesh handle */
+#define EFX_RENDER_ERR_HANDLE 2      /* unknown texture/mesh/target handle */
 #define EFX_RENDER_ERR_PERMANENT 3   /* engine-owned resource */
 #define EFX_RENDER_ERR_SINK 4        /* no sink installed */
 #define EFX_RENDER_ERR_NOMEM 5
 #define EFX_RENDER_ERR_INDEX 6       /* surface index out of range (F4a) */
+#define EFX_RENDER_ERR_NESTED 7      /* beginRenderTarget while active (F5a) */
+#define EFX_RENDER_ERR_STATE 8       /* endRenderTarget with none active (F5a) */
+#define EFX_RENDER_ERR_FEEDBACK 9    /* draw samples the active target (F5a) */
+#define EFX_RENDER_ERR_SIZE 10       /* render-target size out of range (F5a) */
+
+/* fixed limit: render-target size per side (F5a, documented hard maximum) */
+#define EFX_RENDER_MAX_TARGET_SIZE 4096
 
 /* mesh data validation failures (range-level; type-level errors are
  * reported by the binding while extracting JS values) */
@@ -90,8 +97,9 @@ typedef struct efx_light_set {
 /* Per-surface Phong material snapshot (F4a design D5/D6, extended by F4b
  * design D5): plain values, JS-managed on the script side (no native handle,
  * no destroy). Colors/shininess are value-snapshotted; channel maps and the
- * alpha mask are texture handles (0 = absent) held by reference (ADR 0019)
- * and retained by the engine while bound (F4b design D6). */
+ * alpha mask are handles (0 = absent) held by reference (ADR 0019) and
+ * retained by the engine while bound (F4b design D6). From F5a a map handle
+ * may reference a Texture or a RenderTarget (texture coercion). */
 typedef struct efx_material {
     float ambient[4];
     float diffuse[4];
@@ -140,21 +148,35 @@ typedef struct efx_mesh_record {
     float transform[16];   /* column-major model matrix */
     float color[4];        /* tint */
     efx_camera3d camera;
-    efx_light_set lights;  /* value snapshot at record time (F4a D4) */
+    efx_light_set lights;  /* value snapshot at record time (F4a design D4) */
     uint8_t blend;
 } efx_mesh_record;
 
+/* beginRenderTarget control record (F5a design D2): opens a segment; the
+ * clear color is value-snapshotted at record time (every begin starts
+ * from a cleared target) */
+typedef struct efx_begin_target_record {
+    uint64_t target;
+    float clear[4];
+} efx_begin_target_record;
+
 #define EFX_RECORD_QUAD 0
 #define EFX_RECORD_MESH 1
+#define EFX_RECORD_BEGIN_TARGET 2
+#define EFX_RECORD_END_TARGET 3
 
 /* one display-list record; sort key = record index (F2: playback order
- * equals record order, design D3) */
+ * equals record order, design D3). `target` is the rendering surface the
+ * record belongs to (0 = default target; F5a segmentation: the renderer's
+ * reordering freedom stops at segment boundaries). */
 typedef struct efx_record {
     uint8_t type;
     uint32_t sort_key;
+    uint64_t target;
     union {
         efx_quad_record quad;
         efx_mesh_record mesh;
+        efx_begin_target_record begin_target;
     } u;
 } efx_record;
 
@@ -213,7 +235,10 @@ typedef struct efx_mesh_gpu_surface {
 } efx_mesh_gpu_surface;
 
 /* GPU sink, implemented on the platform (sokol) side. create_mesh may
- * return NULL on failure; native handles are owned by the sink side. */
+ * return NULL on failure; native handles are owned by the sink side.
+ * create_render_target/destroy_render_target (F5a) manage offscreen
+ * color+depth attachment pairs; the native value is also the sampling
+ * source when a target is used as a texture. */
 typedef struct efx_render_sink {
     void *ud;
     void *(*create_texture)(void *ud, int w, int h, const uint8_t *rgba);
@@ -222,6 +247,8 @@ typedef struct efx_render_sink {
                          int count);
     void (*destroy_mesh)(void *ud, void *native);
     void (*shutdown)(void *ud);
+    void *(*create_render_target)(void *ud, int w, int h);
+    void (*destroy_render_target)(void *ud, void *native);
 } efx_render_sink;
 
 /* lifecycle; installing the sink flushes any uploads queued before a GPU
@@ -265,6 +292,34 @@ int efx_render_mesh_destroy(uint64_t h);
 int efx_render_mesh_alive(uint64_t h);
 int efx_render_mesh_surface_count(uint64_t h);
 void *efx_render_mesh_native(uint64_t h);
+
+/* render targets (F5a); handles are opaque, 0 = invalid; destroy is
+ * deferred to frame end like textures (records and bound maps may hold
+ * the target until playback/binding release) */
+uint64_t efx_render_target_create(int w, int h);
+int efx_render_target_destroy(uint64_t h); /* deferred to frame end */
+int efx_render_target_alive(uint64_t h);
+void efx_render_target_size(uint64_t h, int *out_w, int *out_h);
+void *efx_render_target_native(uint64_t h); /* valid until end of frame */
+int efx_render_target_ref_count(uint64_t h);
+
+/* render redirection (F5a): records BEGIN/END control records and moves
+ * the active target. Returns EFX_RENDER_OK, or ERR_HANDLE (not a live
+ * target), ERR_NESTED (a begin is active), ERR_STATE (end without begin),
+ * ERR_BUDGET, ERR_NOMEM. */
+uint64_t efx_render_active_target(void);
+int efx_render_begin_target(uint64_t h);
+int efx_render_end_target(void);
+
+/* unified sampling lookup (F5a texture coercion): a live Texture or a
+ * live RenderTarget. *_sample_* resolve either registry; 0 handles and
+ * unknown handles report not-alive. */
+int efx_render_sample_alive(uint64_t h);
+void efx_render_sample_size(uint64_t h, int *out_w, int *out_h);
+void *efx_render_sample_native(uint64_t h);
+/* active rendering surface size (default target or active render target);
+ * backs the default 2D camera frame and the 3D projection aspect (F5a) */
+void efx_render_surface_size(int *out_w, int *out_h);
 
 /* per-surface material binding on a live Mesh (F4a); has=0 restores the
  * default material. Returns EFX_RENDER_OK / EFX_RENDER_ERR_HANDLE /
