@@ -420,8 +420,12 @@ static void begin_default_pass(const float clear[4]) {
     }
 }
 
-void efx_pipeline_set_default_attachments(sg_attachments atts) {
-    P.default_atts = atts;
+void efx_pipeline_set_default_attachments(void *atts) {
+    if (atts) {
+        P.default_atts = *(sg_attachments *)atts;
+    } else {
+        memset(&P.default_atts, 0, sizeof(P.default_atts));
+    }
 }
 
 /* texture coercion (F5a design D1): a sampling handle resolves through the

@@ -1,9 +1,10 @@
 #ifndef EFX_PIPELINE_H
 #define EFX_PIPELINE_H
 
-#include "sokol_gfx.h"
-
-/* sokol-backed GPU sink for the render module (platform side, ADR 0003) */
+/* sokol-backed GPU sink for the render module (platform side, ADR 0003).
+ * Deliberately sokol-free: including sokol_gfx.h here would compile its
+ * implementation section twice in platform.c (the impl guard is consumed
+ * by the first include). */
 
 void efx_pipeline_install(void);   /* after sg_setup */
 /* playback owns its passes (F5a): the record list is segmented by target
@@ -14,7 +15,8 @@ void efx_pipeline_shutdown(void);  /* before sg_shutdown */
 
 /* override for the *default* segment's attachments (Metal golden capture:
  * render the default segment into the capture attachments instead of the
- * swapchain); an invalid id restores the swapchain */
-void efx_pipeline_set_default_attachments(sg_attachments atts);
+ * swapchain); NULL restores the swapchain. `atts` points at a sokol
+ * sg_attachments value, copied during the call. */
+void efx_pipeline_set_default_attachments(void *atts);
 
 #endif

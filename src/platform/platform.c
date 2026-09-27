@@ -145,11 +145,13 @@ static void efx_frame_cb(void) {
     }
 
 #ifdef SOKOL_METAL
-    int use_capture_pass = g_cap_active && g_frame == g_capture.frame;
     /* the default segment renders into the capture attachments on the
        capture frame; playback owns its passes (pipeline.h) */
-    efx_pipeline_set_default_attachments(use_capture_pass ? g_cap_atts
-                                                          : (sg_attachments){0});
+    static sg_attachments no_atts;
+    memset(&no_atts, 0, sizeof(no_atts));
+    efx_pipeline_set_default_attachments(
+        (g_cap_active && g_frame == g_capture.frame) ? (void *)&g_cap_atts
+                                                     : (void *)&no_atts);
 #endif
 
     efx_pipeline_play();
