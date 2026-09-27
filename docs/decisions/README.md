@@ -41,6 +41,7 @@ directory holds only what stays true after a change is archived.
 | [0028](0028-render-targets-sampled-directly.md) | Accepted | F5a render targets are sampled directly wherever a Texture is (no alias object), segmented in the display list, and released on the Texture lifecycle |
 
 | [0029](0029-post-chain-architecture.md) | Accepted | F5b post-processing is one declarative chain over an implicit scene target (fast path preserved) with an engine-owned, non-script-visible effect registry and per-entry `mix` |
+| [0030](0030-web-gallery-iframe-embedding.md) | Accepted | The sample gallery runs one engine instance per run in an iframe, fed by a host-only entry-source channel consumed before evaluation (`__efx_main_js`); no live eval/reset API |
 
 ## Adding a decision
 

@@ -1425,26 +1425,43 @@ function __efxBoot() {
     st.started = true;
     __efxEnsureApi();
     __efxSyncExit();
-    var root = UTF8ToString(Module['_efx_web_root']());
-    var isDir = false;
-    try {
-        isDir = FS.isDir(FS.stat(root).mode);
-    } catch (e) {
-        isDir = false;
-    }
-    if (!isDir) {
-        __efxFail('player: resource root is not a directory: ' + root);
-        return;
-    }
+    /* Host-provided entry source (web gallery embedding): when the embedding
+       page supplies `globalThis.__efx_main_js` before boot it replaces the
+       resource-root `main.js`. The channel is consumed and deleted before the
+       script is evaluated so the entry script can never observe it. */
     var code = null;
+    var hostSource = null;
     try {
-        code = FS.readFile(root + '/main.js', { encoding: 'utf8' });
+        hostSource = globalThis['__efx_main_js'];
     } catch (e) {
-        code = null;
+        hostSource = null;
     }
-    if (code === null) {
-        __efxFail('player: no main.js in resource root: ' + root);
-        return;
+    if (typeof hostSource === 'string') {
+        try {
+            delete globalThis['__efx_main_js'];
+        } catch (e) {}
+        code = hostSource;
+    } else {
+        var root = UTF8ToString(Module['_efx_web_root']());
+        var isDir = false;
+        try {
+            isDir = FS.isDir(FS.stat(root).mode);
+        } catch (e) {
+            isDir = false;
+        }
+        if (!isDir) {
+            __efxFail('player: resource root is not a directory: ' + root);
+            return;
+        }
+        try {
+            code = FS.readFile(root + '/main.js', { encoding: 'utf8' });
+        } catch (e) {
+            code = null;
+        }
+        if (code === null) {
+            __efxFail('player: no main.js in resource root: ' + root);
+            return;
+        }
     }
     var hostGlobals = ['window', 'document', 'require', 'process', 'fetch',
         'XMLHttpRequest', 'module', 'exports', 'Buffer', 'global'];

@@ -1,0 +1,25 @@
+{
+  "name": "efx-gallery",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "EmotionFX public sample gallery (GitHub Pages)",
+  "scripts": {
+    "gen:catalog": "node scripts/gen-catalog.mjs",
+    "prepare:player": "node scripts/prepare-player.mjs",
+    "predev": "node scripts/gen-catalog.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/gen-catalog.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "precheck": "node scripts/gen-catalog.mjs",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.1"
+  }
+}

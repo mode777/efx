@@ -93,14 +93,22 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   per-channel `map` textures and a material-level `alphaMask` (F4b) —
   cataloged in `docs/js-api.md` (F1/F2/F3/F4 entries are current behavior;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
+- `gallery/` is the public sample gallery (Vite + TypeScript + Svelte)
+  deployed to GitHub Pages: a left sample list, an iframe-per-run engine
+  host, and a Monaco (CDN) editor with the API type document
+  (`gallery/src/api/efx.d.ts`). Samples are the committed golden scenes
+  plus a curated showcase set; the catalog is generated from
+  `tests/goldens/` by `gallery/scripts/gen-catalog.mjs`. Build with
+  `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
+  (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).
+  See ADR 0030 for the host↔engine embedding contract.
 - Verification: ctest runs smoke + headless display-list/JS-API unit tests
   everywhere (on Emscripten the smoke suite runs the same portable scripts
   through the native bridge with the host JS engine as the runtime, plus
   `tools/run_web_compare.mjs` diffs desktop vs web output); golden-image
-  tests (30 committed golden scenes under `tests/goldens/` — seven 2D,
-  nineteen 3D/lighting/material-map, and four render-target;
-  `examples/browser/main.js`, the Pages gallery, cycles the same scenes
-  through the public API and should gain a scene whenever a golden does)
+  tests (the committed golden scenes under `tests/goldens/`; the public
+  sample gallery in `gallery/` generates its catalog from them, so a new
+  golden scene appears in the gallery without a manual edit)
   run where a display exists — Linux CI under `xvfb-run` + llvmpipe,
   Emscripten in pinned headless Chrome (ADR 0020). Local builds without a display configure with
   `-DEFX_BUILD_GOLDEN_TESTS=OFF` (the default); if a local build dir was
@@ -113,10 +121,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   archives (native player for Linux/Windows/macOS, Emscripten web bundle)
   as workflow artifacts, and a tag run attaches the same archives to that
   tag's GitHub Release. Use a manual run to prove the gate.
-- **Pages deploys separately.** The public web player is built and
+- **Pages deploys separately.** The public sample gallery is built and
   deployed by `.github/workflows/pages.yml` on pushes to `main` and on
-  manual dispatch — not by the gate workflow. A manual gate run on any
-  ref therefore contains no deployment job and can be green.
+  manual dispatch — not by the gate workflow. The workflow builds the
+  Emscripten web player, bundles it into the `gallery/` site, and deploys
+  the gallery's static output. A manual gate run on any ref therefore
+  contains no deployment job and can be green.
 - **CI verification order (all future changes): run the Linux pipeline
   first and fix anything it finds; only if Linux passes run the Windows
   pipeline; only if Windows passes run the macOS pipeline.** Linux is the
@@ -218,13 +228,18 @@ settled — see `docs/decisions/`.
   `destroy()` (textures, meshes, … — ADR 0011, discipline ADR 0012) or as
   fixed pre-allocated banks (lights), to avoid leaks in a GC'd language.
 - Script-facing API changes require a `js-api` spec delta and a matching
-  `docs/js-api.md` update in the same change (see `docs/js-api.md`).
+  `docs/js-api.md` update in the same change (see `docs/js-api.md`), plus a
+  matching update to the type document `gallery/src/api/efx.d.ts`.
 
 ## Documentation
 
 - `vision.md` — product goals; the source of truth for intent.
 - `docs/js-api.md` — the script-facing API catalog; updated in the same
   change as any API delta.
+- `gallery/src/api/efx.d.ts` — the living TypeScript declaration of the
+  public `efx` API, loaded into the gallery editor; it grows with the API
+  and is updated in the same change as any API delta (like
+  `docs/js-api.md`).
 - `docs/decisions/` — architecture decision records (ADRs): the durable
   *why* behind cross-cutting invariants (language, runtime, module
   walls, binding pattern, vendoring, run modes, CI).

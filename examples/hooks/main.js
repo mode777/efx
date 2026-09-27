@@ -16,5 +16,6 @@ const offUpdate = efx.registerUpdateHook(function (dt) {
 });
 
 efx.registerRenderHook(function () {
-    // Record draw calls here (see examples/browser for the F2 gallery).
+    // Record draw calls here (see the sample gallery under gallery/ for
+    // runnable examples of the 2D API).
 });
