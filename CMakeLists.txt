@@ -42,11 +42,22 @@ else()
     target_compile_definitions(efx_miniz PRIVATE _POSIX_C_SOURCE=200809L)
 endif()
 
+# F6b glTF parser: cgltf is one header with its implementation compiled in a
+# dedicated TU with warnings relaxed (same treatment as the miniz/stb TUs).
+add_library(efx_cgltf STATIC src/resource/cgltf_impl.c)
+target_include_directories(efx_cgltf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cgltf)
+if(MSVC)
+    target_compile_options(efx_cgltf PRIVATE /W3)
+else()
+    target_compile_options(efx_cgltf PRIVATE -w)
+endif()
+
 if(EMSCRIPTEN)
     add_library(efx_core STATIC
         src/render/render.c
         src/resource/image.c
         src/resource/resource.c
+        src/resource/gltf.c
         src/resource/stb_image_impl.c
         src/web/bridge.c
     )
@@ -57,12 +68,13 @@ else()
         src/render/render.c
         src/resource/image.c
         src/resource/resource.c
+        src/resource/gltf.c
         src/resource/stb_image_impl.c
     )
 endif()
 target_include_directories(efx_core PUBLIC src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_core PUBLIC efx_miniz)
+target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf)
 if(NOT EMSCRIPTEN)
     target_link_libraries(efx_core PUBLIC qjs)
 endif()
@@ -265,6 +277,8 @@ endif()
 # desktop-only: they read the filesystem
 if(NOT EMSCRIPTEN)
 add_executable(efx_resource_tests
+    src/render/render.c
+    src/resource/gltf.c
     src/resource/image.c
     src/resource/resource.c
     src/resource/stb_image_impl.c
@@ -273,7 +287,7 @@ add_executable(efx_resource_tests
 target_include_directories(efx_resource_tests PRIVATE src)
 target_include_directories(efx_resource_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_resource_tests PRIVATE efx_miniz)
+target_link_libraries(efx_resource_tests PRIVATE efx_miniz efx_cgltf)
 if(UNIX)
     target_link_libraries(efx_resource_tests PRIVATE m)
 endif()
@@ -291,6 +305,7 @@ add_executable(efx_api_tests
     src/api/api.c
     src/runtime/runtime.c
     src/render/render.c
+    src/resource/gltf.c
     src/resource/image.c
     src/resource/resource.c
     src/resource/stb_image_impl.c
@@ -306,6 +321,7 @@ if(UNIX)
 endif()
 target_link_libraries(efx_api_tests PRIVATE qjs)
 target_link_libraries(efx_api_tests PRIVATE efx_miniz)
+target_link_libraries(efx_api_tests PRIVATE efx_cgltf)
 if(MSVC)
     target_compile_options(efx_api_tests PRIVATE /W4 /WX)
     target_compile_definitions(efx_api_tests PRIVATE _CRT_SECURE_NO_WARNINGS)

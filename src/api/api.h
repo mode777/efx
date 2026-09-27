@@ -44,6 +44,9 @@ JSValue efx_js_setRenderScale(JSContext *ctx, JSValueConst this_val, int argc, J
 JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F6b — glTF mesh import */
+JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 

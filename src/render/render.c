@@ -24,6 +24,7 @@ typedef struct {
     int release_pending; /* F4b: destroy() called while retained */
     uint32_t gen;
     int w, h;
+    int wrap, filter; /* F6b sampler (immutable creation state) */
     void *native;
     uint8_t *pending; /* RGBA bytes queued before a sink existed */
 } tex_slot;
@@ -362,7 +363,8 @@ static void flush_pending_uploads(void) {
            maps still reference them (F4b design D6) */
         if (s->used && (s->alive || s->bind_refs > 0) && !s->native &&
             s->pending) {
-            s->native = R.sink->create_texture(R.sink->ud, s->w, s->h, s->pending);
+            s->native = R.sink->create_texture(R.sink->ud, s->w, s->h, s->pending,
+                                               s->wrap, s->filter);
             free(s->pending);
             s->pending = NULL;
         }
@@ -395,7 +397,14 @@ static void flush_pending_uploads(void) {
     }
 }
 
-uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
+uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba, int wrap,
+                                   int filter) {
+    if (wrap < EFX_TEX_WRAP_REPEAT || wrap > EFX_TEX_WRAP_MIRROR) {
+        wrap = EFX_TEX_WRAP_REPEAT;
+    }
+    if (filter != EFX_FILTER_NEAREST && filter != EFX_FILTER_LINEAR) {
+        filter = EFX_FILTER_LINEAR;
+    }
     if (!R.sink || !R.sink->create_texture) {
         /* no GPU surface yet: queue the upload (top-level main.js code) */
         int idx = -1;
@@ -423,11 +432,13 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
         s->gen++;
         s->w = w;
         s->h = h;
+        s->wrap = wrap;
+        s->filter = filter;
         s->native = NULL;
         idx = R.slot_count++;
         return ((uint64_t)s->gen << 32) | (uint64_t)(idx + 1);
     }
-    void *native = R.sink->create_texture(R.sink->ud, w, h, rgba);
+    void *native = R.sink->create_texture(R.sink->ud, w, h, rgba, wrap, filter);
     if (!native) {
         return 0;
     }
@@ -461,6 +472,8 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
     s->gen++;
     s->w = w;
     s->h = h;
+    s->wrap = wrap;
+    s->filter = filter;
     s->native = native;
     s->pending = NULL;
     uint32_t idx = (uint32_t)(s - R.slots) + 1;
@@ -612,6 +625,13 @@ void efx_render_texture_size(uint64_t handle, int *out_w, int *out_h) {
     }
 }
 
+void efx_render_texture_sampler(uint64_t handle, int *out_wrap,
+                                int *out_filter) {
+    tex_slot *s = slot_get(handle);
+    if (out_wrap) *out_wrap = s ? s->wrap : -1;
+    if (out_filter) *out_filter = s ? s->filter : -1;
+}
+
 void *efx_render_texture_native(uint64_t h) {
     tex_slot *s = slot_get(h);
     return s ? s->native : NULL;
@@ -625,7 +645,8 @@ uint64_t efx_render_white_texture(void) {
         return 0;
     }
     static const uint8_t white[4] = {255, 255, 255, 255};
-    uint64_t h = efx_render_texture_create(1, 1, white);
+    uint64_t h = efx_render_texture_create(1, 1, white, EFX_TEX_WRAP_REPEAT,
+                                           EFX_FILTER_LINEAR);
     if (h) {
         tex_slot *s = slot_get(h);
         s->permanent = 1;

@@ -146,8 +146,8 @@ map textures: ADR 0027 — all under `docs/decisions/`).
 |---|---|---|---|---|---|
 | MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive; ADR 0024); skinned meshes add `joints`/`weights` per surface (F7, glTF-style) | Native class | CPU | F3 | `createMeshData` / `loadMeshData` (F6); read-only `surfaceCount` |
 | ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6a); read-only `width` / `height` (throw `TypeError` when destroyed) |
-| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)` / `loadMesh`; `mesh.destroy()`; read-only `surfaceCount` |
-| Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData)`; `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
+| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)`; `mesh.destroy()`; read-only `surfaceCount` |
+| Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData, opts?)` (`opts.wrap`/`opts.filter`, F6b); `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
 | Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | F5b | Plain objects snapshotted at `setPostEffects` call time; no native handle and no `destroy()`. The native passes they drive are engine-owned and never script-visible (ADR 0029) |
@@ -784,31 +784,59 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F6b–F6d — glTF import, rigs, REPL (provisional)
+### F6b — glTF static import (current)
 
-Scope from the rest of roadmap F6: glTF 2.0 static import (F6b), skin +
-animation import (F6c), and the interactive REPL (F6d). The glTF profile
-(container, references, material mapping) is settled by the F6b change, so the
-signature below stays provisional until then.
+Scope from roadmap F6's second slice: glTF 2.0 static import (geometry,
+materials, textures) on top of the F6a provider. The profile — `.glb`/`.gltf`
+containers, external/data-URI/buffer-view references, one selected mesh,
+PBR→Phong conversion, per-texture samplers, and the extension/morph policy —
+is pinned by ADR 0032.
 
 ```js
-// F6b · C · provisional — signatures final once the glTF profile is decided
-efx.loadMeshData(path, opts?)  // → MeshData — one surface per glTF primitive of
-                               //   the selected mesh; materials converted and bound
+// F6b · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
+efx.loadMeshData(path, opts?)   // → MeshData — one surface per glTF primitive of
+                                //   the selected mesh; materials converted and bound
+efx.createTexture(imageData, opts?) // opts: { wrap?: 'repeat'|'clamp'|'mirror',
+                                    //         filter?: 'linear'|'nearest' }
 ```
 
-- The console/REPL run mode (F6d) drives this same `efx` namespace
-  interactively; no separate API.
+- `path` is a non-empty string; a non-string throws `TypeError`. A missing,
+  malformed, or unsupported asset, an unknown mesh, a primitive count outside
+  1..16, or an undecodable image throws a standard `Error`; no resource is
+  returned.
+- `opts.mesh` is a mesh index (non-negative integer) or a mesh name (string)
+  and defaults to the first mesh. An unknown field throws `TypeError`; a
+  `mesh` value that is neither throws `TypeError`; a name/index that matches no
+  mesh throws `Error`.
+- The import converts each primitive's material to the engine's Phong material
+  (base color → diffuse, emissive → emissive, metallic → specular color,
+  roughness → shininess; `alphaMode: MASK` → alpha mask) and binds it per
+  surface; a primitive with no material uses the engine default. Occlusion and
+  normal textures are ignored. Node/scene transforms are not applied.
+- `createTexture`'s optional `opts.wrap` defaults to `'repeat'` and
+  `opts.filter` to `'linear'`; an unknown field or value throws `TypeError`.
+  glTF samplers map onto these.
 
 ```js
-// main.js — F6 sample (provisional API)
+// main.js — F6 sample (current API)
 efx.setCamera3D({ pos: [0, 1, 4], target: [0, 0, 0], fov: 60 });
+efx.setDirectionalLight({ dir: [0, -0.5, -1], color: [1, 1, 1, 1] });
 const teapot = efx.createMesh(efx.loadMeshData('models/teapot.glb'));
 
 efx.registerRenderHook(() => {
     efx.drawMesh({ mesh: teapot });
 });
 ```
+
+### F6c–F6d — rigs, REPL (provisional)
+
+Scope from the rest of roadmap F6: skin + animation import (F6c) and the
+interactive REPL (F6d).
+
+- Skin/animation import (F6c) extends `loadMeshData` to carry a rig:
+  `JOINTS_0`/`WEIGHTS_0` per surface and skeleton/clip payload (ADR 0014/0017).
+- The console/REPL run mode (F6d) drives this same `efx` namespace
+  interactively; no separate API.
 
 ### F7 — Skinning & animation (provisional)
 
@@ -936,10 +964,10 @@ API for them:
 - **Audio** — absent from vision.md. Same treatment as input.
 - **Asset format** — glTF 2.0 is pinned as the import format (meshes,
   images, skins, animation clips — roadmap F6, data model per ADR 0014).
-  F6a delivered the resource root (directory or zip) and text/image loading
-  (current); the F6b change settles the *profile*: .glb vs .gltf container,
-  allowed extensions, image embedding. Until then the `loadMeshData`
-  signature stays provisional.
+  F6a delivered the resource root (directory or zip) and text/image loading;
+  F6b delivered static import and pinned the profile (containers, references,
+  material mapping, samplers, extension policy — ADR 0032). Skin/animation
+  payload is F6c.
 - **Procedural rigs** — F7 bundles skins/skeletons/clips at *import* only;
   constructing a rig procedurally (from `createMeshData` + skeleton data)
   has no path yet. Deferred until a concrete need appears.

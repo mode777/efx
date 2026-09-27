@@ -45,6 +45,7 @@ add_player_test(smoke_4b_validation ARGS "--script;${S}/s_4b_validation.js" EXPE
 add_player_test(smoke_5a_validation ARGS "--script;${S}/s_5a_validation.js" EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
 add_player_test(smoke_5b_validation ARGS "--script;${S}/s_5b_validation.js" EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
 add_player_test(smoke_6a_resource ARGS "--script;${S}/s_6a_resource.js" EXPECT 0 EXPECT_OUT "s-6a-resource-ok")
+add_player_test(smoke_6b_gltf ARGS "--script;${S}/s_6b_gltf.js" EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
@@ -103,6 +104,7 @@ if(EMSCRIPTEN)
     add_web_test(web_4b_validation ${S}/s_4b_validation.js EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
     add_web_test(web_5a_validation ${S}/s_5a_validation.js EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
     add_web_test(web_5b_validation ${S}/s_5b_validation.js EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
+    add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 endif()
 
 endif() # NOT EFX_HEADLESS
@@ -140,7 +142,9 @@ endforeach()
 if(NOT EMSCRIPTEN)
 foreach(CASE dir_read dir_nested dir_missing dir_traversal dir_bad_root
               image_png image_jpeg image_corrupt
-              zip_read zip_nested zip_image zip_missing zip_bad_root)
+              zip_read zip_nested zip_image zip_missing zip_bad_root
+              gltf_triangle gltf_zip gltf_transform gltf_materials
+              gltf_accessors gltf_glb gltf_dedup gltf_errors)
     add_unit_test(efx_resource_tests ${CASE})
 endforeach()
 endif()
@@ -150,7 +154,7 @@ foreach(CASE
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
-    resource_js)
+    resource_js createTexture_js gltf_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()
@@ -183,7 +187,7 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 rt_quad2d rt_scene3d rt_camera rt_materialmap
                 post_colorfilter post_blur_small post_blur_large post_bloom
                 post_mix post_scale_nearest post_scale_linear
-                post_order_a post_order_b post_user_rt load_png)
+                post_order_a post_order_b post_user_rt load_png gltf_import)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

@@ -241,7 +241,8 @@ typedef struct efx_mesh_gpu_surface {
  * source when a target is used as a texture. */
 typedef struct efx_render_sink {
     void *ud;
-    void *(*create_texture)(void *ud, int w, int h, const uint8_t *rgba);
+    void *(*create_texture)(void *ud, int w, int h, const uint8_t *rgba,
+                            int wrap, int filter);
     void (*destroy_texture)(void *ud, void *native);
     void *(*create_mesh)(void *ud, const efx_mesh_gpu_surface *surfaces,
                          int count);
@@ -274,11 +275,22 @@ void efx_render_set_point_light(int slot, const efx_point_light *light);
 void efx_render_set_directional_light(const efx_dir_light *light);
 void efx_render_lights(efx_light_set *out);
 
-/* textures; handles are opaque, 0 = invalid */
-uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba);
+/* texture sampler options (F6b). Wrap: repeat (default) / clamp / mirror.
+ * Filter names reuse EFX_FILTER_NEAREST / EFX_FILTER_LINEAR. Out-of-range
+ * values fall back to the defaults rather than failing. */
+#define EFX_TEX_WRAP_REPEAT 0
+#define EFX_TEX_WRAP_CLAMP 1
+#define EFX_TEX_WRAP_MIRROR 2
+
+/* textures; handles are opaque, 0 = invalid. wrap/filter are immutable
+ * creation state (sokol binds a sampler to the image). */
+uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba, int wrap,
+                                  int filter);
 int efx_render_texture_destroy(uint64_t h); /* deferred to frame end */
 int efx_render_texture_alive(uint64_t h);
 void efx_render_texture_size(uint64_t handle, int *out_w, int *out_h);
+/* resolved sampler of a texture (F6b); out params optional, -1 on bad handle */
+void efx_render_texture_sampler(uint64_t handle, int *out_wrap, int *out_filter);
 void *efx_render_texture_native(uint64_t h); /* valid until end of frame */
 uint64_t efx_render_white_texture(void);
 /* F4b material-map retention count (design D6); -1 on a bad handle. Exposed

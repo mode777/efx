@@ -47,6 +47,8 @@ const CASES = [
     { name: '5b_validation', script: 'tests/scripts/s_5b_validation.js', args: [] },
     { name: '6a_resource', script: 'tests/scripts/s_6a_resource.js', args: [],
       assets: ['tests/scripts/resource_probe.txt', 'tests/scripts/resource_probe.png'] },
+    { name: '6b_gltf', script: 'tests/scripts/s_6b_gltf.js', args: [],
+      assets: ['tests/scripts/gltf_probe.glb', 'tests/scripts/gltf_corrupt.gltf'] },
 ];
 
 function run(cmd, args) {
