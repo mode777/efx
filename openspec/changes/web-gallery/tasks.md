@@ -37,4 +37,4 @@
 
 - [x] 7.1 Add the headless gallery smoke tool that serves the built bundle in pinned headless Chrome, runs several samples in sequence, and asserts the page boots, renders a non-blank canvas, and logs no console errors (including no context-exhaustion); verify it passes locally
 - [x] 7.2 Run the ctest smoke suite and the golden-image harness on the verification server (`tools/verify_remote.py all`) to confirm the entry hook does not alter engine behavior; verify green on the native and Emscripten golden jobs
-- [ ] 7.3 Verify the deployed site after merge to `main`: the gallery boots under the project Pages subpath, every bundle file (including the preloaded data) returns 200, and selecting/editing/running a sample works on the live URL
+- [x] 7.3 Verify the deployed site after merge to `main`: the gallery boots under the project Pages subpath, every bundle file (including the preloaded data) returns 200, and selecting/editing/running a sample works on the live URL
