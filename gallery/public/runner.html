@@ -65,6 +65,13 @@
           if (booted) return;
           booted = true;
           globalThis.__efx_main_js = code;
+          // Anchor the player's sidecar files (wasm + preloaded data) to
+          // ./player/, independent of the document base URL.
+          globalThis.Module = Object.assign(globalThis.Module || {}, {
+            locateFile: function (path) {
+              return './player/' + path;
+            },
+          });
           var script = document.createElement('script');
           script.src = PLAYER;
           script.onerror = function () {
