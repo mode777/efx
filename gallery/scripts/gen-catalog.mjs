@@ -29,6 +29,7 @@ function categoryFor(name) {
     if (name.startsWith('map_')) return 'Materials';
     if (name.startsWith('post_')) return 'Post FX';
     if (name.startsWith('rt_')) return 'Render Targets';
+    if (name.startsWith('gltf_')) return 'Assets';
     if (name.endsWith('3d')) return '3D';
     return '2D';
 }

@@ -24,6 +24,17 @@ efx.endRenderTarget();
 efx.setPostEffects([{ effect: 'bloom', threshold: 0.7, strength: 0.8, mix: 0.5 }]);
 efx.setRenderScale(0.5, { filter: 'nearest' });
 
+// F6b — glTF import and per-texture samplers
+const imported: EfxMeshData = efx.loadMeshData('models/quad.glb');
+efx.createMesh(imported).destroy();
+imported.destroy();
+efx.loadMeshData('models/quad.glb', { mesh: 'm' }).destroy();
+efx.loadMeshData('models/quad.glb', { mesh: 0 }).destroy();
+efx.createTexture(
+  efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }),
+  { wrap: 'clamp', filter: 'nearest' },
+).destroy();
+
 // The type document must reject a mistyped member and a malformed options bag.
 // @ts-expect-error — unknown member
 efx.notARealFunction();
@@ -31,3 +42,7 @@ efx.notARealFunction();
 efx.setCamera3D({});
 // @ts-expect-error — blend mode is a fixed set
 efx.setBlendMode('multiply');
+// @ts-expect-error — unknown texture wrap value
+efx.createTexture(efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }), { wrap: 'bogus' });
+// @ts-expect-error — loadMeshData mesh selector is a number or a name
+efx.loadMeshData('models/quad.glb', { mesh: {} });
