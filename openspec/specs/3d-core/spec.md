@@ -75,13 +75,20 @@ attribute arrays plus optional indices:
 - `uvs?` — flat uv array with exactly the same vertex count as `positions`;
 - `colors?` — flat rgba array (normalized floats, the F2 color convention)
   with exactly the same vertex count as `positions`;
+- `joints?` — flat array of four joint indices per vertex, with exactly the
+  same vertex count as `positions` (glTF `JOINTS_0`, four influences);
+  requires `weights`;
+- `weights?` — flat array of four joint weights per vertex, with exactly the
+  same vertex count as `positions` (glTF `WEIGHTS_0`, four influences);
+  requires `joints`;
 - `indices?` — flat array of non-negative integers: a triangle list whose
   length is a multiple of 3 and whose every value is less than the surface's
   vertex count.
 
 When `indices` is omitted, the vertex count MUST be a multiple of 3
 (non-indexed triangle list). A wrong attribute count, a non-multiple-of-3
-`positions`/`indices` length, an out-of-range index, an empty `surfaces`
+`positions`/`indices` length, an out-of-range index, a mismatched or unpaired
+`joints`/`weights` attribute, an empty `surfaces`
 array, or a surface count above 16 SHALL throw `RangeError`; wrong element
 types SHALL throw `TypeError`; unknown fields SHALL throw `TypeError`. The
 fixed limit is **16 surfaces per mesh** (vision.md fixed limits, recorded in
@@ -127,6 +134,14 @@ using a destroyed MeshData SHALL throw.
 - **THEN** `materials[i]` binds material `i` (or the engine default when
   `null`) to surface `i` at creation time, and a `materials` array whose
   length does not match the surface count throws `RangeError`
+
+#### Scenario: Skinned surface attributes
+
+- **WHEN** a surface supplies `joints` and `weights` arrays with exactly the
+  vertex count of its `positions`
+- **THEN** the MeshData retains those attributes and `createMesh` carries
+  them onto the mesh; supplying only one of the pair or a mismatched count
+  throws `RangeError`
 
 #### Scenario: Query property and destroy
 
