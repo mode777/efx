@@ -789,7 +789,7 @@ static int lighting_reference(void) {
 
     /* no lights: default material is black */
     float n[3] = {0, 0, 1};
-    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 0) || !feq(out[1], 0) || !feq(out[2], 0))
         return fail("no lights -> black");
     if (!feq(out[3], 1)) return fail("alpha = albedo alpha");
@@ -799,18 +799,18 @@ static int lighting_reference(void) {
     ls.points[0].pos[0] = 0; ls.points[0].pos[1] = 0; ls.points[0].pos[2] = 1;
     ls.points[0].color[0] = 1; ls.points[0].color[1] = 1; ls.points[0].color[2] = 1;
     ls.points[0].range = 0;
-    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 1) || !feq(out[1], 1) || !feq(out[2], 1))
         return fail("diffuse maximum");
 
     /* facing away: zero diffuse */
     float back[3] = {0, 0, -1};
-    efx_lighting_shade(&mat, &ls, world, back, cam, alb, out);
+    efx_lighting_shade(&mat, &ls, world, back, cam, alb, NULL, out);
     if (!feq(out[0], 0)) return fail("zero diffuse facing away");
 
     /* white albedo scaled by tint */
     float grey[4] = {0.5f, 0.5f, 0.5f, 1};
-    efx_lighting_shade(&mat, &ls, world, n, cam, grey, out);
+    efx_lighting_shade(&mat, &ls, world, n, cam, grey, NULL, out);
     if (!feq(out[0], 0.5f)) return fail("albedo scales diffuse");
 
     /* ambient-only flat */
@@ -819,7 +819,7 @@ static int lighting_reference(void) {
     amb.ambient[0] = 0.5f; amb.ambient[1] = 0.5f; amb.ambient[2] = 0.5f;
     efx_light_set none;
     memset(&none, 0, sizeof(none));
-    efx_lighting_shade(&amb, &none, world, n, cam, alb, out);
+    efx_lighting_shade(&amb, &none, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 0.5f) || !feq(out[1], 0.5f)) return fail("ambient flat");
 
     /* emissive unmodulated by a dark albedo */
@@ -828,7 +828,7 @@ static int lighting_reference(void) {
     em.diffuse[0] = em.diffuse[1] = em.diffuse[2] = 0;
     em.emissive[0] = 0.25f;
     float zero[4] = {0, 0, 0, 1};
-    efx_lighting_shade(&em, &none, world, n, cam, zero, out);
+    efx_lighting_shade(&em, &none, world, n, cam, zero, NULL, out);
     if (!feq(out[0], 0.25f)) return fail("emissive unmodulated");
 
     /* specular peak: H == N when L == V == N */
@@ -837,16 +837,16 @@ static int lighting_reference(void) {
     spec.diffuse[0] = spec.diffuse[1] = spec.diffuse[2] = 0;
     spec.specular[0] = spec.specular[1] = spec.specular[2] = 1;
     spec.shininess = 32;
-    efx_lighting_shade(&spec, &ls, world, n, cam, alb, out);
+    efx_lighting_shade(&spec, &ls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 1)) return fail("specular peak");
 
     /* attenuation reaches zero at range */
     ls.points[0].pos[2] = 4;   /* distance 4 */
     ls.points[0].range = 4;    /* atten = 1 - 4/4 = 0 */
-    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 0)) return fail("atten zero at range");
     ls.points[0].pos[2] = 2;   /* distance 2, range 4 -> atten 0.5 */
-    efx_lighting_shade(&mat, &ls, world, n, cam, alb, out);
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 0.5f)) return fail("atten half at range/2");
 
     /* directional-only: dir travels -Z, so L = +Z */
@@ -855,8 +855,194 @@ static int lighting_reference(void) {
     dls.directional.enabled = 1;
     dls.directional.dir[0] = 0; dls.directional.dir[1] = 0; dls.directional.dir[2] = -1;
     dls.directional.color[0] = 1; dls.directional.color[1] = 0; dls.directional.color[2] = 0;
-    efx_lighting_shade(&mat, &dls, world, n, cam, alb, out);
+    efx_lighting_shade(&mat, &dls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 1) || !feq(out[1], 0)) return fail("directional");
+    return 0;
+}
+
+/* F4b: default/explicit/copied map handles (design D5) */
+static int material_maps(void) {
+    static const uint8_t px[4] = {255, 255, 255, 255};
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t idx[3] = {0, 1, 2};
+
+    efx_material m;
+    efx_material_default(&m);
+    if (m.ambient_map || m.diffuse_map || m.specular_map || m.emissive_map ||
+        m.alpha_mask)
+        return fail("default has no maps");
+
+    install_mock_sink();
+    uint64_t tex = efx_render_texture_create(1, 1, px);
+    if (!tex) return fail("texture create");
+    m.diffuse_map = tex;
+    m.alpha_mask = tex;
+    efx_material copy = m;
+    if (copy.diffuse_map != tex || copy.alpha_mask != tex)
+        return fail("copy preserves map handles");
+
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9; s.positions = pos;
+    s.indices_len = 3; s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("fixture");
+    efx_meshdata_set_material(md, 0, &m, 1);
+    if (md->surfaces[0].material.diffuse_map != tex ||
+        md->surfaces[0].material.alpha_mask != tex)
+        return fail("meshdata records map handles");
+
+    uint64_t h = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!h) return fail("mesh create");
+    efx_material got;
+    if (efx_render_mesh_surface_material(h, 0, &got) != 1 ||
+        got.diffuse_map != tex || got.alpha_mask != tex)
+        return fail("mesh carries map handles");
+    efx_render_mesh_destroy(h);
+    efx_render_texture_destroy(tex);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* F4b: bound maps retain their texture; release drains the count (design D6) */
+static int map_retention(void) {
+    static const uint8_t px[4] = {255, 255, 255, 255};
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t idx[3] = {0, 1, 2};
+
+    install_mock_sink();
+    uint64_t tex = efx_render_texture_create(1, 1, px);
+    if (!tex) return fail("texture create");
+    if (efx_render_texture_ref_count(tex) != 0) return fail("fresh ref count");
+
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9; s.positions = pos;
+    s.indices_len = 3; s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("fixture");
+    efx_material m;
+    efx_material_default(&m);
+    m.diffuse_map = tex;
+    efx_meshdata_set_material(md, 0, &m, 1);
+    if (efx_render_texture_ref_count(tex) != 1)
+        return fail("meshdata retains map");
+
+    uint64_t h = efx_render_mesh_create(md);
+    if (!h) return fail("mesh create");
+    if (efx_render_texture_ref_count(tex) != 2)
+        return fail("mesh retains map");
+    efx_meshdata_destroy(md);
+    if (efx_render_texture_ref_count(tex) != 1)
+        return fail("meshdata release on destroy");
+
+    /* destroy while bound: script handle dead, native still resolvable */
+    if (efx_render_texture_destroy(tex) != EFX_RENDER_OK)
+        return fail("destroy while bound");
+    if (efx_render_texture_alive(tex)) return fail("dead script handle");
+    if (!efx_render_texture_native(tex)) return fail("retained native");
+    if (g_tex_destroyed != 0) return fail("native not released yet");
+
+    /* unbind: count drains, deferred native release fires at frame end */
+    efx_material plain;
+    efx_material_default(&plain);
+    if (efx_render_mesh_set_material(h, 0, &plain, 1) != EFX_RENDER_OK)
+        return fail("rebind");
+    if (efx_render_texture_ref_count(tex) != 0) return fail("ref count drains");
+    efx_render_mesh_destroy(h);
+    efx_render_end_frame();
+    if (g_tex_destroyed != 1) return fail("native released after unbind");
+    efx_render_shutdown();
+    return 0;
+}
+
+/* F4b: CPU reference map modulation and alpha-mask boundary (design D8) */
+static int lighting_maps(void) {
+    efx_material mat;
+    efx_material_default(&mat); /* white diffuse, black ambient/spec/emissive */
+    efx_light_set ls;
+    memset(&ls, 0, sizeof(ls));
+    ls.points[0].enabled = 1;
+    ls.points[0].pos[0] = 0; ls.points[0].pos[1] = 0; ls.points[0].pos[2] = 1;
+    ls.points[0].color[0] = 1; ls.points[0].color[1] = 1; ls.points[0].color[2] = 1;
+    ls.points[0].range = 0;
+    float n[3] = {0, 0, 1};
+    float world[3] = {0, 0, 0};
+    float cam[3] = {0, 0, 5};
+    float alb[4] = {1, 1, 1, 1};
+    float out[4];
+    efx_map_samples neutral;
+    for (int c = 0; c < 3; c++) {
+        neutral.ambient[c] = 1.0f;
+        neutral.diffuse[c] = 1.0f;
+        neutral.specular[c] = 1.0f;
+        neutral.emissive[c] = 1.0f;
+    }
+    neutral.mask_alpha = 1.0f;
+    neutral.has_mask = 0;
+
+    /* neutral explicit samples equal the NULL (F4a) path */
+    float ref[4];
+    if (efx_lighting_shade(&mat, &ls, world, n, cam, alb, NULL, ref) != 0)
+        return fail("NULL maps not discarded");
+    if (efx_lighting_shade(&mat, &ls, world, n, cam, alb, &neutral, out) != 0)
+        return fail("neutral maps not discarded");
+    if (!feq(out[0], ref[0]) || !feq(out[1], ref[1]) || !feq(out[2], ref[2]))
+        return fail("neutral maps equal NULL");
+
+    /* a diffuse map scales exactly the diffuse channel */
+    efx_map_samples maps = neutral;
+    maps.diffuse[0] = 0.25f; maps.diffuse[1] = 0.5f; maps.diffuse[2] = 0.75f;
+    efx_lighting_shade(&mat, &ls, world, n, cam, alb, &maps, out);
+    if (!feq(out[0], 0.25f) || !feq(out[1], 0.5f) || !feq(out[2], 0.75f))
+        return fail("diffuse map scales diffuse");
+
+    /* an emissive map scales exactly emissive (unmodulated by albedo) */
+    efx_material em;
+    efx_material_default(&em);
+    em.diffuse[0] = em.diffuse[1] = em.diffuse[2] = 0;
+    em.emissive[0] = 1.0f;
+    efx_light_set none;
+    memset(&none, 0, sizeof(none));
+    efx_map_samples emap = neutral;
+    emap.emissive[0] = 0.5f;
+    efx_lighting_shade(&em, &none, world, n, cam, alb, &emap, out);
+    if (!feq(out[0], 0.5f)) return fail("emissive map scales emissive");
+
+    /* ambient map scales ambient */
+    efx_material am;
+    efx_material_default(&am);
+    am.ambient[0] = am.ambient[1] = am.ambient[2] = 1.0f;
+    efx_map_samples amap = neutral;
+    amap.ambient[0] = 0.25f;
+    efx_lighting_shade(&am, &none, world, n, cam, alb, &amap, out);
+    if (!feq(out[0], 0.25f) || !feq(out[1], 1.0f)) return fail("ambient map scales ambient");
+
+    /* specular map scales exactly the specular peak */
+    efx_material sp;
+    efx_material_default(&sp);
+    sp.diffuse[0] = sp.diffuse[1] = sp.diffuse[2] = 0;
+    sp.specular[0] = sp.specular[1] = sp.specular[2] = 1.0f;
+    efx_map_samples smap = neutral;
+    smap.specular[0] = 0.5f;
+    efx_lighting_shade(&sp, &ls, world, n, cam, alb, &smap, out);
+    if (!feq(out[0], 0.5f)) return fail("specular map scales specular");
+
+    /* alpha-mask boundary: < 0.5 discards, >= 0.5 keeps the albedo alpha */
+    efx_map_samples mask = neutral;
+    mask.has_mask = 1;
+    mask.mask_alpha = 0.49f;
+    if (efx_lighting_shade(&mat, &ls, world, n, cam, alb, &mask, out) != 1)
+        return fail("mask below 0.5 discards");
+    mask.mask_alpha = 0.5f;
+    float half_alpha[4] = {1, 1, 1, 0.5f};
+    if (efx_lighting_shade(&mat, &ls, world, n, cam, half_alpha, &mask, out) != 0)
+        return fail("mask at 0.5 keeps");
+    if (!feq(out[3], 0.5f)) return fail("mask keeps albedo alpha");
     return 0;
 }
 
@@ -885,6 +1071,9 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "light_snapshot")) return light_snapshot();
     if (!strcmp(c, "material_binding")) return material_binding();
     if (!strcmp(c, "lighting_reference")) return lighting_reference();
+    if (!strcmp(c, "material_maps")) return material_maps();
+    if (!strcmp(c, "map_retention")) return map_retention();
+    if (!strcmp(c, "lighting_maps")) return lighting_maps();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

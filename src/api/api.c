@@ -1059,20 +1059,43 @@ static int read_channel_color(JSContext *ctx, JSValueConst channel,
     return rc == 0 ? 0 : -1;
 }
 
-/* parse a material object into the engine snapshot (F4a spec: channel
- * defaults, specular.shininess, unknown-field/map rejection) */
+/* parse a material map field (present = live Texture; null/omitted = none) */
+static int read_material_map(JSContext *ctx, JSValueConst ch, const char *name,
+                             uint64_t *out) {
+    JSValue mv = JS_GetPropertyStr(ctx, ch, "map");
+    if (JS_IsUndefined(mv) || JS_IsNull(mv)) {
+        JS_FreeValue(ctx, mv);
+        *out = 0;
+        return 0;
+    }
+    efxjs_texture *t = get_live_texture(ctx, mv);
+    JS_FreeValue(ctx, mv);
+    if (!t) {
+        (void)name;
+        return -1;
+    }
+    *out = t->handle;
+    return 0;
+}
+
+/* parse a material object into the engine snapshot (F4a/F4b spec: channel
+ * defaults, specular.shininess, per-channel maps, alphaMask, unknown-field
+ * rejection) */
 static int read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
     if (!JS_IsObject(v)) {
         type_error(ctx, "material must be an object");
         return -1;
     }
     efx_material_default(out);
-    static const char *known[] = {"ambient", "diffuse", "specular", "emissive"};
-    if (check_known_fields(ctx, v, known, 4, "material") != 0) {
+    static const char *known[] = {"ambient", "diffuse", "specular", "emissive",
+                                  "alphaMask"};
+    if (check_known_fields(ctx, v, known, 5, "material") != 0) {
         return -1;
     }
     static const char *chan_keys[] = {"ambient", "diffuse", "specular", "emissive"};
     float *outs[] = {out->ambient, out->diffuse, out->specular, out->emissive};
+    uint64_t *mouts[] = {&out->ambient_map, &out->diffuse_map,
+                         &out->specular_map, &out->emissive_map};
     for (int i = 0; i < 4; i++) {
         JSValue ch = JS_GetPropertyStr(ctx, v, chan_keys[i]);
         if (JS_IsUndefined(ch) || JS_IsNull(ch)) {
@@ -1084,21 +1107,26 @@ static int read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
             JS_ThrowTypeError(ctx, "%s channel must be an object", chan_keys[i]);
             return -1;
         }
-        static const char *spec_keys[] = {"color", "shininess"};
-        const char **ck = chan_keys + i; /* single "color" for non-specular */
-        static const char *just_color[] = {"color"};
-        int nk = 1;
+        static const char *spec_keys[] = {"color", "shininess", "map"};
+        static const char *color_map_keys[] = {"color", "map"};
+        const char **ck;
+        int nk;
         if (i == 2) {
             ck = spec_keys;
-            nk = 2;
+            nk = 3;
         } else {
-            ck = just_color;
+            ck = color_map_keys;
+            nk = 2;
         }
         if (check_known_fields(ctx, ch, ck, nk, chan_keys[i]) != 0) {
             JS_FreeValue(ctx, ch);
             return -1;
         }
         if (read_channel_color(ctx, ch, chan_keys[i], outs[i]) != 0) {
+            JS_FreeValue(ctx, ch);
+            return -1;
+        }
+        if (read_material_map(ctx, ch, chan_keys[i], mouts[i]) != 0) {
             JS_FreeValue(ctx, ch);
             return -1;
         }
@@ -1124,6 +1152,17 @@ static int read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
             }
         }
         JS_FreeValue(ctx, ch);
+    }
+    JSValue am = JS_GetPropertyStr(ctx, v, "alphaMask");
+    if (!JS_IsUndefined(am) && !JS_IsNull(am)) {
+        efxjs_texture *t = get_live_texture(ctx, am);
+        JS_FreeValue(ctx, am);
+        if (!t) {
+            return -1;
+        }
+        out->alpha_mask = t->handle;
+    } else {
+        JS_FreeValue(ctx, am);
     }
     return 0;
 }

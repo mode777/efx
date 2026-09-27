@@ -18,6 +18,8 @@ typedef struct {
     int used;
     int alive;
     int permanent;
+    int bind_refs;       /* F4b: material map retain count (design D6) */
+    int release_pending; /* F4b: destroy() called while retained */
     uint32_t gen;
     int w, h;
     void *native;
@@ -141,6 +143,11 @@ void efx_material_default(efx_material *m) {
     m->emissive[0] = 0.0f; m->emissive[1] = 0.0f;
     m->emissive[2] = 0.0f; m->emissive[3] = 1.0f;
     m->shininess = 32.0f;
+    m->ambient_map = 0;
+    m->diffuse_map = 0;
+    m->specular_map = 0;
+    m->emissive_map = 0;
+    m->alpha_mask = 0;
 }
 
 void efx_render_reset_state(void) {
@@ -275,7 +282,10 @@ static void flush_pending_uploads(void) {
     }
     for (int i = 0; i < R.slot_count; i++) {
         tex_slot *s = &R.slots[i];
-        if (s->used && s->alive && !s->native && s->pending) {
+        /* upload queued textures, including ones destroyed while retained
+           maps still reference them (F4b design D6) */
+        if (s->used && (s->alive || s->bind_refs > 0) && !s->native &&
+            s->pending) {
             s->native = R.sink->create_texture(R.sink->ud, s->w, s->h, s->pending);
             free(s->pending);
             s->pending = NULL;
@@ -320,6 +330,8 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
         s->used = 1;
         s->alive = 1;
         s->permanent = 0;
+        s->bind_refs = 0;
+        s->release_pending = 0;
         s->gen++;
         s->w = w;
         s->h = h;
@@ -356,6 +368,8 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
     s->used = 1;
     s->alive = 1;
     s->permanent = 0;
+    s->bind_refs = 0;
+    s->release_pending = 0;
     s->gen++;
     s->w = w;
     s->h = h;
@@ -363,6 +377,54 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba) {
     s->pending = NULL;
     uint32_t idx = (uint32_t)(s - R.slots) + 1;
     return ((uint64_t)s->gen << 32) | (uint64_t)idx;
+}
+
+/* schedule the native release of a texture slot at frame end (records may
+ * reference the texture until playback finishes — js-api lifecycle rules) */
+static void schedule_texture_native_release(tex_slot *s) {
+    if (!R.sink || !R.sink->destroy_texture || !s->native) {
+        return;
+    }
+    if (R.deferred_tex_count >= R.deferred_tex_cap) {
+        int cap = R.deferred_tex_cap ? R.deferred_tex_cap * 2 : 16;
+        int *grown = realloc(R.deferred_tex, (size_t)cap * sizeof(int));
+        if (!grown) {
+            return; /* best effort; slot stays until shutdown */
+        }
+        R.deferred_tex = grown;
+        R.deferred_tex_cap = cap;
+    }
+    R.deferred_tex[R.deferred_tex_count++] = (int)(s - R.slots);
+}
+
+/* finish a release once no material references the slot (design D6) */
+static void finalize_texture_release(tex_slot *s) {
+    if (s->pending) {
+        free(s->pending);
+        s->pending = NULL;
+        return;
+    }
+    schedule_texture_native_release(s);
+}
+
+/* F4b map retention (design D6): material bindings keep their textures alive */
+static void texture_bind_retain(uint64_t h) {
+    tex_slot *s = slot_get(h);
+    if (s) {
+        s->bind_refs++;
+    }
+}
+
+static void texture_bind_release(uint64_t h) {
+    tex_slot *s = slot_get(h);
+    if (!s || s->bind_refs <= 0) {
+        return;
+    }
+    s->bind_refs--;
+    if (s->bind_refs == 0 && s->release_pending) {
+        s->release_pending = 0;
+        finalize_texture_release(s);
+    }
 }
 
 static int texture_release(uint64_t h, tex_slot **out_slot) {
@@ -377,27 +439,15 @@ static int texture_release(uint64_t h, tex_slot **out_slot) {
         return EFX_RENDER_OK; /* destroy() is idempotent */
     }
     s->alive = 0;
-    if (s->pending) {
-        /* upload never happened; nothing to defer */
-        free(s->pending);
-        s->pending = NULL;
+    if (s->bind_refs > 0) {
+        /* a bound map keeps the texture alive until the binding is released */
+        s->release_pending = 1;
+        if (out_slot) {
+            *out_slot = s;
+        }
         return EFX_RENDER_OK;
     }
-    /* deferred texture destroys: entries are slot indexes; native release
-       happens at end of frame (records may reference the texture until
-       playback finishes — js-api resource lifecycle rules) */
-    if (R.sink && R.sink->destroy_texture) {
-        if (R.deferred_tex_count >= R.deferred_tex_cap) {
-            int cap = R.deferred_tex_cap ? R.deferred_tex_cap * 2 : 16;
-            int *grown = realloc(R.deferred_tex, (size_t)cap * sizeof(int));
-            if (!grown) {
-                return EFX_RENDER_ERR_NOMEM;
-            }
-            R.deferred_tex = grown;
-            R.deferred_tex_cap = cap;
-        }
-        R.deferred_tex[R.deferred_tex_count++] = (int)(s - R.slots);
-    }
+    finalize_texture_release(s);
     if (out_slot) {
         *out_slot = s;
     }
@@ -411,6 +461,34 @@ int efx_render_texture_destroy(uint64_t h) {
 int efx_render_texture_alive(uint64_t h) {
     tex_slot *s = slot_get(h);
     return s && s->alive;
+}
+
+int efx_render_texture_ref_count(uint64_t h) {
+    tex_slot *s = slot_get(h);
+    return s ? s->bind_refs : -1;
+}
+
+/* F4b: retain/release every map referenced by a material snapshot (0 = none) */
+static void material_retain_maps(const efx_material *m) {
+    if (!m) {
+        return;
+    }
+    texture_bind_retain(m->ambient_map);
+    texture_bind_retain(m->diffuse_map);
+    texture_bind_retain(m->specular_map);
+    texture_bind_retain(m->emissive_map);
+    texture_bind_retain(m->alpha_mask);
+}
+
+static void material_release_maps(const efx_material *m) {
+    if (!m) {
+        return;
+    }
+    texture_bind_release(m->ambient_map);
+    texture_bind_release(m->diffuse_map);
+    texture_bind_release(m->specular_map);
+    texture_bind_release(m->emissive_map);
+    texture_bind_release(m->alpha_mask);
 }
 
 void efx_render_texture_size(uint64_t handle, int *out_w, int *out_h) {
@@ -548,6 +626,7 @@ void efx_meshdata_destroy(efx_meshdata *md) {
     if (md->surfaces) {
         for (int i = 0; i < md->surface_count; i++) {
             efx_surface *s = &md->surfaces[i];
+            material_release_maps(&s->material);
             free(s->positions);
             free(s->normals);
             free(s->uvs);
@@ -565,9 +644,11 @@ void efx_meshdata_set_material(efx_meshdata *md, int index,
         return;
     }
     efx_surface *s = &md->surfaces[index];
+    material_release_maps(&s->material);
     if (has && mat) {
         s->material = *mat;
         s->has_material = 1;
+        material_retain_maps(&s->material);
     } else {
         s->has_material = 0;
         efx_material_default(&s->material);
@@ -743,6 +824,7 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
             m->materials[i] = md->surfaces[i].material;
             m->has_material[i] = 1;
         }
+        material_retain_maps(&m->materials[i]);
     }
     uint32_t idx = (uint32_t)(m - R.meshes) + 1;
     if ((int)idx > R.mesh_count) {
@@ -752,6 +834,11 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
 }
 
 static void mesh_materials_free(mesh_slot *m) {
+    if (m->materials) {
+        for (int i = 0; i < m->surface_count; i++) {
+            material_release_maps(&m->materials[i]);
+        }
+    }
     free(m->materials);
     free(m->has_material);
     m->materials = NULL;
@@ -821,9 +908,11 @@ int efx_render_mesh_set_material(uint64_t h, int surface,
     if (surface < 0 || surface >= m->surface_count) {
         return EFX_RENDER_ERR_INDEX;
     }
+    material_release_maps(&m->materials[surface]);
     if (has && mat) {
         m->materials[surface] = *mat;
         m->has_material[surface] = 1;
+        material_retain_maps(&m->materials[surface]);
     } else {
         efx_material_default(&m->materials[surface]);
         m->has_material[surface] = 0;
@@ -1067,15 +1156,8 @@ void efx_render_begin_frame(void) {
 }
 
 void efx_render_end_frame(void) {
-    if (R.sink && R.sink->destroy_texture) {
-        for (int i = 0; i < R.deferred_tex_count; i++) {
-            int idx = R.deferred_tex[i];
-            R.sink->destroy_texture(R.sink->ud, R.slots[idx].native);
-            R.slots[idx].native = NULL;
-            R.slots[idx].used = 0;
-        }
-    }
-    R.deferred_tex_count = 0;
+    /* release deferred meshes first: destroying a mesh releases its material
+       map references, which may schedule texture releases for this frame */
     if (R.sink && R.sink->destroy_mesh) {
         for (int i = 0; i < R.deferred_mesh_count; i++) {
             int idx = R.deferred_mesh[i];
@@ -1086,6 +1168,17 @@ void efx_render_end_frame(void) {
         }
     }
     R.deferred_mesh_count = 0;
+    if (R.sink && R.sink->destroy_texture) {
+        for (int i = 0; i < R.deferred_tex_count; i++) {
+            int idx = R.deferred_tex[i];
+            R.sink->destroy_texture(R.sink->ud, R.slots[idx].native);
+            R.slots[idx].native = NULL;
+            R.slots[idx].bind_refs = 0;
+            R.slots[idx].release_pending = 0;
+            R.slots[idx].used = 0;
+        }
+    }
+    R.deferred_tex_count = 0;
 }
 
 /* ------------------------------------------------------------- shutdown */
@@ -1138,11 +1231,12 @@ static void lnormalize3(float out[3], const float v[3]) {
     }
 }
 
-/* one light's contribution (shares the exact D7 formula with the shader) */
-static void lighting_term(const efx_material *mat, const float contrib[3],
-                          float atten, const float N[3], const float V[3],
-                          const float L[3], const float albedo[3],
-                          float out[3]) {
+/* one light's contribution (shares the exact formula with the shader;
+ * channel maps scale the diffuse/specular colors, design D1/D8) */
+static void lighting_term(const efx_material *mat, const efx_map_samples *maps,
+                          const float contrib[3], float atten, const float N[3],
+                          const float V[3], const float L[3],
+                          const float albedo[3], float out[3]) {
     float ndl = N[0] * L[0] + N[1] * L[1] + N[2] * L[2];
     if (ndl < 0.0f) {
         ndl = 0.0f;
@@ -1157,18 +1251,21 @@ static void lighting_term(const efx_material *mat, const float contrib[3],
     float sp = powf(ndh, mat->shininess);
     float scale = atten;
     for (int c = 0; c < 3; c++) {
-        float d = mat->diffuse[c] * albedo[c] * ndl;
-        float s = mat->specular[c] * sp;
+        float dc = mat->diffuse[c] * maps->diffuse[c];
+        float sc = mat->specular[c] * maps->specular[c];
+        float d = dc * albedo[c] * ndl;
+        float s = sc * sp;
         out[c] += (d + s) * contrib[c] * scale;
     }
 }
 
-void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
-                        const float world_pos[3], const float normal[3],
-                        const float camera_pos[3], const float albedo[4],
-                        float out[4]) {
+int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
+                       const float world_pos[3], const float normal[3],
+                       const float camera_pos[3], const float albedo[4],
+                       const efx_map_samples *maps, float out[4]) {
     efx_material def;
     efx_light_set empty;
+    efx_map_samples neutral;
     if (!mat) {
         efx_material_default(&def);
         mat = &def;
@@ -1176,6 +1273,20 @@ void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
     if (!lights) {
         memset(&empty, 0, sizeof(empty));
         lights = &empty;
+    }
+    if (!maps) {
+        for (int c = 0; c < 3; c++) {
+            neutral.ambient[c] = 1.0f;
+            neutral.diffuse[c] = 1.0f;
+            neutral.specular[c] = 1.0f;
+            neutral.emissive[c] = 1.0f;
+        }
+        neutral.mask_alpha = 1.0f;
+        neutral.has_mask = 0;
+        maps = &neutral;
+    }
+    if (maps->has_mask && maps->mask_alpha < 0.5f) {
+        return 1; /* alpha-mask cutout (design D2) */
     }
     float N[3];
     lnormalize3(N, normal);
@@ -1186,7 +1297,8 @@ void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
 
     float col[3];
     for (int c = 0; c < 3; c++) {
-        col[c] = mat->ambient[c] * albedo[c] + mat->emissive[c];
+        col[c] = mat->ambient[c] * maps->ambient[c] * albedo[c] +
+                 mat->emissive[c] * maps->emissive[c];
     }
     for (int i = 0; i < EFX_MAX_POINT_LIGHTS; i++) {
         const efx_point_light *p = &lights->points[i];
@@ -1207,16 +1319,17 @@ void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
         }
         float atten = p->range > 0.0f ? lclampf(1.0f - d / p->range, 0.0f, 1.0f)
                                       : 1.0f;
-        lighting_term(mat, p->color, atten, N, V, L, albedo, col);
+        lighting_term(mat, maps, p->color, atten, N, V, L, albedo, col);
     }
     if (lights->directional.enabled) {
         const efx_dir_light *dl = &lights->directional;
         float L[3] = {-dl->dir[0], -dl->dir[1], -dl->dir[2]};
         lnormalize3(L, L);
-        lighting_term(mat, dl->color, 1.0f, N, V, L, albedo, col);
+        lighting_term(mat, maps, dl->color, 1.0f, N, V, L, albedo, col);
     }
     out[0] = lclampf(col[0], 0.0f, 1.0f);
     out[1] = lclampf(col[1], 0.0f, 1.0f);
     out[2] = lclampf(col[2], 0.0f, 1.0f);
     out[3] = albedo[3];
+    return 0;
 }

@@ -675,6 +675,49 @@ static int f4a_js(void) {
     return 0;
 }
 
+/* F4b: per-channel maps + alphaMask parse, validation, and retention across
+ * a destroyed-but-bound texture (desktop binding) */
+static int f4b_js(void) {
+    const char *code =
+        "const img=efx.createImageData({width:1,height:1,"
+        "  pixels:new Uint8Array([255,255,255,255])});"
+        "const tex=efx.createTexture(img);"
+        "const P=[0,0,0, 1,0,0, 0,1,0];"
+        "const M={ diffuse:{color:[0.8,0.8,0.8,1], map:tex},"
+        "  specular:{color:[1,1,1,1], shininess:32, map:tex},"
+        "  alphaMask:tex };"
+        "const md=efx.createMeshData({"
+        "  surfaces:[{positions:P, uvs:[0,0, 1,0, 0,1], indices:[0,1,2]}],"
+        "  materials:[M] });"
+        "const mesh=efx.createMesh(md);"
+        "efx.setCamera3D({pos:[0,0,5], target:[0,0,0], fov:60});"
+        "efx.drawMesh({ mesh });"
+        "tex.destroy();"                 /* retained by the bound map */
+        "efx.drawMesh({ mesh });"        /* still renders (no throw) */
+        "function t(fn,kind){"
+        "  try{fn();throw new Error('no');}catch(e){"
+        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
+        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
+        "  }"
+        "}"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:tex}}), TypeError);"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{alphaMask:5}), TypeError);"
+        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],frob:1}}), TypeError);"
+        "efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1]}});" /* release */
+        "mesh.destroy(); md.destroy();";
+    if (ok_js(code)) {
+        end_js();
+        return fail("f4b js");
+    }
+    if (rec_count() < 2) {
+        end_js();
+        return fail("f4b records");
+    }
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -700,6 +743,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "mesh_js")) return mesh_js();
     if (!strcmp(c, "camera3d_js")) return camera3d_js();
     if (!strcmp(c, "f4a_js")) return f4a_js();
+    if (!strcmp(c, "f4b_js")) return f4b_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

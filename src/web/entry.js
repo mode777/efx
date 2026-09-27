@@ -324,14 +324,17 @@ function __efxEnsureApi() {
         return out;
     }
 
-    /* Parse a Phong material object into the 17-float wire layout
-       [ambient(4), diffuse(4), specular(4), emissive(4), shininess] with the
-       F4a defaults (desktop parity); unknown fields (maps, alphaMask) throw. */
+    /* Parse a Phong material object into the F4a 17-float wire layout
+       [ambient(4), diffuse(4), specular(4), emissive(4), shininess] plus the
+       F4b map-handle vector [ambient, diffuse, specular, emissive, alphaMask]
+       (doubles; 0 = absent). Desktop parity: unknown fields throw, a map/
+       alphaMask must be a live Texture. */
     function __efxMaterial(v) {
         if (!__efxIsObject(v)) {
             throw new TypeError('material must be an object');
         }
-        var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1 };
+        var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
+                      alphaMask: 1 };
         var names = Object.getOwnPropertyNames(v);
         for (var i = 0; i < names.length; i++) {
             if (!known[names[i]]) {
@@ -344,6 +347,7 @@ function __efxEnsureApi() {
         out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1; /* specular */
         out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
         out[16] = 32;                                     /* shininess */
+        var maps = new Float64Array(5);                   /* all absent (0) */
         var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
         for (var ci = 0; ci < 4; ci++) {
             var ch = v[chan[ci]];
@@ -353,7 +357,8 @@ function __efxEnsureApi() {
             if (!__efxIsObject(ch)) {
                 throw new TypeError(chan[ci] + ' channel must be an object');
             }
-            var ck = ci === 2 ? { color: 1, shininess: 1 } : { color: 1 };
+            var ck = ci === 2 ? { color: 1, shininess: 1, map: 1 }
+                              : { color: 1, map: 1 };
             var cnames = Object.getOwnPropertyNames(ch);
             for (var k = 0; k < cnames.length; k++) {
                 if (!ck[cnames[k]]) {
@@ -369,6 +374,9 @@ function __efxEnsureApi() {
             out[ci * 4 + 1] = c[1];
             out[ci * 4 + 2] = c[2];
             out[ci * 4 + 3] = c[3];
+            if (ch.map !== undefined && ch.map !== null) {
+                maps[ci] = liveTexture(ch.map).__handle;
+            }
             if (ci === 2 && ch.shininess !== undefined) {
                 if (typeof ch.shininess !== 'number') {
                     throw new TypeError('shininess must be a number');
@@ -379,12 +387,21 @@ function __efxEnsureApi() {
                 out[16] = ch.shininess;
             }
         }
-        return out;
+        if (v.alphaMask !== undefined && v.alphaMask !== null) {
+            maps[4] = liveTexture(v.alphaMask).__handle;
+        }
+        return { blocks: out, maps: maps };
     }
 
     function mallocCopyF32(arr) {
         var ptr = bridge['_malloc'](arr.length * 4);
         HEAPF32.set(arr, ptr >> 2);
+        return ptr;
+    }
+
+    function mallocCopyF64(arr) {
+        var ptr = bridge['_malloc'](arr.length * 8);
+        HEAPF64.set(arr, ptr >> 3);
         return ptr;
     }
 
@@ -883,9 +900,12 @@ function __efxEnsureApi() {
                         continue;
                     }
                     var mf = __efxMaterial(mv);
-                    var mptr = mallocCopyF32(mf);
-                    bridge['_efx_bridge_meshdata_set_material'](id, mi, mptr, 1);
+                    var mptr = mallocCopyF32(mf.blocks);
+                    var mapsptr = mallocCopyF64(mf.maps);
+                    bridge['_efx_bridge_meshdata_set_material'](id, mi, mptr,
+                                                                mapsptr, 1);
                     bridge['_efx_bridge_mem_free'](mptr);
+                    bridge['_efx_bridge_mem_free'](mapsptr);
                 }
             }
             return new EfxMeshData(id);
@@ -1053,13 +1073,16 @@ function __efxEnsureApi() {
                 throw new RangeError('surfaceIndex out of range');
             }
             if (mat === null || mat === undefined) {
-                bridge['_efx_bridge_mesh_set_material'](m.__handle, index, 0, 0);
+                bridge['_efx_bridge_mesh_set_material'](m.__handle, index, 0, 0, 0);
                 return;
             }
             var f = __efxMaterial(mat);
-            var ptr = mallocCopyF32(f);
-            bridge['_efx_bridge_mesh_set_material'](m.__handle, index, ptr, 1);
+            var ptr = mallocCopyF32(f.blocks);
+            var mapsptr = mallocCopyF64(f.maps);
+            bridge['_efx_bridge_mesh_set_material'](m.__handle, index, ptr,
+                                                    mapsptr, 1);
             bridge['_efx_bridge_mem_free'](ptr);
+            bridge['_efx_bridge_mem_free'](mapsptr);
         },
     };
 

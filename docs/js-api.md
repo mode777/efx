@@ -1,12 +1,12 @@
 # EmotionFX JavaScript API Reference
 
-**Status:** F1 (including explicit lifecycle hook registration), F2, F3, and
-F4a (lighting + Phong materials on solids/vertex colors) are implemented
-(current behavior). Everything from F4b onward is a provisional contract —
-names and signatures may be reshaped by the change that delivers them (every
-API change must update this document in the same change). See
-`vision.md` for product goals and `openspec/specs/feature-roadmap` for the
-milestone ladder.
+**Status:** F1 (including explicit lifecycle hook registration), F2, F3, F4a
+(lighting + Phong materials on solids/vertex colors), and F4b (per-channel
+maps + alpha masks) are implemented (current behavior). Everything from F5
+onward is a provisional contract — names and signatures may be reshaped by
+the change that delivers them (every API change must update this document in
+the same change). See `vision.md` for product goals and
+`openspec/specs/feature-roadmap` for the milestone ladder.
 
 ## Overview
 
@@ -129,7 +129,8 @@ one way — the rule that keeps a GC'd language from leaking unmanaged memory
 classes**; only the fixed light bank is slot-based (model: ADR 0011,
 memory discipline: ADR 0012, glTF data model: ADR 0014, implicit rig
 payload + `skinned` flag: ADR 0017, multi-surface mesh data model +
-per-surface materials: ADR 0024 — all under `docs/decisions/`).
+per-surface materials: ADR 0024, per-channel maps + alpha mask + retained
+map textures: ADR 0027 — all under `docs/decisions/`).
 
 | Class | Meaning | Release path |
 |---|---|---|
@@ -144,7 +145,7 @@ per-surface materials: ADR 0024 — all under `docs/decisions/`).
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry skin, skeleton, and clips internally (ADR 0017); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)` / `loadMesh`; `mesh.destroy()`; read-only `surfaceCount` |
 | Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData)`; `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target | Native class | GPU | F5 | `createRenderTarget`; `rt.destroy()` |
-| Materials (Phong parameter objects) | — | JS-managed | — | F4a | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024) |
+| Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
 | Fonts (atlas + quad layout) | — | JS-managed | — | F8 | Pure JS over Texture; passed to `drawText` |
 | Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
 
@@ -158,6 +159,9 @@ per-surface materials: ADR 0024 — all under `docs/decisions/`).
 - Resources recorded into the display list stay alive until playback
   finishes; `destroy()` during a frame defers the native release to frame
   end.
+- A `Texture` referenced by a bound material map (F4b) stays alive until
+  that binding is released — rebind the surface without the map, bind
+  `null`, or destroy the owning mesh (ADR 0027).
 - Everything still alive at shutdown is finalized by runtime teardown —
   scripts cannot leak past process exit.
 
@@ -398,10 +402,11 @@ efx.drawMesh(opts)         // { mesh, transform?, color? } — whole mesh, depth
   every surface in surface order under the recorded camera, depth-tested
   against earlier 3D records (equal depth resolves by record order).
   `transform` is a flat column-major 16-number array (default identity;
-  wrong length → `RangeError`), `color` a tint multiplying vertex colors
+  wrong length → `RangeError`),   `color` a tint multiplying vertex colors
   (default opaque white). No single-surface draw — split the mesh. From F4a
-  the fill is lit Phong (see the F4a section); surface `uvs` are validated
-  and stored but affect rendering only from F4b's maps. 2D records are
+  the fill is lit Phong (see the F4a section); surface `uvs` (validated and
+  stored since F3) are the texture coordinate for F4b's per-channel maps and
+  alpha mask, and do not otherwise affect shading. 2D records are
   untouched by mesh depth (painter's order, no depth write).
 
 ```js
@@ -451,7 +456,9 @@ efx.registerRenderHook(() => {
 
 Scope from roadmap F4a: 4 point + 1 directional light; a 4-channel Phong
 material (Ambient, Diffuse, Specular, Emissive) on solids and vertex colors.
-Per-channel maps and alpha masks are F4b and remain provisional below.
+Per-channel maps and alpha masks extend the same material object in F4b,
+documented in the [F4b section](#f4b--per-channel-maps--alpha-masks-current)
+below.
 
 ```js
 // F4a · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
@@ -515,20 +522,65 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F4b — per-channel maps & alpha masks (provisional)
+### F4b — per-channel maps & alpha masks (current)
 
 Scope from roadmap F4b: per-channel maps and alpha masks extend the same
-material object; `uvs` (validated and stored since F3) are consumed here.
+Phong material object; `uvs` (validated and stored since F3) are consumed as
+the texture coordinate. No new functions — F4b is additive to the F4a
+material object.
 
 ```js
-// F4b · C · provisional — maps extend the F4a material object
+// F4b · C · current — maps extend the F4a material object
 // {
-//   ambient:  { color, map: tex },      // tex: a Texture object
+//   ambient:  { color, map: tex },      // tex: a live Texture object
 //   diffuse:  { color, map: tex },
 //   specular: { color, shininess, map: tex },
 //   emissive: { color, map: tex },
-//   alphaMask: tex,
+//   alphaMask: tex,                     // material-level binary cutout
 // }
+```
+
+- **Channel maps** — each channel's optional `map` (a live `Texture`)
+  modulates that channel's color by `texture(map, uv).rgb`, sampled per
+  fragment at the surface's interpolated `uv`. The specular map scales the
+  specular color, not `shininess`; channel alphas are ignored by shading. An
+  omitted or `null` map contributes the neutral factor `1`, so a material
+  that binds no maps shades exactly as in F4a and the committed F4a goldens
+  are unchanged. A surface without `uvs` samples every map at `(0, 0)`.
+- **Alpha mask** — the material-level optional `alphaMask` (a live `Texture`)
+  is a **binary cutout**: a fragment whose sampled mask alpha is below `0.5`
+  is discarded before lighting; surviving fragments keep the albedo alpha
+  (vertex-color alpha × tint alpha). The mask's RGB does not modulate
+  anything and there is no soft/graded alpha.
+- **Validation** — a `map` or `alphaMask` that is not a live `Texture` (a
+  non-Texture value or an already-destroyed texture) throws `TypeError`, as
+  does an unknown channel/material field; the previous binding is unchanged.
+  `null`/omitted means no map.
+- **Retained map textures** — a bound map keeps its `Texture` alive:
+  `tex.destroy()` releases the script handle immediately (later script use
+  throws), but the texture's native storage is freed only once no material
+  binding references it (rebind without it, bind `null`, or destroy the
+  owning mesh). A map bound before `destroy()` therefore keeps rendering
+  until it is unbound.
+- **Snapshot** — the engine reads (snapshots) the material at binding time,
+  including the map handles, so later mutation of the script object does not
+  change the bound material.
+
+```js
+// main.js — F4b sample (current API)
+const tex = efx.createTexture(efx.createImageData({
+    width: 64, height: 64, pixels: makeCheckerPixels(),
+}));
+const ground = efx.createMesh(efx.makePlane({ size: 10, segments: 4 }));
+efx.setMeshSurfaceMaterial(ground, 0, {
+    ambient:  { color: [0.1, 0.1, 0.12, 1] },
+    diffuse:  { color: [1, 1, 1, 1], map: tex },
+    specular: { color: [0.6, 0.6, 0.6, 1], shininess: 24 },
+    emissive: { color: [0, 0, 0, 1] },
+    alphaMask: tex,     // discard fragments where tex alpha < 0.5
+});
+
+efx.registerRenderHook(() => { efx.drawMesh({ mesh: ground }); });
 ```
 
 ### F5 — Render targets & post FX (provisional)

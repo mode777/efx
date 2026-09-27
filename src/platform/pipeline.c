@@ -54,6 +54,7 @@ typedef struct {
     sg_shader mesh_shd;
     sg_pipeline mesh_pip[3];
     sg_sampler smp;
+    sg_view white_view; /* engine white texture, used for absent F4b maps */
     sg_buffer vbuf;
     size_t vbuf_size;       /* bytes; grown on demand (dynamic quad batch) */
     pipe_vertex *scratch;
@@ -295,7 +296,9 @@ void efx_pipeline_install(void) {
         pipe_create_mesh, pipe_destroy_mesh, NULL,
     };
     efx_render_install_sink(&sink);
-    efx_render_white_texture(); /* engine-owned 1x1 white (design D5) */
+    uint64_t white = efx_render_white_texture(); /* engine-owned 1x1 white (D5) */
+    pipe_tex *wt = (pipe_tex *)efx_render_texture_native(white);
+    P.white_view = wt ? wt->view : (sg_view){0}; /* absent F4b maps fall back */
 }
 
 /* 3D camera + mesh playback (F3): per record, compose MVP from the
@@ -377,6 +380,9 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect) {
 
     sg_apply_pipeline(P.mesh_pip[mr->blend]);
     sg_apply_uniforms(UB_vs_params, &(sg_range){.ptr = &vs, .size = sizeof(vs)});
+    uint64_t white = efx_render_white_texture(); /* absent-map fallback (D3) */
+    pipe_tex *white_tex = (pipe_tex *)efx_render_texture_native(white);
+    sg_view white_view = white_tex ? white_tex->view : P.white_view;
     for (int i = 0; i < m->surface_count; i++) {
         pipe_mesh_surface *s = &m->surfaces[i];
         if (!s->index_count) {
@@ -390,9 +396,19 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect) {
         memcpy(fs.emissive, mat.emissive, sizeof(fs.emissive));
         fs.mat_params[0] = mat.shininess;
 
+        /* F4b D3: bind all five maps; absent ones fall back to the engine
+           white texture (color maps sample (1,1,1,1); the mask samples
+           alpha 1, so it never discards). One shared sampler for all. */
+        uint64_t maps[5] = {mat.ambient_map, mat.diffuse_map, mat.specular_map,
+                            mat.emissive_map, mat.alpha_mask};
         sg_bindings bnd = {0};
         bnd.vertex_buffers[0] = s->vbuf;
         bnd.index_buffer = s->ibuf;
+        for (int k = 0; k < 5; k++) {
+            pipe_tex *t = (pipe_tex *)efx_render_texture_native(maps[k]);
+            bnd.views[k] = t ? t->view : white_view;
+            bnd.samplers[k] = P.smp;
+        }
         sg_apply_bindings(&bnd);
         /* documented order: pipeline -> bindings -> uniforms -> draw */
         sg_apply_uniforms(UB_fs_params,

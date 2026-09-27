@@ -87,18 +87,39 @@ typedef struct efx_light_set {
     efx_dir_light directional;
 } efx_light_set;
 
-/* Per-surface Phong material snapshot (F4a design D5/D6): plain values,
- * JS-managed on the script side (no native handle, no destroy). */
+/* Per-surface Phong material snapshot (F4a design D5/D6, extended by F4b
+ * design D5): plain values, JS-managed on the script side (no native handle,
+ * no destroy). Colors/shininess are value-snapshotted; channel maps and the
+ * alpha mask are texture handles (0 = absent) held by reference (ADR 0019)
+ * and retained by the engine while bound (F4b design D6). */
 typedef struct efx_material {
     float ambient[4];
     float diffuse[4];
     float specular[4];
     float emissive[4];
     float shininess;
+    uint64_t ambient_map;
+    uint64_t diffuse_map;
+    uint64_t specular_map;
+    uint64_t emissive_map;
+    uint64_t alpha_mask;
 } efx_material;
 
 /* documented default material: white diffuse Phong, no maps */
 void efx_material_default(efx_material *m);
+
+/* F4b per-fragment map samples for the CPU lighting reference (design D8):
+ * each channel RGB sample multiplies that channel's color; a present mask
+ * discards the fragment when mask_alpha < 0.5. Passing NULL to
+ * efx_lighting_shade reproduces the F4a neutral result. */
+typedef struct efx_map_samples {
+    float ambient[3];
+    float diffuse[3];
+    float specular[3];
+    float emissive[3];
+    float mask_alpha;
+    int has_mask;
+} efx_map_samples;
 
 /* one quad (design D1/D3; ~96 bytes) */
 typedef struct efx_quad_record {
@@ -233,6 +254,9 @@ int efx_render_texture_alive(uint64_t h);
 void efx_render_texture_size(uint64_t handle, int *out_w, int *out_h);
 void *efx_render_texture_native(uint64_t h); /* valid until end of frame */
 uint64_t efx_render_white_texture(void);
+/* F4b material-map retention count (design D6); -1 on a bad handle. Exposed
+ * for the headless unit tests that assert bindings retain/release textures. */
+int efx_render_texture_ref_count(uint64_t h);
 
 /* meshes; handles are opaque, 0 = invalid; destroy is deferred to frame
  * end (records may reference the mesh until playback finishes) */
@@ -273,13 +297,15 @@ efx_affine efx_quad_matrix(float x, float y,
                            float origin_x, float origin_y,
                            float rotation_deg, float scale);
 
-/* CPU reference implementation of the F4a Phong equation (design D8).
- * `normal` may be non-unit (normalized internally); `albedo` is the
- * per-fragment vertex color × tint. out[4] receives the per-channel
- * clamped lit color with out[3] = albedo[3]. */
-void efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
-                        const float world_pos[3], const float normal[3],
-                        const float camera_pos[3], const float albedo[4],
-                        float out[4]);
+/* CPU reference implementation of the lighting equation (F4a design D8,
+ * extended by F4b design D8). `normal` may be non-unit (normalized
+ * internally); `albedo` is the per-fragment vertex color × tint; `maps` is
+ * the optional F4b map-sample set (NULL = neutral). Returns 1 when the
+ * fragment is discarded by the alpha mask, else 0; out[4] receives the
+ * per-channel clamped lit color with out[3] = albedo[3]. */
+int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
+                       const float world_pos[3], const float normal[3],
+                       const float camera_pos[3], const float albedo[4],
+                       const efx_map_samples *maps, float out[4]);
 
 #endif

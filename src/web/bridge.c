@@ -421,8 +421,11 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_mesh(double handle,
 
 /* ------------------------------------------------- F4a (lighting) */
 
-/* mat layout: ambient[4], diffuse[4], specular[4], emissive[4], shininess */
-static void bridge_mat_from_floats(efx_material *m, const float *f) {
+/* mat layout: ambient[4], diffuse[4], specular[4], emissive[4], shininess;
+ * maps (F4b): [ambient, diffuse, specular, emissive, alphaMask] as doubles
+ * (a float would truncate a 64-bit texture handle) */
+static void bridge_mat_from_wire(efx_material *m, const float *f,
+                                 const double *maps) {
     if (!f) {
         efx_material_default(m);
         return;
@@ -434,6 +437,13 @@ static void bridge_mat_from_floats(efx_material *m, const float *f) {
         m->emissive[i] = f[12 + i];
     }
     m->shininess = f[16];
+    if (maps) {
+        m->ambient_map = (uint64_t)maps[0];
+        m->diffuse_map = (uint64_t)maps[1];
+        m->specular_map = (uint64_t)maps[2];
+        m->emissive_map = (uint64_t)maps[3];
+        m->alpha_mask = (uint64_t)maps[4];
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_set_point_light(int slot, int enabled,
@@ -474,10 +484,12 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_set_directional_light(int enabled,
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_set_material(double handle, int index,
-                                                      const float *mat, int has) {
+                                                      const float *mat,
+                                                      const double *maps,
+                                                      int has) {
     efx_material m;
     if (has) {
-        bridge_mat_from_floats(&m, mat);
+        bridge_mat_from_wire(&m, mat, maps);
     } else {
         efx_material_default(&m);
     }
@@ -487,6 +499,7 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_set_material(double handle, int index,
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_set_material(int id, int index,
                                                           const float *mat,
+                                                          const double *maps,
                                                           int has) {
     wmd_slot *s = wmd_get(id);
     if (!s || !s->alive || !s->md) {
@@ -494,7 +507,7 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_set_material(int id, int index,
     }
     efx_material m;
     if (has) {
-        bridge_mat_from_floats(&m, mat);
+        bridge_mat_from_wire(&m, mat, maps);
     } else {
         efx_material_default(&m);
     }

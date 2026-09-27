@@ -1,6 +1,7 @@
-// Golden gallery (f2c visual demo, extended in F3/F4a): cycles the
-// golden-image scenes — seven 2D (F2 API), six 3D (F3 API) and six lighting
-// (F4a API). Each scene reproduces its committed capture under
+// Golden gallery (f2c visual demo, extended in F3/F4a/F4b): cycles the
+// golden-image scenes — seven 2D (F2 API), six 3D (F3 API), six lighting
+// (F4a API) and seven material-map/mask (F4b API). Each scene reproduces its
+// committed capture under
 // tests/goldens/<name>/golden.png on a 640x480 virtual frame; a 2D progress
 // strip at the bottom shows the cycle position (drawn over the 3D scenes
 // too: 2D records ignore depth).
@@ -33,6 +34,24 @@ function card(z, s, rgb) {
                  rgb[0], rgb[1], rgb[2], 1, rgb[0], rgb[1], rgb[2], 1],
         indices: [0, 1, 2, 0, 2, 3],
     };
+}
+
+// F4b map helper: a uniform 1x1 texture (deterministic under filtering)
+function mapTex(r, g, b, a) {
+    return efx.createTexture(efx.createImageData({
+        width: 1, height: 1, pixels: [r, g, b, a === undefined ? 255 : a],
+    }));
+}
+
+// a camera-facing plane with uvs, sized to the default 3D view
+function mappedPlane(size) {
+    const S = size;
+    return efx.createMesh(efx.createMeshData({
+        positions: [-S, -S, 0, S, -S, 0, S, S, 0, -S, S, 0],
+        normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+        uvs: [0, 0, 1, 0, 1, 1, 0, 1],
+        indices: [0, 1, 2, 0, 2, 3],
+    }));
 }
 
 const scenes = [
@@ -439,6 +458,184 @@ const scenes = [
         },
         render() {
             efx.drawMesh({ mesh: this.pair });
+        },
+    },
+    {
+        name: 'map_diffuse',
+        setup() {
+            efx.setClearColor([0, 0, 0, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
+            if (!this.plane) {
+                this.map = mapTex(102, 204, 51);
+                this.plane = mappedPlane(2.2);
+                efx.setMeshSurfaceMaterial(this.plane, 0, {
+                    ambient: { color: [0, 0, 0, 1] },
+                    diffuse: { color: [1, 1, 1, 1], map: this.map },
+                    specular: { color: [0, 0, 0, 1] },
+                    emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.plane });
+        },
+    },
+    {
+        name: 'map_ambient',
+        setup() {
+            efx.setClearColor([0, 0, 0, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.plane) {
+                this.map = mapTex(128, 128, 128);
+                this.plane = mappedPlane(2.2);
+                efx.setMeshSurfaceMaterial(this.plane, 0, {
+                    ambient: { color: [1, 1, 1, 1], map: this.map },
+                    diffuse: { color: [0, 0, 0, 1] },
+                    specular: { color: [0, 0, 0, 1] },
+                    emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.plane });
+        },
+    },
+    {
+        name: 'map_specular',
+        setup() {
+            efx.setClearColor([0.05, 0.05, 0.08, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 4], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, { pos: [2.0, 3.0, 3.0], color: [1, 1, 1, 1], range: 30 });
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.ball) {
+                this.map = mapTex(255, 32, 32);
+                this.ball = efx.createMesh(efx.makeSphere({ radius: 1.4, segments: 24 }));
+                efx.setMeshSurfaceMaterial(this.ball, 0, {
+                    ambient: { color: [0, 0, 0, 1] },
+                    diffuse: { color: [0.05, 0.05, 0.06, 1] },
+                    specular: { color: [1, 1, 1, 1], shininess: 32, map: this.map },
+                    emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.ball });
+        },
+    },
+    {
+        name: 'map_emissive',
+        setup() {
+            efx.setClearColor([0, 0, 0, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.plane) {
+                this.map = mapTex(51, 153, 255);
+                this.plane = mappedPlane(2.2);
+                efx.setMeshSurfaceMaterial(this.plane, 0, {
+                    ambient: { color: [0, 0, 0, 1] },
+                    diffuse: { color: [0, 0, 0, 1] },
+                    specular: { color: [0, 0, 0, 1] },
+                    emissive: { color: [1, 1, 1, 1], map: this.map },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.plane });
+        },
+    },
+    {
+        name: 'map_alpha_mask',
+        setup() {
+            efx.setClearColor([0.1, 0.02, 0.2, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 4.5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight(null);
+            if (!this.pair) {
+                const opaque = mapTex(255, 255, 255, 255);
+                const clear = mapTex(255, 255, 255, 0);
+                const cards = [{
+                    positions: [-1.95, -0.9, 0, -0.15, -0.9, 0, -0.15, 0.9, 0, -1.95, 0.9, 0],
+                    normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+                    uvs: [0, 0, 1, 0, 1, 1, 0, 1],
+                    indices: [0, 1, 2, 0, 2, 3],
+                }, {
+                    positions: [0.15, -0.9, 0, 1.95, -0.9, 0, 1.95, 0.9, 0, 0.15, 0.9, 0],
+                    normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+                    uvs: [0, 0, 1, 0, 1, 1, 0, 1],
+                    indices: [0, 1, 2, 0, 2, 3],
+                }];
+                this.pair = efx.createMesh(efx.createMeshData({
+                    surfaces: cards,
+                    materials: [
+                        { ambient: { color: [1, 0.5, 0.2, 1] }, alphaMask: opaque },
+                        { ambient: { color: [1, 0.5, 0.2, 1] }, alphaMask: clear },
+                    ],
+                }));
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.pair });
+        },
+    },
+    {
+        name: 'map_multimap',
+        setup() {
+            efx.setClearColor([0, 0, 0, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
+            if (!this.plane) {
+                this.plane = mappedPlane(2.2);
+                efx.setMeshSurfaceMaterial(this.plane, 0, {
+                    ambient: { color: [1, 1, 1, 1], map: mapTex(51, 0, 0) },
+                    diffuse: { color: [1, 1, 1, 1], map: mapTex(0, 102, 0) },
+                    specular: { color: [1, 1, 1, 1], shininess: 32, map: mapTex(0, 0, 77) },
+                    emissive: { color: [1, 1, 1, 1], map: mapTex(26, 26, 26) },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.plane });
+        },
+    },
+    {
+        name: 'map_reference',
+        setup() {
+            efx.setClearColor([0, 0, 0, 1]);
+            efx.setCamera2D({ frame: FRAME });
+            efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+            efx.setLight(0, null);
+            efx.setLight(1, null);
+            efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
+            if (!this.plane) {
+                this.plane = mappedPlane(2.2);
+                efx.setMeshSurfaceMaterial(this.plane, 0, {
+                    ambient: { color: [0, 0, 0, 1] },
+                    diffuse: { color: [1, 1, 1, 1], map: mapTex(204, 128, 51) },
+                    specular: { color: [0, 0, 0, 1] },
+                    emissive: { color: [0, 0, 0, 1] },
+                });
+            }
+        },
+        render() {
+            efx.drawMesh({ mesh: this.plane });
         },
     },
 ];
