@@ -24,7 +24,15 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `openspec/changes/archive/2026-09-27-f6b-gltf-import`); its four-target gate
   is **green** (ci run 36344464419: native suites incl. all goldens on
   Linux/Windows/macOS, Emscripten ctest + web goldens + cross-runtime
-  compare). F6c (rig import) and F6d (REPL) are proposed.
+  compare). F6c (rig import) is **implemented** — `loadMeshData` imports
+  `JOINTS_0`/`WEIGHTS_0` into per-surface `joints`/`weights` and bundles the
+  skin (joint hierarchy + inverse bind matrices) and every `animations[]`
+  clip into the `MeshData` as an opaque rig payload carried onto the `Mesh`
+  by `createMesh` (LINEAR/STEP exact, CUBICSPLINE→LINEAR); `createMeshData`
+  accepts `joints`/`weights`; no script rig API (change `f6c-rig-import`,
+  ADR 0033). Its four-target gate is **green** (ci run 36347575565: native
+  suites incl. all goldens on Linux/Windows/macOS, Emscripten ctest + web
+  goldens + cross-runtime compare). F6d (REPL) is proposed.
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -219,7 +227,7 @@ implements.
 | F3 | 3D core | Camera, multi-surface mesh resources (ADR 0024), `drawMesh` with depth test, GLM math wrapper, vertex colors, procedural primitives, pure-JS math layer | Golden images + math unit tests | done — four-target gate green (run 36122872839); ADR 0024/0025 |
 | F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | done — F4a gate green (run 36271736775, ADR 0026); F4b gate green (run 36284454599, ADR 0027) |
 | F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
-| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c–F6d proposed |
+| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d proposed |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, play/pause/blend | FK joint-transform tests vs CPU reference + golden images | planned |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
 

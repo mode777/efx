@@ -45,7 +45,7 @@
 - [x] 5.1 Expose the joints/weights surface fields through the quickjs binding
   with the same validation as other attributes. Verify a ctest script test
   builds a skinned MeshData and asserts success plus the mismatch errors.
-- [ ] 5.2 Mirror the fields through the web bridge (`entry.js` attribute
+- [x] 5.2 Mirror the fields through the web bridge (`entry.js` attribute
   marshalling). Verify the web compare harness runs the skinned script with
   output matching desktop.
 
@@ -56,16 +56,16 @@
   policy, and opaqueness; add it to `docs/decisions/README.md`.
 - [x] 6.2 Update `docs/js-api.md` and `gallery/src/api/efx.d.ts` for the
   joints/weights surface attributes and the implicit rig payload.
-- [ ] 6.3 Update the AGENTS.md roadmap/current-state rows for the F6c slice.
+- [x] 6.3 Update the AGENTS.md roadmap/current-state rows for the F6c slice.
 
 ## 7. Verification
 
 - [x] 7.1 Commit a skinned glTF fixture (with a skeleton and at least one
   LINEAR clip, plus one CUBICSPLINE clip for the approximation path).
-- [ ] 7.2 Add a rest-pose golden of the skinned asset; capture it server-side
+- [x] 7.2 Add a rest-pose golden of the skinned asset; capture it server-side
   (llvmpipe, per `docs/verification-server.md`) and commit it. Verify the
   native and web golden suites pass.
-- [ ] 7.3 Run the Linux pipeline first (ctest smoke + goldens), then Windows,
+- [x] 7.3 Run the Linux pipeline first (ctest smoke + goldens), then Windows,
   then macOS; verify via `python3 tools/verify_remote.py all <branch>` before
   dispatching `gh workflow run ci.yml --ref <branch>`.
-- [ ] 7.4 Confirm the four-target gate is green before archiving.
+- [x] 7.4 Confirm the four-target gate is green before archiving.
