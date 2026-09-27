@@ -1337,8 +1337,10 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
     }
     q->texture = texture;
     {
+        /* F5a texture coercion: the sampled source may be a Texture or a
+           RenderTarget — resolve the size through the unified lookup */
         int tw = 0, th = 0;
-        efx_render_texture_size(texture, &tw, &th);
+        efx_render_sample_size(texture, &tw, &th);
         q->tw = (float)tw;
         q->th = (float)th;
     }
