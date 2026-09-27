@@ -15,6 +15,7 @@
   let error: string | null = $state(null);
 
   const selected = $derived(samples.find((s) => s.id === selectedId) ?? null);
+  const frameAssets = $derived(selected?.assets ?? null);
 
   function select(sample: Sample) {
     selectedId = sample.id;
@@ -53,7 +54,7 @@
       </header>
       <div class="screen">
         {#if selectedId}
-          <Frame code={editorCode} {runId} onError={(m) => (error = m)} />
+          <Frame code={editorCode} assets={frameAssets} {runId} onError={(m) => (error = m)} />
         {/if}
       </div>
       {#if error}

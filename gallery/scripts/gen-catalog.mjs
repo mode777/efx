@@ -53,9 +53,10 @@ function goldenSamples() {
         .map((d) => d.name)
         .filter((n) => fs.existsSync(path.join(goldensDir, n, 'main.js')))
         .sort();
+    const samplesDir = path.join(galleryDir, 'public', 'samples');
     return names.map((name) => {
         const source = fs.readFileSync(path.join(goldensDir, name, 'main.js'), 'utf8');
-        return {
+        const sample = {
             id: `golden:${name}`,
             origin: 'golden',
             title: titleCase(name),
@@ -63,6 +64,15 @@ function goldenSamples() {
             description: leadingComment(source) || `Golden scene: ${name}`,
             source,
         };
+        // Scenes with extra resource files ship a committed asset pack; copy
+        // it into the site and point the runner's host asset channel at it.
+        const assetZip = path.join(goldensDir, name, 'assets.zip');
+        if (fs.existsSync(assetZip)) {
+            fs.mkdirSync(samplesDir, { recursive: true });
+            fs.copyFileSync(assetZip, path.join(samplesDir, `${name}.zip`));
+            sample.assets = `samples/${name}.zip`;
+        }
+        return sample;
     });
 }
 

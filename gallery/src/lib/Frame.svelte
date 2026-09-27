@@ -1,10 +1,12 @@
 <script lang="ts">
   let {
     code,
+    assets,
     runId,
     onError,
   }: {
     code: string;
+    assets?: string | null;
     runId: number;
     onError: (message: string) => void;
   } = $props();
@@ -14,11 +16,12 @@
   let boxW = $state(320);
   let boxH = $state(240);
 
-  // Latest code as a non-reactive value so the run effect below depends only
-  // on the run token, never on keystrokes.
-  const latest: { code: string } = { code: '' };
+  // Latest code/assets as non-reactive values so the run effect below depends
+  // only on the run token, never on keystrokes.
+  const latest: { code: string; assets: string | null } = { code: '', assets: null };
   $effect(() => {
     latest.code = code;
+    latest.assets = assets ?? null;
   });
 
   // Fit a 4:3 surface into the available panel (design D10): the sample frame
@@ -55,7 +58,7 @@
       const data = ev.data ?? {};
       if (data.type === 'ready') {
         el!.contentWindow!.postMessage(
-          { type: 'run', code: latest.code },
+          { type: 'run', code: latest.code, assets: latest.assets },
           window.location.origin
         );
       } else if (data.type === 'error') {

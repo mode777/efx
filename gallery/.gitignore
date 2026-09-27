@@ -4,3 +4,5 @@ dist/
 public/player/
 # emitted by scripts/gen-catalog.mjs from tests/goldens + curated samples
 src/samples/generated.json
+# asset packs copied in by scripts/gen-catalog.mjs for scenes that need them
+public/samples/
