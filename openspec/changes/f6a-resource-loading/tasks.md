@@ -83,11 +83,11 @@
 
 ## 6. Verification
 
-- [ ] 6.1 Add a golden scene whose `main.js` loads and draws a decoded PNG;
+- [x] 6.1 Add a golden scene whose `main.js` loads and draws a decoded PNG;
   capture the golden server-side (llvmpipe, per
   `docs/verification-server.md`) and commit it. Verify `ctest` golden suite
   passes locally with a display and in the Emscripten golden job.
-- [ ] 6.2 Run the Linux pipeline first (ctest smoke + goldens) and fix
+- [x] 6.2 Run the Linux pipeline first (ctest smoke + goldens) and fix
   findings; only then Windows, then macOS. Verify via
   `python3 tools/verify_remote.py all <branch>` before dispatching
   `gh workflow run ci.yml --ref <branch>`.
