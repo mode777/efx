@@ -5,11 +5,16 @@
  * Usage: efx_api_tests <case> ; exit 0 = pass.
  */
 #include "render/render.h"
+#include "resource/resource.h"
 #include "runtime/runtime.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef EFX_RES_FIXTURES
+#define EFX_RES_FIXTURES "tests/fixtures/resource"
+#endif
 
 static int fail(const char *what) {
     fprintf(stderr, "FAIL: %s\n", what);
@@ -902,6 +907,45 @@ static int f5b_js(void) {
     return 0;
 }
 
+/* F6a: resource root on the runtime + loadText/loadImage bindings */
+static int resource_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) return fail("runtime");
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_RES_FIXTURES, &err);
+    if (!res) {
+        end_js();
+        return fail("open fixtures");
+    }
+    efx_runtime_set_resource(g_rt, res);
+    int rc = efx_runtime_eval_string(g_rt, "test",
+        "if (efx.loadText('hello.txt') !== 'hello efx\\n') throw new Error('text');"
+        "var img = efx.loadImage('test_rgba.png');"
+        "if (img.width !== 3 || img.height !== 2) throw new Error('dims');"
+        "var px = efx.createTexture(img);"
+        "if (px.width !== 3 || px.height !== 2) throw new Error('tex dims');"
+        "var lt = efx.loadTexture('test_rgba.png');"
+        "if (lt.width !== 3 || lt.height !== 2) throw new Error('loadTexture dims');"
+        "img.destroy(); px.destroy(); lt.destroy();"
+        "var e1 = 0; try { efx.loadText('nope.txt'); } catch (e) {"
+        "  e1 = (e instanceof Error) ? 1 : 2; }"
+        "if (e1 !== 1) throw new Error('missing not Error ('+e1+')');"
+        "var e2 = 0; try { efx.loadText(5); } catch (e) {"
+        "  e2 = (e instanceof TypeError) ? 1 : 2; }"
+        "if (e2 !== 1) throw new Error('nonstring not TypeError ('+e2+')');");
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_resource_close(res);
+    if (rc != 0) return fail("resource js snippet raised");
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -930,6 +974,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "f4b_js")) return f4b_js();
     if (!strcmp(c, "f5a_js")) return f5a_js();
     if (!strcmp(c, "f5b_js")) return f5b_js();
+    if (!strcmp(c, "resource_js")) return resource_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

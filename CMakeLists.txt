@@ -29,9 +29,25 @@ if(NOT EMSCRIPTEN)
     add_subdirectory(vendor/quickjs-ng EXCLUDE_FROM_ALL)
 endif()
 
+# F6a zip backend: miniz is a vendored single-file amalgamation built as its
+# own target with relaxed warnings so its diagnostics never trip efx_core's
+# -Werror (same treatment as the vendored stb implementation TUs).
+add_library(efx_miniz STATIC vendor/miniz/miniz.c)
+target_include_directories(efx_miniz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/miniz)
+if(MSVC)
+    target_compile_options(efx_miniz PRIVATE /W3)
+else()
+    target_compile_options(efx_miniz PRIVATE -w)
+    # miniz uses ftello/fseeko (large-file stdio) on POSIX
+    target_compile_definitions(efx_miniz PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
+
 if(EMSCRIPTEN)
     add_library(efx_core STATIC
         src/render/render.c
+        src/resource/image.c
+        src/resource/resource.c
+        src/resource/stb_image_impl.c
         src/web/bridge.c
     )
 else()
@@ -39,9 +55,14 @@ else()
         src/api/api.c
         src/runtime/runtime.c
         src/render/render.c
+        src/resource/image.c
+        src/resource/resource.c
+        src/resource/stb_image_impl.c
     )
 endif()
-target_include_directories(efx_core PUBLIC src)
+target_include_directories(efx_core PUBLIC src
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
+target_link_libraries(efx_core PUBLIC efx_miniz)
 if(NOT EMSCRIPTEN)
     target_link_libraries(efx_core PUBLIC qjs)
 endif()
@@ -240,20 +261,48 @@ else()
     target_compile_options(efx_render_tests PRIVATE -Wall -Wextra -Werror)
 endif()
 
+# headless resource provider tests (F6a directory backend + path safety);
+# desktop-only: they read the filesystem
+if(NOT EMSCRIPTEN)
+add_executable(efx_resource_tests
+    src/resource/image.c
+    src/resource/resource.c
+    src/resource/stb_image_impl.c
+    tests/unit/resource_tests.c
+)
+target_include_directories(efx_resource_tests PRIVATE src)
+target_include_directories(efx_resource_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
+target_link_libraries(efx_resource_tests PRIVATE efx_miniz)
+target_compile_definitions(efx_resource_tests PRIVATE
+    EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
+if(MSVC)
+    target_compile_options(efx_resource_tests PRIVATE /W4 /WX)
+else()
+    target_compile_options(efx_resource_tests PRIVATE -Wall -Wextra -Werror)
+endif()
+
 # headless JS-API tests (mock GPU sink + real quickjs runtime + bindings);
 # desktop-only: ADR 0022 keeps quickjs out of every Emscripten target
-if(NOT EMSCRIPTEN)
 add_executable(efx_api_tests
     src/api/api.c
     src/runtime/runtime.c
     src/render/render.c
+    src/resource/image.c
+    src/resource/resource.c
+    src/resource/stb_image_impl.c
     tests/unit/api_tests.c
 )
 target_include_directories(efx_api_tests PRIVATE src)
+target_include_directories(efx_api_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
+target_compile_definitions(efx_api_tests PRIVATE
+    EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
 if(UNIX)
     target_link_libraries(efx_api_tests PRIVATE m)
 endif()
 target_link_libraries(efx_api_tests PRIVATE qjs)
+target_link_libraries(efx_api_tests PRIVATE efx_miniz)
 if(MSVC)
     target_compile_options(efx_api_tests PRIVATE /W4 /WX)
     target_compile_definitions(efx_api_tests PRIVATE _CRT_SECURE_NO_WARNINGS)

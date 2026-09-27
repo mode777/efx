@@ -176,6 +176,8 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
         JS_CFUNC_DEF("setPostEffects", 1, efx_js_setPostEffects),
         JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
+        JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
+        JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));
@@ -228,6 +230,10 @@ void efx_runtime_destroy(efx_runtime *rt) {
     JS_FreeContext(rt->ctx);
     JS_FreeRuntime(rt->js_rt);
     free(rt);
+}
+
+void efx_runtime_set_resource(efx_runtime *rt, struct efx_resource *resource) {
+    rt->host.resource = resource;
 }
 
 int efx_runtime_eval_file(efx_runtime *rt, const char *path) {

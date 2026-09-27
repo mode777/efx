@@ -44,6 +44,10 @@ add_player_test(smoke_4a_validation ARGS "--script;${S}/s_4a_validation.js" EXPE
 add_player_test(smoke_4b_validation ARGS "--script;${S}/s_4b_validation.js" EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
 add_player_test(smoke_5a_validation ARGS "--script;${S}/s_5a_validation.js" EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
 add_player_test(smoke_5b_validation ARGS "--script;${S}/s_5b_validation.js" EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
+add_player_test(smoke_6a_resource ARGS "--script;${S}/s_6a_resource.js" EXPECT 0 EXPECT_OUT "s-6a-resource-ok")
+add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
+add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
+add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 endif()
 
 # web native-runtime tests (ADR 0022): the host JS engine (Node in this
@@ -134,11 +138,19 @@ foreach(CASE
     add_unit_test(efx_render_tests ${CASE})
 endforeach()
 if(NOT EMSCRIPTEN)
+foreach(CASE dir_read dir_nested dir_missing dir_traversal dir_bad_root
+              image_png image_jpeg image_corrupt
+              zip_read zip_nested zip_image zip_missing zip_bad_root)
+    add_unit_test(efx_resource_tests ${CASE})
+endforeach()
+endif()
+if(NOT EMSCRIPTEN)
 foreach(CASE
     white quad_record size_derivation origin_pivot quad_validation
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
-    meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js)
+    meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
+    resource_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()

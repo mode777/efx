@@ -1,6 +1,8 @@
 #include "api/api.h"
 #include "runtime/runtime_internal.h"
 #include "render/render.h"
+#include "resource/image.h"
+#include "resource/resource.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -368,6 +370,35 @@ static const JSCFunctionListEntry texture_proto_funcs[] = {
     JS_CGETSET_DEF("height", efx_js_texture_getHeight, NULL),
 };
 
+/* read-only ImageData dimensions (F6a: loadImage results expose the decoded
+ * pixel size; createImageData results expose the built size) */
+static JSValue efx_js_imagedata_getWidth(JSContext *ctx, JSValueConst this_val) {
+    efxjs_imagedata *d = JS_GetOpaque2(ctx, this_val, imagedata_class_id);
+    if (!d) {
+        return type_error(ctx, "expected an ImageData");
+    }
+    if (!d->alive) {
+        return type_error(ctx, "using a destroyed resource");
+    }
+    return JS_NewInt32(ctx, d->w);
+}
+
+static JSValue efx_js_imagedata_getHeight(JSContext *ctx, JSValueConst this_val) {
+    efxjs_imagedata *d = JS_GetOpaque2(ctx, this_val, imagedata_class_id);
+    if (!d) {
+        return type_error(ctx, "expected an ImageData");
+    }
+    if (!d->alive) {
+        return type_error(ctx, "using a destroyed resource");
+    }
+    return JS_NewInt32(ctx, d->h);
+}
+
+static const JSCFunctionListEntry imagedata_proto_funcs[] = {
+    JS_CGETSET_DEF("width", efx_js_imagedata_getWidth, NULL),
+    JS_CGETSET_DEF("height", efx_js_imagedata_getHeight, NULL),
+};
+
 /* read-only query property surfaceCount (MeshData/Mesh, F3) */
 static JSValue efx_js_meshdata_getSurfaceCount(JSContext *ctx,
                                                JSValueConst this_val) {
@@ -433,6 +464,106 @@ static const JSCFunctionListEntry rendertarget_proto_funcs[] = {
     JS_CGETSET_DEF("height", efx_js_target_getHeight, NULL),
 };
 
+/* -------------------------------------------------------- F6a resource loading */
+
+static const char *resource_err_text(int err) {
+    switch (err) {
+    case EFX_RESOURCE_ERR_OPEN:
+        return "resource root could not be opened";
+    case EFX_RESOURCE_ERR_NOTFOUND:
+        return "resource not found";
+    case EFX_RESOURCE_ERR_PATH:
+        return "invalid resource path";
+    case EFX_RESOURCE_ERR_IO:
+        return "resource read failed";
+    case EFX_RESOURCE_ERR_NOMEM:
+        return "out of memory";
+    default:
+        return "resource error";
+    }
+}
+
+static JSValue plain_error(JSContext *ctx, const char *msg) {
+    return JS_ThrowPlainError(ctx, "%s", msg);
+}
+
+JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc,
+                        JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return type_error(ctx, "loadText requires a path string");
+    }
+    struct efx_host_state *h = host_state(ctx);
+    if (!h->resource) {
+        return plain_error(ctx, "no resource root");
+    }
+    const char *path = JS_ToCString(ctx, argv[0]);
+    if (!path) {
+        return JS_EXCEPTION;
+    }
+    int err = EFX_RESOURCE_OK;
+    char *text = efx_resource_read_text(h->resource, path, &err);
+    JS_FreeCString(ctx, path);
+    if (!text) {
+        return plain_error(ctx, resource_err_text(err));
+    }
+    JSValue out = JS_NewString(ctx, text);
+    efx_resource_free(text);
+    return out;
+}
+
+JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc,
+                         JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return type_error(ctx, "loadImage requires a path string");
+    }
+    struct efx_host_state *h = host_state(ctx);
+    if (!h->resource) {
+        return plain_error(ctx, "no resource root");
+    }
+    const char *path = JS_ToCString(ctx, argv[0]);
+    if (!path) {
+        return JS_EXCEPTION;
+    }
+    size_t size = 0;
+    int err = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(h->resource, path, &size, &err);
+    JS_FreeCString(ctx, path);
+    if (!bytes) {
+        return plain_error(ctx, resource_err_text(err));
+    }
+    int ierr = EFX_IMAGE_OK;
+    efx_image *img = efx_image_decode(bytes, size, &ierr);
+    efx_resource_free(bytes);
+    if (!img) {
+        return plain_error(ctx, ierr == EFX_IMAGE_ERR_NOMEM ? "out of memory"
+                                                            : "image decode failed");
+    }
+    size_t n = (size_t)img->width * (size_t)img->height * 4u;
+    uint8_t *px = malloc(n ? n : 1);
+    if (!px) {
+        efx_image_free(img);
+        return generic_error(ctx, "out of memory");
+    }
+    memcpy(px, img->pixels, n);
+    int w = img->width;
+    int hh = img->height;
+    efx_image_free(img);
+    efxjs_imagedata *d = calloc(1, sizeof(efxjs_imagedata));
+    if (!d) {
+        free(px);
+        return generic_error(ctx, "out of memory");
+    }
+    d->pixels = px;
+    d->w = w;
+    d->h = hh;
+    d->alive = 1;
+    JSValue obj = JS_NewObjectClass(ctx, imagedata_class_id);
+    JS_SetOpaque(obj, d);
+    return obj;
+}
+
 int efx_api_init(JSContext *ctx) {
     static int registered;
     if (registered) {
@@ -467,6 +598,9 @@ int efx_api_init(JSContext *ctx) {
     JS_SetPropertyFunctionList(ctx, tex_proto, texture_proto_funcs,
                                (int)(sizeof(texture_proto_funcs) /
                                      sizeof(texture_proto_funcs[0])));
+    JS_SetPropertyFunctionList(ctx, img_proto, imagedata_proto_funcs,
+                               (int)(sizeof(imagedata_proto_funcs) /
+                                     sizeof(imagedata_proto_funcs[0])));
     JS_SetPropertyFunctionList(ctx, md_proto, meshdata_proto_funcs,
                                (int)(sizeof(meshdata_proto_funcs) /
                                      sizeof(meshdata_proto_funcs[0])));

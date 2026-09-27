@@ -2,6 +2,7 @@
 #define EFX_RUNTIME_INTERNAL_H
 
 #include "quickjs.h"
+#include "resource/resource.h"
 
 /* lifecycle hooks (ADR 0016): ordered registration, unsubscribe marks an
    entry inactive but keeps its JSValue until runtime teardown, so a hook can
@@ -29,6 +30,8 @@ struct efx_host_state {
     /* lifecycle hook lists (F1 contract, ADR 0016) */
     struct efx_hook_list update_hooks;
     struct efx_hook_list render_hooks;
+    /* F6a resource root (owned by the player, not the runtime) */
+    struct efx_resource *resource;
 };
 
 /* append a duplicated reference; returns the stable entry index or -1 */

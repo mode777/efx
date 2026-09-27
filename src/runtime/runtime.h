@@ -7,8 +7,13 @@
 
 typedef struct efx_runtime efx_runtime;
 
+/* F6a resource root (borrowed; owned by the caller, e.g. the player) */
+struct efx_resource;
+
 efx_runtime *efx_runtime_new(char *const *args, int arg_count);
 void efx_runtime_destroy(efx_runtime *rt);
+
+void efx_runtime_set_resource(efx_runtime *rt, struct efx_resource *resource);
 
 int efx_runtime_eval_file(efx_runtime *rt, const char *path);
 int efx_runtime_eval_string(efx_runtime *rt, const char *name, const char *code);
