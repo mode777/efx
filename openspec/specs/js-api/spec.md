@@ -72,7 +72,10 @@ reference native-backed `Texture` or `RenderTarget` objects (F4b; RenderTargets
 accepted from F5a); the engine snapshots the texture handles at binding time
 and **retains** the referenced resources while the material stays bound, so
 the material does not own them and its
-classification and release contract are unchanged. Every resource requiring
+classification and release contract are unchanged. Post-effect chain entries
+and their option bags (F5b) SHALL be classified JS-managed: plain objects
+snapshotted at `setPostEffects` call time, holding no native handle and no
+`destroy()`. Every resource requiring
 native storage MUST be a
 native-backed class — released deterministically by its `destroy()`,
 reclaimed by its GC finalizer if the script never calls it, and finalized
@@ -84,12 +87,13 @@ display list MUST stay alive until playback completes, and a `Texture` or
 `RenderTarget` referenced by a bound material map MUST stay alive until that
 binding is released. The reference SHALL
 document the engine's fixed limits: 4 point lights, 1 directional light,
-1 camera, and 16 surfaces per mesh (F3); lights are the only slot bank.
+1 camera, 16 surfaces per mesh (F3), and a post-effect chain of at most
+8 entries (F5b); lights are the only slot bank.
 
 #### Scenario: Fixed limits stated
 
 - **WHEN** the reference document's limits section is read
-- **THEN** it states 4 point lights, 1 directional light, 1 camera, and 16 surfaces per mesh, matching vision.md and the 3d-core capability
+- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, and the 8-entry post-effect chain cap, matching vision.md and the 3d-core and post-fx capabilities
 
 #### Scenario: Unreleased native resource is reclaimed
 
@@ -120,6 +124,11 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 
 - **WHEN** a material with a map is bound and the reference document's material entry is read
 - **THEN** it states that the map references a native-backed `Texture` or `RenderTarget` that the engine retains while bound, and that the material itself remains JS-managed with no `destroy()`
+
+#### Scenario: Post-effect entries are classified JS-managed
+
+- **WHEN** the reference document's post-effect entries are read
+- **THEN** chain entries and option bags are stated to be plain JS objects snapshotted at call time, with no native handle and no `destroy()`, and the native effect passes are stated to be engine-owned (never script-visible)
 
 #### Scenario: Resource without a classification
 

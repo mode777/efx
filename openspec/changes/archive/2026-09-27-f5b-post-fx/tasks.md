@@ -30,8 +30,8 @@
 
 - [x] 6.1 Write ADR `docs/decisions/0029` (post-chain architecture: declarative chain over imperative apply and per-effect globals, mix over blend modes, implicit scene target + fast path over always-on resolve, engine-owned registry with pass structure invisible; the rejected alternatives with reasons) and add it to `docs/decisions/README.md`; verify the index row links the new file
 - [x] 6.2 Complete the `docs/js-api.md` F5 section: deliver `setPostEffects` (with the v1 effect table, defaults, bounds, `mix`) and `setRenderScale`, retire the provisional `setColorFilter`/`setBlur` entries, add the 8-entry chain limit to the fixed-limits section, and classify chain entries as JS-managed; verify every F5b signature matches the implementation
-- [ ] 6.3 Update AGENTS.md's current-state section with F5b/F5 completion at archive time; verify the roadmap table and narrative stay consistent
+- [x] 6.3 Update AGENTS.md's current-state section with F5b/F5 completion at archive time; verify the roadmap table and narrative stay consistent
 
 ## 7. Verification gate
 
-- [ ] 7.1 Run the four-target gate in order: `python3 tools/verify_remote.py all <branch>` on the SSH verification server (native ctest incl. goldens, Emscripten golden suite), then dispatch `gh workflow run ci.yml --ref <branch>` and confirm the Linux, Windows, and macOS pipelines green in that order per AGENTS.md
+- [x] 7.1 Run the four-target gate in order: `python3 tools/verify_remote.py all <branch>` on the SSH verification server (native ctest incl. goldens, Emscripten golden suite), then dispatch `gh workflow run ci.yml --ref <branch>` and confirm the Linux, Windows, and macOS pipelines green in that order per AGENTS.md

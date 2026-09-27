@@ -7,19 +7,31 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 
 ## Current state
 
-- F5a (render targets) is **done** — four-target gate green (ci run
-  36309953607: native suites incl. all thirty goldens on Linux/Windows/
-  macOS, Emscripten ctest + web goldens); the change is archived at
-  `openspec/changes/archive/2026-09-27-f5a-render-targets` (specs synced:
-  `openspec/specs/render-targets`, plus deltas to `2d-layer`, `3d-core`,
-  `lighting`, `js-api`). F5a delivers `createRenderTarget` /
-  `beginRenderTarget` / `endRenderTarget`, a live RenderTarget accepted
-  wherever a live Texture is (drawQuad, material maps, alphaMask — no
-  alias object, ADR 0028), display-list segmentation with
-  value-snapshotted clear-per-begin, the active target driving the
-  default 2D frame and 3D aspect, and the Texture lifecycle (deferred
-  release, map retention) extended to targets. F5b (post FX) is next
-  (change `f5b-post-fx`, planned). F4 (lighting + Phong, split F4a/F4b)
+- F5 (render targets + post FX) is **done** — the four-target gate is
+  green (ci run 36313950553: native suites incl. all forty goldens on
+  Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
+  goldens; the change `f5b-post-fx` is archived at
+  `openspec/changes/archive/2026-09-27-f5b-post-fx`, specs synced:
+  `openspec/specs/post-fx` plus a delta to `js-api`). F5b delivers the
+  declarative post-effect chain `setPostEffects` (≤ 8 entries,
+  eager-atomic validation, value-snapshotted; v1 effects `colorFilter`,
+  `blur`, `bloom`, each with per-entry `mix`) and `setRenderScale` (scene
+  resolution vs surface, nearest/linear blit) — a no-chain fast path that
+  stays byte-identical, an engine-owned implicit scene target +
+  ping-pong temporaries, and an engine-owned non-script-visible effect
+  registry (ADR 0029). F5a (render targets) is **done** — four-target
+  gate green (ci run 36309953607: native suites incl. all thirty goldens
+  on Linux/Windows/macOS, Emscripten ctest + web goldens); the change is
+  archived at `openspec/changes/archive/2026-09-27-f5a-render-targets`
+  (specs synced: `openspec/specs/render-targets`, plus deltas to
+  `2d-layer`, `3d-core`, `lighting`, `js-api`). F5a delivers
+  `createRenderTarget` / `beginRenderTarget` / `endRenderTarget`, a live
+  RenderTarget accepted wherever a live Texture is (drawQuad, material
+  maps, alphaMask — no alias object, ADR 0028), display-list
+  segmentation with value-snapshotted clear-per-begin, the active target
+  driving the default 2D frame and 3D aspect, and the Texture lifecycle
+  (deferred release, map retention) extended to targets. F4 (lighting +
+  Phong, split F4a/F4b)
   is **done**: F4b's four-target gate
   is green (ci run 36284454599: native suites incl. all twenty-six
   goldens on Linux/Windows/macOS, Emscripten ctest + cross-runtime
@@ -172,7 +184,7 @@ implements.
 | F2 | 2D layer | `drawQuad`, ortho camera, texture slots, blending modes, display list (record → playback); golden-image harness is a first-class deliverable | Golden-image pixel-diff within tolerance + display-list unit tests, all four targets | done — full four-target CI matrix green; `f2a` (shdc) + `f2b` (web runtime) archived, ADR 0021/0022 |
 | F3 | 3D core | Camera, multi-surface mesh resources (ADR 0024), `drawMesh` with depth test, GLM math wrapper, vertex colors, procedural primitives, pure-JS math layer | Golden images + math unit tests | done — four-target gate green (run 36122872839); ADR 0024/0025 |
 | F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | done — F4a gate green (run 36271736775, ADR 0026); F4b gate green (run 36284454599, ADR 0027) |
-| F5 | Render targets + post FX (F5a done; F5b planned) | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, effect chain, blur | Golden images | F5a done — gate green (run 36309953607, archived 2026-09-27); F5b planned |
+| F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
 | F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | planned |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, play/pause/blend | FK joint-transform tests vs CPU reference + golden images | planned |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
