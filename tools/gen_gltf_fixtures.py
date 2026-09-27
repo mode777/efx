@@ -398,6 +398,9 @@ def gen_quad_glb():
     blob = glb_from(gltf, bytes(b.data))
     write(os.path.join(FIX, "quad.glb"), blob)
     write(os.path.join(GOLD, "quad.glb"), blob)
+    with zipfile.ZipFile(os.path.join(GOLD, "assets.zip"), "w",
+                         zipfile.ZIP_DEFLATED) as z:
+        z.writestr("quad.glb", blob)
 
 
 def gen_zip():
