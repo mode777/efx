@@ -52,22 +52,22 @@
 
 ## 4. Web binding and async boot
 
-- [ ] 4.1 Mirror `loadText`/`loadImage` through the web bridge and expose them
+- [x] 4.1 Mirror `loadText`/`loadImage` through the web bridge and expose them
   from `entry.js`. Verify the web compare harness runs the new loader script
   with output matching the desktop run.
-- [ ] 4.2 Make `entry.js` boot async: consume `globalThis.__efx_assets` (or
+- [x] 4.2 Make `entry.js` boot async: consume `globalThis.__efx_assets` (or
   `?assets=`), fetch the single zip, write it into MEMFS, set the provider
   root, then read/evaluate `main.js`, starting the frame loop only after the
   mount completes (no script-visible loading hook). Verify a browser harness
   case that preloads a fixture zip, serves it, and asserts the entry script
   loads a resource from it.
-- [ ] 4.3 Surface fetch/mount failures through the console error channel and
+- [x] 4.3 Surface fetch/mount failures through the console error channel and
   the non-zero exit-code contract before evaluating `main.js`. Verify a harness
   case with an unreachable asset URL reports the error and the failure code.
-- [ ] 4.4 Consume and delete the asset channel before evaluation. Verify a test
+- [x] 4.4 Consume and delete the asset channel before evaluation. Verify a test
   in the style of `tools/test_web_override.mjs` asserts the channel is gone and
   the script cannot observe it.
-- [ ] 4.5 Keep the Node/no-URL path unchanged. Verify `run_web_compare.mjs`,
+- [x] 4.5 Keep the Node/no-URL path unchanged. Verify `run_web_compare.mjs`,
   `test_web_override.mjs`, and the web golden driver still pass with no fetch.
 
 ## 5. Docs and ADR
