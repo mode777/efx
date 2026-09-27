@@ -5,6 +5,9 @@ export interface Sample {
   category: string;
   description: string;
   source: string;
+  /** Optional asset-pack URL (relative to the site root) the runner mounts
+   *  as the resource root before booting the sample. */
+  assets?: string;
 }
 
 export interface Catalog {

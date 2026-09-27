@@ -40,6 +40,10 @@ JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, 
 JSValue efx_js_setPostEffects(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setRenderScale(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F6a — resource loading */
+JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 

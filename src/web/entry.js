@@ -34,6 +34,14 @@ function __efxCStr(v) {
     }
 }
 
+/* allocate a NUL-terminated UTF-8 copy of a JS string in wasm memory */
+function __efxAllocCStr(s) {
+    var len = lengthBytesUTF8(s) + 1;
+    var ptr = Module['_malloc'](len);
+    stringToUTF8(s, ptr, len);
+    return ptr;
+}
+
 function __efxReportError(e) {
     var msg = (e && typeof e.message === 'string') ? e.message : null;
     var printed = null;
@@ -166,6 +174,28 @@ function __efxEnsureApi() {
         this.__alive = false;
         bridge['_efx_bridge_imagedata_destroy'](this.__id);
     };
+    Object.defineProperty(EfxImageData.prototype, 'width', {
+        get: function () {
+            if (!(this instanceof EfxImageData)) {
+                throw new TypeError('expected an ImageData');
+            }
+            if (!this.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            return bridge['_efx_bridge_imagedata_width'](this.__id);
+        },
+    });
+    Object.defineProperty(EfxImageData.prototype, 'height', {
+        get: function () {
+            if (!(this instanceof EfxImageData)) {
+                throw new TypeError('expected an ImageData');
+            }
+            if (!this.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            return bridge['_efx_bridge_imagedata_height'](this.__id);
+        },
+    });
 
     function EfxTexture(handle, permanent) {
         this.__handle = handle;
@@ -448,6 +478,15 @@ function __efxEnsureApi() {
         HEAPU32.set(arr, ptr >> 2);
         return ptr;
     }
+
+    /* allocate a NUL-terminated UTF-8 copy of a JS string in wasm memory */
+    function __efxAllocCStr(s) {
+        var len = lengthBytesUTF8(s) + 1;
+        var ptr = bridge['_malloc'](len);
+        stringToUTF8(s, ptr, len);
+        return ptr;
+    }
+
 
     /* F5b: parse one post-effect chain entry into the 9-float wire layout
        (desktop parity: unknown field -> TypeError, non-number -> TypeError,
@@ -737,6 +776,32 @@ function __efxEnsureApi() {
             if (!id) {
                 bridge['_efx_bridge_mem_free'](ptr);
                 throw new Error('out of memory');
+            }
+            return new EfxImageData(id);
+        },
+        loadText: function (path) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadText requires a path string');
+            }
+            var p = __efxAllocCStr(path);
+            var ptr = bridge['_efx_bridge_load_text'](p);
+            bridge['_efx_bridge_mem_free'](p);
+            if (!ptr) {
+                throw new Error('resource not found');
+            }
+            var s = UTF8ToString(ptr);
+            bridge['_efx_bridge_mem_free'](ptr);
+            return s;
+        },
+        loadImage: function (path) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadImage requires a path string');
+            }
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_load_image'](p);
+            bridge['_efx_bridge_mem_free'](p);
+            if (!id) {
+                throw new Error('image decode failed');
             }
             return new EfxImageData(id);
         },
@@ -1425,6 +1490,58 @@ function __efxBoot() {
     st.started = true;
     __efxEnsureApi();
     __efxSyncExit();
+    __efxResolveAssets();
+}
+
+/* F6a async boot. When a host asset-root URL is supplied, fetch the single
+   zip, write it into the filesystem, point the provider at it, and only then
+   evaluate the entry script; the script-facing load API stays synchronous.
+   With no URL the existing resource-root path is unchanged. */
+function __efxResolveAssets() {
+    var url = null;
+    try {
+        var v = globalThis['__efx_assets'];
+        if (typeof v === 'string') {
+            url = v;
+        }
+    } catch (e) {}
+    if (url === null) {
+        try {
+            url = new URLSearchParams(location.search).get('assets');
+        } catch (e) {
+            url = null;
+        }
+    }
+    if (url === null || url === '') {
+        __efxEvaluateEntry();
+        return;
+    }
+    /* consume the host channel before anything else runs */
+    try {
+        delete globalThis['__efx_assets'];
+    } catch (e) {}
+    fetch(url).then(function (resp) {
+        if (!resp.ok) {
+            throw new Error('HTTP ' + resp.status);
+        }
+        return resp.arrayBuffer();
+    }).then(function (buf) {
+        FS.writeFile('__efx_assets.zip', new Uint8Array(buf));
+        var p = __efxAllocCStr('__efx_assets.zip');
+        var ok = Module['_efx_bridge_set_root'](p);
+        Module['_efx_bridge_mem_free'](p);
+        if (!ok) {
+            throw new Error('asset archive could not be opened');
+        }
+        __efxEvaluateEntry();
+    }).catch(function (e) {
+        __efxFail('player: asset root fetch failed: ' +
+            (e && e.message ? e.message : e));
+    });
+}
+
+function __efxEvaluateEntry() {
+    var st = __efxState();
     /* Host-provided entry source (web gallery embedding): when the embedding
        page supplies `globalThis.__efx_main_js` before boot it replaces the
        resource-root `main.js`. The channel is consumed and deleted before the
@@ -1444,24 +1561,30 @@ function __efxBoot() {
     } else {
         var root = UTF8ToString(Module['_efx_web_root']());
         var isDir = false;
+        var isFile = false;
         try {
-            isDir = FS.isDir(FS.stat(root).mode);
+            var stat = FS.stat(root);
+            isDir = FS.isDir(stat.mode);
+            isFile = !isDir;
         } catch (e) {
             isDir = false;
+            isFile = false;
         }
-        if (!isDir) {
+        if (!isDir && !isFile) {
             __efxFail('player: resource root is not a directory: ' + root);
             return;
         }
-        try {
-            code = FS.readFile(root + '/main.js', { encoding: 'utf8' });
-        } catch (e) {
-            code = null;
-        }
-        if (code === null) {
+        /* read main.js through the provider so directory and zip roots work
+           identically (F6a) */
+        var mp = __efxAllocCStr('main.js');
+        var mptr = Module['_efx_bridge_load_text'](mp);
+        Module['_efx_bridge_mem_free'](mp);
+        if (!mptr) {
             __efxFail('player: no main.js in resource root: ' + root);
             return;
         }
+        code = UTF8ToString(mptr);
+        Module['_efx_bridge_mem_free'](mptr);
     }
     var hostGlobals = ['window', 'document', 'require', 'process', 'fetch',
         'XMLHttpRequest', 'module', 'exports', 'Buffer', 'global'];

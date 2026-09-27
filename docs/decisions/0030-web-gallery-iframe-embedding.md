@@ -1,6 +1,7 @@
 # 0030 — The sample gallery embeds the web player per-run in an iframe, fed by a host-provided entry source
 
-Status: Accepted (2026-09, change `web-gallery`)
+Status: Accepted (2026-09, change `web-gallery`; amended 2026-09, change
+`f6a-resource-loading`: the host may also supply an asset-root URL)
 
 Supports: vision.md (public showcase of the consumer API); ADR 0008 (Node is
 a test launcher only; game scripts have no browser/Node deps); ADR 0011/0012
@@ -30,7 +31,10 @@ process record is `openspec/changes/web-gallery/`.
   resource-root `main.js`, consumes and deletes it before evaluation, and
   falls back to the existing resource-root behavior when it is absent. The
   channel is never exposed to the script, so the no-browser/host-dependency
-  contract (ADR 0008) is unchanged.
+  contract (ADR 0008) is unchanged. The host may also supply an asset-root
+  URL (`globalThis.__efx_assets`, or `?assets=`); `entry.js` fetches and
+  mounts that single zip before evaluating the entry source (F6a, ADR 0031),
+  so the run's `load*` calls resolve against host-provided assets.
 - **The gallery is a separate host application.** `gallery/` is a Vite +
   TypeScript + Svelte site whose samples are the committed golden scenes
   (catalog generated at build time) plus a curated showcase set. It embeds

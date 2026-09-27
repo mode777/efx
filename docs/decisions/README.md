@@ -42,6 +42,7 @@ directory holds only what stays true after a change is archived.
 
 | [0029](0029-post-chain-architecture.md) | Accepted | F5b post-processing is one declarative chain over an implicit scene target (fast path preserved) with an engine-owned, non-script-visible effect registry and per-entry `mix` |
 | [0030](0030-web-gallery-iframe-embedding.md) | Accepted | The sample gallery runs one engine instance per run in an iframe, fed by a host-only entry-source channel consumed before evaluation (`__efx_main_js`); no live eval/reset API |
+| [0031](0031-resource-loading-provider.md) | Accepted | F6a resources load through one pure-C dir/zip provider; the web fetches a single zip once at boot, then the script-facing `load*` API stays synchronous everywhere |
 
 ## Adding a decision
 

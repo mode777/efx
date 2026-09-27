@@ -2,6 +2,7 @@
 #include "runtime/runtime.h"
 #include "platform/platform.h"
 #include "render/render.h"
+#include "resource/resource.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,8 +20,9 @@
 static int usage(void) {
     fprintf(stderr,
             "usage:\n"
-            "  player <resource-root>            run a resource folder\n"
-            "  player --script <file> [args...]  run a single script headless\n"
+            "  player <resource-root>            run a resource folder or zip\n"
+            "  player --script <file> [--root <dir|zip>] [args...]\n"
+            "                                    run a single script headless\n"
             "  player --capture-frame <N> --capture-output <file> <resource-root>\n"
             "                                    render N frames, write PNG, exit (golden tests)\n");
     return 1;
@@ -36,10 +38,55 @@ static int is_file(const char *path) {
     return stat(path, &st) == 0 && EFX_ISREG(st.st_mode);
 }
 
-static int run_script_mode(const char *path, char *const *args, int arg_count) {
+/* Directory containing a file path (malloc'd). Separators: '/' and '\\'.
+ * Falls back to "." for a bare filename, and NULL on allocation failure. */
+static char *dupstr(const char *s) {
+    size_t n = strlen(s) + 1;
+    char *out = malloc(n);
+    if (out) {
+        memcpy(out, s, n);
+    }
+    return out;
+}
+
+static char *path_dir(const char *path) {
+    const char *slash = NULL;
+    for (const char *p = path; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            slash = p;
+        }
+    }
+    if (!slash) {
+        return dupstr(".");
+    }
+    if (slash == path) {
+        return dupstr("/");
+    }
+    size_t n = (size_t)(slash - path);
+    char *out = malloc(n + 1);
+    if (!out) {
+        return NULL;
+    }
+    memcpy(out, path, n);
+    out[n] = '\0';
+    return out;
+}
+
+static int run_script_mode(const char *path, const char *root_override,
+                           char *const *args, int arg_count) {
     efx_runtime *rt = efx_runtime_new(args, arg_count);
     if (!rt) {
         return 1;
+    }
+    char *dir = root_override ? dupstr(root_override) : path_dir(path);
+    efx_resource *res = NULL;
+    if (dir) {
+        int e = EFX_RESOURCE_OK;
+        res = efx_resource_open(dir, &e);
+        free(dir);
+    }
+    if (res) {
+        efx_runtime_set_resource(rt, res);
     }
     int rc = efx_runtime_eval_file(rt, path);
     int exit_code;
@@ -53,6 +100,7 @@ static int run_script_mode(const char *path, char *const *args, int arg_count) {
         exit_code = 0;
     }
     efx_runtime_destroy(rt);
+    efx_resource_close(res);
     return exit_code;
 }
 
@@ -85,36 +133,46 @@ static int on_frame(void *ud, double dt) {
 }
 
 static int run_root_mode(const char *root, const efx_platform_capture *capture) {
-    if (!is_dir(root)) {
+    if (!is_dir(root) && !is_file(root)) {
         fprintf(stderr, "player: resource root is not a directory: %s\n", root);
         return 1;
     }
-    char entry[4096];
-    int n = snprintf(entry, sizeof(entry), "%s/main.js", root);
-    if (n < 0 || n >= (int)sizeof(entry)) {
-        fprintf(stderr, "player: resource root path too long: %s\n", root);
+    int rerr = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(root, &rerr);
+    if (!res) {
+        fprintf(stderr, "player: cannot open resource root: %s\n", root);
         return 1;
     }
-    if (!is_file(entry)) {
+    int eerr = EFX_RESOURCE_OK;
+    char *code = efx_resource_read_text(res, "main.js", &eerr);
+    if (!code) {
         fprintf(stderr, "player: no main.js in resource root: %s\n", root);
+        efx_resource_close(res);
         return 1;
     }
     efx_runtime *rt = efx_runtime_new(NULL, 0);
     if (!rt) {
+        efx_resource_free(code);
+        efx_resource_close(res);
         return 1;
     }
-    int rc = efx_runtime_eval_file(rt, entry);
+    efx_runtime_set_resource(rt, res);
+    int rc = efx_runtime_eval_string(rt, "main.js", code);
+    efx_resource_free(code);
     if (rc == -1) {
         efx_runtime_destroy(rt);
+        efx_resource_close(res);
         return 1;
     }
     if (efx_runtime_in_error(rt)) {
         efx_runtime_destroy(rt);
+        efx_resource_close(res);
         return 1;
     }
     if (efx_runtime_quit_requested(rt)) {
         int exit_code = efx_runtime_quit_code(rt);
         efx_runtime_destroy(rt);
+        efx_resource_close(res);
         return exit_code;
     }
     int has_update = 0;
@@ -144,6 +202,7 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     efx_render_end_frame();
     efx_render_shutdown();
     efx_platform_shutdown();
+    efx_resource_close(res);
     return exit_code;
 }
 
@@ -156,7 +215,30 @@ int efx_player_main(int argc, char **argv) {
             fprintf(stderr, "player: --script requires a file argument\n");
             return usage();
         }
-        return run_script_mode(argv[2], argv + 3, argc - 3);
+        /* script args, with an optional `--root <directory|archive>` override
+           stripped out (the script's own directory is the default root) */
+        const char *root_override = NULL;
+        char **sargs = calloc((size_t)argc, sizeof(char *));
+        if (!sargs) {
+            return 1;
+        }
+        int sn = 0;
+        for (int i = 3; i < argc; i++) {
+            if (strcmp(argv[i], "--root") == 0) {
+                if (i + 1 >= argc) {
+                    fprintf(stderr, "player: --root requires a path\n");
+                    free(sargs);
+                    return usage();
+                }
+                root_override = argv[i + 1];
+                i++;
+            } else {
+                sargs[sn++] = argv[i];
+            }
+        }
+        int rc = run_script_mode(argv[2], root_override, sargs, sn);
+        free(sargs);
+        return rc;
     }
     /* capture flags must precede the resource root */
     efx_platform_capture capture;

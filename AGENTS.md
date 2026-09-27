@@ -7,6 +7,16 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 
 ## Current state
 
+- F6a (resource loading) is **implemented** — a pure-C directory/zip provider
+  (`src/resource/`, vendored miniz), synchronous `loadText` / `loadImage` /
+  `loadTexture` (PNG/JPEG via the vendored `stb_image`), `player <dir|zip>`
+  and `--script <file> [--root <dir|zip>]`, and a web boot that fetches one
+  host-provided zip (`__efx_assets` / `?assets=`) and mounts it before
+  `main.js` so the script API stays synchronous (ADR 0031). Change
+  `f6a-resource-loading`. The four-target gate is **green** (ci run
+  36338597814: native suites incl. all goldens on Linux/Windows/macOS,
+  Emscripten ctest + web goldens + browser harness + cross-runtime compare).
+  F6b–F6d (glTF import, rig import, REPL) are proposed.
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -157,6 +167,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `gh workflow run ci.yml --ref <branch>` — no separate commit/push request
   is needed for feature verification. Keep commits scoped to the change under
   verification and never sweep in unrelated working-tree changes.
+- **After a successful apply, merge to `main` and push.** Once a change's
+  verification (the pre-CI server suites and the four-target gate) is green,
+  an agent SHALL merge its branch into `main` and push, without waiting for a
+  separate merge request. This keeps `main` current and triggers the Pages
+  deployment (`pages.yml` runs on pushes to `main`); archive the change
+  afterwards and push that too.
 - `package.json` exists only to install the OpenSpec CLI. The
   `openspec` binary is not on PATH: run `npm install` once, then invoke
   commands as `npx openspec <command>` from the repo root (e.g.
@@ -195,7 +211,7 @@ implements.
 | F3 | 3D core | Camera, multi-surface mesh resources (ADR 0024), `drawMesh` with depth test, GLM math wrapper, vertex colors, procedural primitives, pure-JS math layer | Golden images + math unit tests | done — four-target gate green (run 36122872839); ADR 0024/0025 |
 | F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | done — F4a gate green (run 36271736775, ADR 0026); F4b gate green (run 36284454599, ADR 0027) |
 | F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
-| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | planned |
+| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b–F6d proposed |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, play/pause/blend | FK joint-transform tests vs CPU reference + golden images | planned |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
 

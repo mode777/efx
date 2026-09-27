@@ -45,6 +45,8 @@ const CASES = [
     { name: '4b_validation', script: 'tests/scripts/s_4b_validation.js', args: [] },
     { name: '5a_validation', script: 'tests/scripts/s_5a_validation.js', args: [] },
     { name: '5b_validation', script: 'tests/scripts/s_5b_validation.js', args: [] },
+    { name: '6a_resource', script: 'tests/scripts/s_6a_resource.js', args: [],
+      assets: ['tests/scripts/resource_probe.txt', 'tests/scripts/resource_probe.png'] },
 ];
 
 function run(cmd, args) {
@@ -72,6 +74,9 @@ for (const c of CASES) {
     const rootDir = path.join(tmp, c.name);
     fs.mkdirSync(rootDir, { recursive: true });
     fs.copyFileSync(script, path.join(rootDir, 'main.js'));
+    for (const a of c.assets || []) {
+        fs.copyFileSync(path.join(ROOT, a), path.join(rootDir, path.basename(a)));
+    }
     const web = run(process.execPath, [WEB, rootDir, ...c.args]);
 
     const problems = [];

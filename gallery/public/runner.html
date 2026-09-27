@@ -61,10 +61,15 @@
           post({ type: 'error', message: (r && r.message) || String(r) });
         });
 
-        function boot(code) {
+        function boot(code, assets) {
           if (booted) return;
           booted = true;
           globalThis.__efx_main_js = code;
+          // Host asset root (F6a): a sample with a committed asset pack gets
+          // its zip fetched and mounted before the entry script runs.
+          if (assets) {
+            globalThis.__efx_assets = new URL(assets, document.baseURI).href;
+          }
           // Anchor the player's sidecar files (wasm + preloaded data) to
           // ./player/, independent of the document base URL.
           globalThis.Module = Object.assign(globalThis.Module || {}, {
@@ -84,7 +89,7 @@
           if (ev.origin !== window.location.origin) return;
           var data = ev.data || {};
           if (data.type === 'run') {
-            boot(String(data.code == null ? '' : data.code));
+            boot(String(data.code == null ? '' : data.code), data.assets || null);
           }
         });
 

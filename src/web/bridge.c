@@ -8,6 +8,8 @@
 #include "platform/platform.h"
 #include "render/render.h"
 #include "prelude/prelude.h"
+#include "resource/image.h"
+#include "resource/resource.h"
 #include "web/web.h"
 
 #define EFX_WEB_ROOT_MAX 512
@@ -24,6 +26,7 @@ static struct {
     efx_platform_capture capture;
     double frame_last_now;
     int frame_have_now;
+    efx_resource *resource; /* F6a provider for the current root */
 } W;
 
 EM_JS(int, efx_web_has_dom_js, (void), {
@@ -206,6 +209,78 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_texture_height(double handle) {
 
 EMSCRIPTEN_KEEPALIVE double efx_bridge_white_texture(void) {
     return (double)efx_render_white_texture();
+}
+
+/* ------------------------------------------------ F6a resource loading */
+
+static void web_open_root(void) {
+    if (W.resource) {
+        efx_resource_close(W.resource);
+        W.resource = NULL;
+    }
+    if (W.root[0]) {
+        int e = EFX_RESOURCE_OK;
+        W.resource = efx_resource_open(W.root, &e);
+    }
+}
+
+/* Point the provider at a new root (directory or mounted zip). Returns 1 on
+ * success, 0 when the root cannot be opened. Used by entry.js after it has
+ * written a fetched asset archive into the filesystem. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_set_root(const char *path) {
+    snprintf(W.root, sizeof(W.root), "%s", path ? path : "");
+    web_open_root();
+    return W.resource ? 1 : 0;
+}
+
+/* Returns a malloc'd NUL-terminated string the JS side frees with
+ * _efx_bridge_mem_free, or NULL on failure. */
+EMSCRIPTEN_KEEPALIVE const char *efx_bridge_load_text(const char *path) {
+    if (!W.resource) {
+        return NULL;
+    }
+    int e = EFX_RESOURCE_OK;
+    return efx_resource_read_text(W.resource, path, &e);
+}
+
+/* Decodes an image into an ImageData slot; returns the 1-based id or 0. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_load_image(const char *path) {
+    if (!W.resource) {
+        return 0;
+    }
+    size_t n = 0;
+    int e = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
+    if (!bytes) {
+        return 0;
+    }
+    int ie = EFX_IMAGE_OK;
+    efx_image *img = efx_image_decode(bytes, n, &ie);
+    efx_resource_free(bytes);
+    if (!img) {
+        return 0;
+    }
+    size_t sz = (size_t)img->width * (size_t)img->height * 4u;
+    uint8_t *px = malloc(sz ? sz : 1);
+    if (!px) {
+        efx_image_free(img);
+        return 0;
+    }
+    memcpy(px, img->pixels, sz);
+    int w = img->width;
+    int h = img->height;
+    efx_image_free(img);
+    return efx_bridge_imagedata_commit(w, h, px);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_imagedata_width(int id) {
+    img_slot *s = img_get(id);
+    return s ? s->w : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_imagedata_height(int id) {
+    img_slot *s = img_get(id);
+    return s ? s->h : 0;
 }
 
 /* ------------------------------------------------- F5a (render targets) */
@@ -682,6 +757,7 @@ int efx_web_main(int argc, char *const *argv) {
         }
     }
     W.dom = efx_web_has_dom_js();
+    web_open_root();
     return 0;
 }
 
