@@ -139,6 +139,47 @@ try {
         check(ok, `sample ${i + 1}/${n} runs (no context exhaustion)`);
     }
 
+    // Editor surface + edit -> Run + inline error surfacing.
+    async function setEditor(src) {
+        return page.evaluate((code) => {
+            const w = window;
+            if (w.monaco && w.monaco.editor && w.monaco.editor.getModels().length) {
+                w.monaco.editor.getModels()[0].setValue(code);
+                return 'monaco';
+            }
+            const t = document.querySelector('textarea.fallback');
+            if (t) {
+                const setter = Object.getOwnPropertyDescriptor(
+                    HTMLTextAreaElement.prototype,
+                    'value'
+                ).set;
+                setter.call(t, code);
+                t.dispatchEvent(new Event('input', { bubbles: true }));
+                return 'fallback';
+            }
+            return null;
+        }, src);
+    }
+    async function clickRun() {
+        await page.evaluate(() => {
+            const run = [...document.querySelectorAll('.code .btn')].find((b) =>
+                /run/i.test(b.textContent || '')
+            );
+            if (run) run.click();
+        });
+    }
+
+    const editorKind = await setEditor(
+        "globalThis.__edited_marker = 7;\nfunction update() {}\nfunction render() {}\n"
+    );
+    check(editorKind !== null, `editor surface present (${editorKind ?? 'none'})`);
+    await clickRun();
+    const editedFrame = await waitBoot();
+    const editApplied = editedFrame
+        ? await editedFrame.evaluate(() => globalThis.__edited_marker === 7).catch(() => false)
+        : false;
+    check(editApplied, 'edited source runs after Run');
+
     // Compositor screenshot of the runner box should not be a single flat fill.
     try {
         const el = await page.$('iframe.frame');
@@ -150,13 +191,33 @@ try {
 
     check(consoleErrors.length === 0, `no console errors (${consoleErrors.length})`);
     check(pageErrors.length === 0, `no page errors (${pageErrors.length})`);
+
+    // Intentional script error must surface inline and not break the shell.
+    // Runs last: it legitimately logs to the console.
+    await setEditor("throw new Error('gallery-boom');\n");
+    await clickRun();
+    await page
+        .waitForFunction(() => !!document.querySelector('.error'), { timeout: 15000 })
+        .catch(() => {});
+    const errText = await page.evaluate(
+        () => document.querySelector('.error')?.textContent ?? ''
+    );
+    check(/gallery-boom/.test(errText), 'script error surfaced inline');
+    check(
+        (await page.evaluate(() => document.querySelectorAll('.item').length)) > 0,
+        'shell remains usable after a script error'
+    );
 } finally {
     await browser.close();
     server.close();
 }
 
-if (consoleErrors.length) console.error('console errors:\n' + consoleErrors.join('\n'));
-if (pageErrors.length) console.error('page errors:\n' + pageErrors.join('\n'));
+if (consoleErrors.length)
+    console.error(
+        'console errors (may include the intentional error test):\n' + consoleErrors.join('\n')
+    );
+if (pageErrors.length)
+    console.error('page errors (may include the intentional error test):\n' + pageErrors.join('\n'));
 
 if (fails.length) {
     console.error(`\ngallery smoke FAILED: ${fails.length} check(s)`);
