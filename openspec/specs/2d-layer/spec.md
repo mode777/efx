@@ -134,15 +134,18 @@ fields SHALL throw `TypeError`.
 `createImageData({ width, height, pixels, format? })` SHALL build CPU-side
 pixel data: `pixels` is a flat byte array in RGBA8 order of length exactly
 `width × height × 4` (wrong length SHALL throw `RangeError`), and `format`
-defaults to `'rgba8'` (the only format in F2). `createTexture(imageData)`
+defaults to `'rgba8'` (the only format in F2). `createTexture(imageData, opts?)`
 SHALL upload image data to a GPU Texture — an opaque native-backed class
 released by `destroy()` with GC finalizer backstop (ADR 0011/0013); the
-ImageData remains valid afterwards. A live Texture SHALL expose read-only
-`width` and `height` properties naming its pixel size; reading either on a
-destroyed texture SHALL throw `TypeError`. The engine SHALL expose
-`efx.whiteTexture`, an engine-owned 1×1 opaque-white Texture usable in any
-draw: scripts SHALL NOT destroy it — `destroy()` on it SHALL throw
-`TypeError` — and it SHALL remain valid for the whole run.
+ImageData remains valid afterwards. The optional `opts` object SHALL accept
+`wrap` (`'repeat'` default, `'clamp'`, or `'mirror'`) and `filter`
+(`'linear'` default or `'nearest'`); an unknown field or an unknown value SHALL
+throw `TypeError`. A live Texture SHALL expose read-only `width` and `height`
+properties naming its pixel size; reading either on a destroyed texture SHALL
+throw `TypeError`. The engine SHALL expose `efx.whiteTexture`, an engine-owned
+1×1 opaque-white Texture usable in any draw: scripts SHALL NOT destroy it —
+`destroy()` on it SHALL throw `TypeError` — and it SHALL remain valid for the
+whole run.
 
 #### Scenario: Image to texture round trip
 - **WHEN** a script builds an ImageData of known colors, creates a texture,
@@ -168,6 +171,16 @@ draw: scripts SHALL NOT destroy it — `destroy()` on it SHALL throw
 - **WHEN** `createImageData` receives a `pixels` array whose length does not
   match `width × height × 4`
 - **THEN** the call throws `RangeError`
+
+#### Scenario: Sampler options apply
+- **WHEN** a script creates a texture with `{ wrap: 'clamp', filter: 'nearest' }`
+- **THEN** the texture samples with clamp wrapping and nearest filtering, and
+  omitting `opts` preserves the default repeat/linear sampling
+
+#### Scenario: Invalid sampler options throw
+- **WHEN** `createTexture` receives an unknown option field or an unsupported
+  wrap or filter value
+- **THEN** the call throws `TypeError` and creates no texture
 
 ### Requirement: Blending modes
 `setBlendMode(mode)` SHALL select how recorded draws combine with the

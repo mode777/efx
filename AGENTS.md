@@ -20,10 +20,11 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   built on vendored cgltf (`vendor/cgltf/`), primitive→surface mapping with
   accessor normalization, the pinned PBR→Phong conversion, per-texture
   samplers on `createTexture`, and the glTF profile pinned in ADR 0032
-  (change `f6b-gltf-import`); its four-target gate is **green** (ci run
-  36344464419: native suites incl. all goldens on Linux/Windows/macOS,
-  Emscripten ctest + web goldens + cross-runtime compare). F6c (rig
-  import) and F6d (REPL) are proposed.
+  (change `f6b-gltf-import`, archived at
+  `openspec/changes/archive/2026-09-27-f6b-gltf-import`); its four-target gate
+  is **green** (ci run 36344464419: native suites incl. all goldens on
+  Linux/Windows/macOS, Emscripten ctest + web goldens + cross-runtime
+  compare). F6c (rig import) and F6d (REPL) are proposed.
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
