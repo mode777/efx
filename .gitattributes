@@ -1,0 +1,5 @@
+# Resource-loader text fixtures must keep LF line endings: the tests assert
+# exact bytes, and Windows autocrlf would otherwise rewrite them to CRLF.
+tests/fixtures/resource/hello.txt -text
+tests/fixtures/resource/data/nested.txt -text
+tests/scripts/resource_probe.txt -text
