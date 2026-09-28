@@ -4,10 +4,10 @@
 // and grows with it. Update this file in the same change as any script-facing
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
-// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c are current
+// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7 are current
 // behavior. F6d (the `--repl [<root>]` interactive console) adds no API —
 // it drives this same namespace from stdin; `.help`/`.exit` are host
-// commands, not `efx` functions. F7+ entries are provisional and will be
+// commands, not `efx` functions. F8+ entries are provisional and will be
 // added when delivered.
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
@@ -142,6 +142,17 @@ type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
 interface DrawMeshCallOptions {
   transform?: Mat4;
   color?: Color;
+  /** F7: true draws the current CPU-posed vertices; absent/false the bind pose. */
+  skinned?: boolean;
+}
+
+/** F7 pose sample: one clip sampled at `time` (seconds) with an optional
+ * blend `weight` (normalized engine-side across an array; a single sample
+ * ignores it). `clip` is a clip name or an index. */
+interface PoseSample {
+  clip: string | number;
+  time: number;
+  weight?: number;
 }
 
 interface PointLightOptions {
@@ -277,6 +288,9 @@ interface Efx {
 
   // F6b — glTF 2.0 static import
   loadMeshData(path: string, opts?: LoadMeshDataOptions): EfxMeshData;
+
+  // F7 — CPU skinning & animation (the script owns the clock)
+  poseMesh(mesh: EfxMesh, pose: PoseSample | PoseSample[]): void;
 }
 
 declare const efx: Efx;

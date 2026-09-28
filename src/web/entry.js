@@ -1376,12 +1376,12 @@ function __efxEnsureApi() {
                 throw new TypeError('drawMesh requires a mesh');
             }
             var m = liveMesh(mesh);
-            var transform = null, color = null;
+            var transform = null, color = null, skinned = 0;
             if (arguments.length >= 2 && opts !== undefined) {
                 if (!__efxIsObject(opts)) {
                     throw new TypeError('drawMesh options must be an object');
                 }
-                var known = { transform: 1, color: 1 };
+                var known = { transform: 1, color: 1, skinned: 1 };
                 var names = Object.getOwnPropertyNames(opts);
                 for (var i = 0; i < names.length; i++) {
                     if (!known[names[i]]) {
@@ -1402,6 +1402,13 @@ function __efxEnsureApi() {
                         throw new RangeError('color must hold 4 numbers');
                     }
                 }
+                var sv = opts['skinned'];
+                if (sv !== undefined) {
+                    if (typeof sv !== 'boolean') {
+                        throw new TypeError('skinned must be a boolean');
+                    }
+                    skinned = sv ? 1 : 0;
+                }
             }
             var tPtr = 0, cPtr = 0;
             if (transform !== null || color !== null) {
@@ -1415,18 +1422,101 @@ function __efxEnsureApi() {
                     HEAPF32.set(color, cPtr >> 2);
                 }
             }
-            var rc = bridge['_efx_bridge_draw_mesh'](m.__handle, tPtr, cPtr);
+            var rc = bridge['_efx_bridge_draw_mesh'](m.__handle, tPtr, cPtr, skinned);
             if (rc === 1) {
                 throw new RangeError('display list budget exceeded');
             }
             if (rc === 2) {
                 throw new TypeError('expected a live Mesh');
             }
+            if (rc === 11) {
+                throw new TypeError('mesh has no rig to draw skinned');
+            }
             if (rc === 9) {
                 throw new TypeError('cannot sample the render target being drawn into');
             }
             if (rc !== 0) {
                 throw new Error('drawMesh failed');
+            }
+        },
+        poseMesh: function (mesh, pose) {
+            if (arguments.length < 2) {
+                throw new TypeError('poseMesh requires (mesh, pose)');
+            }
+            var m = liveMesh(mesh);
+            var list;
+            if (Array.isArray(pose)) {
+                list = pose;
+            } else if (__efxIsObject(pose)) {
+                list = [pose];
+            } else {
+                throw new TypeError('pose must be a sample or an array of samples');
+            }
+            var wire = new Float32Array(list.length * 3);
+            for (var i = 0; i < list.length; i++) {
+                var s = list[i];
+                if (!__efxIsObject(s)) {
+                    throw new TypeError('pose samples must be objects');
+                }
+                var sk = { clip: 1, time: 1, weight: 1 };
+                var sn = Object.getOwnPropertyNames(s);
+                for (var k = 0; k < sn.length; k++) {
+                    if (!sk[sn[k]]) {
+                        throw new TypeError("unknown pose sample option '" + sn[k] + "'");
+                    }
+                }
+                var cv = s['clip'];
+                if (cv === undefined) {
+                    throw new TypeError('pose sample requires clip');
+                }
+                var clipIndex;
+                if (typeof cv === 'string') {
+                    var namePtr = __efxAllocCStr(cv);
+                    clipIndex = bridge['_efx_bridge_find_clip'](m.__handle, namePtr);
+                    bridge['_efx_bridge_mem_free'](namePtr);
+                    if (clipIndex < 0) {
+                        throw new Error('unknown clip name');
+                    }
+                } else if (typeof cv === 'number' && isFinite(cv) &&
+                           cv === Math.floor(cv) && cv >= 0) {
+                    clipIndex = cv | 0;
+                } else {
+                    throw new TypeError('clip must be a name or index');
+                }
+                var tv = s['time'];
+                if (typeof tv !== 'number') {
+                    throw new TypeError('pose sample requires a numeric time');
+                }
+                if (!isFinite(tv)) {
+                    throw new RangeError('time must be finite');
+                }
+                var wv = 1;
+                if (s['weight'] !== undefined) {
+                    if (typeof s['weight'] !== 'number') {
+                        throw new TypeError('weight must be a number');
+                    }
+                    if (!isFinite(s['weight']) || s['weight'] < 0) {
+                        throw new RangeError('weight must be finite and >= 0');
+                    }
+                    wv = s['weight'];
+                }
+                wire[i * 3] = clipIndex;
+                wire[i * 3 + 1] = tv;
+                wire[i * 3 + 2] = wv;
+            }
+            var ptr = list.length ? mallocCopyF32(wire) : 0;
+            var rc = bridge['_efx_bridge_pose_mesh'](m.__handle, ptr, list.length);
+            if (ptr) {
+                bridge['_efx_bridge_mem_free'](ptr);
+            }
+            if (rc === 2) {
+                throw new TypeError('poseMesh requires a Mesh with a rig');
+            }
+            if (rc === 6) {
+                throw new RangeError('clip index out of range');
+            }
+            if (rc !== 0) {
+                throw new Error('poseMesh failed');
             }
         },
         setLight: function (slot, opts) {

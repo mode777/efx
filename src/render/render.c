@@ -1,4 +1,5 @@
 #include "render/render.h"
+#include "render/skin.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -53,6 +54,8 @@ typedef struct {
     uint8_t *data;               /* single backing block */
 } mesh_pending;
 
+static void pending_free(mesh_pending *p);
+
 typedef struct {
     int used;
     int alive;
@@ -63,6 +66,12 @@ typedef struct {
     efx_material *materials;  /* surface_count entries (F4a) */
     uint8_t *has_material;    /* surface_count flags */
     efx_rig *rig;             /* owned deep copy of MeshData rig (F6c) */
+    int skinned;              /* F7: rig present => posed buffers exist */
+    float **posed;            /* surface_count interleaved posed arrays (F7) */
+    int *vert_count;          /* surface_count CPU vertex counts (F7) */
+    uint32_t **joints;        /* surface_count influence indices (F7) */
+    float **weights;          /* surface_count influence weights (F7) */
+    uint32_t pose_revision;   /* bumped on each successful pose (F7) */
 } mesh_slot;
 
 static struct {
@@ -379,11 +388,11 @@ static void flush_pending_uploads(void) {
         if (m->used && m->alive && !m->native && m->pending.data) {
             m->native = R.sink->create_mesh(R.sink->ud, m->pending.surfs,
                                             m->pending.count);
-            free(m->pending.data);
-            free(m->pending.surfs);
-            m->pending.data = NULL;
-            m->pending.surfs = NULL;
-            m->pending.count = 0;
+            if (!m->skinned) {
+                pending_free(&m->pending);
+            } else if (!m->native) {
+                /* upload failed: keep the queued bind data for a retry */
+            }
         }
     }
     if (!R.sink->create_render_target) {
@@ -1346,6 +1355,7 @@ static int pending_build(mesh_pending *p, const efx_meshdata *md) {
         g->vertex_count = s->vertex_count;
         g->index_count = s->index_count ? s->index_count : s->vertex_count;
         g->interleaved = (const float *)w;
+        g->skinned = (md->rig != NULL && s->joints != NULL) ? 1 : 0;
         /* defaults: normal +z, uv 0, color white (design D1) */
         for (int v = 0; v < s->vertex_count; v++) {
             float *dst = (float *)w + v * 12;
@@ -1436,19 +1446,51 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
     uint32_t gen = m->gen + 1;
     mesh_pending pending = {0, NULL, NULL};
     void *native = NULL;
+    if (pending_build(&pending, md) != EFX_RENDER_OK) {
+        return 0;
+    }
+    int skinned = md->rig != NULL;
+    /* F7: each skinned surface owns a posed CPU array seeded from the bind
+       pose; the interleaved bind copy stays owned by the mesh, and the
+       joints/weights attributes are retained for posing */
+    float **posed = NULL;
+    int *vert_count = NULL;
+    uint32_t **joints = NULL;
+    float **weights = NULL;
+    if (skinned) {
+        posed = calloc((size_t)md->surface_count, sizeof(float *));
+        vert_count = calloc((size_t)md->surface_count, sizeof(int));
+        joints = calloc((size_t)md->surface_count, sizeof(uint32_t *));
+        weights = calloc((size_t)md->surface_count, sizeof(float *));
+        if (!posed || !vert_count || !joints || !weights) {
+            goto skin_alloc_fail;
+        }
+        for (int i = 0; i < md->surface_count; i++) {
+            const efx_surface *s = &md->surfaces[i];
+            vert_count[i] = s->vertex_count;
+            if (!pending.surfs[i].skinned) {
+                continue;
+            }
+            size_t bytes = (size_t)s->vertex_count * 12 * sizeof(float);
+            posed[i] = malloc(bytes);
+            size_t infl = (size_t)s->vertex_count * 4;
+            joints[i] = malloc(infl * sizeof(uint32_t));
+            weights[i] = malloc(infl * sizeof(float));
+            if (!posed[i] || !joints[i] || !weights[i]) {
+                goto skin_alloc_fail;
+            }
+            memcpy(posed[i], pending.surfs[i].interleaved, bytes);
+            memcpy(joints[i], s->joints, infl * sizeof(uint32_t));
+            memcpy(weights[i], s->weights, infl * sizeof(float));
+        }
+    }
     if (R.sink && R.sink->create_mesh) {
-        if (pending_build(&pending, md) != EFX_RENDER_OK) {
-            return 0;
-        }
         native = R.sink->create_mesh(R.sink->ud, pending.surfs, pending.count);
-        pending_free(&pending);
         if (!native) {
-            return 0;
+            goto skin_alloc_fail;
         }
-    } else {
-        /* queue the upload (top-level main.js code, headless scripts) */
-        if (pending_build(&pending, md) != EFX_RENDER_OK) {
-            return 0;
+        if (!skinned) {
+            pending_free(&pending); /* static meshes keep no CPU bind copy */
         }
     }
     m->used = 1;
@@ -1457,6 +1499,12 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
     m->surface_count = md->surface_count;
     m->native = native;
     m->pending = pending;
+    m->skinned = skinned;
+    m->posed = posed;
+    m->vert_count = vert_count;
+    m->joints = joints;
+    m->weights = weights;
+    m->pose_revision = 0;
     /* per-surface material bindings (F4a): copy the MeshData snapshot */
     m->materials = calloc((size_t)md->surface_count, sizeof(efx_material));
     m->has_material = calloc((size_t)md->surface_count, sizeof(uint8_t));
@@ -1495,6 +1543,19 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
         R.mesh_count = (int)idx;
     }
     return ((uint64_t)gen << 32) | (uint64_t)idx;
+
+skin_alloc_fail:
+    for (int i = 0; i < md->surface_count; i++) {
+        if (posed) free(posed[i]);
+        if (joints) free(joints[i]);
+        if (weights) free(weights[i]);
+    }
+    free(posed);
+    free(joints);
+    free(weights);
+    free(vert_count);
+    pending_free(&pending);
+    return 0;
 }
 
 static void mesh_materials_free(mesh_slot *m) {
@@ -1507,8 +1568,32 @@ static void mesh_materials_free(mesh_slot *m) {
     free(m->has_material);
     m->materials = NULL;
     m->has_material = NULL;
+    if (m->posed) {
+        for (int i = 0; i < m->surface_count; i++) {
+            free(m->posed[i]);
+        }
+        free(m->posed);
+        m->posed = NULL;
+    }
+    if (m->joints) {
+        for (int i = 0; i < m->surface_count; i++) {
+            free(m->joints[i]);
+        }
+        free(m->joints);
+        m->joints = NULL;
+    }
+    if (m->weights) {
+        for (int i = 0; i < m->surface_count; i++) {
+            free(m->weights[i]);
+        }
+        free(m->weights);
+        m->weights = NULL;
+    }
+    free(m->vert_count);
+    m->vert_count = NULL;
     efx_rig_free(m->rig);
     m->rig = NULL;
+    pending_free(&m->pending);
 }
 
 static int mesh_release(uint64_t h, mesh_slot **out) {
@@ -1520,7 +1605,7 @@ static int mesh_release(uint64_t h, mesh_slot **out) {
         return EFX_RENDER_OK; /* idempotent */
     }
     m->alive = 0;
-    if (m->pending.data) {
+    if (!m->native && m->pending.data) {
         /* upload never happened; release the slot right away */
         pending_free(&m->pending);
         mesh_materials_free(m);
@@ -1568,6 +1653,78 @@ void *efx_render_mesh_native(uint64_t h) {
 const efx_rig *efx_render_mesh_rig(uint64_t h) {
     mesh_slot *m = mesh_get(h);
     return (m && m->alive) ? m->rig : NULL;
+}
+
+int efx_render_mesh_skinned(uint64_t h) {
+    mesh_slot *m = mesh_get(h);
+    return m && m->alive && m->skinned;
+}
+
+int efx_render_mesh_find_clip(uint64_t h, const char *name) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive || !m->rig || !name) {
+        return -1;
+    }
+    for (int i = 0; i < m->rig->clip_count; i++) {
+        if (m->rig->clips[i].name && strcmp(m->rig->clips[i].name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int efx_render_mesh_pose(uint64_t h, const efx_pose_sample *samples,
+                         int count) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive || !m->skinned || !m->rig) {
+        return EFX_RENDER_ERR_HANDLE;
+    }
+    if (count < 0 || (count > 0 && !samples)) {
+        return EFX_RENDER_ERR_INDEX;
+    }
+    for (int i = 0; i < count; i++) {
+        if (samples[i].clip < 0 || samples[i].clip >= m->rig->clip_count) {
+            return EFX_RENDER_ERR_INDEX;
+        }
+    }
+    int joints = m->rig->joint_count;
+    if (joints <= 0) {
+        return EFX_RENDER_OK; /* no usable joint transform: bind pose */
+    }
+    float *palette = malloc((size_t)joints * 16 * sizeof(float));
+    if (!palette) {
+        return EFX_RENDER_ERR_NOMEM;
+    }
+    if (efx_skin_evaluate(m->rig, samples, count, palette) != 0) {
+        free(palette);
+        return EFX_RENDER_ERR_INDEX;
+    }
+    for (int i = 0; i < m->surface_count; i++) {
+        if (!m->posed || !m->posed[i] || !m->joints || !m->joints[i] ||
+            !m->weights || !m->weights[i] || !m->pending.surfs) {
+            continue;
+        }
+        const float *bind = m->pending.surfs[i].interleaved;
+        efx_skin_surface(bind, m->vert_count[i], m->joints[i], m->weights[i],
+                         palette, joints, m->posed[i]);
+    }
+    free(palette);
+    m->pose_revision++;
+    return EFX_RENDER_OK;
+}
+
+const float *efx_render_mesh_posed(uint64_t h, int surface) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive || !m->posed || surface < 0 ||
+        surface >= m->surface_count) {
+        return NULL;
+    }
+    return m->posed[surface];
+}
+
+uint32_t efx_render_mesh_pose_revision(uint64_t h) {
+    mesh_slot *m = mesh_get(h);
+    return (m && m->alive) ? m->pose_revision : 0;
 }
 
 int efx_render_mesh_set_material(uint64_t h, int surface,
@@ -1761,10 +1918,13 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
 }
 
 int efx_render_mesh(uint64_t mesh, const float transform[16],
-                    const float color[4]) {
+                    const float color[4], int skinned) {
     ensure_state();
     if (!mesh || !efx_render_mesh_alive(mesh)) {
         return EFX_RENDER_ERR_HANDLE;
+    }
+    if (skinned && !efx_render_mesh_skinned(mesh)) {
+        return EFX_RENDER_ERR_RIG;
     }
     /* feedback-loop guard (F5a design D4): a mesh draw samples its bound
        maps — none of them may be the target being drawn into */
@@ -1804,6 +1964,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     mr->camera = R.camera3d;
     mr->lights = R.lights;   /* value snapshot (F4a design D4) */
     mr->blend = (uint8_t)R.blend;
+    mr->skinned = skinned ? 1 : 0;
     rec.sort_key = (uint32_t)R.record_count;
     return record_push(rec, sizeof(efx_record));
 }

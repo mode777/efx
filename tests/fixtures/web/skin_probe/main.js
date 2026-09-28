@@ -1,0 +1,53 @@
+/*
+ * F7: poseMesh + the skinned draw option through the --script run mode. The
+ * root is the glTF fixture directory, so skin.gltf loads its rig; a
+ * script-built mesh must reject both posing and skinned drawing.
+ */
+function kind(fn) {
+    try {
+        fn();
+    } catch (e) {
+        if (e instanceof TypeError) return 'TypeError';
+        if (e instanceof RangeError) return 'RangeError';
+        if (e instanceof Error) return 'Error';
+        return 'other';
+    }
+    return 'none';
+}
+
+var mesh = efx.createMesh(efx.loadMeshData('skin.gltf'));
+
+efx.poseMesh(mesh, { clip: 'move', time: 0.25 });
+efx.poseMesh(mesh, { clip: 0, time: 0.5 });
+efx.poseMesh(mesh, [{ clip: 'move', time: 0.1, weight: 1 },
+                    { clip: 'turn', time: 0.6, weight: 2 }]);
+efx.poseMesh(mesh, { clip: 'move', time: 5.5 });
+efx.drawMesh(mesh, { skinned: true });
+efx.drawMesh(mesh);
+
+if (kind(function () { efx.poseMesh(mesh, { clip: 'nope', time: 0 }); }) !== 'Error') {
+    throw new Error('unknown clip name did not throw Error');
+}
+if (kind(function () { efx.poseMesh(mesh, { clip: 9, time: 0 }); }) !== 'RangeError') {
+    throw new Error('clip index did not throw RangeError');
+}
+if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 0, weight: -1 }); }) !== 'RangeError') {
+    throw new Error('negative weight did not throw RangeError');
+}
+if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 0, bogus: 1 }); }) !== 'TypeError') {
+    throw new Error('unknown sample field did not throw TypeError');
+}
+
+var plain = efx.createMesh(efx.createMeshData({
+    positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2]
+}));
+if (kind(function () { efx.poseMesh(plain, { clip: 0, time: 0 }); }) !== 'TypeError') {
+    throw new Error('rig-less pose did not throw TypeError');
+}
+if (kind(function () { efx.drawMesh(plain, { skinned: true }); }) !== 'TypeError') {
+    throw new Error('rig-less skinned draw did not throw TypeError');
+}
+
+plain.destroy();
+mesh.destroy();
+efx.log('s-7-skin-pose-ok');

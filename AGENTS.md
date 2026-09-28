@@ -49,6 +49,18 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   four-target gate is **green** (ci run 36392688547: native suites incl.
   all goldens on Linux/Windows/macOS, Emscripten ctest + web goldens +
   cross-runtime compare).
+- F7 (skinning + animation) is **implemented** — `efx.poseMesh(mesh, pose)`
+  CPU-poses an imported rig in place (a single `{ clip, time, weight? }`
+  sample or a weighted array; clip by glTF name/`clipN` or index; time wraps
+  modulo the clip length; weights normalized, negatives rejected), and
+  `efx.drawMesh(mesh, { skinned })` selects the current posed buffer over the
+  retained bind pose. `skinned: true` on a rig-less Mesh, and posing one,
+  throw `TypeError`; an unknown clip name throws `Error` and a bad index or
+  negative weight `RangeError`. The F6c rig payload stays implicit `Mesh`
+  data (no clip/joint query, no playback helper); `src/render/skin.c` holds
+  the bind-local derivation, clip sampling, joint-space FK/palette, and
+  linear-blend skinning (change `f7-skinning-animation`, ADR 0035). Its
+  four-target gate is pending.
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -138,7 +150,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   F6's resource layer — `loadText`, `loadImage`, `loadMeshData` (F6a/F6b),
   with a texture composed as `createTexture(loadImage(path), opts?)` and
   `createTexture` taking `wrap`/`filter`/`mipmaps` (F6e; no `loadTexture`) —
-  cataloged in `docs/js-api.md` (F1/F2/F3/F4 entries are current behavior;
+  plus F7's skinning — `poseMesh(mesh, pose)` and the `drawMesh(mesh,
+  { skinned })` option (rig data stays implicit `Mesh` payload) —
+  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7 entries are current
+  behavior;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
   The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
   batch and shorthand forms as an exclusive union (the batch form does not
@@ -255,7 +270,7 @@ implements.
 | F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | done — F4a gate green (run 36271736775, ADR 0026); F4b gate green (run 36284454599, ADR 0027) |
 | F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
 | F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d (interactive console) done, gate green (run 36367478373); F6e (texture creation options) done, gate green (run 36392688547) |
-| F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, play/pause/blend | FK joint-transform tests vs CPU reference + golden images | planned |
+| F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, script-driven posing | FK joint-transform tests vs CPU reference + golden images | implemented — `poseMesh` + `skinned` draw option, CPU-reference unit tests, `skin_pose` golden, CC0 Fox gallery sample (ADR 0035); four-target gate pending |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
 
 Deferred cross-cutting decisions settle inside specific milestones, not

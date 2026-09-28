@@ -52,6 +52,7 @@ add_player_test(smoke_5b_validation ARGS "--script;${S}/s_5b_validation.js" EXPE
 add_player_test(smoke_6a_resource ARGS "--script;${S}/s_6a_resource.js" EXPECT 0 EXPECT_OUT "s-6a-resource-ok")
 add_player_test(smoke_6b_gltf ARGS "--script;${S}/s_6b_gltf.js" EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 add_player_test(smoke_6c_skin ARGS "--script;${S}/s_6c_skin.js" EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
+add_player_test(smoke_7_skin_pose ARGS "--script;${S}/s_7_skin_pose.js;--root;${F}/resource/gltf" EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 # gallery showcase samples run against their committed asset packs: a failed
@@ -59,6 +60,7 @@ add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${
 set(GALLERY ${CMAKE_SOURCE_DIR}/gallery/samples/curated)
 add_player_test(smoke_showcase_texture ARGS "--script;${GALLERY}/texture-showcase.js;--root;${GALLERY}/texture-showcase.zip" EXPECT 0)
 add_player_test(smoke_showcase_gltf ARGS "--script;${GALLERY}/gltf-showcase.js;--root;${GALLERY}/gltf-showcase.zip" EXPECT 0)
+add_player_test(smoke_showcase_fox ARGS "--script;${GALLERY}/fox-walk.js;--root;${GALLERY}/fox-walk.zip" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
@@ -118,6 +120,7 @@ if(EMSCRIPTEN)
     add_web_test(web_5b_validation ${S}/s_5b_validation.js EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
     add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
     add_web_test(web_6c_skin ${S}/s_6c_skin.js EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
+    add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
@@ -151,7 +154,9 @@ foreach(CASE
     render_target_lifecycle target_deferred_release segmentation
     target_redirection feedback_guard
     post_registry post_fast_path post_render_scale post_surface_size
-    post_user_target_raw)
+    post_user_target_raw
+    skin_bind_local skin_sampling skin_lbs skin_pose_blend
+    mesh_skin_buffers mesh_pose_repose mesh_skinned_flag mesh_skin_lifecycle)
     add_unit_test(efx_render_tests ${CASE})
 endforeach()
 if(NOT EMSCRIPTEN)
@@ -160,7 +165,8 @@ foreach(CASE dir_read dir_nested dir_missing dir_traversal dir_bad_root
               zip_read zip_nested zip_image zip_missing zip_bad_root
               gltf_triangle gltf_zip gltf_transform gltf_materials
               gltf_accessors gltf_glb gltf_dedup gltf_errors
-              gltf_skin gltf_skin_u8 gltf_skin_errors)
+              gltf_skin gltf_skin_u8 gltf_skin_errors
+              skin_pose_reference)
     add_unit_test(efx_resource_tests ${CASE})
 endforeach()
 endif()
@@ -170,7 +176,7 @@ foreach(CASE
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
-    resource_js createTexture_js gltf_js skin_js repl_eval)
+    resource_js createTexture_js gltf_js skin_js pose_js repl_eval)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()
@@ -204,7 +210,7 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 post_colorfilter post_blur_small post_blur_large post_bloom
                 post_mix post_scale_nearest post_scale_linear
                 post_order_a post_order_b post_user_rt load_png gltf_import
-                skin_import mipmaps)
+                skin_import skin_pose mipmaps)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

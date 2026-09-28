@@ -51,6 +51,9 @@ typedef struct {
 
 typedef struct {
     sg_buffer vbuf, ibuf;
+    sg_buffer posed_vbuf; /* F7: dynamic posed vertex buffer (skinned only) */
+    int has_posed;
+    uint32_t posed_rev;   /* last uploaded pose revision */
     int index_count; /* 0 = non-indexed (draw vertex count) */
     int vertex_count;
 } pipe_mesh_surface;
@@ -320,6 +323,15 @@ static void *pipe_create_mesh(void *ud, const efx_mesh_gpu_surface *surfs,
                      .size = (size_t)surfs[i].vertex_count *
                              sizeof(pipe_mesh_vertex)},
         });
+        if (surfs[i].skinned) {
+            /* F7: second buffer for CPU-posed vertices (same layout/size) */
+            d->posed_vbuf = sg_make_buffer(&(sg_buffer_desc){
+                .size = (size_t)surfs[i].vertex_count *
+                        sizeof(pipe_mesh_vertex),
+                .usage = {.vertex_buffer = true, .dynamic_update = true},
+            });
+            d->has_posed = 1;
+        }
         if (surfs[i].indices) {
             d->ibuf = sg_make_buffer(&(sg_buffer_desc){
                 .usage = {.index_buffer = true},
@@ -339,6 +351,9 @@ static void pipe_destroy_mesh(void *ud, void *native) {
         for (int i = 0; i < m->surface_count; i++) {
             sg_destroy_buffer(m->surfaces[i].vbuf);
             sg_destroy_buffer(m->surfaces[i].ibuf);
+            if (m->surfaces[i].has_posed) {
+                sg_destroy_buffer(m->surfaces[i].posed_vbuf);
+            }
         }
         free(m->surfaces);
         free(m);
@@ -734,7 +749,24 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         uint64_t maps[5] = {mat.ambient_map, mat.diffuse_map, mat.specular_map,
                             mat.emissive_map, mat.alpha_mask};
         sg_bindings bnd = {0};
-        bnd.vertex_buffers[0] = s->vbuf;
+        if (mr->skinned && s->has_posed) {
+            /* F7: push the CPU-posed vertices once per pose revision, then
+               draw the posed buffer instead of the bind-pose buffer */
+            uint32_t rev = efx_render_mesh_pose_revision(mr->mesh);
+            if (rev != s->posed_rev) {
+                const float *p = efx_render_mesh_posed(mr->mesh, i);
+                if (p) {
+                    sg_update_buffer(s->posed_vbuf, &(sg_range){
+                        .ptr = p,
+                        .size = (size_t)s->vertex_count *
+                                sizeof(pipe_mesh_vertex)});
+                    s->posed_rev = rev;
+                }
+            }
+            bnd.vertex_buffers[0] = s->posed_vbuf;
+        } else {
+            bnd.vertex_buffers[0] = s->vbuf;
+        }
         bnd.index_buffer = s->ibuf;
         for (int k = 0; k < 5; k++) {
             sg_view map_view = view_for_handle(maps[k]);

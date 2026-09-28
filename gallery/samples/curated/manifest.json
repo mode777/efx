@@ -42,5 +42,13 @@
     "category": "Assets",
     "description": "A real CC0 glTF model (Avocado by Microsoft, Khronos glTF-Sample-Assets) imported with loadMeshData, base-color mapped and lit under the engine's Phong model.",
     "assets": "gltf-showcase.zip"
+  },
+  {
+    "file": "fox-walk.js",
+    "id": "curated:fox-walk",
+    "title": "Fox Walk",
+    "category": "Assets",
+    "description": "A real CC0 rigged model (Fox, Quaternius' Ultimate Animated Animals) imported with loadMeshData and CPU-posed with poseMesh from a script-owned clock, drawn with skinned: true.",
+    "assets": "fox-walk.zip"
   }
 ]

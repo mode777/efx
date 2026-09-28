@@ -68,3 +68,13 @@ efx.createTexture(efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0
 efx.createTexture(efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }), { mipmaps: 'yes' });
 // @ts-expect-error — loadMeshData mesh selector is a number or a name
 efx.loadMeshData('models/quad.glb', { mesh: {} });
+
+// F7 — posing takes a sample or an array; the skinned draw option is a boolean
+efx.poseMesh(cube, { clip: 'Walk', time: 1 });
+efx.poseMesh(cube, [{ clip: 0, time: 1, weight: 0.5 }]);
+efx.drawMesh(cube, { skinned: true });
+efx.drawMesh(cube, { transform: efx.mat4.identity(), color: [1, 1, 1, 1], skinned: false });
+// @ts-expect-error — an unknown pose sample field is rejected
+efx.poseMesh(cube, { clip: 'Walk', time: 1, bogus: true });
+// @ts-expect-error — skinned is a boolean
+efx.drawMesh(cube, { skinned: 1 });

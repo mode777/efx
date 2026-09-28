@@ -4,9 +4,10 @@
 (lighting + Phong materials on solids/vertex colors), F4b (per-channel
 maps + alpha masks), F5a (render targets), F5b (post-effect chain +
 render scale), F6a (resource root + text/image loading), F6b (glTF static
-import), F6c (glTF rig import), and F6d (interactive console run mode —
-no new API) are implemented (current behavior). Everything from F7
-onward is a provisional contract — names and
+import), F6c (glTF rig import), F6d (interactive console run mode —
+no new API), F6e (texture creation options), and F7 (CPU skinning +
+animation — `poseMesh` and the `skinned` draw option) are implemented
+(current behavior). F8 onward is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
 the same change). See `vision.md` for product goals and
@@ -857,7 +858,8 @@ surface's `joints`/`weights` attributes and bundles the skin (joint
 hierarchy + inverse bind matrices) and every `animations[]` clip into the
 returned `MeshData` as an opaque rig payload, carried onto the `Mesh` by
 `createMesh`. The model and interpolation policy are pinned by ADR 0033;
-playback is F7.
+posing the imported rig is delivered by F7 (`poseMesh` + the `skinned` draw
+option).
 
 ```js
 // F6c · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
@@ -892,47 +894,50 @@ by the player — not `efx` functions. The console is desktop
 (embedded-runtime) only: on Emscripten the mode reports itself
 unavailable rather than silently ignoring the request. See ADR 0007.
 
-### F7 — Skinning & animation (provisional)
+### F7 — Skinning & animation (current)
 
-Scope from roadmap F7: CPU skinning into a mesh slot, skeleton/animation
-import, play/pause/blend.
+CPU linear-blend skinning of an imported glTF rig, driven by one stateless
+call; no engine playback state (ADR 0017/0018).
 
 ```js
-// F7 · C · provisional — skin, skeleton, and clips are implicit Mesh payload (ADR 0017);
-// the script drives posing, no engine playback state (ADR 0018)
+// F7 · C · current — skin, skeleton, and clips are implicit Mesh payload (ADR 0017)
 efx.poseMesh(mesh, pose)   // pose: { clip, time, weight? } or [ samples ]; CPU-poses in place
 efx.drawMesh(mesh, { transform?, color?, skinned? }) // skinned: true → current posed buffer
 ```
 
-- Skin weights stay per-surface vertex attributes (`joints`/`weights`,
-  glTF `JOINTS_0`/`WEIGHTS_0`); a skinned asset loads as one Mesh carrying its rig: skin weights,
-  skeleton (joint hierarchy + inverse bind matrices, glTF-style), and
-  animation clips. No rig resources and no playback state are exposed to
-  scripts — the script owns the clock.
-- `efx.poseMesh` samples one clip or a weighted blend and CPU-poses the
-  mesh **in place**: `time` wraps modulo the clip length, weights are
-  normalized (negative weights throw). Call it from the update hook;
-  `skinned: true` then draws the posed vertices, absent/`false` the
-  retained bind-pose buffer (~2× vertex memory for skinned meshes).
-  `skinned: true` on a mesh without a rig throws (`TypeError`). The flag
-  is per-draw, like `color` — a second `drawMeshSkinned` method would
-  duplicate the identical option set.
-- A stateful playback helper (play/pause/blend) may return later as a
-  pure-JS convenience over `poseMesh` (F8 layer) — additive, never engine
-  state.
+- A skinned asset loads as one Mesh carrying its rig: per-surface
+  `joints`/`weights` (glTF `JOINTS_0`/`WEIGHTS_0`), the skeleton (joint
+  hierarchy + inverse bind matrices, glTF-style), and every animation clip.
+  No rig resource, no clip/joint query property, and no playback function are
+  exposed to scripts — the script owns the clock.
+- `efx.poseMesh(mesh, pose)` CPU-poses a live skinned Mesh **in place**.
+  `pose` is a single sample `{ clip, time, weight? }` or an array of such
+  samples (a weighted blend). `clip` is a clip name (the glTF `name`, or the
+  stable internal `clipN` when unnamed) or a clip index. `time` is in seconds
+  and wraps modulo the clip's length; array weights are normalized
+  engine-side, and a single sample ignores its weight.
+- Errors: a non-Mesh/destroyed Mesh, a rig-less Mesh, a mistyped field, or an
+  unknown sample field throws `TypeError`; an out-of-range clip index or a
+  negative weight throws `RangeError`; an unknown clip name throws `Error`.
+- `efx.drawMesh(mesh, { skinned: true })` draws the current CPU-posed
+  vertices; absent/`false` draws the retained bind-pose buffer (posing never
+  mutates it; ~2× vertex memory for skinned meshes). `skinned: true` on a mesh
+  without a rig throws `TypeError`. The flag is per-draw, like `color`.
+- No stateful playback helper (`play`/`pause`/`blend`) exists; such a
+  convenience would be a pure-JS layer over `poseMesh` (an F8 candidate).
 
 ```js
-// main.js — F7 sample (provisional API)
+// main.js — F7 sample
 efx.setCamera3D({ pos: [0, 1.5, 4], target: [0, 1, 0], fov: 60 });
-const hero = efx.loadMesh('actors/hero.mesh');   // geometry + rig + clips in one Mesh
+const hero = efx.createMesh(efx.loadMeshData('actors/hero.gltf')); // geometry + rig + clips
 
 let t = 0;
 efx.registerUpdateHook(dt => {
     t += dt;
     const k = Math.min(1, t / 2); // walk → run cross-fade over 2s
     efx.poseMesh(hero, [
-        { clip: 'walk', time: t, weight: 1 - k },
-        { clip: 'run',  time: t, weight: k },
+        { clip: 'Walk', time: t, weight: 1 - k },
+        { clip: 'Run',  time: t, weight: k },
     ]);
 });
 
@@ -997,7 +1002,7 @@ section (or an open question below):
 | Simple post processing (color filter, blur) | F5b (`setPostEffects`, current) |
 | Resource folder / zip root (`res://`-like) | F6a (load paths + dir/zip provider, current) |
 | REPL console mode | F6d (drives the same `efx` namespace) |
-| Skinning and animations | F7 |
+| Skinning and animations | F7 (`poseMesh`, `drawMesh({ skinned })`, current) |
 | High-level functions in pure JS (`drawModel`, `drawText`) | F8 |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
 | Low/mid C + high-level JS layering | Overview (two layers), every entry tag |
@@ -1025,8 +1030,9 @@ API for them:
 - **Procedural rigs** — F7 bundles skins/skeletons/clips at *import* only;
   constructing a rig procedurally (from `createMeshData` + skeleton data)
   has no path yet. Deferred until a concrete need appears.
-- **Clip naming** — `poseMesh` accepts name or index; the exact clip
-  naming/lookup rules follow the glTF profile decision (F6).
+- **Clip naming** — settled by F7: `poseMesh` accepts a clip name (the glTF
+  `name`, or the stable internal `clipN` when unnamed) or a clip index
+  (ADR 0033).
 - **Stateful playback helper** — play/pause/blend convenience as pure JS
   over `poseMesh` is an F8-layer candidate, not engine state (ADR 0018).
 - **REPL introspection helpers** — whether the F6 console mode needs extra

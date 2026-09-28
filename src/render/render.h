@@ -31,6 +31,7 @@
 #define EFX_RENDER_ERR_STATE 8       /* endRenderTarget with none active (F5a) */
 #define EFX_RENDER_ERR_FEEDBACK 9    /* draw samples the active target (F5a) */
 #define EFX_RENDER_ERR_SIZE 10       /* render-target size out of range (F5a) */
+#define EFX_RENDER_ERR_RIG 11        /* skinned draw/pose on a rig-less mesh (F7) */
 
 /* fixed limit: render-target size per side (F5a, documented hard maximum) */
 #define EFX_RENDER_MAX_TARGET_SIZE 4096
@@ -150,6 +151,7 @@ typedef struct efx_mesh_record {
     efx_camera3d camera;
     efx_light_set lights;  /* value snapshot at record time (F4a design D4) */
     uint8_t blend;
+    uint8_t skinned;       /* F7: draw the posed buffer instead of bind pose */
 } efx_mesh_record;
 
 /* beginRenderTarget control record (F5a design D2): opens a segment; the
@@ -237,6 +239,15 @@ typedef struct efx_rig {
     efx_animation_clip *clips;
 } efx_rig;
 
+/* one resolved pose sample (F7): a clip index plus a time in seconds and an
+ * optional blend weight. The binding resolves clip names/indices to the index
+ * before calling the render module. */
+typedef struct efx_pose_sample {
+    int clip;
+    float time;
+    float weight;
+} efx_pose_sample;
+
 /* CPU mesh data: 1..EFX_MESH_MAX_SURFACES surfaces, each with its own
  * attribute arrays + optional indices (Godot surface / glTF primitive).
  * Storage is deep-copied and engine-owned (design D8). */
@@ -292,6 +303,7 @@ typedef struct efx_mesh_gpu_surface {
     int vertex_count, index_count;
     const float *interleaved;
     const uint32_t *indices; /* NULL when non-indexed */
+    int skinned;             /* F7: allocate a second posed vertex buffer */
 } efx_mesh_gpu_surface;
 
 /* GPU sink, implemented on the platform (sokol) side. create_mesh may
@@ -368,6 +380,21 @@ void *efx_render_mesh_native(uint64_t h);
 /* test/introspection: the rig carried by a live Mesh (NULL when static;
  * ownership stays with the mesh). Not script-visible (F6c design D6). */
 const efx_rig *efx_render_mesh_rig(uint64_t h);
+
+/* F7 posing: 1 when the live Mesh carries a rig (and thus owns posed CPU
+ * buffers); 0 for static/unknown handles. */
+int efx_render_mesh_skinned(uint64_t h);
+/* resolve a clip name to its index; -1 when absent (bad mesh or name). */
+int efx_render_mesh_find_clip(uint64_t h, const char *name);
+/* apply a weighted pose to a live skinned Mesh in place (bind data is never
+ * touched). Returns EFX_RENDER_OK / ERR_HANDLE (bad or rig-less mesh) /
+ * ERR_INDEX (clip index out of range). */
+int efx_render_mesh_pose(uint64_t h, const efx_pose_sample *samples, int count);
+/* posed interleaved CPU vertices for a surface (12 floats/vertex) and the
+ * monotonic pose revision used to skip redundant GPU uploads; NULL/0 when the
+ * mesh is static or the surface is out of range. */
+const float *efx_render_mesh_posed(uint64_t h, int surface);
+uint32_t efx_render_mesh_pose_revision(uint64_t h);
 
 /* render targets (F5a); handles are opaque, 0 = invalid; destroy is
  * deferred to frame end like textures (records and bound maps may hold
@@ -485,7 +512,7 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                     const float src_rect[4], int has_src,
                     float origin_x, float origin_y);
 int efx_render_mesh(uint64_t mesh, const float transform[16],
-                    const float color[4]);
+                    const float color[4], int skinned);
 const efx_record *efx_render_records(int *count);
 const efx_draw_run *efx_render_runs(int *count); /* batched quad plan */
 

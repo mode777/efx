@@ -55,6 +55,7 @@ endif()
 if(EMSCRIPTEN)
     add_library(efx_core STATIC
         src/render/render.c
+        src/render/skin.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -66,6 +67,7 @@ else()
         src/api/api.c
         src/runtime/runtime.c
         src/render/render.c
+        src/render/skin.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -262,6 +264,7 @@ endif()
 # headless display-list unit tests (ADR 0019 record/assert gate)
 add_executable(efx_render_tests
     src/render/render.c
+    src/render/skin.c
     tests/unit/render_tests.c
 )
 target_include_directories(efx_render_tests PRIVATE src)
@@ -282,6 +285,7 @@ endif()
 if(NOT EMSCRIPTEN)
 add_executable(efx_resource_tests
     src/render/render.c
+    src/render/skin.c
     src/resource/gltf.c
     src/resource/image.c
     src/resource/resource.c
@@ -309,6 +313,7 @@ add_executable(efx_api_tests
     src/api/api.c
     src/runtime/runtime.c
     src/render/render.c
+    src/render/skin.c
     src/resource/gltf.c
     src/resource/image.c
     src/resource/resource.c

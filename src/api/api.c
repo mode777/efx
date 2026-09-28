@@ -1993,14 +1993,15 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
     float transform[16];
     int has_transform = 0;
     float color[4] = {1, 1, 1, 1};
+    int skinned = 0;
 
     if (argc >= 2 && !JS_IsUndefined(argv[1])) {
         JSValueConst opts = argv[1];
         if (!JS_IsObject(opts)) {
             return type_error(ctx, "drawMesh options must be an object");
         }
-        static const char *known[] = {"transform", "color"};
-        if (check_known_fields(ctx, opts, known, 2, "drawMesh") != 0) {
+        static const char *known[] = {"transform", "color", "skinned"};
+        if (check_known_fields(ctx, opts, known, 3, "drawMesh") != 0) {
             return JS_EXCEPTION;
         }
         JSValue tv = JS_GetPropertyStr(ctx, opts, "transform");
@@ -2041,15 +2042,28 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
             memcpy(color, buf, sizeof(color));
             free(buf);
         }
+
+        JSValue sv = JS_GetPropertyStr(ctx, opts, "skinned");
+        if (!JS_IsUndefined(sv)) {
+            if (!JS_IsBool(sv)) {
+                JS_FreeValue(ctx, sv);
+                return type_error(ctx, "skinned must be a boolean");
+            }
+            skinned = JS_ToBool(ctx, sv) ? 1 : 0;
+        }
+        JS_FreeValue(ctx, sv);
     }
 
     int rc = efx_render_mesh(mesh->handle, has_transform ? transform : NULL,
-                             color);
+                             color, skinned);
     if (rc == EFX_RENDER_ERR_BUDGET) {
         return range_error(ctx, "display list budget exceeded");
     }
     if (rc == EFX_RENDER_ERR_HANDLE) {
         return type_error(ctx, "expected a live Mesh");
+    }
+    if (rc == EFX_RENDER_ERR_RIG) {
+        return type_error(ctx, "mesh has no rig to draw skinned");
     }
     if (rc == EFX_RENDER_ERR_FEEDBACK) {
         return type_error(ctx,
@@ -2057,6 +2071,155 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
     }
     if (rc != EFX_RENDER_OK) {
         return generic_error(ctx, "drawMesh failed");
+    }
+    return JS_UNDEFINED;
+}
+
+/* F7: parse one pose sample ({ clip, time, weight? }); clip names resolve
+ * through the live Mesh's rig. Returns 0 ok (exception pending otherwise). */
+static int read_pose_sample(JSContext *ctx, JSValueConst v, efxjs_mesh *mesh,
+                            efx_pose_sample *out) {
+    if (!JS_IsObject(v)) {
+        type_error(ctx, "pose samples must be objects");
+        return -1;
+    }
+    static const char *known[] = {"clip", "time", "weight"};
+    if (check_known_fields(ctx, v, known, 3, "pose sample") != 0) {
+        return -1;
+    }
+    JSValue cv = JS_GetPropertyStr(ctx, v, "clip");
+    if (JS_IsUndefined(cv)) {
+        JS_FreeValue(ctx, cv);
+        type_error(ctx, "pose sample requires clip");
+        return -1;
+    }
+    if (JS_IsString(cv)) {
+        const char *name = JS_ToCString(ctx, cv);
+        int idx = efx_render_mesh_find_clip(mesh->handle, name);
+        JS_FreeCString(ctx, name);
+        JS_FreeValue(ctx, cv);
+        if (idx < 0) {
+            generic_error(ctx, "unknown clip name");
+            return -1;
+        }
+        out->clip = idx;
+    } else if (JS_IsNumber(cv)) {
+        double d = 0;
+        JS_ToFloat64(ctx, &d, cv);
+        JS_FreeValue(ctx, cv);
+        if (!isfinite(d) || d != floor(d) || d < 0) {
+            range_error(ctx, "clip index out of range");
+            return -1;
+        }
+        out->clip = (int)d;
+    } else {
+        JS_FreeValue(ctx, cv);
+        type_error(ctx, "clip must be a name or index");
+        return -1;
+    }
+
+    JSValue tv = JS_GetPropertyStr(ctx, v, "time");
+    if (!JS_IsNumber(tv)) {
+        JS_FreeValue(ctx, tv);
+        type_error(ctx, "pose sample requires a numeric time");
+        return -1;
+    }
+    double t = 0;
+    JS_ToFloat64(ctx, &t, tv);
+    JS_FreeValue(ctx, tv);
+    if (!isfinite(t)) {
+        range_error(ctx, "time must be finite");
+        return -1;
+    }
+    out->time = (float)t;
+
+    out->weight = 1.0f;
+    JSValue wv = JS_GetPropertyStr(ctx, v, "weight");
+    if (!JS_IsUndefined(wv)) {
+        if (!JS_IsNumber(wv)) {
+            JS_FreeValue(ctx, wv);
+            type_error(ctx, "weight must be a number");
+            return -1;
+        }
+        double w = 0;
+        JS_ToFloat64(ctx, &w, wv);
+        JS_FreeValue(ctx, wv);
+        if (!isfinite(w) || w < 0) {
+            range_error(ctx, "weight must be finite and >= 0");
+            return -1;
+        }
+        out->weight = (float)w;
+    } else {
+        JS_FreeValue(ctx, wv);
+    }
+    return 0;
+}
+
+JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc,
+                        JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 2) {
+        return type_error(ctx, "poseMesh requires (mesh, pose)");
+    }
+    efxjs_mesh *mesh = get_live_mesh(ctx, argv[0]);
+    if (!mesh) {
+        return JS_EXCEPTION;
+    }
+    if (!efx_render_mesh_skinned(mesh->handle)) {
+        return type_error(ctx, "poseMesh requires a Mesh with a rig");
+    }
+    JSValueConst pose = argv[1];
+    efx_pose_sample *samples = NULL;
+    int count = 0;
+    int rc = 0;
+    if (JS_IsArray(pose)) {
+        JSValue lenv = JS_GetPropertyStr(ctx, pose, "length");
+        int32_t len = -1;
+        JS_ToInt32(ctx, &len, lenv);
+        JS_FreeValue(ctx, lenv);
+        if (len < 0) {
+            return range_error(ctx, "pose array length is invalid");
+        }
+        if (len > 0) {
+            samples = malloc((size_t)len * sizeof(*samples));
+            if (!samples) {
+                return generic_error(ctx, "out of memory");
+            }
+        }
+        for (int32_t i = 0; i < len; i++) {
+            JSValue sv = JS_GetPropertyUint32(ctx, pose, (uint32_t)i);
+            int sr = read_pose_sample(ctx, sv, mesh, &samples[i]);
+            JS_FreeValue(ctx, sv);
+            if (sr != 0) {
+                free(samples);
+                return JS_EXCEPTION;
+            }
+        }
+        count = (int)len;
+    } else if (JS_IsObject(pose)) {
+        samples = malloc(sizeof(*samples));
+        if (!samples) {
+            return generic_error(ctx, "out of memory");
+        }
+        if (read_pose_sample(ctx, pose, mesh, &samples[0]) != 0) {
+            free(samples);
+            return JS_EXCEPTION;
+        }
+        count = 1;
+    } else {
+        return type_error(ctx, "pose must be a sample or an array of samples");
+    }
+
+    rc = efx_render_mesh_pose(mesh->handle, samples, count);
+    free(samples);
+    if (rc == EFX_RENDER_ERR_HANDLE) {
+        return type_error(ctx, "poseMesh requires a Mesh with a rig");
+    }
+    if (rc == EFX_RENDER_ERR_INDEX) {
+        return range_error(ctx, "clip index out of range");
+    }
+    if (rc != EFX_RENDER_OK) {
+        return generic_error(ctx, "poseMesh failed");
     }
     return JS_UNDEFINED;
 }

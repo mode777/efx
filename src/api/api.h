@@ -26,6 +26,9 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val, int argc, J
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F7 — skinning + animation */
+JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* F4a — lighting + Phong materials */
 JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);

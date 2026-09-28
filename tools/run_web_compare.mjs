@@ -50,6 +50,8 @@ const CASES = [
     { name: '6b_gltf', script: 'tests/scripts/s_6b_gltf.js', args: [],
       assets: ['tests/scripts/gltf_probe.glb', 'tests/scripts/gltf_corrupt.gltf'] },
     { name: '6c_skin', script: 'tests/scripts/s_6c_skin.js', args: [] },
+    { name: '7_skin_pose', script: 'tests/scripts/s_7_skin_pose.js', args: [],
+      assets: ['tests/scripts/skin.gltf', 'tests/scripts/skin.bin'] },
 ];
 
 function run(cmd, args) {

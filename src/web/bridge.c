@@ -639,8 +639,37 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_surface_count(double handle) {
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_mesh(double handle,
                                               const float *transform,
-                                              const float *color) {
-    return efx_render_mesh((uint64_t)handle, transform, color);
+                                              const float *color,
+                                              int skinned) {
+    return efx_render_mesh((uint64_t)handle, transform, color, skinned);
+}
+
+/* F7: one wire pose sample: [clip_index, time, weight] per entry */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_pose_mesh(double handle,
+                                              const float *wire, int count) {
+    if (count < 0) {
+        return EFX_RENDER_ERR_INDEX;
+    }
+    efx_pose_sample *samples = NULL;
+    if (count > 0) {
+        samples = malloc((size_t)count * sizeof(*samples));
+        if (!samples) {
+            return EFX_RENDER_ERR_NOMEM;
+        }
+        for (int i = 0; i < count; i++) {
+            samples[i].clip = (int)wire[i * 3];
+            samples[i].time = wire[i * 3 + 1];
+            samples[i].weight = wire[i * 3 + 2];
+        }
+    }
+    int rc = efx_render_mesh_pose((uint64_t)handle, samples, count);
+    free(samples);
+    return rc;
+}
+
+/* resolve a clip name to its index for the web binding's name lookup */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_find_clip(double handle, const char *name) {
+    return efx_render_mesh_find_clip((uint64_t)handle, name);
 }
 
 /* ------------------------------------------------- F4a (lighting) */

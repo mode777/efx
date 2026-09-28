@@ -9,6 +9,7 @@ attribution; this file exists for transparency.
 |---|---|---|---|---|
 | `texture-showcase.zip` | `paving_color.jpg` | ambientCG (Lennart Demes) | `PavingStones070`, https://ambientcg.com/view?id=PavingStones070 | CC0 1.0 |
 | `gltf-showcase.zip` | `Avocado.gltf`, `Avocado.bin`, `Avocado_baseColor.png` | Microsoft | Khronos glTF-Sample-Assets, `Models/Avocado`, https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Avocado | CC0 1.0 |
+| `fox-walk.zip` | `Fox.glb` | Quaternius (Tomás Laulhé) | Quaternius, "Ultimate Animated Animals" (https://quaternius.com/packs/ultimateanimatedanimals.html); glb mirror: https://github.com/trebeljahr/quaternius-showcase | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
@@ -46,3 +47,16 @@ their root, so the sample scripts address them root-relative.
    (optimized) -> `Avocado_baseColor.png`.
 5. Zip `Avocado.gltf`, `Avocado.bin`, and `Avocado_baseColor.png` at the
    archive root.
+
+### `fox-walk.zip`
+
+1. Download `Fox.glb` from Quaternius' "Ultimate Animated Animals" pack
+   (CC0 1.0); the committed copy came from the
+   `trebeljahr/quaternius-showcase` mirror at
+   `public/glb/animals_pack/Fox.glb`.
+2. Edit the glb's material factors so every material is a matte dielectric
+   under the engine's fixed-function Phong model: set `metallicFactor` to
+   `0.0` and `roughnessFactor` to `0.6` in each
+   `pbrMetallicRoughness`. (The importer binds only base-color and emissive;
+   this pack has no textures.)
+3. Zip `Fox.glb` at the archive root.

@@ -3,6 +3,7 @@
  * Usage: efx_render_tests <case-name> ; exit 0 = pass.
  */
 #include "render/render.h"
+#include "render/skin.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -26,6 +27,7 @@ static int g_rt_created, g_rt_destroyed;
 static int g_last_mesh_surf_count;
 static int g_last_mesh_vert_total;
 static int g_last_mesh_index_total;
+static int g_last_mesh_skinned_total;
 
 static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
                          int wrap, int filter, int mipmaps) {
@@ -48,12 +50,14 @@ static void *mock_create_mesh(void *ud, const efx_mesh_gpu_surface *surfs,
     g_last_mesh_surf_count = count;
     g_last_mesh_vert_total = 0;
     g_last_mesh_index_total = 0;
+    g_last_mesh_skinned_total = 0;
     for (int i = 0; i < count; i++) {
         if (surfs[i].vertex_count <= 0) {
             return NULL; /* bad surface: signal upload failure */
         }
         g_last_mesh_vert_total += surfs[i].vertex_count;
         g_last_mesh_index_total += surfs[i].index_count;
+        g_last_mesh_skinned_total += surfs[i].skinned ? 1 : 0;
     }
     return malloc(8);
 }
@@ -602,7 +606,7 @@ static int mesh_record_fields(void) {
     cam.near_z = 0.1f;
     cam.far_z = 100.0f;
     efx_render_set_camera3d(&cam);
-    efx_render_mesh(m, transform, tint);
+    efx_render_mesh(m, transform, tint, 0);
     /* value snapshot: a later camera change must not apply */
     efx_camera3d cam2;
     memset(&cam2, 0, sizeof(cam2));
@@ -610,7 +614,7 @@ static int mesh_record_fields(void) {
     cam2.fov = 30;
     efx_render_set_camera3d(&cam2);
     /* dead mesh handle rejected */
-    if (efx_render_mesh(0, NULL, NULL) != EFX_RENDER_ERR_HANDLE)
+    if (efx_render_mesh(0, NULL, NULL, 0) != EFX_RENDER_ERR_HANDLE)
         return fail("null mesh accepted");
 
     int count = 0;
@@ -630,7 +634,7 @@ static int mesh_record_fields(void) {
         return fail("camera depth range");
 
     /* default transform = identity, default tint = white */
-    if (efx_render_mesh(m, NULL, NULL) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
         return fail("default args rejected");
     recs = efx_render_records(&count);
     mr = &recs[1].u.mesh;
@@ -644,7 +648,7 @@ static int mesh_record_fields(void) {
         return fail("new camera on later record");
     /* blend value-snapshots into mesh records too */
     efx_render_set_blend(EFX_BLEND_ADDITIVE);
-    efx_render_mesh(m, NULL, NULL);
+    efx_render_mesh(m, NULL, NULL, 0);
     recs = efx_render_records(&count);
     if (recs[2].u.mesh.blend != EFX_BLEND_ADDITIVE) return fail("mesh blend");
     efx_render_end_frame();
@@ -662,7 +666,7 @@ static int mesh_record_order(void) {
     /* quads A A, mesh, quad B: quad runs must not span the mesh record */
     efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
     efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
-    efx_render_mesh(m, NULL, NULL);
+    efx_render_mesh(m, NULL, NULL, 0);
     efx_render_quad(9, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -703,7 +707,7 @@ static int mesh_record_budget(void) {
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
     if (!m) return fail("16-surface mesh create");
-    if (efx_render_mesh(m, NULL, NULL) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
         return fail("16-surface mesh record");
     int count = 0;
     efx_render_records(&count);
@@ -711,7 +715,7 @@ static int mesh_record_budget(void) {
     /* and the budget still trips eventually on mesh records */
     int pushed = 0;
     for (;;) {
-        int rc = efx_render_mesh(m, NULL, NULL);
+        int rc = efx_render_mesh(m, NULL, NULL, 0);
         if (rc == EFX_RENDER_ERR_BUDGET) break;
         if (rc != EFX_RENDER_OK) return fail("mesh budget loop error");
         pushed++;
@@ -801,7 +805,7 @@ static int light_snapshot(void) {
     p.pos[0] = 1; p.pos[1] = 1; p.pos[2] = 1;
     p.color[0] = 1; p.color[3] = 1;
     efx_render_set_point_light(0, &p);
-    if (efx_render_mesh(m, NULL, NULL) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
         return fail("record");
     /* later light change must not alter the recorded snapshot */
     efx_render_set_point_light(0, NULL);
@@ -1313,7 +1317,7 @@ static int feedback_guard(void) {
     efx_material_default(&mat);
     mat.diffuse_map = rt;
     efx_render_mesh_set_material(mesh, 0, &mat, 1);
-    if (efx_render_mesh(mesh, NULL, NULL) != EFX_RENDER_ERR_FEEDBACK)
+    if (efx_render_mesh(mesh, NULL, NULL, 0) != EFX_RENDER_ERR_FEEDBACK)
         return fail("mesh feedback accepted");
     int after = 0;
     efx_render_records(&after);
@@ -1573,6 +1577,380 @@ static int post_user_target_raw(void) {
     return 0;
 }
 
+/* ------------------------------------------------------- F7 skinning */
+
+/* design D1: bind-local reconstruction from inverse bind matrices */
+static int skin_bind_local(void) {
+    int nodes[2] = {1, 2};
+    int parents[2] = {-1, 0};
+    float ib[32];
+    memset(ib, 0, sizeof(ib));
+    ib[0] = ib[5] = ib[10] = ib[15] = 1.0f;
+    ib[13] = -1.0f; /* joint 0 world bind T(0,1,0) */
+    ib[16] = ib[21] = ib[26] = ib[31] = 1.0f;
+    ib[16 + 13] = -2.0f; /* joint 1 world bind T(0,2,0) */
+    efx_rig rig;
+    memset(&rig, 0, sizeof(rig));
+    rig.joint_count = 2;
+    rig.joint_nodes = nodes;
+    rig.joint_parents = parents;
+    rig.inverse_bind = ib;
+
+    float local[32];
+    if (efx_skin_bind_local(&rig, local) != 0) return fail("bind local");
+    if (!feq(local[13], 1.0f) || !feq(local[16 + 13], 1.0f))
+        return fail("bind local translations");
+    if (!feq(local[0], 1.0f) || !feq(local[16 + 0], 1.0f))
+        return fail("bind local identity");
+
+    /* a singular inverse_bind falls back to identity for that joint */
+    memset(ib, 0, 16 * sizeof(float));
+    ib[16] = ib[21] = ib[26] = ib[31] = 1.0f;
+    ib[16 + 13] = -2.0f;
+    if (efx_skin_bind_local(&rig, local) != 0) return fail("bind local 2");
+    if (!feq(local[0], 1.0f) || !feq(local[13], 0.0f))
+        return fail("singular identity fallback");
+    if (!feq(local[16 + 13], 2.0f))
+        return fail("singular parent fallback");
+    return 0;
+}
+
+/* design D2/D5: LINEAR/STEP sampling with time wrapping */
+static int skin_sampling(void) {
+    int nodes[1] = {0};
+    int parents[1] = {-1};
+    float ib[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    static float ttimes[3] = {0.0f, 0.5f, 1.0f};
+    static float tvals[9] = {0, 0, 0, 0, 2, 0, 0, 4, 0};
+    efx_anim_channel tch;
+    memset(&tch, 0, sizeof(tch));
+    tch.target_node = 0;
+    tch.path = EFX_ANIM_PATH_TRANSLATION;
+    tch.interpolation = EFX_ANIM_INTERP_LINEAR;
+    tch.components = 3;
+    tch.times_len = 3;
+    tch.values_len = 9;
+    tch.times = ttimes;
+    tch.values = tvals;
+    efx_animation_clip clip = {"move", 1, &tch};
+    efx_rig rig;
+    memset(&rig, 0, sizeof(rig));
+    rig.joint_count = 1;
+    rig.joint_nodes = nodes;
+    rig.joint_parents = parents;
+    rig.inverse_bind = ib;
+    rig.clip_count = 1;
+    rig.clips = &clip;
+
+    float palette[16];
+    efx_pose_sample s = {0, 0.25f, 1.0f};
+    if (efx_skin_evaluate(&rig, &s, 1, palette) != 0) return fail("eval");
+    if (!feq(palette[13], 1.0f)) return fail("linear midpoint");
+    s.time = 0.75f;
+    efx_skin_evaluate(&rig, &s, 1, palette);
+    if (!feq(palette[13], 3.0f)) return fail("linear three-quarter");
+    s.time = 1.25f; /* wraps to 0.25 */
+    efx_skin_evaluate(&rig, &s, 1, palette);
+    if (!feq(palette[13], 1.0f)) return fail("time wrap");
+    s.time = 1.0f; /* exactly the clip length wraps back to 0 */
+    efx_skin_evaluate(&rig, &s, 1, palette);
+    if (!feq(palette[13], 0.0f)) return fail("clip length wraps");
+
+    /* STEP holds the previous keyframe until the next one; the clip length is
+       the max over channels, so the rotation channel's second key is reachable
+       within [0.5, 1) */
+    static float rtimes[2] = {0.0f, 0.5f};
+    static float rvals[8] = {0, 0, 0, 1, 0, 0, 0.70710678f, 0.70710678f};
+    efx_anim_channel rch;
+    memset(&rch, 0, sizeof(rch));
+    rch.target_node = 0;
+    rch.path = EFX_ANIM_PATH_ROTATION;
+    rch.interpolation = EFX_ANIM_INTERP_STEP;
+    rch.components = 4;
+    rch.times_len = 2;
+    rch.values_len = 8;
+    rch.times = rtimes;
+    rch.values = rvals;
+    efx_anim_channel both[2] = {tch, rch};
+    efx_animation_clip turn = {"turn", 2, both};
+    rig.clips = &turn;
+    s.time = 0.25f;
+    efx_skin_evaluate(&rig, &s, 1, palette);
+    if (!feq(palette[0], 1.0f) || !feq(palette[1], 0.0f))
+        return fail("step hold");
+    s.time = 0.75f;
+    efx_skin_evaluate(&rig, &s, 1, palette);
+    /* 90 degrees about z: column 0 = (0,1,0), column 1 = (-1,0,0) */
+    if (!feq(palette[0], 0.0f) || !feq(palette[1], 1.0f) ||
+        !feq(palette[4], -1.0f) || !feq(palette[5], 0.0f))
+        return fail("step next keyframe");
+    return 0;
+}
+
+/* design D3/D4: LBS with per-vertex weight normalization */
+static int skin_lbs(void) {
+    float bind[12] = {1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1};
+    float out[12];
+    uint32_t joints[4] = {0, 1, 0, 0};
+    float palette[32];
+    memset(palette, 0, sizeof(palette));
+    palette[0] = palette[5] = palette[10] = palette[15] = 1.0f;
+    palette[12] = 1.0f; /* joint 0: T(1,0,0) */
+    palette[16] = palette[21] = palette[26] = palette[31] = 1.0f;
+    palette[16 + 13] = 2.0f; /* joint 1: T(0,2,0) */
+
+    float w[4] = {0.25f, 0.75f, 0.0f, 0.0f};
+    efx_skin_surface(bind, 1, joints, w, palette, 2, out);
+    if (!feq(out[0], 1.25f) || !feq(out[1], 2.5f) || !feq(out[2], 1.0f))
+        return fail("weighted position");
+    if (!feq(out[3], 0.0f) || !feq(out[4], 1.0f) || !feq(out[5], 0.0f))
+        return fail("weighted normal");
+
+    /* zero-sum vertex stays at bind */
+    float z[4] = {0, 0, 0, 0};
+    efx_skin_surface(bind, 1, joints, z, palette, 2, out);
+    if (!feq(out[0], 1.0f) || !feq(out[1], 1.0f)) return fail("zero-sum bind");
+
+    /* weights normalize: {1,1} behaves like {0.5,0.5} */
+    float w2[4] = {1.0f, 1.0f, 0.0f, 0.0f};
+    efx_skin_surface(bind, 1, joints, w2, palette, 2, out);
+    if (!feq(out[0], 1.5f) || !feq(out[1], 2.0f))
+        return fail("weight normalization");
+    return 0;
+}
+
+/* design D5: single sample vs weighted blend, negative weight rejected */
+static int skin_pose_blend(void) {
+    int nodes[1] = {0};
+    int parents[1] = {-1};
+    float ib[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    static float t0[3] = {0, 1, 0};
+    static float t1[3] = {0, 3, 0};
+    static float times[1] = {0.0f};
+    efx_anim_channel c0, c1;
+    memset(&c0, 0, sizeof(c0));
+    memset(&c1, 0, sizeof(c1));
+    c0.target_node = c1.target_node = 0;
+    c0.path = c1.path = EFX_ANIM_PATH_TRANSLATION;
+    c0.components = c1.components = 3;
+    c0.times_len = c1.times_len = 1;
+    c0.values_len = c1.values_len = 3;
+    c0.times = c1.times = times;
+    c0.values = t0;
+    c1.values = t1;
+    efx_animation_clip clips[2] = {{"a", 1, &c0}, {"b", 1, &c1}};
+    efx_rig rig;
+    memset(&rig, 0, sizeof(rig));
+    rig.joint_count = 1;
+    rig.joint_nodes = nodes;
+    rig.joint_parents = parents;
+    rig.inverse_bind = ib;
+    rig.clip_count = 2;
+    rig.clips = clips;
+
+    float palette[16];
+    efx_pose_sample samples[2] = {{0, 0.0f, 1.0f}, {1, 0.0f, 3.0f}};
+    if (efx_skin_evaluate(&rig, samples, 2, palette) != 0)
+        return fail("blend eval");
+    if (!feq(palette[13], 2.5f)) return fail("weighted blend value");
+
+    /* a single sample ignores its weight */
+    samples[0].weight = 100.0f;
+    efx_skin_evaluate(&rig, &samples[0], 1, palette);
+    if (!feq(palette[13], 1.0f)) return fail("single sample weight ignored");
+
+    /* negative weight rejected */
+    efx_pose_sample bad[2] = {{0, 0.0f, 1.0f}, {1, 0.0f, -0.5f}};
+    if (efx_skin_evaluate(&rig, bad, 2, palette) != -3)
+        return fail("negative weight accepted");
+    return 0;
+}
+
+/* --------------------------------------------- F7 renderer integration */
+
+static efx_rig *make_test_rig(void) {
+    efx_rig *rig = calloc(1, sizeof(efx_rig));
+    if (!rig) return NULL;
+    rig->joint_count = 1;
+    rig->joint_nodes = malloc(sizeof(int));
+    rig->joint_parents = malloc(sizeof(int));
+    rig->inverse_bind = calloc(16, sizeof(float));
+    if (!rig->joint_nodes || !rig->joint_parents || !rig->inverse_bind) {
+        efx_rig_free(rig);
+        return NULL;
+    }
+    rig->joint_nodes[0] = 0;
+    rig->joint_parents[0] = -1;
+    rig->inverse_bind[0] = rig->inverse_bind[5] = 1.0f;
+    rig->inverse_bind[10] = rig->inverse_bind[15] = 1.0f;
+
+    float *times = malloc(sizeof(float));
+    float *vals = malloc(3 * sizeof(float));
+    efx_anim_channel *ch = calloc(1, sizeof(efx_anim_channel));
+    rig->clips = calloc(1, sizeof(efx_animation_clip));
+    if (!times || !vals || !ch || !rig->clips) {
+        free(times);
+        free(vals);
+        free(ch);
+        efx_rig_free(rig);
+        return NULL;
+    }
+    times[0] = 0.0f;
+    vals[0] = 0;
+    vals[1] = 1;
+    vals[2] = 0;
+    ch->target_node = 0;
+    ch->path = EFX_ANIM_PATH_TRANSLATION;
+    ch->interpolation = EFX_ANIM_INTERP_LINEAR;
+    ch->components = 3;
+    ch->times_len = 1;
+    ch->values_len = 3;
+    ch->times = times;
+    ch->values = vals;
+    rig->clip_count = 1;
+    rig->clips[0].name = malloc(5);
+    memcpy(rig->clips[0].name, "move", 5);
+    rig->clips[0].channel_count = 1;
+    rig->clips[0].channels = ch;
+    return rig;
+}
+
+static efx_meshdata *make_skinned_mesh(void) {
+    static const float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    static const uint32_t joints[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static const float weights[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0};
+    static const uint32_t idx[3] = {0, 1, 2};
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9;
+    s.positions = pos;
+    s.joints_len = 12;
+    s.joints = joints;
+    s.weights_len = 12;
+    s.weights = weights;
+    s.indices_len = 3;
+    s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return NULL;
+    efx_rig *rig = make_test_rig();
+    if (!rig) {
+        efx_meshdata_destroy(md);
+        return NULL;
+    }
+    efx_meshdata_set_rig(md, rig);
+    return md;
+}
+
+/* design D4: posed buffers exist only for skinned meshes */
+static int mesh_skin_buffers(void) {
+    install_mock_sink();
+    efx_meshdata *md = make_skinned_mesh();
+    if (!md) return fail("skinned fixture");
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m) return fail("skinned mesh create");
+    if (!efx_render_mesh_skinned(m)) return fail("skinned flag");
+    if (!efx_render_mesh_posed(m, 0)) return fail("posed array");
+    if (efx_render_mesh_posed(m, 5)) return fail("posed out of range");
+    if (g_last_mesh_skinned_total != 1) return fail("gpu skinned surface flag");
+
+    efx_meshdata *smd = make_two_surface_mesh();
+    uint64_t sm = efx_render_mesh_create(smd);
+    efx_meshdata_destroy(smd);
+    if (!sm) return fail("static create");
+    if (efx_render_mesh_skinned(sm)) return fail("static marked skinned");
+    if (efx_render_mesh_posed(sm, 0)) return fail("static posed array");
+    if (g_last_mesh_skinned_total != 0) return fail("static gpu flag");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* design D4/D5: posing writes only the posed array; bind data is retained */
+static int mesh_pose_repose(void) {
+    install_mock_sink();
+    efx_meshdata *md = make_skinned_mesh();
+    if (!md) return fail("skinned fixture");
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m) return fail("create");
+    const float *bind = efx_render_mesh_posed(m, 0);
+    if (!bind || !feq(bind[1], 0.0f)) return fail("initial bind copy");
+
+    uint32_t rev0 = efx_render_mesh_pose_revision(m);
+    efx_pose_sample s = {0, 0.0f, 1.0f};
+    if (efx_render_mesh_pose(m, &s, 1) != EFX_RENDER_OK) return fail("pose");
+    const float *posed = efx_render_mesh_posed(m, 0);
+    if (!feq(posed[1], 1.0f)) return fail("posed vertex");
+    if (efx_render_mesh_pose_revision(m) == rev0) return fail("revision bumped");
+    /* an empty pose returns to the retained bind pose */
+    if (efx_render_mesh_pose(m, NULL, 0) != EFX_RENDER_OK) return fail("repose");
+    posed = efx_render_mesh_posed(m, 0);
+    if (!feq(posed[1], 0.0f)) return fail("bind retained");
+
+    /* rig-less mesh rejects posing and skinned drawing */
+    efx_meshdata *smd = make_two_surface_mesh();
+    uint64_t sm = efx_render_mesh_create(smd);
+    efx_meshdata_destroy(smd);
+    if (efx_render_mesh_pose(sm, &s, 1) != EFX_RENDER_ERR_HANDLE)
+        return fail("rig-less pose accepted");
+    if (efx_render_mesh_skinned(sm)) return fail("rig-less marked skinned");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* design D4: the skinned flag is snapshotted per record and validated */
+static int mesh_skinned_flag(void) {
+    install_mock_sink();
+    efx_meshdata *md = make_skinned_mesh();
+    if (!md) return fail("skinned fixture");
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    efx_meshdata *smd = make_two_surface_mesh();
+    uint64_t sm = efx_render_mesh_create(smd);
+    efx_meshdata_destroy(smd);
+
+    if (efx_render_mesh(sm, NULL, NULL, 1) != EFX_RENDER_ERR_RIG)
+        return fail("static skinned draw accepted");
+    int count = 0;
+    efx_render_records(&count);
+    if (count != 0) return fail("rejected draw recorded");
+
+    if (efx_render_mesh(m, NULL, NULL, 1) != EFX_RENDER_OK)
+        return fail("skinned draw");
+    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
+        return fail("bind draw");
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 2) return fail("record count");
+    if (recs[0].u.mesh.skinned != 1 || recs[1].u.mesh.skinned != 0)
+        return fail("skinned record flag");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* design D4: destruction releases the posed buffer and later use throws */
+static int mesh_skin_lifecycle(void) {
+    install_mock_sink();
+    efx_meshdata *md = make_skinned_mesh();
+    if (!md) return fail("skinned fixture");
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    efx_pose_sample s = {0, 0.0f, 1.0f};
+    if (efx_render_mesh_pose(m, &s, 1) != EFX_RENDER_OK) return fail("pose");
+    if (efx_render_mesh_destroy(m) != EFX_RENDER_OK) return fail("destroy");
+    if (efx_render_mesh_alive(m)) return fail("alive after destroy");
+    if (efx_render_mesh_posed(m, 0) != NULL) return fail("posed after destroy");
+    if (efx_render_mesh_pose(m, &s, 1) != EFX_RENDER_ERR_HANDLE)
+        return fail("pose after destroy");
+    efx_render_end_frame();
+    if (g_mesh_destroyed != 1) return fail("native not released");
+    efx_render_shutdown();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_render_tests <case>\n");
@@ -1613,6 +1991,14 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "post_render_scale")) return post_render_scale();
     if (!strcmp(c, "post_surface_size")) return post_surface_size();
     if (!strcmp(c, "post_user_target_raw")) return post_user_target_raw();
+    if (!strcmp(c, "skin_bind_local")) return skin_bind_local();
+    if (!strcmp(c, "skin_sampling")) return skin_sampling();
+    if (!strcmp(c, "skin_lbs")) return skin_lbs();
+    if (!strcmp(c, "skin_pose_blend")) return skin_pose_blend();
+    if (!strcmp(c, "mesh_skin_buffers")) return mesh_skin_buffers();
+    if (!strcmp(c, "mesh_pose_repose")) return mesh_pose_repose();
+    if (!strcmp(c, "mesh_skinned_flag")) return mesh_skinned_flag();
+    if (!strcmp(c, "mesh_skin_lifecycle")) return mesh_skin_lifecycle();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

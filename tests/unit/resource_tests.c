@@ -6,6 +6,7 @@
 #include "resource/image.h"
 #include "resource/resource.h"
 #include "render/render.h"
+#include "render/skin.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -562,6 +563,66 @@ static int gltf_skin_errors(void) {
     return ok ? 0 : fail("skin error taxonomy / static rig");
 }
 
+/* F7 design D7: independent CPU reference over the skin.gltf fixture — the
+ * expected posed vertices are hand-derived from the fixture's bind transforms
+ * and clips, then compared against efx_skin_evaluate + efx_skin_surface. */
+static int skin_pose_reference(void) {
+    int err = 0;
+    efx_resource *r = gltf_root(&err);
+    if (!r) return fail("open gltf dir");
+    efx_meshdata *md = gltf_import(r, "skin.gltf", NULL, &err);
+    efx_resource_close(r);
+    if (!md || err != EFX_GLTF_OK) return fail("import skin.gltf");
+    const efx_surface *s = &md->surfaces[0];
+    const efx_rig *rig = md->rig;
+    if (!rig || !s->joints || !s->weights || s->vertex_count != 4)
+        return fail("fixture rig");
+
+    /* interleaved bind layout matches the renderer (pos3 normal3 uv2 color4) */
+    float bind[4 * 12];
+    for (int v = 0; v < s->vertex_count; v++) {
+        float *d = bind + v * 12;
+        for (int k = 0; k < 3; k++) {
+            d[k] = s->positions[v * 3 + k];
+            d[3 + k] = s->normals[v * 3 + k];
+        }
+        d[6] = d[7] = 0.0f;
+        d[8] = d[9] = d[10] = d[11] = 1.0f;
+    }
+    float out[4 * 12];
+    float palette[2 * 16];
+
+    /* "move" at t=0.25: Mid translates to y=1.5, so every vertex shifts +0.5 */
+    efx_pose_sample move = {0, 0.25f, 1.0f};
+    if (efx_skin_evaluate(rig, &move, 1, palette) != 0)
+        return fail("evaluate move");
+    efx_skin_surface(bind, s->vertex_count, s->joints, s->weights, palette,
+                     rig->joint_count, out);
+    if (!feq(out[0], -1.0f) || !feq(out[1], -0.5f) || !feq(out[2], 0.0f))
+        return fail("move vertex 0");
+    if (!feq(out[36], 1.0f) || !feq(out[37], 1.5f) || !feq(out[38], 0.0f))
+        return fail("move vertex 3");
+    if (!feq(out[3], 0.0f) || !feq(out[4], 0.0f) || !feq(out[5], 1.0f))
+        return fail("move normal");
+
+    /* "turn" at t=0.75: Tip rotates 90 deg about z; its bound vertex moves
+       from (1,1,0) to (1,3,0) while Mid-bound vertices stay put */
+    efx_pose_sample turn = {1, 0.75f, 1.0f};
+    if (efx_skin_evaluate(rig, &turn, 1, palette) != 0)
+        return fail("evaluate turn");
+    efx_skin_surface(bind, s->vertex_count, s->joints, s->weights, palette,
+                     rig->joint_count, out);
+    if (!feq(out[0], -1.0f) || !feq(out[1], -1.0f)) return fail("turn v0");
+    if (!feq(out[36], 1.0f) || !feq(out[37], 3.0f) || !feq(out[38], 0.0f))
+        return fail("turn v3");
+    if (!feq(out[39], 0.0f) || !feq(out[40], 0.0f) || !feq(out[41], 1.0f))
+        return fail("turn normal");
+
+    efx_meshdata_destroy(md);
+    efx_render_shutdown();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_resource_tests <case>\n");
@@ -592,6 +653,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "gltf_skin")) return gltf_skin();
     if (!strcmp(c, "gltf_skin_u8")) return gltf_skin_u8();
     if (!strcmp(c, "gltf_skin_errors")) return gltf_skin_errors();
+    if (!strcmp(c, "skin_pose_reference")) return skin_pose_reference();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

@@ -1073,7 +1073,11 @@ static int skin_js(void) {
         "if (mesh.clips !== undefined || mesh.jointCount !== undefined ||"
         "    mesh.skeleton !== undefined)"
         "  throw new Error('no rig query property on Mesh');"
-        "if ('poseMesh' in efx) throw new Error('no poseMesh in F6c');"
+        "if (typeof efx.poseMesh !== 'function')"
+        "  throw new Error('poseMesh missing in F7');"
+        "if (efx.playAnimation !== undefined || efx.pauseAnimation !== undefined ||"
+        "    efx.blendAnimations !== undefined)"
+        "  throw new Error('no playback helper');"
         "md.destroy(); mesh.destroy();"
         "function t(fn, kind) {"
         "  try { fn(); throw new Error('did not throw'); }"
@@ -1095,6 +1099,79 @@ static int skin_js(void) {
         return fail("skin js");
     }
     end_js();
+    return 0;
+}
+
+/* F7: poseMesh + the skinned draw option over an imported rig */
+static int pose_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) return fail("runtime");
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_RES_FIXTURES "/gltf", &err);
+    if (!res) {
+        end_js();
+        return fail("open gltf fixtures");
+    }
+    efx_runtime_set_resource(g_rt, res);
+    const char *code =
+        "function kind(fn) { try { fn(); } catch (e) {"
+        "  if (e instanceof TypeError) return 'TypeError';"
+        "  if (e instanceof RangeError) return 'RangeError';"
+        "  if (e instanceof Error) return 'Error'; return 'other'; } return 'none'; }"
+        "var md = efx.loadMeshData('skin.gltf');"
+        "var mesh = efx.createMesh(md); md.destroy();"
+        "if (mesh.clips !== undefined || mesh.jointCount !== undefined)"
+        "  throw new Error('rig must stay opaque');"
+        "efx.poseMesh(mesh, { clip: 'move', time: 0.25 });"
+        "efx.poseMesh(mesh, { clip: 0, time: 0.5 });"
+        "efx.poseMesh(mesh, [{ clip: 'move', time: 0.1, weight: 1 },"
+        "                    { clip: 'turn', time: 0.6, weight: 2 }]);"
+        "efx.poseMesh(mesh, { clip: 'move', time: 5.5 });"
+        "if (kind(function () { efx.poseMesh(mesh, { clip: 'nope', time: 0 }); }) !== 'Error')"
+        "  throw new Error('unknown clip name');"
+        "if (kind(function () { efx.poseMesh(mesh, { clip: 9, time: 0 }); }) !== 'RangeError')"
+        "  throw new Error('clip index range');"
+        "if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 0, weight: -1 }); }) !== 'RangeError')"
+        "  throw new Error('negative weight');"
+        "if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 0, bogus: 1 }); }) !== 'TypeError')"
+        "  throw new Error('unknown sample field');"
+        "if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 'x' }); }) !== 'TypeError')"
+        "  throw new Error('time type');"
+        "if (kind(function () { efx.poseMesh(mesh, { clip: {}, time: 0 }); }) !== 'TypeError')"
+        "  throw new Error('clip type');"
+        "if (kind(function () { efx.poseMesh(mesh, 5); }) !== 'TypeError')"
+        "  throw new Error('pose type');"
+        "efx.drawMesh(mesh, { skinned: true });"
+        "efx.drawMesh(mesh);"
+        "if (kind(function () { efx.drawMesh(mesh, { skinned: 1 }); }) !== 'TypeError')"
+        "  throw new Error('skinned type');"
+        "if (kind(function () { efx.drawMesh(mesh, { bogus: 1 }); }) !== 'TypeError')"
+        "  throw new Error('draw unknown field');"
+        "var plain = efx.createMesh(efx.createMeshData({"
+        "  positions: [0,0,0, 1,0,0, 0,1,0], indices: [0,1,2] }));"
+        "if (kind(function () { efx.poseMesh(plain, { clip: 0, time: 0 }); }) !== 'TypeError')"
+        "  throw new Error('rig-less pose');"
+        "if (kind(function () { efx.drawMesh(plain, { skinned: true }); }) !== 'TypeError')"
+        "  throw new Error('rig-less skinned draw');"
+        "plain.destroy(); mesh.destroy();";
+    int rc = efx_runtime_eval_string(g_rt, "test", code);
+    int n = 0;
+    const efx_record *recs = efx_render_records(&n);
+    int ok = rc == 0 && n >= 2 &&
+             recs[n - 2].type == EFX_RECORD_MESH &&
+             recs[n - 2].u.mesh.skinned == 1 &&
+             recs[n - 1].type == EFX_RECORD_MESH &&
+             recs[n - 1].u.mesh.skinned == 0;
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_resource_close(res);
+    if (!ok) return fail("pose js");
     return 0;
 }
 
@@ -1159,6 +1236,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "createTexture_js")) return createTexture_js();
     if (!strcmp(c, "gltf_js")) return gltf_js();
     if (!strcmp(c, "skin_js")) return skin_js();
+    if (!strcmp(c, "pose_js")) return pose_js();
     if (!strcmp(c, "repl_eval")) return repl_eval();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
