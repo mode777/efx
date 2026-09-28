@@ -20,8 +20,8 @@
 
 ## 4. Tests
 
-- [ ] 4.1 Add committed native player smoke tests in `tests/CMakeLists.txt` (mirroring `smoke_6a_root_zip`) that run each gallery sample with `--script <sample>.js --root <sample>.zip` and `EXPECT 0`. These are player tests, so they register only in a display-capable (non-headless) build; verify `ctest -R showcase` passes on the verification server.
-- [ ] 4.2 Run the gallery smoke against the built site (`node tools/run_gallery_smoke.mjs` with `CHROME_SHELL_PATH` set) and confirm no console errors, including for the two new samples. Verify it prints `gallery smoke PASSED`.
+- [x] 4.1 Add committed native player smoke tests in `tests/CMakeLists.txt` (mirroring `smoke_6a_root_zip`) that run each gallery sample with `--script <sample>.js --root <sample>.zip` and `EXPECT 0`. These are player tests, so they register only in a display-capable (non-headless) build; verify `ctest -R showcase` passes on the verification server.
+- [x] 4.2 Run the gallery smoke against the built site (`node tools/run_gallery_smoke.mjs` with `CHROME_SHELL_PATH` set) and confirm no console errors, including for the two new samples. Verify it prints `gallery smoke PASSED`.
 
 ## 5. Documentation
 
@@ -30,6 +30,6 @@
 ## 6. Verification
 
 - [x] 6.1 Build the gallery (`npm --prefix gallery ci && npm --prefix gallery run build`) and confirm the new samples and their zips are in `gallery/dist/`. Verify the build succeeds and `gallery/dist/samples/` contains both zips.
-- [ ] 6.2 Run the native ctest smoke suite (including the new showcase player tests, which need a display) on the verification server, plus the headless unit suite locally. Verify all pass.
-- [ ] 6.3 Run `python3 tools/verify_remote.py all <branch>` on the verification server and confirm the native suites, web goldens, gallery smoke, and cross-runtime compare are green.
+- [x] 6.2 Run the native ctest smoke suite (including the new showcase player tests, which need a display) on the verification server, plus the headless unit suite locally. Verify all pass.
+- [x] 6.3 Run `python3 tools/verify_remote.py all <branch>` on the verification server and confirm the native suites, web goldens, gallery smoke, and cross-runtime compare are green.
 - [ ] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) only after 6.3 is green, and confirm all four targets pass.
