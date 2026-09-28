@@ -6,6 +6,7 @@ efx.setCamera2D({ frame: [640, 480] });
 
 var font = efx.createFont(efx.loadFontData('font.ttf'), {
     size: 56,
+    filter: 'nearest',
     outline: { width: 3 },
     shadow: { blur: 4, offset: [4, 4] },
 });

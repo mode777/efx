@@ -6,7 +6,7 @@
 efx.setClearColor([0.08, 0.09, 0.12, 1]);
 efx.setCamera2D({ frame: [640, 480] });
 
-var font = efx.createFont(efx.loadFontData('font.ttf'), { size: 32 });
+var font = efx.createFont(efx.loadFontData('font.ttf'), { size: 32, filter: 'nearest' });
 
 efx.registerRenderHook(function () {
     efx.drawText('EmotionFX', font, 20, 16, { color: [1, 1, 1, 1] });
