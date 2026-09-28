@@ -24,14 +24,16 @@ static int fail(const char *what) {
 #define GLTF_SEQ_MAX 8
 static int g_seq_wrap[GLTF_SEQ_MAX];
 static int g_seq_filter[GLTF_SEQ_MAX];
+static int g_seq_mipmaps[GLTF_SEQ_MAX];
 static int g_seq_n;
 
 static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
-                         int wrap, int filter) {
+                         int wrap, int filter, int mipmaps) {
     (void)ud; (void)rgba;
     if (g_seq_n < GLTF_SEQ_MAX) {
         g_seq_wrap[g_seq_n] = wrap;
         g_seq_filter[g_seq_n] = filter;
+        g_seq_mipmaps[g_seq_n] = mipmaps;
     }
     g_seq_n++;
     return malloc((size_t)(w * h * 4 > 0 ? w * h * 4 : 1));
@@ -939,8 +941,9 @@ static int resource_js(void) {
         "if (img.width !== 3 || img.height !== 2) throw new Error('dims');"
         "var px = efx.createTexture(img);"
         "if (px.width !== 3 || px.height !== 2) throw new Error('tex dims');"
-        "var lt = efx.loadTexture('test_rgba.png');"
-        "if (lt.width !== 3 || lt.height !== 2) throw new Error('loadTexture dims');"
+        "var lt = efx.createTexture(efx.loadImage('test_rgba.png'));"
+        "if (lt.width !== 3 || lt.height !== 2) throw new Error('composed tex dims');"
+        "if (typeof efx.loadTexture !== 'undefined') throw new Error('loadTexture still present');"
         "img.destroy(); px.destroy(); lt.destroy();"
         "var e1 = 0; try { efx.loadText('nope.txt'); } catch (e) {"
         "  e1 = (e instanceof Error) ? 1 : 2; }"
@@ -957,7 +960,7 @@ static int resource_js(void) {
     return 0;
 }
 
-/* F6b: createTexture sampler options reach the native texture create */
+/* F6b/F6e: createTexture sampler + mipmap options reach the native create */
 static int createTexture_js(void) {
     const char *code =
         "var img = efx.createImageData({ width: 1, height: 1,"
@@ -965,6 +968,8 @@ static int createTexture_js(void) {
         "efx.createTexture(img);"
         "efx.createTexture(img, { wrap: 'clamp', filter: 'nearest' });"
         "efx.createTexture(img, { wrap: 'mirror', filter: 'nearest' });"
+        "efx.createTexture(img, { mipmaps: true });"
+        "efx.createTexture(img, { mipmaps: false, filter: 'nearest' });"
         "function boom(fn) { try { fn(); } catch (e) {"
         "  return (e instanceof TypeError) ? 1 : 2; } return 0; }"
         "if (boom(function () { efx.createTexture(img, { wrap: 'bogus' }); }) !== 1)"
@@ -972,21 +977,28 @@ static int createTexture_js(void) {
         "if (boom(function () { efx.createTexture(img, { filter: 'bogus' }); }) !== 1)"
         "  throw new Error('bad filter');"
         "if (boom(function () { efx.createTexture(img, { nope: 1 }); }) !== 1)"
-        "  throw new Error('unknown field');";
+        "  throw new Error('unknown field');"
+        "if (boom(function () { efx.createTexture(img, { mipmaps: 'yes' }); }) !== 1)"
+        "  throw new Error('non-boolean mipmaps');";
     g_seq_n = 0;
     if (ok_js(code)) {
         end_js();
         return fail("createTexture options snippet");
     }
-    int ok = g_seq_n == 3 &&
+    int ok = g_seq_n == 5 &&
              g_seq_wrap[0] == EFX_TEX_WRAP_REPEAT &&
              g_seq_filter[0] == EFX_FILTER_LINEAR &&
+             g_seq_mipmaps[0] == 0 &&
              g_seq_wrap[1] == EFX_TEX_WRAP_CLAMP &&
              g_seq_filter[1] == EFX_FILTER_NEAREST &&
              g_seq_wrap[2] == EFX_TEX_WRAP_MIRROR &&
-             g_seq_filter[2] == EFX_FILTER_NEAREST;
+             g_seq_filter[2] == EFX_FILTER_NEAREST &&
+             g_seq_mipmaps[3] == 1 &&
+             g_seq_filter[3] == EFX_FILTER_LINEAR &&
+             g_seq_mipmaps[4] == 0 &&
+             g_seq_filter[4] == EFX_FILTER_NEAREST;
     end_js();
-    return ok ? 0 : fail("createTexture sampler option mapping");
+    return ok ? 0 : fail("createTexture sampler/mipmap option mapping");
 }
 
 /* F6b: loadMeshData imports a fixture and wires createMesh */

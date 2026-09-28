@@ -37,6 +37,7 @@ typedef struct {
     sg_image img;
     sg_view view;
     int wrap, filter; /* F6b per-texture sampler state */
+    int mipmaps;      /* F6e: image carries a generated mip chain */
 } pipe_tex;
 
 /* F5a offscreen render target: env-default color+depth attachments plus a
@@ -72,7 +73,8 @@ typedef struct {
     sg_pipeline post_pip[6];
     sg_sampler smp;
     sg_sampler smp_nearest; /* render-scale nearest blit */
-    sg_sampler tex_smp[3][2]; /* F6b per-texture samplers, cached by (wrap,filter) */
+    sg_sampler tex_smp[3][2][2]; /* F6b/F6e per-texture samplers, cached by
+                                    (wrap, filter, mipmaps) */
     sg_view white_view; /* engine white texture, used for absent F4b maps */
     sg_buffer vbuf;
     size_t vbuf_size;       /* bytes; grown on demand (dynamic quad batch) */
@@ -119,21 +121,109 @@ typedef struct {
 
 #include "sokol_glue.h" /* sglue_swapchain + sglue_environment (impl in platform.c) */
 
+/* F6e: number of mip levels for a full chain down to 1x1, driven by the
+ * larger dimension (NPOT levels floor each step: max(1, n/2)) */
+static int mip_level_count(int w, int h) {
+    int n = w > h ? w : h;
+    int count = 1;
+    while (n > 1) {
+        n >>= 1;
+        count++;
+    }
+    return count;
+}
+
+/* F6e: 2x2 box-filter the chain on the CPU (deterministic across backends).
+ * Level 0 aliases the caller's pixels; levels 1.. fill owned pointers that
+ * the caller frees once sg_make_image has copied them. */
+static void build_mip_chain(int w, int h, int levels, const uint8_t *rgba,
+                            sg_image_data *data, uint8_t **owned) {
+    data->mip_levels[0].ptr = rgba;
+    data->mip_levels[0].size = (size_t)w * h * 4;
+    const uint8_t *src = rgba;
+    int cw = w, ch = h;
+    for (int l = 1; l < levels; l++) {
+        int nw = cw > 1 ? cw / 2 : 1;
+        int nh = ch > 1 ? ch / 2 : 1;
+        uint8_t *dst = malloc((size_t)nw * nh * 4);
+        if (!dst) {
+            owned[l] = NULL;
+            return;
+        }
+        for (int y = 0; y < nh; y++) {
+            for (int x = 0; x < nw; x++) {
+                for (int c = 0; c < 4; c++) {
+                    int sum = 0, cnt = 0;
+                    for (int yy = y * 2; yy <= y * 2 + 1; yy++) {
+                        if (yy >= ch) break;
+                        for (int xx = x * 2; xx <= x * 2 + 1; xx++) {
+                            if (xx >= cw) break;
+                            sum += src[((size_t)yy * cw + xx) * 4 + c];
+                            cnt++;
+                        }
+                    }
+                    dst[((size_t)y * nw + x) * 4 + c] =
+                        (uint8_t)((sum + cnt / 2) / cnt);
+                }
+            }
+        }
+        data->mip_levels[l].ptr = dst;
+        data->mip_levels[l].size = (size_t)nw * nh * 4;
+        owned[l] = dst;
+        src = dst;
+        cw = nw;
+        ch = nh;
+    }
+}
+
 static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba,
-                                 int wrap, int filter) {
+                                 int wrap, int filter, int mipmaps) {
     (void)ud;
     pipe_tex *t = calloc(1, sizeof(pipe_tex));
+    if (!t) {
+        return NULL;
+    }
+    sg_image_data data;
+    memset(&data, 0, sizeof(data));
+    uint8_t *owned[SG_MAX_MIPMAPS];
+    memset(owned, 0, sizeof(owned));
+    int levels = 1;
+    if (mipmaps && rgba && (w > 1 || h > 1)) {
+        levels = mip_level_count(w, h);
+        if (levels > SG_MAX_MIPMAPS) {
+            levels = SG_MAX_MIPMAPS;
+        }
+        build_mip_chain(w, h, levels, rgba, &data, owned);
+        /* a failed level allocation degrades to the levels built so far */
+        for (int l = 1; l < levels; l++) {
+            if (!owned[l]) {
+                levels = l;
+                break;
+            }
+        }
+        if (levels < 1) {
+            levels = 1;
+        }
+    } else {
+        data.mip_levels[0].ptr = rgba;
+        data.mip_levels[0].size = (size_t)w * h * 4;
+    }
     t->img = sg_make_image(&(sg_image_desc){
         .width = w,
         .height = h,
+        .num_mipmaps = levels,
         .pixel_format = SG_PIXELFORMAT_RGBA8,
-        .data = {.mip_levels[0] = {.ptr = rgba, .size = (size_t)w * h * 4}},
+        .data = data,
     });
+    for (int l = 1; l < levels; l++) {
+        free(owned[l]);
+    }
     t->view = sg_make_view(&(sg_view_desc){
         .texture.image = t->img,
     });
     t->wrap = wrap;
     t->filter = filter;
+    t->mipmaps = levels > 1 ? 1 : 0;
     return t;
 }
 
@@ -529,32 +619,38 @@ static sg_view view_for_handle(uint64_t h) {
     return rt ? rt->color_tex : (sg_view){0};
 }
 
-/* F6b: get-or-create the cached sampler for a (wrap, filter) pair */
-static sg_sampler tex_sampler(int wrap, int filter) {
+/* F6b/F6e: get-or-create the cached sampler for a (wrap, filter, mipmaps) set */
+static sg_sampler tex_sampler(int wrap, int filter, int mipmaps) {
     if (wrap < 0 || wrap > 2) {
         wrap = EFX_TEX_WRAP_REPEAT;
     }
     if (filter != EFX_FILTER_NEAREST && filter != EFX_FILTER_LINEAR) {
         filter = EFX_FILTER_LINEAR;
     }
-    if (P.tex_smp[wrap][filter].id == SG_INVALID_ID) {
+    mipmaps = mipmaps ? 1 : 0;
+    if (P.tex_smp[wrap][filter][mipmaps].id == SG_INVALID_ID) {
         sg_filter f = filter == EFX_FILTER_NEAREST ? SG_FILTER_NEAREST
                                                    : SG_FILTER_LINEAR;
         sg_wrap w = wrap == EFX_TEX_WRAP_CLAMP
                         ? SG_WRAP_CLAMP_TO_EDGE
                         : wrap == EFX_TEX_WRAP_MIRROR ? SG_WRAP_MIRRORED_REPEAT
                                                       : SG_WRAP_REPEAT;
-        P.tex_smp[wrap][filter] = sg_make_sampler(&(sg_sampler_desc){
-            .min_filter = f, .mag_filter = f, .wrap_u = w, .wrap_v = w});
+        P.tex_smp[wrap][filter][mipmaps] = sg_make_sampler(&(sg_sampler_desc){
+            .min_filter = f,
+            .mag_filter = f,
+            .mipmap_filter = mipmaps ? f : SG_FILTER_NEAREST,
+            .wrap_u = w,
+            .wrap_v = w,
+        });
     }
-    return P.tex_smp[wrap][filter];
+    return P.tex_smp[wrap][filter][mipmaps];
 }
 
 /* per-sample sampler: a texture's own sampler, or the default for absent
  * maps / render targets / non-texture handles */
 static sg_sampler sampler_for_handle(uint64_t h) {
     pipe_tex *t = (pipe_tex *)efx_render_texture_native(h);
-    return t ? tex_sampler(t->wrap, t->filter) : P.smp;
+    return t ? tex_sampler(t->wrap, t->filter, t->mipmaps) : P.smp;
 }
 
 static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) {
@@ -1017,8 +1113,10 @@ void efx_pipeline_shutdown(void) {
     sg_destroy_sampler(P.smp_nearest);
     for (int w = 0; w < 3; w++) {
         for (int f = 0; f < 2; f++) {
-            if (P.tex_smp[w][f].id != SG_INVALID_ID) {
-                sg_destroy_sampler(P.tex_smp[w][f]);
+            for (int m = 0; m < 2; m++) {
+                if (P.tex_smp[w][f][m].id != SG_INVALID_ID) {
+                    sg_destroy_sampler(P.tex_smp[w][f][m]);
+                }
             }
         }
     }

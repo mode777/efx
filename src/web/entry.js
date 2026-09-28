@@ -811,12 +811,12 @@ function __efxEnsureApi() {
                 throw new TypeError('createTexture requires an ImageData');
             }
             var d = liveImageData(imageData);
-            var wrap = 0, filter = 1;
+            var wrap = 0, filter = 1, mipmaps = 0;
             if (arguments.length >= 2 && opts !== undefined && opts !== null) {
                 if (!__efxIsObject(opts)) {
                     throw new TypeError('createTexture options must be an object');
                 }
-                var known = { wrap: 1, filter: 1 };
+                var known = { wrap: 1, filter: 1, mipmaps: 1 };
                 var names = Object.getOwnPropertyNames(opts);
                 for (var i = 0; i < names.length; i++) {
                     if (!known[names[i]]) {
@@ -845,8 +845,15 @@ function __efxEnsureApi() {
                         throw new TypeError('unknown filter');
                     }
                 }
+                if (opts['mipmaps'] !== undefined) {
+                    if (typeof opts['mipmaps'] !== 'boolean') {
+                        throw new TypeError('mipmaps must be a boolean');
+                    }
+                    mipmaps = opts['mipmaps'] ? 1 : 0;
+                }
             }
-            var handle = bridge['_efx_bridge_texture_create'](d.__id, wrap, filter);
+            var handle = bridge['_efx_bridge_texture_create'](d.__id, wrap, filter,
+                                                              mipmaps);
             if (!handle) {
                 throw new Error('texture upload failed (no GPU context?)');
             }

@@ -45,6 +45,7 @@ directory holds only what stays true after a change is archived.
 | [0031](0031-resource-loading-provider.md) | Accepted | F6a resources load through one pure-C dir/zip provider; the web fetches a single zip once at boot, then the script-facing `load*` API stays synchronous everywhere |
 | [0032](0032-gltf-import-profile.md) | Accepted | F6b pins the glTF 2.0 static-import profile: cgltf, provider-resolved `.glb`/`.gltf` references, one mesh (no scene graph), a fixed PBR→Phong mapping, per-texture samplers, and a fail-on-`extensionsRequired` policy |
 | [0033](0033-gltf-rig-payload.md) | Accepted | F6c imports glTF skins/clips as CPU-only per-surface joints/weights plus an opaque MeshData→Mesh rig payload (LINEAR/STEP exact, CUBICSPLINE→LINEAR); no script rig API |
+| [0034](0034-texture-mipmaps.md) | Accepted | F6e adds an opt-in `mipmaps` texture option: a deterministic CPU 2×2 box-filter chain uploaded in one image, with the sampler's `mipmap_filter` driven by `filter`; removes the `loadTexture` convenience |
 
 ## Adding a decision
 

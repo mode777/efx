@@ -149,7 +149,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive; ADR 0024); skinned meshes add `joints`/`weights` per surface (F6c, glTF-style) | Native class | CPU | F3 | `createMeshData` / `loadMeshData` (F6); read-only `surfaceCount` |
 | ImageData | Raw pixels + size + format | Native class | CPU | F2 | `createImageData` / `loadImage` (F6a); read-only `width` / `height` (throw `TypeError` when destroyed) |
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally (F6c, ADR 0017/0033); per-surface material binding slot (active from F4a) | Native class | GPU | F3 | `createMesh(meshData)`; `mesh.destroy()`; read-only `surfaceCount` |
-| Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData, opts?)` (`opts.wrap`/`opts.filter`, F6b); `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
+| Texture | GPU texture | Native class | GPU | F2 | `createTexture(imageData, opts?)` (`opts.wrap`/`opts.filter`/`opts.mipmaps`, F6b/F6e); `tex.destroy()`; read-only `tex.width` / `tex.height` (texture pixels; throw `TypeError` when destroyed); `efx.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
 | Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | F5b | Plain objects snapshotted at `setPostEffects` call time; no native handle and no `destroy()`. The native passes they drive are engine-owned and never script-visible (ADR 0029) |
@@ -284,7 +284,8 @@ y pointing **down**, angles in degrees measured clockwise.
 efx.setClearColor(color)          // [r,g,b,a]; frame clear color (default black)
 efx.setCamera2D(opts)             // { frame?, x?, y?, zoom?, rotation? }
 efx.createImageData(opts)         // → ImageData; { width, height, pixels, format? = 'rgba8' }
-efx.createTexture(imageData)      // → Texture; uploads CPU → GPU
+efx.createTexture(imageData, opts?)  // → Texture; uploads CPU → GPU
+                                    // opts: { wrap?, filter?, mipmaps? }
 efx.drawQuad(x, y, texture, opts?)  // required texture — a live Texture or RenderTarget (F5a); opts below
 efx.setBlendMode(mode)            // 'alpha' (default) | 'additive' | 'subtractive'
 efx.whiteTexture                  // engine-owned 1×1 white Texture (read-only)
@@ -336,9 +337,13 @@ rotation })`:
 **Resources** — `createImageData({ width, height, pixels, format? })`
 builds CPU pixels: `pixels` is a flat array or typed array of RGBA8 bytes,
 length exactly `width × height × 4` (else `RangeError`); `format` is
-`'rgba8'` (the only format in F2). `createTexture(imageData)` uploads to a
-GPU Texture — both are opaque native-backed classes: `destroy()` releases
-deterministically, is idempotent, and using a destroyed resource throws. A
+`'rgba8'` (the only format in F2). `createTexture(imageData, { wrap,
+filter, mipmaps })` uploads to a GPU Texture — both are opaque
+native-backed classes: `destroy()` releases
+deterministically, is idempotent, and using a destroyed resource throws.
+`wrap` (`'repeat'` default, `'clamp'`, `'mirror'`) and `filter`
+(`'linear'` default, `'nearest'`) select the sampler; `mipmaps` (boolean,
+default `false`, F6e) builds and uses a full mip chain. A
 live Texture also exposes read-only `width` / `height` (its pixel size —
 the same values `drawQuad` derives from); reading either on a destroyed
 texture throws `TypeError`.
@@ -763,9 +768,8 @@ by a host asset-root URL.
 // F6a · C · current — desktop binding `C · quickjs`, web binding `C · bridge`; identical semantics
 efx.loadText(path)        // → string (UTF-8)
 efx.loadImage(path)       // → ImageData (PNG/JPEG decoded to rgba8)
-
-// F6a · JS · current — convenience composition on the public C layer
-efx.loadTexture(path)     // → Texture (createTexture(loadImage(path)))
+// A texture is the composed flow (F6e): no loadTexture convenience exists.
+efx.createTexture(efx.loadImage(path), opts?) // → Texture
 ```
 
 - `path` is a non-empty string; a non-string throws `TypeError`. A missing,
@@ -782,7 +786,8 @@ efx.loadTexture(path)     // → Texture (createTexture(loadImage(path)))
 
 ```js
 // main.js — F6a sample (current API)
-const tex = efx.loadTexture('images/logo.png');
+const tex = efx.createTexture(efx.loadImage('images/logo.png'),
+                              { mipmaps: true });
 efx.log(efx.loadText('data/welcome.txt'));
 efx.setCamera2D({ frame: [640, 480] });
 
@@ -804,7 +809,8 @@ is pinned by ADR 0032.
 efx.loadMeshData(path, opts?)   // → MeshData — one surface per glTF primitive of
                                 //   the selected mesh; materials converted and bound
 efx.createTexture(imageData, opts?) // opts: { wrap?: 'repeat'|'clamp'|'mirror',
-                                    //         filter?: 'linear'|'nearest' }
+                                    //         filter?: 'linear'|'nearest',
+                                    //         mipmaps?: boolean }
 ```
 
 - `path` is a non-empty string; a non-string throws `TypeError`. A missing,
@@ -821,8 +827,11 @@ efx.createTexture(imageData, opts?) // opts: { wrap?: 'repeat'|'clamp'|'mirror',
   surface; a primitive with no material uses the engine default. Occlusion and
   normal textures are ignored. Node/scene transforms are not applied.
 - `createTexture`'s optional `opts.wrap` defaults to `'repeat'` and
-  `opts.filter` to `'linear'`; an unknown field or value throws `TypeError`.
-  glTF samplers map onto these.
+  `opts.filter` to `'linear'`; `opts.mipmaps` (boolean, default `false`,
+  F6e) builds and uses a full mip chain, with the chosen `filter` driving
+  the mipmap filter. An unknown field or value throws `TypeError`.
+  glTF samplers map onto `wrap`/`filter` (imported textures get no mip
+  chain).
 
 ```js
 // main.js — F6 sample (current API)

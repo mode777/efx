@@ -1,7 +1,8 @@
 // A real CC0 paving-stone texture (ambientCG "PavingStones070", CC0 1.0)
 // loaded from this sample's asset pack. It is shown full and cropped with
 // sourceRect in the 2D HUD, and tiled across a 3D ground plane and a spinning
-// cube through the texture's default repeat sampler.
+// cube through the texture's default repeat sampler; the mip chain keeps the
+// tiled, minified ground from aliasing.
 efx.setClearColor([0.04, 0.05, 0.08, 1]);
 
 // The 2D frame drives drawQuad and the 3D camera drives drawMesh; the renderer
@@ -12,7 +13,8 @@ efx.setCamera3D({ pos: [3.4, 2.8, 4.6], target: [0, 0.3, 0], fov: 55 });
 efx.setLight(0, { pos: [4.0, 6.0, 3.5], color: [1, 0.96, 0.9, 1], range: 40 });
 efx.setDirectionalLight({ dir: [-0.4, -0.9, -0.4], color: [0.2, 0.22, 0.3, 1] });
 
-const tex = efx.loadTexture('paving_color.jpg');
+const tex = efx.createTexture(efx.loadImage('paving_color.jpg'),
+                              { mipmaps: true });
 
 // Ground plane whose UVs run 0..6, so the repeat sampler tiles the texture.
 const ground = efx.createMesh(efx.createMeshData({

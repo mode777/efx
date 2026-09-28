@@ -170,6 +170,7 @@ interface RenderScaleOptions {
 interface TextureOptions {
   wrap?: 'repeat' | 'clamp' | 'mirror';
   filter?: 'linear' | 'nearest';
+  mipmaps?: boolean;
 }
 
 interface LoadMeshDataOptions {
@@ -250,7 +251,7 @@ interface Efx {
   // F6a — resource loading (paths relative to the resource root)
   loadText(path: string): string;
   loadImage(path: string): EfxImageData;
-  loadTexture(path: string): EfxTexture;
+  // A texture is composed: createTexture(loadImage(path), opts) — no loader.
 
   // F6b — glTF 2.0 static import
   loadMeshData(path: string, opts?: LoadMeshDataOptions): EfxMeshData;

@@ -372,7 +372,7 @@ static uint64_t ctx_texture(gltf_ctx *c, const cgltf_texture *t) {
         return 0;
     }
     uint64_t h = efx_render_texture_create(img->width, img->height,
-                                           img->pixels, wrap, filter);
+                                           img->pixels, wrap, filter, 0);
     if (!h) {
         c->err = EFX_GLTF_ERR_NOMEM;
         return 0;

@@ -1024,12 +1024,13 @@ JSValue efx_js_createTexture(JSContext *ctx, JSValueConst this_val, int argc, JS
     }
     int wrap = EFX_TEX_WRAP_REPEAT;
     int filter = EFX_FILTER_LINEAR;
+    int mipmaps = 0;
     if (argc >= 2 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
         if (!JS_IsObject(argv[1])) {
             return type_error(ctx, "createTexture options must be an object");
         }
-        static const char *known[] = {"wrap", "filter"};
-        if (check_known_fields(ctx, argv[1], known, 2, "createTexture") != 0) {
+        static const char *known[] = {"wrap", "filter", "mipmaps"};
+        if (check_known_fields(ctx, argv[1], known, 3, "createTexture") != 0) {
             return JS_EXCEPTION;
         }
         JSValue wv = JS_GetPropertyStr(ctx, argv[1], "wrap");
@@ -1072,9 +1073,18 @@ JSValue efx_js_createTexture(JSContext *ctx, JSValueConst this_val, int argc, JS
             JS_FreeCString(ctx, s);
         }
         JS_FreeValue(ctx, fv);
+        JSValue mv = JS_GetPropertyStr(ctx, argv[1], "mipmaps");
+        if (!JS_IsUndefined(mv)) {
+            if (!JS_IsBool(mv)) {
+                JS_FreeValue(ctx, mv);
+                return type_error(ctx, "mipmaps must be a boolean");
+            }
+            mipmaps = JS_ToBool(ctx, mv) ? 1 : 0;
+        }
+        JS_FreeValue(ctx, mv);
     }
     uint64_t handle = efx_render_texture_create(d->w, d->h, d->pixels, wrap,
-                                                filter);
+                                                filter, mipmaps);
     if (!handle) {
         return generic_error(ctx, "texture upload failed (no GPU context?)");
     }
