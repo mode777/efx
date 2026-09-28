@@ -131,6 +131,7 @@ else()
     add_executable(player
         src/main.c
         src/player/player.c
+        src/player/repl.c
     )
 endif()
 target_link_libraries(player PRIVATE efx_core efx_platform)
@@ -199,6 +200,9 @@ elseif(WIN32)
     target_compile_definitions(player PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(efx_platform PRIVATE d3d11 dxgi uuid user32 gdi32 shell32)
 elseif(UNIX)
+    # the REPL polls stdin with poll(2)/read(2) (design D1); strict C11
+    # hides them without the POSIX feature macro
+    target_compile_definitions(player PRIVATE _POSIX_C_SOURCE=200809L)
     find_path(EFX_X11_INCLUDE_DIR X11/Xlib.h REQUIRED)
     find_library(EFX_X11_LIBRARY X11 REQUIRED)
     find_library(EFX_XI_LIBRARY Xi REQUIRED)
@@ -337,6 +341,7 @@ if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)
     add_executable(efx_dev_harness
         tests/dev_harness.c
         src/player/player.c
+        src/player/repl.c
     )
     target_link_libraries(efx_dev_harness PRIVATE efx_core efx_platform)
     if(MSVC)
@@ -344,5 +349,8 @@ if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)
         target_compile_options(efx_dev_harness PRIVATE /W4 /WX)
     else()
         target_compile_options(efx_dev_harness PRIVATE -Wall -Wextra -Werror)
+        if(UNIX)
+            target_compile_definitions(efx_dev_harness PRIVATE _POSIX_C_SOURCE=200809L)
+        endif()
     endif()
 endif()

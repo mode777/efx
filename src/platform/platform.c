@@ -14,6 +14,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(__APPLE__)
+#include <unistd.h> /* _exit */
+#endif
+
 #include "platform/platform.h"
 #include "platform/pipeline.h"
 #include "platform/capture.h"
@@ -30,6 +34,7 @@
 static efx_frame_hooks g_hooks;
 static efx_platform_capture g_capture;
 static int g_frame;
+static int g_exit_code;
 
 #ifdef SOKOL_METAL
 /* capture pass renders into an injected Managed texture instead of the
@@ -140,6 +145,12 @@ static void efx_frame_cb(void) {
     efx_render_begin_frame();
     efx_render_set_viewport(sapp_width(), sapp_height());
     if (g_hooks.on_frame && g_hooks.on_frame(g_hooks.ud, dt)) {
+#if defined(__APPLE__)
+        /* macOS: sokol's [NSApp run] never returns (AppKit terminates the
+           process). Exit here with the recorded code so a windowed
+           efx.quit(n)/REPL quit keeps its exit status instead of 0. */
+        _exit(g_exit_code);
+#endif
         sapp_quit();
         return;
     }
@@ -212,8 +223,13 @@ static void efx_cleanup_cb(void) {
 #endif
 }
 
+void efx_platform_set_exit_code(int code) {
+    g_exit_code = code;
+}
+
 int efx_platform_run(const efx_platform_desc *desc, efx_frame_hooks hooks) {
     g_hooks = hooks;
+    g_exit_code = 0;
     memset(&g_capture, 0, sizeof(g_capture));
     if (desc) {
         g_capture = desc->capture;

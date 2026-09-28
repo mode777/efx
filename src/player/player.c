@@ -1,4 +1,5 @@
 #include "player/player.h"
+#include "player/repl.h"
 #include "runtime/runtime.h"
 #include "platform/platform.h"
 #include "render/render.h"
@@ -23,6 +24,7 @@ static int usage(void) {
             "  player <resource-root>            run a resource folder or zip\n"
             "  player --script <file> [--root <dir|zip>] [args...]\n"
             "                                    run a single script headless\n"
+            "  player --repl [<root>]            interactive console (desktop)\n"
             "  player --capture-frame <N> --capture-output <file> <resource-root>\n"
             "                                    render N frames, write PNG, exit (golden tests)\n");
     return 1;
@@ -104,28 +106,68 @@ static int run_script_mode(const char *path, const char *root_override,
     return exit_code;
 }
 
+/* F6d interactive console: validate/open the optional root, then hand off to
+ * the windowed REPL loop. The root is borrowed by the runtime and released
+ * only after the platform teardown. */
+static int run_repl_mode(const char *root) {
+    efx_resource *res = NULL;
+    if (root) {
+        if (!is_dir(root) && !is_file(root)) {
+            fprintf(stderr, "player: resource root is not a directory: %s\n", root);
+            return 1;
+        }
+        int e = EFX_RESOURCE_OK;
+        res = efx_resource_open(root, &e);
+        if (!res) {
+            fprintf(stderr, "player: cannot open resource root: %s\n", root);
+            return 1;
+        }
+    }
+    int rc = efx_repl_run(res);
+    efx_resource_close(res);
+    return rc;
+}
+
+/* signal the frame loop to stop, recording the intended exit code first
+ * (macOS's Cocoa loop never returns, so the platform layer exits for us) */
+static int player_stop(efx_runtime *rt) {
+    int code;
+    if (efx_runtime_in_error(rt)) {
+        code = 1;
+    } else if (efx_runtime_quit_requested(rt)) {
+        code = efx_runtime_quit_code(rt);
+    } else {
+        code = 0;
+    }
+    efx_platform_set_exit_code(code);
+    return 1;
+}
+
 int efx_player_frame(void *ud, double dt) {
     efx_runtime *rt = (efx_runtime *)ud;
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
-        return 1;
+        return player_stop(rt);
     }
     int r = efx_runtime_call_hook(rt, 1, dt);
     if (r != EFX_HOOK_OK) {
-        return 1;
+        return player_stop(rt);
     }
 
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
-        return 1;
+        return player_stop(rt);
     }
     r = efx_runtime_call_hook(rt, 0, dt);
     if (r != EFX_HOOK_OK) {
-        return 1;
+        return player_stop(rt);
     }
 
     /* frame-end collection: unreferenced native resources are finalized
        within roughly a frame (js-api resource lifecycle rules) */
     efx_runtime_collect(rt); /* frame-end GC (js-api lifecycle rules) */
-    return efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt);
+    if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
+        return player_stop(rt);
+    }
+    return 0;
 }
 
 static int on_frame(void *ud, double dt) {
@@ -239,6 +281,10 @@ int efx_player_main(int argc, char **argv) {
         int rc = run_script_mode(argv[2], root_override, sargs, sn);
         free(sargs);
         return rc;
+    }
+    if (strcmp(argv[1], "--repl") == 0) {
+        const char *root = (argc >= 3) ? argv[2] : NULL;
+        return run_repl_mode(root);
     }
     /* capture flags must precede the resource root */
     efx_platform_capture capture;

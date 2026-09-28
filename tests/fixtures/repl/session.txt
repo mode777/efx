@@ -1,0 +1,8 @@
+efx.log('repl-entry=' + globalThis.replReady);
+let x = 2;
+var loaded = efx.loadText('hello.txt').trim();
+throw new Error('intentional-repl-throw');
+var recovered = true;
+efx.log('repl-summary=' + [globalThis.replReady, loaded, x + 3, recovered].join(','));
+.help
+.exit

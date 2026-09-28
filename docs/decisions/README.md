@@ -16,7 +16,7 @@ directory holds only what stays true after a change is archived.
 | [0004](0004-single-efx-global-namespace.md) | Accepted | Every engine function hangs off one global `efx` namespace |
 | [0005](0005-glm-behind-a-plain-c-api.md) | Accepted | GLM is the math library, wrapped behind a plain C API (first use F3) |
 | [0006](0006-vendored-pinned-source-snapshots.md) | Accepted | Dependencies are pinned source snapshots vendored in-repo |
-| [0007](0007-headless-script-mode-exit-codes.md) | Accepted | Headless `--script` mode with an exit-code contract is the automation surface |
+| [0007](0007-headless-script-mode-exit-codes.md) | Accepted | Player run modes with an exit-code contract (resource-root, `--script`, `--repl`) |
 | [0008](0008-node-as-test-launcher-only.md) | Accepted | Node is a test launcher, never a script dependency |
 | [0009](0009-github-actions-gate-runner.md) | Superseded by [0023](0023-tag-triggered-ci-and-releases.md) (trigger policy) | GitHub Actions is the four-target gate runner |
 | [0010](0010-script-math-is-plain-js-data.md) | Accepted | Script math is plain JS data; GLM math stays behind the C wall |

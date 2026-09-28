@@ -5,11 +5,15 @@ set(F ${CMAKE_CURRENT_SOURCE_DIR}/fixtures)
 # headless unit-test cases at the bottom of this file
 if(NOT EFX_HEADLESS)
 function(add_player_test NAME)
-    cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_ERR" "ARGS" ${ARGN})
+    cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_ERR;INPUT_FILE" "ARGS" ${ARGN})
     set(ARG_LINE "${ARG_ARGS}")
     string(REPLACE ";" "\\;" ARG_LINE_ESC "${ARG_LINE}")
     string(REPLACE ";" "\\;" EXPECT_OUT_ESC "${ARG_EXPECT_OUT}")
     string(REPLACE ";" "\\;" EXPECT_ERR_ESC "${ARG_EXPECT_ERR}")
+    set(INPUT_ARG "")
+    if(ARG_INPUT_FILE)
+        set(INPUT_ARG "-DINPUT_FILE=${ARG_INPUT_FILE}")
+    endif()
     add_test(NAME ${NAME}
         COMMAND ${CMAKE_COMMAND}
             -DTEST_NAME=${NAME}
@@ -19,6 +23,7 @@ function(add_player_test NAME)
             -DEXPECT=${ARG_EXPECT}
             -DEXPECT_OUT=${EXPECT_OUT_ESC}
             -DEXPECT_ERR=${EXPECT_ERR_ESC}
+            ${INPUT_ARG}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endfunction()
 
@@ -50,6 +55,7 @@ add_player_test(smoke_6c_skin ARGS "--script;${S}/s_6c_skin.js" EXPECT 0 EXPECT_
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
+add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
 
 # web native-runtime tests (ADR 0022): the host JS engine (Node in this
@@ -107,6 +113,7 @@ if(EMSCRIPTEN)
     add_web_test(web_5b_validation ${S}/s_5b_validation.js EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
     add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
     add_web_test(web_6c_skin ${S}/s_6c_skin.js EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
+    add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
 endif() # NOT EFX_HEADLESS
@@ -157,7 +164,7 @@ foreach(CASE
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
-    resource_js createTexture_js gltf_js skin_js)
+    resource_js createTexture_js gltf_js skin_js repl_eval)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()
@@ -205,6 +212,18 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
             message(STATUS "golden test deferred (no golden.png yet): ${SCENE}")
         endif()
     endforeach()
+
+    # F6d: the interactive console needs a window like the golden suite; a
+    # piped session drives evaluation, state persistence, root loading, error
+    # recovery, `.help`/`.exit` and `efx.quit` exit codes (design D-risk)
+    add_player_test(repl_session ARGS "--repl;${F}/repl_root"
+        INPUT_FILE ${F}/repl/session.txt EXPECT 0
+        EXPECT_OUT "repl-summary=true,repl-hello,5,true"
+        EXPECT_ERR "intentional-repl-throw")
+    add_player_test(repl_help ARGS "--repl;${F}/repl_root"
+        INPUT_FILE ${F}/repl/session.txt EXPECT 0 EXPECT_OUT "REPL commands")
+    add_player_test(repl_quit ARGS "--repl"
+        INPUT_FILE ${F}/repl/quit.txt EXPECT 3 EXPECT_OUT "repl-before-quit")
 endif()
 
 if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)

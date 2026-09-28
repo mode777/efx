@@ -3,8 +3,9 @@
 **Status:** F1 (including explicit lifecycle hook registration), F2, F3, F4a
 (lighting + Phong materials on solids/vertex colors), F4b (per-channel
 maps + alpha masks), F5a (render targets), F5b (post-effect chain +
-render scale), and F6a (resource root + text/image loading) are
-implemented (current behavior). Everything from F6b
+render scale), F6a (resource root + text/image loading), F6b (glTF static
+import), F6c (glTF rig import), and F6d (interactive console run mode —
+no new API) are implemented (current behavior). Everything from F7
 onward is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
@@ -863,10 +864,19 @@ efx.loadMeshData(path, opts?) // additionally imports JOINTS_0/WEIGHTS_0 + skele
   `joints`/`weights` surface attributes. The rig is released with its
   `MeshData`/`Mesh`.
 
-### F6d — REPL (provisional)
+### F6d — REPL (current)
 
-The console/REPL run mode drives this same `efx` namespace interactively;
-no separate API.
+The `--repl [<root>]` console run mode drives this same `efx` namespace
+interactively: it opens the normal window/frame loop and evaluates each
+stdin line in the persistent script context (state persists across
+lines; a throwing line is printed and the run continues). An optional
+root supplies the resource provider and runs its `main.js` once before
+input, so `load*` works interactively.
+
+It adds **no** script API. `.help` and `.exit` are host commands handled
+by the player — not `efx` functions. The console is desktop
+(embedded-runtime) only: on Emscripten the mode reports itself
+unavailable rather than silently ignoring the request. See ADR 0007.
 
 ### F7 — Skinning & animation (provisional)
 

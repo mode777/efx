@@ -17,6 +17,12 @@ void efx_runtime_set_resource(efx_runtime *rt, struct efx_resource *resource);
 
 int efx_runtime_eval_file(efx_runtime *rt, const char *path);
 int efx_runtime_eval_string(efx_runtime *rt, const char *name, const char *code);
+/* F6d: evaluate one REPL line in the persistent global context. Prints the
+ * completion value to stdout when it is not `undefined`, prints a thrown
+ * exception to stderr, and never sets the fatal error flag (a throw is
+ * recovered). Returns 0 on success, 1 when the line threw. An `efx.quit`
+ * request is not an error. */
+int efx_runtime_eval_repl_line(efx_runtime *rt, const char *line);
 void efx_runtime_pick_hooks(efx_runtime *rt, int *has_update, int *has_render);
 int efx_runtime_call_hook(efx_runtime *rt, int update_not_render, double dt);
 

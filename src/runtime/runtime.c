@@ -261,6 +261,32 @@ int efx_runtime_eval_string(efx_runtime *rt, const char *name, const char *code)
     return 0;
 }
 
+int efx_runtime_eval_repl_line(efx_runtime *rt, const char *line) {
+    JSValue result =
+        JS_Eval(rt->ctx, line, strlen(line), "<repl>", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(result)) {
+        JSValue exc = JS_GetException(rt->ctx);
+        if (JS_VALUE_GET_PTR(exc) == JS_VALUE_GET_PTR(rt->host.quit_sentinel)) {
+            /* efx.quit(): a requested shutdown, not an error */
+            JS_FreeValue(rt->ctx, exc);
+            return 0;
+        }
+        dump_exception_value(rt, exc);
+        JS_FreeValue(rt->ctx, exc);
+        return 1; /* recovered: the run continues */
+    }
+    if (!JS_IsUndefined(result)) {
+        const char *s = JS_ToCString(rt->ctx, result);
+        fprintf(stdout, "%s\n", s ? s : "<unprintable value>");
+        fflush(stdout);
+        if (s) {
+            JS_FreeCString(rt->ctx, s);
+        }
+    }
+    JS_FreeValue(rt->ctx, result);
+    return 0;
+}
+
 void efx_runtime_pick_hooks(efx_runtime *rt, int *has_update, int *has_render) {
     if (!rt->hooks_sugar_done) {
         rt->hooks_sugar_done = 1;

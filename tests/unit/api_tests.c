@@ -1083,6 +1083,35 @@ static int skin_js(void) {
     return 0;
 }
 
+/* F6d: evaluate REPL lines in the persistent global context — a throwing
+ * line is recovered (fatal error flag stays clear), state persists across
+ * lines, and efx.quit is a requested shutdown, not an error */
+static int repl_eval(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    efx_runtime *rt = efx_runtime_new(NULL, 0);
+    if (!rt) {
+        return fail("runtime");
+    }
+    int ok = 1;
+    if (efx_runtime_eval_repl_line(rt, "let x = 2") != 0) ok = 0;
+    if (efx_runtime_eval_repl_line(rt, "if (x + 3 !== 5) throw new Error('state lost')") != 0) ok = 0;
+    if (efx_runtime_eval_repl_line(rt, "throw new Error('repl-boom')") != 1) ok = 0;
+    if (efx_runtime_in_error(rt)) ok = 0;
+    if (efx_runtime_eval_repl_line(rt, "x + 1") != 0) ok = 0;
+    if (efx_runtime_in_error(rt)) ok = 0;
+    if (efx_runtime_eval_repl_line(rt, "efx.quit(7)") != 0) ok = 0;
+    if (!efx_runtime_quit_requested(rt)) ok = 0;
+    if (efx_runtime_quit_code(rt) != 7) ok = 0;
+    if (efx_runtime_in_error(rt)) ok = 0;
+    efx_runtime_destroy(rt);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return ok ? 0 : fail("repl line evaluation");
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -1115,6 +1144,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "createTexture_js")) return createTexture_js();
     if (!strcmp(c, "gltf_js")) return gltf_js();
     if (!strcmp(c, "skin_js")) return skin_js();
+    if (!strcmp(c, "repl_eval")) return repl_eval();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }
