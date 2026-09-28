@@ -53,6 +53,7 @@ const CASES = [
     { name: '7_skin_pose', script: 'tests/scripts/s_7_skin_pose.js', args: [],
       assets: ['tests/scripts/skin.gltf', 'tests/scripts/skin.bin'] },
     { name: '9_input', script: 'tests/scripts/s_9_input.js', args: [] },
+    { name: '8a_text', root: 'tests/fixtures/web/text_root' },
     { name: '10_modules', root: 'tests/fixtures/modules' },
     { name: '10_nohost', script: 'tests/scripts/s_10_nohost.js', args: [] },
 ];
