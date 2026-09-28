@@ -219,42 +219,6 @@ MUST update the document in the same change.
   skinning/animation, high-level model and text drawing) has a corresponding
   catalog entry or an explicitly noted open question
 
-### Requirement: Resource-loading API
-
-The script API SHALL provide a resource-loading layer that reads files from
-the resource root by relative path and returns engine resources. Each function
-SHALL be tagged with its layer in the reference: `loadText` and `loadImage`
-are C-implemented; `loadTexture` is a pure-JS convenience composed only from
-public API and standard ES6. Loading SHALL be synchronous from the script's
-point of view on every target. A missing, unreadable, or undecodable resource
-SHALL throw a standard ES6 `Error`; a malformed path argument SHALL throw
-`TypeError`. The reference document (`docs/js-api.md`) and the gallery type
-document (`gallery/src/api/efx.d.ts`) SHALL be updated in the same change that
-delivers these functions.
-
-#### Scenario: loadText returns decoded text
-- **WHEN** a script calls `efx.loadText(path)` for a text resource in the root
-- **THEN** it receives the file's contents as a string
-
-#### Scenario: loadImage returns ImageData
-- **WHEN** a script calls `efx.loadImage(path)` for a PNG or JPEG in the root
-- **THEN** it receives an `ImageData` with read-only pixel dimensions and
-  decoded RGBA pixels, releasable with `destroy()`
-
-#### Scenario: loadTexture composes the public API
-- **WHEN** a script calls `efx.loadTexture(path)`
-- **THEN** it receives a live `Texture` equivalent to creating one from the
-  image data returned by `loadImage`, with the same `destroy()` lifecycle
-
-#### Scenario: Undecodable or missing resource throws
-- **WHEN** a script loads a path that does not exist or is not a decodable
-  image (for `loadImage`)
-- **THEN** the call throws an `Error` and no resource object is returned
-
-#### Scenario: Malformed argument throws TypeError
-- **WHEN** a script passes a non-string path to a load function
-- **THEN** the call throws `TypeError`
-
 ### Requirement: glTF mesh import API
 
 The script API SHALL provide a glTF import function that returns a `MeshData`
@@ -313,3 +277,47 @@ unchanged. Playback is delivered by F7 (`poseMesh` / `drawMesh` `skinned`).
   change
 - **THEN** they catalog the joints/weights surface attributes and no clip or
   joint query function or property
+
+### Requirement: Resource loading and texture composition
+
+The script API SHALL provide a resource-loading layer that reads files from
+the resource root by relative path and returns engine resources. Each function
+SHALL be tagged with its layer in the reference: `loadText` and `loadImage`
+are C-implemented loaders. There SHALL be no separate texture loader: a
+texture is created by composing the public API,
+`createTexture(loadImage(path), opts?)`, matching the mesh flow where
+`createMesh` consumes `loadMeshData`. Loading SHALL be synchronous from the
+script's point of view on every target. A missing, unreadable, or undecodable
+resource SHALL throw a standard ES6 `Error`; a malformed path argument SHALL
+throw `TypeError`. The reference document (`docs/js-api.md`) and the gallery
+type document (`gallery/src/api/efx.d.ts`) SHALL be updated in the same change
+that delivers these functions.
+
+#### Scenario: loadText returns decoded text
+- **WHEN** a script calls `efx.loadText(path)` for a text resource in the root
+- **THEN** it receives the file's contents as a string
+
+#### Scenario: loadImage returns ImageData
+- **WHEN** a script calls `efx.loadImage(path)` for a PNG or JPEG in the root
+- **THEN** it receives an `ImageData` with read-only pixel dimensions and
+  decoded RGBA pixels, releasable with `destroy()`
+
+#### Scenario: Texture creation composes loadImage and createTexture
+- **WHEN** a script calls `efx.createTexture(efx.loadImage(path), opts?)`
+- **THEN** it receives a live `Texture` carrying the image's pixels plus any
+  requested sampler and mipmap options, with the same `destroy()` lifecycle
+
+#### Scenario: No texture-loading convenience
+- **WHEN** the API reference and gallery type document are read after this
+  change
+- **THEN** they catalog `loadImage` and `createTexture` and do not catalog a
+  `loadTexture` function
+
+#### Scenario: Undecodable or missing resource throws
+- **WHEN** a script loads a path that does not exist or is not a decodable
+  image (for `loadImage`)
+- **THEN** the call throws an `Error` and no resource object is returned
+
+#### Scenario: Malformed argument throws TypeError
+- **WHEN** a script passes a non-string path to a load function
+- **THEN** the call throws `TypeError`

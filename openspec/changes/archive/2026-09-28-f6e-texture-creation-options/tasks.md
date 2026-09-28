@@ -32,4 +32,4 @@
 
 - [x] 6.1 Run `python3 tools/verify_remote.py all <branch>` and fix anything it reports; the native ctest (incl. all goldens) and Emscripten golden/compare suites must be green. Verify: the pre-CI server report is clean.
 - [x] 6.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate (Linux → Windows → macOS plus Emscripten) is green. Verify: the run's native suites, all goldens, web goldens, and cross-runtime compare pass.
-- [ ] 6.3 Merge to `main` and push (triggers the Pages deploy), then archive the change (`openspec archive`) and push the archive. Verify: `main` contains the merged change and the archive folder, and the gate run that justified it is recorded in the change notes.
+- [x] 6.3 Merge to `main` and push (triggers the Pages deploy), then archive the change (`openspec archive`) and push the archive. Verify: `main` contains the merged change and the archive folder, and the gate run that justified it is recorded in the change notes.
