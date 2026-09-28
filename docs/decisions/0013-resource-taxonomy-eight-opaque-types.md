@@ -1,8 +1,10 @@
 # 0013 — Resource taxonomy: eight GC-finalized opaque types
 
-Status: Superseded by 0014 (2026-09, change `js-api-reference`); the
+Status: Superseded by 0014 (2026-09, change `js-api-reference`) and, for
+the font clause, by 0038 (2026-09, change `f8a-font-typesetting`); the
 opaque-class model and the MeshData/ImageData promotion remain valid —
-only the Skin type and the weights placement it implied are superseded
+only the Skin type, the weights placement it implied, and the "font is a
+pure-JS construct / native Font rejected" clause are superseded
 
 ## Context
 

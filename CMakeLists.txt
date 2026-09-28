@@ -56,11 +56,14 @@ if(EMSCRIPTEN)
     add_library(efx_core STATIC
         src/render/render.c
         src/render/skin.c
+        src/render/text.c
         src/input/efx_input.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
         src/resource/stb_image_impl.c
+        src/render/stb_truetype_impl.c
+        src/render/stb_rect_pack_impl.c
         src/web/bridge.c
     )
 else()
@@ -69,11 +72,14 @@ else()
         src/runtime/runtime.c
         src/render/render.c
         src/render/skin.c
+        src/render/text.c
         src/input/efx_input.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
         src/resource/stb_image_impl.c
+        src/render/stb_truetype_impl.c
+        src/render/stb_rect_pack_impl.c
     )
 endif()
 target_include_directories(efx_core PUBLIC src
@@ -324,6 +330,38 @@ else()
     target_compile_options(efx_resource_tests PRIVATE -Wall -Wextra -Werror)
 endif()
 
+# headless font/text tests (F8a): pure-C font module + display-list records;
+# desktop-only: they read a TTF fixture from the filesystem
+if(NOT EMSCRIPTEN)
+add_executable(efx_text_tests
+    src/render/render.c
+    src/render/skin.c
+    src/render/text.c
+    src/render/stb_truetype_impl.c
+    src/render/stb_rect_pack_impl.c
+    src/resource/resource.c
+    tests/unit/text_tests.c
+)
+target_include_directories(efx_text_tests PRIVATE src)
+target_include_directories(efx_text_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
+target_link_libraries(efx_text_tests PRIVATE efx_miniz)
+if(UNIX)
+    target_link_libraries(efx_text_tests PRIVATE m)
+endif()
+target_compile_definitions(efx_text_tests PRIVATE
+    EFX_FONT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
+if(MSVC)
+    target_compile_options(efx_text_tests PRIVATE /W4 /WX)
+    target_compile_definitions(efx_text_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(efx_text_tests PRIVATE -Wall -Wextra -Werror)
+endif()
+if(NOT MSVC)
+    target_compile_definitions(efx_text_tests PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
+endif()
+
 # headless JS-API tests (mock GPU sink + real quickjs runtime + bindings);
 # desktop-only: ADR 0022 keeps quickjs out of every Emscripten target
 add_executable(efx_api_tests
@@ -331,6 +369,9 @@ add_executable(efx_api_tests
     src/runtime/runtime.c
     src/render/render.c
     src/render/skin.c
+    src/render/text.c
+    src/render/stb_truetype_impl.c
+    src/render/stb_rect_pack_impl.c
     src/input/efx_input.c
     src/resource/gltf.c
     src/resource/image.c

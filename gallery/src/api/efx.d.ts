@@ -134,6 +134,55 @@ interface EfxMesh {
   destroy(): void;
 }
 
+// F8a — font + text
+interface EfxFontData {
+  destroy(): void;
+}
+
+interface EfxFont {
+  readonly size: number;
+  readonly lineHeight: number;
+  readonly ascent: number;
+  readonly descent: number;
+  destroy(): void;
+}
+
+interface FontOutline {
+  width: number;
+}
+
+interface FontShadow {
+  blur: number;
+  offset?: Vec2;
+}
+
+interface CreateFontOptions {
+  size: number;
+  glyphs?: string;
+  padding?: number;
+  filter?: 'linear' | 'nearest';
+  outline?: FontOutline | null;
+  shadow?: FontShadow | null;
+}
+
+interface TextOptions {
+  align?: 'left' | 'center' | 'right' | 'justify';
+  valign?: 'top' | 'middle' | 'bottom';
+  width?: number;
+  lineHeight?: number;
+  color?: Color;
+  outlineColor?: Color;
+  shadowColor?: Color;
+  rotation?: number;
+  scale?: number;
+}
+
+interface TextBounds {
+  width: number;
+  height: number;
+  lines: number;
+}
+
 interface DrawQuadOptions {
   color?: Color;
   rotation?: number;
@@ -372,6 +421,13 @@ interface Efx {
 
   // F6b — glTF 2.0 static import
   loadMeshData(path: string, opts?: LoadMeshDataOptions): EfxMeshData;
+
+  // F8a — font + text (C-implemented mid-level facilities)
+  loadFontData(path: string): EfxFontData;
+  createFont(fontData: EfxFontData, opts: CreateFontOptions): EfxFont;
+  drawText(text: string, font: EfxFont, x: number, y: number,
+           opts?: TextOptions): TextBounds;
+  measureText(text: string, font: EfxFont, opts?: TextOptions): TextBounds;
 
   // F7 — CPU skinning & animation (the script owns the clock)
   poseMesh(mesh: EfxMesh, pose: PoseSample | PoseSample[]): void;

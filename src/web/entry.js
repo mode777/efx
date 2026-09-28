@@ -436,6 +436,123 @@ function __efxEnsureApi() {
         },
     });
 
+    /* F8a: FontData (parsed font) and Font (baked atlas) native-backed
+       classes, id-based like ImageData */
+    function EfxFontData(id) {
+        this.__id = id;
+        this.__alive = true;
+    }
+    EfxFontData.prototype.destroy = function () {
+        if (!(this instanceof EfxFontData)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_fontdata_destroy'](this.__id);
+    };
+
+    function EfxFont(id) {
+        this.__id = id;
+        this.__alive = true;
+    }
+    EfxFont.prototype.destroy = function () {
+        if (!(this instanceof EfxFont)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_font_destroy'](this.__id);
+    };
+    function __efxFontGetter(name) {
+        return {
+            get: function () {
+                if (!(this instanceof EfxFont)) {
+                    throw new TypeError('expected a Font');
+                }
+                if (!this.__alive) {
+                    throw new TypeError('using a destroyed resource');
+                }
+                return bridge[name](this.__id);
+            },
+        };
+    }
+    Object.defineProperty(EfxFont.prototype, 'size',
+        __efxFontGetter('_efx_bridge_font_size'));
+    Object.defineProperty(EfxFont.prototype, 'lineHeight',
+        __efxFontGetter('_efx_bridge_font_line_height'));
+    Object.defineProperty(EfxFont.prototype, 'ascent',
+        __efxFontGetter('_efx_bridge_font_ascent'));
+    Object.defineProperty(EfxFont.prototype, 'descent',
+        __efxFontGetter('_efx_bridge_font_descent'));
+
+    function __efxAlign(v) {
+        if (v === 'left') { return 0; }
+        if (v === 'center') { return 1; }
+        if (v === 'right') { return 2; }
+        if (v === 'justify') { return 3; }
+        throw new TypeError("align must be 'left', 'center', 'right' or 'justify'");
+    }
+    function __efxValign(v) {
+        if (v === 'top') { return 0; }
+        if (v === 'middle') { return 1; }
+        if (v === 'bottom') { return 2; }
+        throw new TypeError("valign must be 'top', 'middle' or 'bottom'");
+    }
+    function __efxTextLayout(opts) {
+        var out = { align: 0, valign: 0, hasWidth: 0, width: 0, hasLh: 0,
+                    lh: 0, scale: 1, rotation: 0 };
+        if (opts === undefined || opts === null) {
+            return out;
+        }
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('text options must be an object');
+        }
+        var known = { align: 1, valign: 1, width: 1, lineHeight: 1, color: 1,
+                      outlineColor: 1, shadowColor: 1, rotation: 1, scale: 1 };
+        var names = Object.getOwnPropertyNames(opts);
+        for (var i = 0; i < names.length; i++) {
+            if (!known[names[i]]) {
+                throw new TypeError("unknown option '" + names[i] + "'");
+            }
+        }
+        if (opts.align !== undefined) { out.align = __efxAlign(opts.align); }
+        if (opts.valign !== undefined) { out.valign = __efxValign(opts.valign); }
+        if (opts.width !== undefined) {
+            var w = __efxFinite(opts.width, 'width must be a finite number');
+            if (!(w > 0)) { throw new RangeError('width must be > 0'); }
+            out.hasWidth = 1;
+            out.width = w;
+        }
+        if (opts.lineHeight !== undefined) {
+            var lh = __efxFinite(opts.lineHeight, 'lineHeight must be a finite number');
+            if (!(lh > 0)) { throw new RangeError('lineHeight must be > 0'); }
+            out.hasLh = 1;
+            out.lh = lh;
+        }
+        if (opts.rotation !== undefined) {
+            out.rotation = __efxFinite(opts.rotation, 'rotation must be a finite number');
+        }
+        if (opts.scale !== undefined) {
+            var s = __efxFinite(opts.scale, 'scale must be a finite number');
+            if (!(s > 0)) { throw new RangeError('scale must be > 0'); }
+            out.scale = s;
+        }
+        if (out.align === 3 && !out.hasWidth) {
+            throw new TypeError('justify alignment requires a width');
+        }
+        return out;
+    }
+    function __efxTextError(rc) {
+        if (rc === 4) {
+            throw new RangeError('text layout failed');
+        }
+        throw new Error('text operation failed');
+    }
+
     function liveMeshData(v) {
         if (!(v instanceof EfxMeshData)) {
             throw new TypeError('expected a MeshData');
@@ -1008,6 +1125,204 @@ function __efxEnsureApi() {
                 throw new Error('glTF import failed');
             }
             return new EfxMeshData(id);
+        },
+        loadFontData: function (path) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadFontData requires a path string');
+            }
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_load_fontdata'](p);
+            bridge['_efx_bridge_mem_free'](p);
+            if (!id) {
+                throw new Error('font could not be loaded');
+            }
+            return new EfxFontData(id);
+        },
+        createFont: function (fontData, opts) {
+            if (arguments.length < 1 || !(fontData instanceof EfxFontData)) {
+                throw new TypeError('createFont requires a FontData');
+            }
+            if (!fontData.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            if (arguments.length < 2 || !__efxIsObject(opts)) {
+                throw new TypeError('createFont requires an options object');
+            }
+            var known = { size: 1, glyphs: 1, padding: 1, filter: 1, outline: 1,
+                          shadow: 1 };
+            var names = Object.getOwnPropertyNames(opts);
+            for (var i = 0; i < names.length; i++) {
+                if (!known[names[i]]) {
+                    throw new TypeError("unknown createFont option '" + names[i] + "'");
+                }
+            }
+            if (opts.size === undefined) {
+                throw new TypeError('createFont requires size');
+            }
+            var size = __efxFinite(opts.size, 'size must be a finite number');
+            if (!(size > 0)) {
+                throw new RangeError('size must be > 0');
+            }
+            var glyphsPtr = 0;
+            if (opts.glyphs !== undefined) {
+                if (typeof opts.glyphs !== 'string') {
+                    throw new TypeError('glyphs must be a string');
+                }
+                if (opts.glyphs.length === 0) {
+                    throw new RangeError('glyphs must not be empty');
+                }
+                glyphsPtr = __efxAllocCStr(opts.glyphs);
+            }
+            var padding = 1;
+            if (opts.padding !== undefined) {
+                var pv = __efxFinite(opts.padding, 'padding must be a finite number');
+                if (pv < 0 || pv !== Math.floor(pv)) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new RangeError('padding must be a non-negative integer');
+                }
+                padding = pv | 0;
+            }
+            var filter = 1;
+            if (opts.filter !== undefined) {
+                if (opts.filter === 'linear') {
+                    filter = 1;
+                } else if (opts.filter === 'nearest') {
+                    filter = 0;
+                } else {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new TypeError("filter must be 'linear' or 'nearest'");
+                }
+            }
+            var hasOutline = 0, outlineWidth = 0;
+            if (opts.outline !== undefined && opts.outline !== null) {
+                if (!__efxIsObject(opts.outline)) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new TypeError('outline must be an object or null');
+                }
+                var oKnown = { width: 1 };
+                var oNames = Object.getOwnPropertyNames(opts.outline);
+                for (var j = 0; j < oNames.length; j++) {
+                    if (!oKnown[oNames[j]]) {
+                        if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                        throw new TypeError("unknown outline option '" + oNames[j] + "'");
+                    }
+                }
+                if (opts.outline.width === undefined) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new TypeError('outline requires a numeric width');
+                }
+                outlineWidth = __efxFinite(opts.outline.width,
+                                           'outline width must be a finite number');
+                if (!(outlineWidth > 0)) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new RangeError('outline width must be > 0');
+                }
+                hasOutline = 1;
+            }
+            var hasShadow = 0, shadowBlur = 0, offX = 0, offY = 0;
+            if (opts.shadow !== undefined && opts.shadow !== null) {
+                if (!__efxIsObject(opts.shadow)) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new TypeError('shadow must be an object or null');
+                }
+                var sKnown = { blur: 1, offset: 1 };
+                var sNames = Object.getOwnPropertyNames(opts.shadow);
+                for (var k = 0; k < sNames.length; k++) {
+                    if (!sKnown[sNames[k]]) {
+                        if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                        throw new TypeError("unknown shadow option '" + sNames[k] + "'");
+                    }
+                }
+                if (opts.shadow.blur === undefined) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new TypeError('shadow requires a numeric blur');
+                }
+                shadowBlur = __efxFinite(opts.shadow.blur,
+                                         'shadow blur must be a finite number');
+                if (!(shadowBlur > 0)) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw new RangeError('shadow blur must be > 0');
+                }
+                if (opts.shadow.offset !== undefined) {
+                    var off = __efxFloatArray(opts.shadow.offset, 2);
+                    offX = off[0];
+                    offY = off[1];
+                }
+                hasShadow = 1;
+            }
+            var id = bridge['_efx_bridge_create_font'](
+                fontData.__id, size, glyphsPtr, padding, filter, hasOutline,
+                outlineWidth, hasShadow, shadowBlur, offX, offY);
+            if (glyphsPtr) {
+                bridge['_efx_bridge_mem_free'](glyphsPtr);
+            }
+            if (!id) {
+                throw new Error('font could not be baked');
+            }
+            return new EfxFont(id);
+        },
+        measureText: function (text, font, opts) {
+            if (arguments.length < 2 || typeof text !== 'string') {
+                throw new TypeError('measureText requires (text, font, opts?)');
+            }
+            if (!(font instanceof EfxFont)) {
+                throw new TypeError('measureText requires a live Font');
+            }
+            if (!font.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            var lo = __efxTextLayout(opts);
+            var tptr = __efxAllocCStr(text);
+            var optr = bridge['_malloc'](12);
+            var rc = bridge['_efx_bridge_text_measure'](
+                tptr, font.__id, lo.align, lo.valign, lo.hasWidth, lo.width,
+                lo.hasLh, lo.lh, lo.scale, lo.rotation, optr);
+            bridge['_efx_bridge_mem_free'](tptr);
+            var b = { width: HEAPF32[optr >> 2],
+                      height: HEAPF32[(optr >> 2) + 1],
+                      lines: HEAPF32[(optr >> 2) + 2] };
+            bridge['_efx_bridge_mem_free'](optr);
+            if (rc !== 0) {
+                __efxTextError(rc);
+            }
+            return b;
+        },
+        drawText: function (text, font, x, y, opts) {
+            if (arguments.length < 4 || typeof text !== 'string') {
+                throw new TypeError('drawText requires (text, font, x, y, opts?)');
+            }
+            if (!(font instanceof EfxFont)) {
+                throw new TypeError('drawText requires a live Font');
+            }
+            if (!font.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            x = __efxFinite(x, 'drawText requires finite x and y');
+            y = __efxFinite(y, 'drawText requires finite x and y');
+            var lo = __efxTextLayout(opts);
+            var color = [1, 1, 1, 1], oc = [0, 0, 0, 1], sc = [0, 0, 0, 1];
+            if (__efxIsObject(opts)) {
+                if (opts.color !== undefined) { color = __efxFloatArray(opts.color, 4); }
+                if (opts.outlineColor !== undefined) { oc = __efxFloatArray(opts.outlineColor, 4); }
+                if (opts.shadowColor !== undefined) { sc = __efxFloatArray(opts.shadowColor, 4); }
+            }
+            var tptr = __efxAllocCStr(text);
+            var optr = bridge['_malloc'](12);
+            var rc = bridge['_efx_bridge_text_draw'](
+                tptr, font.__id, x, y, lo.align, lo.valign, lo.hasWidth,
+                lo.width, lo.hasLh, lo.lh, lo.scale, lo.rotation,
+                color[0], color[1], color[2], color[3],
+                oc[0], oc[1], oc[2], oc[3],
+                sc[0], sc[1], sc[2], sc[3], optr);
+            bridge['_efx_bridge_mem_free'](tptr);
+            var b = { width: HEAPF32[optr >> 2],
+                      height: HEAPF32[(optr >> 2) + 1],
+                      lines: HEAPF32[(optr >> 2) + 2] };
+            bridge['_efx_bridge_mem_free'](optr);
+            if (rc !== 0) {
+                __efxTextError(rc);
+            }
+            return b;
         },
         createRenderTarget: function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {

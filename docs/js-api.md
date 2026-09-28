@@ -7,9 +7,11 @@ render scale), F6a (resource root + text/image loading), F6b (glTF static
 import), F6c (glTF rig import), F6d (interactive console run mode —
 no new API), F6e (texture creation options), F7 (CPU skinning +
 animation — `poseMesh` and the `skinned` draw option), F9 (input —
-keyboard + mouse query and event API), and F10 (script modules — CommonJS
-`require`) are implemented
-(current behavior). F8 onward is a provisional contract — names and
+keyboard + mouse query and event API), F10 (script modules — CommonJS
+`require`), and F8a (font + text — `loadFontData`, `createFont`,
+`drawText`, `measureText`) are implemented
+(current behavior). The remaining F8 slices (`drawModel`, demo resource
+pack) are a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
 the same change). See `vision.md` for product goals and
@@ -203,7 +205,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Class | Meaning | Release path |
 |---|---|---|
 | **JS-managed** | Plain data objects; garbage collected | Drop the reference |
-| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
+| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`; Font: `size`/`lineHeight`/`ascent`/`descent`; FontData: none); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
 | **Slot-based** | Fixed pre-allocated bank of indexed resources | Overwrite the slot |
 
 | Resource | Contents | Class | Side | Delivered | Notes |
@@ -215,7 +217,8 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | F5a | `createRenderTarget({ width, height })` (1..4096 per side); `rt.destroy()`; read-only `rt.width` / `rt.height` (target pixels; throw `TypeError` when destroyed); a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior; no alias Texture exists for a target (ADR 0028) |
 | Materials (Phong parameter objects) | — | JS-managed | — | F4a/F4b | Bound per surface via `efx.setMeshSurfaceMaterial` / the `materials` array (ADR 0024); per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound (F4b, ADR 0027) |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | F5b | Plain objects snapshotted at `setPostEffects` call time; no native handle and no `destroy()`. The native passes they drive are engine-owned and never script-visible (ADR 0029) |
-| Fonts (atlas + quad layout) | — | JS-managed | — | F8 | Pure JS over Texture; passed to `drawText` |
+| FontData | Parsed TrueType/OpenType font (CPU, no GPU resource) | Native class | CPU | F8a | `loadFontData(path)`; `destroy()`; no query properties |
+| Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | F8a | `createFont(fontData, opts)`; `destroy()`; read-only `size`/`lineHeight`/`ascent`/`descent`; passed to `drawText`/`measureText` |
 | Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
 
 **Resource lifecycle rules:**
@@ -1008,37 +1011,104 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F8 — High-level drawing (provisional)
+### F8a — Font + text (current)
 
-Scope from roadmap F8: high-level JS layer — `drawModel`, `drawText` (font
-atlas built on quads), demo resource pack. These are engine-bundled pure ES6
-built only on the public `[C]` API above.
+TrueType/OpenType text: load a font, bake a **fixed** glyph atlas at a chosen
+size (with optional baked outline/shadow), and draw formatted 2D text as
+display-list quads. Typesetting and drawing are C-implemented mid-level
+facilities (like `drawQuad`/`drawMesh`), not pure-JS conveniences; no glyph
+metrics or atlas are exposed to scripts. Formatting covers newlines, greedy
+word wrapping, horizontal `left`/`center`/`right`/`justify`, and vertical
+`top`/`middle`/`bottom` — there is no rich text, 3D text, or complex-script
+shaping (ADR 0038).
 
 ```js
-// F8 · JS · provisional
-efx.loadFont(path)                   // → font object (JS-managed: atlas Texture + quad layout)
-efx.drawModel(mesh, mat?, opts?)     // { transform?, skinned? } — pure-JS convenience:
+// F8a · C · current
+efx.loadFontData(path)                 // → FontData (parsed .ttf/.otf; destroy())
+efx.createFont(fontData, opts)         // → Font (fixed baked atlas; destroy())
+//   opts (required): {
+//     size    : number,              // pixel size baked into the atlas (> 0)
+//     glyphs? : string,              // codepoints to bake; default printable Latin-1
+//     padding?: number,              // atlas gutter px (default 1)
+//     filter? : 'linear'|'nearest',  // atlas sampler (default 'linear')
+//     outline?: { width },           // baked outline ring (width > 0)
+//     shadow? : { blur, offset? },   // baked blurred shadow (blur > 0; offset [dx,dy])
+//   }
+efx.drawText(text, font, x, y, opts?)  // → { width, height, lines } (draws quads)
+efx.measureText(text, font, opts?)     // → { width, height, lines } (no drawing)
+//   opts?: {
+//     align?       : 'left'|'center'|'right'|'justify' (default 'left'),
+//     valign?      : 'top'|'middle'|'bottom'           (default 'top'),
+//     width?       : number,   // wrap width px; required for 'justify'
+//     lineHeight?  : number,   // line advance px (default the font's)
+//     color?       : [r,g,b,a],          // fill (default opaque white)
+//     outlineColor?: [r,g,b,a],          // baked outline color (default black)
+//     shadowColor? : [r,g,b,a],          // baked shadow color (default black)
+//     rotation?    : number,   // degrees about the anchor (default 0)
+//     scale?       : number,   // uniform scale (default 1)
+//   }
+```
+
+- **Font pipeline.** `loadFontData` reads and parses a font (CPU only);
+  `createFont` rasterizes the requested glyph set, bakes any outline/shadow
+  variants, packs one RGBA8 atlas (white RGB + coverage alpha, so glyphs tint
+  by the draw color) and uploads it as an engine-owned Texture. The atlas is
+  fixed at creation — there is no glyph-on-demand growth. One `FontData` can
+  bake several `Font`s (different sizes/effects) without re-reading the file.
+- **Fallback.** A codepoint outside the baked set renders the baked `?` glyph
+  when present, otherwise nothing with zero advance.
+- **Layering.** When outline/shadow are baked, each glyph records its shadow
+  layer first, then the outline, then the fill. `drawText`/`measureText`
+  return the laid-out bounds `{ width, height, lines }`.
+- **Errors.** Wrong types / unknown fields / missing required fields throw
+  `TypeError`; out-of-range numbers (`size`, `padding`, `outline.width`,
+  `shadow.blur`, `width`, `lineHeight`, `scale`) throw `RangeError`; a
+  missing/unparsable font or an atlas overflow throws `Error`. `justify`
+  without a `width` throws `TypeError`.
+- **Lifetime.** `FontData` and `Font` are native-backed classes: `destroy()`
+  releases deterministically, GC is the backstop; using a destroyed resource
+  throws `TypeError`.
+
+```js
+// main.js — F8a sample
+efx.setClearColor([0.08, 0.09, 0.12, 1]);
+efx.setCamera2D({ frame: [640, 480] });
+const title = efx.createFont(efx.loadFontData('fonts/perfect.ttf'), {
+    size: 40, outline: { width: 2 }, shadow: { blur: 3, offset: [2, 2] },
+});
+
+efx.registerRenderHook(() => {
+    efx.drawText('score: 1200', title, 24, 24, {
+        color: [1, 0.85, 0.2, 1], outlineColor: [0.1, 0.05, 0, 1],
+    });
+    efx.drawText('the quick brown fox jumps over the lazy dog', title, 24, 96,
+        { width: 300, align: 'justify', color: [0.9, 0.9, 0.9, 1] });
+});
+```
+
+### F8b — High-level model drawing (provisional)
+
+The remaining F8 slice: `drawModel`, a pure-JS convenience over the `[C]`
+mesh/material API, plus the demo resource pack.
+
+```js
+// F8b · JS · provisional
+efx.drawModel(mesh, mat?, opts?)     // { transform?, skinned? } — pure-JS:
                                      // binds mat to every surface lacking a bound
                                      // material, then drawMesh (ADR 0024)
-efx.drawText(text, x, y, opts)       // { font, size?, color? } — text as quads
 ```
 
 ```js
-// main.js — F8 sample (provisional API)
-efx.setClearColor([0.08, 0.09, 0.12, 1]);
+// main.js — F8b sample (provisional API)
 efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });
-const teapot = efx.loadMesh('models/teapot.mesh');
-const font = efx.loadFont('fonts/perfect.ttf');
-
+const teapot = efx.createMesh(efx.loadMeshData('models/teapot.gltf'));
 let yaw = 0;
 efx.registerUpdateHook(dt => { yaw += dt * 30; });
-
 efx.registerRenderHook(() => {
     efx.drawModel(teapot, {
         diffuse:  { color: [0.8, 0.3, 0.2, 1] },
         specular: { color: [1, 1, 1, 1], shininess: 32 },
     }, { transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]) });
-    efx.drawText('score: 1200', 24, 24, { font, size: 32, color: [1, 1, 1, 1] });
 });
 ```
 
@@ -1130,7 +1200,8 @@ section (or an open question below):
 | Skinning and animations | F7 (`poseMesh`, `drawMesh({ skinned })`, current) |
 | Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, current) |
 | Script modules / splitting authored code (TypeScript `import`) | F10 (CommonJS `require`, current — Script modules section) |
-| High-level functions in pure JS (`drawModel`, `drawText`) | F8 |
+| High-level functions in pure JS (`drawModel`) | F8b |
+| Text / fonts (TrueType atlas + formatted 2D text) | F8a (native C typesetting, `loadFontData`/`createFont`/`drawText`/`measureText`) |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
 | Low/mid C + high-level JS layering | Overview (two layers), every entry tag |
 | No browser/Node dependencies (incl. transitively) | Conventions (Dependencies) |

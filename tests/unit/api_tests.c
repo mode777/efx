@@ -1011,6 +1011,70 @@ static int createTexture_js(void) {
     return ok ? 0 : fail("createTexture sampler/mipmap option mapping");
 }
 
+/* F8a: font data -> baked font -> measure/draw + option validation */
+static int font_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) return fail("runtime");
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_RES_FIXTURES, &err);
+    if (!res) {
+        end_js();
+        return fail("open fixtures");
+    }
+    efx_runtime_set_resource(g_rt, res);
+    int rc = efx_runtime_eval_string(g_rt, "test",
+        "var fd = efx.loadFontData('font.ttf');"
+        "var font = efx.createFont(fd, { size: 32 });"
+        "if (font.size !== 32) throw new Error('size');"
+        "if (!(font.lineHeight > 0)) throw new Error('lineHeight');"
+        "if (!(font.ascent > 0)) throw new Error('ascent');"
+        "if (!(font.descent < 0)) throw new Error('descent');"
+        "var b = efx.measureText('hello world', font);"
+        "if (!(b.width > 0) || b.lines !== 1) throw new Error('measure');"
+        "var bw = efx.measureText('hello world', font, { width: 40 });"
+        "if (bw.lines < 2) throw new Error('wrap lines');"
+        "var bd = efx.drawText('AB', font, 10, 10, { color: [1, 0, 0, 1] });"
+        "if (bd.lines !== 1) throw new Error('draw bounds');"
+        "var fx = efx.createFont(fd, { size: 24, outline: { width: 2 },"
+        "  shadow: { blur: 2, offset: [2, 2] } });"
+        "efx.drawText('Hi', fx, 0, 0, { align: 'center',"
+        "  outlineColor: [0, 0, 0, 1], shadowColor: [0, 0, 0, 1] });"
+        "function boom(fn) { try { fn(); } catch (e) {"
+        "  return e && e.constructor ? e.constructor.name : 'Error'; }"
+        "  return 'none'; }"
+        "if (boom(function () { efx.createFont(fd, {}); }) !== 'TypeError')"
+        "  throw new Error('missing size');"
+        "if (boom(function () { efx.createFont(fd, { size: 0 }); }) !== 'RangeError')"
+        "  throw new Error('size 0');"
+        "if (boom(function () { efx.createFont(fd, { size: 16, nope: 1 }); })"
+        "    !== 'TypeError') throw new Error('unknown option');"
+        "if (boom(function () { efx.createFont(fd, { size: 16,"
+        "    outline: { width: 0 } }); }) !== 'RangeError')"
+        "  throw new Error('outline width');"
+        "if (boom(function () { efx.drawText('x', font, 0, 0,"
+        "    { align: 'justify' }); }) !== 'TypeError')"
+        "  throw new Error('justify without width');"
+        "if (boom(function () { efx.measureText('x', font,"
+        "    { align: 'bogus' }); }) !== 'TypeError')"
+        "  throw new Error('bad align');"
+        "if (boom(function () { efx.drawText('x', {}, 0, 0); }) !== 'TypeError')"
+        "  throw new Error('non-font');"
+        "font.destroy(); fx.destroy(); fd.destroy();"
+        "if (boom(function () { font.size; }) !== 'TypeError')"
+        "  throw new Error('destroyed getter');");
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_resource_close(res);
+    if (rc != 0) return fail("font js snippet raised");
+    return 0;
+}
+
 /* F6b: loadMeshData imports a fixture and wires createMesh */
 static int gltf_js(void) {
     efx_render_install_sink(&g_sink);
@@ -1624,6 +1688,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "f5b_js")) return f5b_js();
     if (!strcmp(c, "resource_js")) return resource_js();
     if (!strcmp(c, "createTexture_js")) return createTexture_js();
+    if (!strcmp(c, "font_js")) return font_js();
     if (!strcmp(c, "gltf_js")) return gltf_js();
     if (!strcmp(c, "skin_js")) return skin_js();
     if (!strcmp(c, "pose_js")) return pose_js();

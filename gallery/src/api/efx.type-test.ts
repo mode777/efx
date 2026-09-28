@@ -79,6 +79,41 @@ efx.poseMesh(cube, { clip: 'Walk', time: 1, bogus: true });
 // @ts-expect-error — skinned is a boolean
 efx.drawMesh(cube, { skinned: 1 });
 
+// F8a — font + text: data -> baked font -> draw/measure
+const fontData: EfxFontData = efx.loadFontData('fonts/kenney.ttf');
+const font: EfxFont = efx.createFont(fontData, {
+  size: 32,
+  glyphs: 'ABCabc 0123',
+  padding: 1,
+  filter: 'linear',
+  outline: { width: 2 },
+  shadow: { blur: 3, offset: [2, 2] },
+});
+const plainFont: EfxFont = efx.createFont(fontData, { size: 16 });
+const bounds: TextBounds = efx.drawText('hello', font, 10, 10, {
+  align: 'justify',
+  valign: 'middle',
+  width: 200,
+  lineHeight: 40,
+  color: [1, 1, 1, 1],
+  outlineColor: [0, 0, 0, 1],
+  shadowColor: [0, 0, 0, 1],
+  rotation: 15,
+  scale: 1.5,
+});
+const measured: TextBounds = efx.measureText('hello', font, { width: 200 });
+bounds.lines;
+measured.width;
+efx.drawText('plain', plainFont, 0, 0);
+// @ts-expect-error — createFont requires a size
+efx.createFont(fontData, {});
+// @ts-expect-error — align is a fixed set
+efx.drawText('x', font, 0, 0, { align: 'middle' });
+// @ts-expect-error — drawText takes the font positionally
+efx.drawText('x', 0, 0, { font });
+// @ts-expect-error — unknown font option
+efx.createFont(fontData, { size: 12, bogus: 1 });
+
 // F10 — CommonJS module authoring facilities: module-scoped, resolved from the
 // resource root, and never members of `efx`.
 const dep: unknown = require('./lib/math.js');

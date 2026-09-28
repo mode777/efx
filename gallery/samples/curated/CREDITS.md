@@ -10,6 +10,7 @@ attribution; this file exists for transparency.
 | `texture-showcase.zip` | `paving_color.jpg` | ambientCG (Lennart Demes) | `PavingStones070`, https://ambientcg.com/view?id=PavingStones070 | CC0 1.0 |
 | `gltf-showcase.zip` | `Avocado.gltf`, `Avocado.bin`, `Avocado_baseColor.png` | Microsoft | Khronos glTF-Sample-Assets, `Models/Avocado`, https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Avocado | CC0 1.0 |
 | `fox-walk.zip` | `Fox.glb` | Quaternius (Tomás Laulhé) | Quaternius, "Ultimate Animated Animals" (https://quaternius.com/packs/ultimateanimatedanimals.html); glb mirror: https://github.com/trebeljahr/quaternius-showcase | CC0 1.0 |
+| `text-showcase.zip` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
@@ -60,7 +61,6 @@ their root, so the sample scripts address them root-relative.
    `pbrMetallicRoughness`. (The importer binds only base-color and emissive;
    this pack has no textures.)
 3. Zip `Fox.glb` at the archive root.
-
 ### `modules-showcase.zip`
 
 This pack is **authored in-repo** (no third-party assets), so it is not CC0
@@ -72,3 +72,12 @@ material and has no credit line. The readable CommonJS sources live under
 python3 gallery/scripts/pack-curated-modules.py
 python3 gallery/scripts/pack-curated-modules.py --check   # drift check
 ```
+
+### `text-showcase.zip`
+
+1. Download `Kenney Future.ttf` from the Kenney Fonts CC0 pack; the committed
+   copy came from the `ereborstudios/kenney-fonts` mirror at the archive root
+   (`https://raw.githubusercontent.com/ereborstudios/kenney-fonts/main/Kenney%20Future.ttf`).
+2. Zip it at the archive root as `font.ttf`, deterministically (fixed entry
+   timestamp, no directory entries), e.g. with Python's `zipfile` using a
+   fixed `ZipInfo.date_time`.

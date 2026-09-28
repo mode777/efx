@@ -9,6 +9,7 @@ replacing the snapshot and editing the table below.
 | `sokol/` | floooh/sokol | master @ `2e75443dbd4940b5aa8d76a8e479f8e4b270b9a3` | https://github.com/floooh/sokol (only `sokol_app.h`, `sokol_gfx.h`, `sokol_glue.h`) |
 | `quickjs-ng/` | quickjs-ng/quickjs | v0.17.0 (QJS 0.17.0) | https://github.com/quickjs-ng/quickjs, release tarball `v0.17.0.tar.gz` |
 | `stb/` | nothings/stb | master @ `2c980bb59875b0d32144a71867fbdebb2f77cd20` (`stb_image` v2.30, `stb_image_write` v1.16) | https://github.com/nothings/stb (only `stb_image.h`, `stb_image_write.h`) |
+| `stb/` | nothings/stb | master @ `2c980bb59875b0d32144a71867fbdebb2f77cd20` (`stb_truetype` v1.26, `stb_rect_pack` v1.01) | https://github.com/nothings/stb (only `stb_truetype.h`, `stb_rect_pack.h`) |
 | `miniz/` | richgel999/miniz | 3.1.2 @ `77d0dce8627735138c51770d1799a1ef48f2117d` | https://github.com/richgel999/miniz (`miniz-3.1.2.zip` release amalgamation: `miniz.c`, `miniz.h`, `LICENSE`) |
 | `glm/` | g-truc/glm | 1.0.3 @ `8d1fd52e5ab5590e2c81768ace50c72bae28f2ed` | https://github.com/g-truc/glm (core headers + `detail/` + `simd/` + `ext/` + `gtc/`; excludes `gtx/`, the C++20 module `glm.cppm`, `CMakeLists.txt`, umbrella `ext.hpp`) |
 | `cgltf/` | jkuhlmann/cgltf | v1.15 @ `360db1a95480fe102ae9c69b27c5d101167ff5ba` | https://github.com/jkuhlmann/cgltf (`cgltf.h` single header; MIT, in-header notice) |
@@ -48,6 +49,13 @@ Notes:
   implementation TUs live in the tools that need them (`tests/imgdiff.c`,
   `src/platform/capture.c`). Evaluation record:
   `openspec/changes/f2-2d-layer/proposal.md`.
+- stb_truetype/stb_rect_pack are vendored for the F8a font/text module
+  (`stb_truetype` parses fonts, extracts metrics/kerning and rasterizes
+  glyphs; `stb_rect_pack` packs the fixed atlas). Both are single-header
+  public-domain/MIT, same family as the already-vendored stb_image; their
+  implementation TUs live in `src/render/stb_truetype_impl.c` and
+  `src/render/stb_rect_pack_impl.c`. Evaluation record:
+  `openspec/changes/f8a-font-typesetting/`.
 - miniz is vendored for the F6a resource provider's zip backend
   (`mz_zip_reader`): the release is a single-file amalgamation (`miniz.c` +
   `miniz.h`, no external zlib), MIT. It is linked into `efx_core` on all four

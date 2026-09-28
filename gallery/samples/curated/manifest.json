@@ -65,5 +65,13 @@
     "category": "Scripting",
     "description": "A lit 3D scene split across files with the F10 CommonJS module system: synchronous require loads a relative module (palette.js), an extension-less specifier with the deterministic .js fallback (orbit), and a JSON module (data/scene.json) from the sample's asset pack, then registers update/render hooks from the composed data.",
     "assets": "modules-showcase.zip"
+  },
+  {
+    "file": "text-showcase.js",
+    "id": "curated:text-showcase",
+    "title": "Text Showcase",
+    "category": "Text",
+    "description": "A TrueType font baked into a fixed atlas with the F8a text API: loadFontData -> createFont (with baked outline/shadow) draws a title, a wrapped paragraph whose alignment cycles through left/center/right/justify (Tab), and a live typing area (type, Enter, Backspace). The font is a CC0 Kenney font from the sample's asset pack.",
+    "assets": "text-showcase.zip"
   }
 ]

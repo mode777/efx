@@ -50,6 +50,12 @@ JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc, JSValu
 /* F6b — glTF mesh import */
 JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F8a — font + text */
+JSValue efx_js_loadFontData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_createFont(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 

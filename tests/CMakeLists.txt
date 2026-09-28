@@ -60,6 +60,7 @@ add_player_test(smoke_10_missing ARGS "--script;${S}/s_10_missing.js" EXPECT non
 add_player_test(smoke_10_escape ARGS "--script;${S}/s_10_escape.js" EXPECT nonzero EXPECT_ERR "escapes the resource root")
 add_player_test(smoke_10_unsupported ARGS "--script;${S}/s_10_unsupported.js" EXPECT nonzero)
 add_player_test(smoke_10_nohost ARGS "--script;${S}/s_10_nohost.js" EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
+add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 # gallery showcase samples run against their committed asset packs: a failed
@@ -69,6 +70,7 @@ add_player_test(smoke_showcase_texture ARGS "--script;${GALLERY}/texture-showcas
 add_player_test(smoke_showcase_gltf ARGS "--script;${GALLERY}/gltf-showcase.js;--root;${GALLERY}/gltf-showcase.zip" EXPECT 0)
 add_player_test(smoke_showcase_fox ARGS "--script;${GALLERY}/fox-walk.js;--root;${GALLERY}/fox-walk.zip" EXPECT 0)
 add_player_test(smoke_showcase_modules ARGS "--script;${GALLERY}/modules-showcase.js;--root;${GALLERY}/modules-showcase.zip" EXPECT 0)
+add_player_test(smoke_showcase_text ARGS "--script;${GALLERY}/text-showcase.js;--root;${GALLERY}/text-showcase.zip" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
@@ -136,6 +138,7 @@ if(EMSCRIPTEN)
     add_web_test(web_10_escape ${S}/s_10_escape.js EXPECT nonzero EXPECT_ERR "escapes the resource root")
     add_web_test(web_10_unsupported ${S}/s_10_unsupported.js EXPECT nonzero)
     add_web_test(web_10_nohost ${S}/s_10_nohost.js EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
+    add_web_test(web_8a_text ${F}/web/text_root EXPECT 0 EXPECT_OUT "s-8a-text-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
@@ -188,6 +191,10 @@ foreach(CASE dir_read dir_nested dir_missing dir_traversal dir_bad_root
               skin_pose_reference)
     add_unit_test(efx_resource_tests ${CASE})
 endforeach()
+foreach(CASE fontdata_load font_bake font_bake_errors layout_cases
+              measure_draw_agree draw_records)
+    add_unit_test(efx_text_tests ${CASE})
+endforeach()
 endif()
 if(NOT EMSCRIPTEN)
 foreach(CASE
@@ -196,7 +203,7 @@ foreach(CASE
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
     resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
-    module_js module_hooks_js)
+    module_js module_hooks_js font_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()
@@ -230,7 +237,7 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 post_colorfilter post_blur_small post_blur_large post_bloom
                 post_mix post_scale_nearest post_scale_linear
                 post_order_a post_order_b post_user_rt load_png gltf_import
-                skin_import skin_pose mipmaps)
+                skin_import skin_pose mipmaps text_basic text_effects)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

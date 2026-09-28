@@ -37,7 +37,7 @@ Here are some properties I want in unspecified order:
 - Callbacks for update and rendering
 - Low level functions written in C/C++
 - Mid level functions implemented in C/C++ and exposed to JS API (e.g. drawQuad, drawMesh, setLight, setMaterial)
-- High level functions implemented on top in pure JS (e.g. drawModel, drawText etc…)
+- High level functions implemented on top in pure JS (e.g. drawModel etc…); low/mid-level drawing including 2D text/typesetting stays in C
 - Scripts are organized as CommonJS modules loaded synchronously from the resource root (`require`); the entry `main.js` is itself a module. TypeScript is a supported authoring language: `import`/`export` are compiled down to CommonJS before packaging, keeping full type safety
 - Input is grouped into sub-namespaces of the single `efx` object (`efx.keyboard`, `efx.mouse`, `efx.window`): `is*`/query members for current state and `on*` registrations returning unsubscribe functions for events
 - JS functions must not have any dependencies to browser APIs or NodeJS (also not transitively)

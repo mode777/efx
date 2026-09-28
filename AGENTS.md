@@ -90,6 +90,21 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   36463101573: native suites incl. the module cases on Linux/Windows/macOS,
   Emscripten ctest incl. `web_10_modules` + web goldens + cross-runtime compare
   `10_modules`/`10_nohost` + the browser harness module scenarios).
+- F8a (font + text) is **implemented** — `loadFontData(path)` returns a
+  native `FontData` (parsed `.ttf`/`.otf`); `createFont(fontData, { size,
+  glyphs?, padding?, filter?, outline?, shadow? })` bakes a **fixed** RGBA8
+  glyph atlas (default printable Latin-1, optional baked outline/shadow) and
+  returns a native `Font` (read-only `size`/`lineHeight`/`ascent`/`descent`);
+  `drawText(text, font, x, y, opts?)` and `measureText(text, font, opts?)`
+  are C-implemented mid-level facilities that lay out and record 2D quads
+  (newlines, greedy word wrap, `left`/`center`/`right`/`justify`,
+  `top`/`middle`/`bottom`; no rich text/3D text) and return
+  `{ width, height, lines }`. The module is `src/render/text.c` over the
+  vendored `stb_truetype`/`stb_rect_pack` (change `f8a-font-typesetting`,
+  ADR 0038, which supersedes ADR 0013's pure-JS-font clause); the remaining
+  F8 slice (`drawModel`, demo pack) is provisional. Its gate is the text
+  golden scenes plus headless layout/measure unit tests and the portable
+  `web_8a_text`/`smoke_8a_text` script cases.
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -181,6 +196,11 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `createTexture` taking `wrap`/`filter`/`mipmaps` (F6e; no `loadTexture`) —
   plus F7's skinning — `poseMesh(mesh, pose)` and the `drawMesh(mesh,
   { skinned })` option (rig data stays implicit `Mesh` payload) —
+  plus F8a's font + text — `loadFontData` → `createFont(fontData, { size,
+  glyphs?, padding?, filter?, outline?, shadow? })` (a fixed C-baked atlas)
+  → `drawText(text, font, x, y, opts?)` / `measureText(text, font, opts?)`
+  (wrap + `left`/`center`/`right`/`justify` + `top`/`middle`/`bottom`, baked
+  outline/shadow; both return `{ width, height, lines }`) —
   plus F9's input sub-namespaces — `efx.keyboard` (isDown/isPressed/isReleased,
   onDown/onUp/onChar), `efx.mouse` (the same queries plus onMove/onWheel;
   read-only `position`/`x`/`y`/`delta`/`wheel`), and `efx.window` (read-only
@@ -190,8 +210,8 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   globals; `main.js` is the entry module and its `module.exports.update`/
   `.render` join the global `update`/`render` load-time sugar (registered once)
   —
-  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F9/F10 entries are current
-  behavior; F8 is provisional;
+  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F8a/F9/F10 entries are current
+  behavior; F8b — `drawModel`/demo pack — is provisional;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
   The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
   batch and shorthand forms as an exclusive union (the batch form does not
@@ -209,7 +229,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   mouse/keyboard events + queries, self-playing until interacted with) and a
   `modules-showcase` demo (F10: a scene split across files composed with
   synchronous `require` — relative/extension-less specifiers and a JSON
-  module — from the sample's authored pack).
+  module — from the sample's authored pack), and a `text-showcase` demo (F8a:
+  a typing playground exercising the baked atlas, wrapping, alignment, and
+  baked outline/shadow from the sample's CC0 font pack).
   Build
   with `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
   (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).
@@ -318,7 +340,7 @@ independently of F3–F8.
 | F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
 | F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d (interactive console) done, gate green (run 36367478373); F6e (texture creation options) done, gate green (run 36392688547) |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, script-driven posing | FK joint-transform tests vs CPU reference + golden images | done — `poseMesh` + `skinned` draw option, CPU-reference unit tests, `skin_pose` golden, CC0 Fox gallery sample (ADR 0035); four-target gate green (run 36443794987) |
-| F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
+| F8 | High-level JS + text | F8a: `loadFontData`/`createFont`/`drawText`/`measureText` (fixed C-baked atlas, wrap + alignment, baked outline/shadow); F8b: `drawModel`, demo resource pack | Golden images; demo pack runs end-to-end on all four targets | in progress — F8a implemented (change `f8a-font-typesetting`, ADR 0038); F8b provisional |
 | F9 | Input (keyboard + mouse) | **Orthogonal** (predecessor F2; independent of F3–F8): pure-C frame-staged input core, `efx.keyboard`/`efx.mouse`/`efx.window` query + event API, surface-pixel coordinates, test-only injection seam | Non-visual: headless unit tests over the C core + a script-level simulation harness, all four targets (no golden image) | implemented — change `f9-input`, ADR 0036; four-target gate green (run 36448429521) |
 | F10 | Script modules (CommonJS) | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F9): synchronous provider-backed `require` in the shared pure-JS prelude, restricted resolver, module caching/cycles, `__esModule` interop, JSON modules, `main.js` as a module, TypeScript `import`→CommonJS authoring | Script-level module tests on all four targets (ctest + Emscripten ctest + cross-runtime compare; no golden image) | implemented — change `f10-commonjs-modules`, ADR 0037; four-target gate green (run 36463101573) |
 

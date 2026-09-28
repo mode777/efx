@@ -217,6 +217,10 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
         JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
         JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
+        JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
+        JS_CFUNC_DEF("createFont", 2, efx_js_createFont),
+        JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
+        JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));
