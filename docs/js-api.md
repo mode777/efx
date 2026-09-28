@@ -5,11 +5,10 @@
 maps + alpha masks), F5a (render targets), F5b (post-effect chain +
 render scale), F6a (resource root + text/image loading), F6b (glTF static
 import), F6c (glTF rig import), F6d (interactive console run mode —
-no new API), F6e (texture creation options), and F7 (CPU skinning +
-animation — `poseMesh` and the `skinned` draw option) are implemented
-(current behavior). F9 (input — keyboard + mouse query and event API) is
-implemented and **provisional** until its four-target gate passes; F8 onward
-is a provisional contract — names and
+no new API), F6e (texture creation options), F7 (CPU skinning +
+animation — `poseMesh` and the `skinned` draw option), and F9 (input —
+keyboard + mouse query and event API) are implemented
+(current behavior). F8 onward is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
 the same change). See `vision.md` for product goals and
@@ -983,7 +982,7 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F9 — Input: keyboard, mouse & window (provisional)
+### F9 — Input: keyboard, mouse & window (current)
 
 Keyboard and mouse input as three sub-namespaces of the single `efx` object,
 with a query API for polling current state and an event API with callbacks
@@ -991,7 +990,7 @@ returning unsubscribe functions (ADR 0036). Input adds **no resource types**:
 no native-backed class, no `destroy()`, no slot bank.
 
 ```js
-// F9 · C · provisional — namespaces on the single efx object (ADR 0004/0036)
+// F9 · C · current — namespaces on the single efx object (ADR 0004/0036)
 efx.keyboard.isDown(key) / isPressed(key) / isReleased(key)   // → boolean
 efx.keyboard.onDown(fn) / onUp(fn) / onChar(fn)               // → unsubscribe
 efx.mouse.isDown(button) / isPressed(button) / isReleased(button)
@@ -1069,7 +1068,7 @@ section (or an open question below):
 | Resource folder / zip root (`res://`-like) | F6a (load paths + dir/zip provider, current) |
 | REPL console mode | F6d (drives the same `efx` namespace) |
 | Skinning and animations | F7 (`poseMesh`, `drawMesh({ skinned })`, current) |
-| Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, provisional) |
+| Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, current) |
 | High-level functions in pure JS (`drawModel`, `drawText`) | F8 |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
 | Low/mid C + high-level JS layering | Overview (two layers), every entry tag |

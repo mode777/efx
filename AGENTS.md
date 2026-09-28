@@ -70,8 +70,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   the `efx.keyboard` / `efx.mouse` / `efx.window` sub-namespaces (queries plus
   unsubscribe-returning event callbacks, surface-pixel coordinates) and no new
   resource types. Its non-visual gate is headless unit tests plus an injected
-  script-level harness on all four targets (change `f9-input`, ADR 0036);
-  gate status recorded in the roadmap row.
+  script-level harness on all four targets (change `f9-input`, ADR 0036).
+  Its four-target gate is **green** (ci run 36448429521: native suites incl.
+  all goldens + the new input cases on Linux/Windows/macOS, Emscripten ctest
+  incl. `web_9_input` + web goldens + cross-runtime compare `9_input`).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -288,7 +290,7 @@ predecessor is F2, so it may land independently of F3–F8.
 | F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d (interactive console) done, gate green (run 36367478373); F6e (texture creation options) done, gate green (run 36392688547) |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, script-driven posing | FK joint-transform tests vs CPU reference + golden images | done — `poseMesh` + `skinned` draw option, CPU-reference unit tests, `skin_pose` golden, CC0 Fox gallery sample (ADR 0035); four-target gate green (run 36443794987) |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
-| F9 | Input (keyboard + mouse) | **Orthogonal** (predecessor F2; independent of F3–F8): pure-C frame-staged input core, `efx.keyboard`/`efx.mouse`/`efx.window` query + event API, surface-pixel coordinates, test-only injection seam | Non-visual: headless unit tests over the C core + a script-level simulation harness, all four targets (no golden image) | implemented — change `f9-input`, ADR 0036; gate pending |
+| F9 | Input (keyboard + mouse) | **Orthogonal** (predecessor F2; independent of F3–F8): pure-C frame-staged input core, `efx.keyboard`/`efx.mouse`/`efx.window` query + event API, surface-pixel coordinates, test-only injection seam | Non-visual: headless unit tests over the C core + a script-level simulation harness, all four targets (no golden image) | implemented — change `f9-input`, ADR 0036; four-target gate green (run 36448429521) |
 
 Deferred cross-cutting decisions settle inside specific milestones, not
 before: golden-image tolerance + CI determinism (incl. emsdk pinning) in
