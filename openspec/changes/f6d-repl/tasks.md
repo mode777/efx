@@ -37,11 +37,11 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Register a ctest case that pipes a session exercising evaluation,
+- [x] 5.1 Register a ctest case that pipes a session exercising evaluation,
   state persistence, error recovery, `.help`/`.exit`, and `efx.quit` codes;
   gate it on a display like the golden suite. Verify it passes on Linux under
   `xvfb-run`.
-- [ ] 5.2 Run the Linux pipeline first, then Windows, then macOS; verify via
+- [x] 5.2 Run the Linux pipeline first, then Windows, then macOS; verify via
   `python3 tools/verify_remote.py all <branch>` before dispatching
   `gh workflow run ci.yml --ref <branch>`.
-- [ ] 5.3 Confirm the four-target gate is green before archiving.
+- [x] 5.3 Confirm the four-target gate is green before archiving.
