@@ -183,7 +183,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `tests/goldens/` by `gallery/scripts/gen-catalog.mjs`. A curated
   sample may ship a committed CC0 asset pack (a zip beside its manifest,
   copied into the site by `gen-catalog.mjs` and mounted as the resource
-  root); see `gallery/samples/curated/CREDITS.md` for provenance. Build
+  root); see `gallery/samples/curated/CREDITS.md` for provenance. The
+  curated set includes an interactive `input-playground` demo (F9:
+  mouse/keyboard events + queries, self-playing until interacted with).
+  Build
   with `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
   (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).
   See ADR 0030 for the host↔engine embedding contract.

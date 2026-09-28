@@ -28,6 +28,13 @@
     "description": "A declarative post-effect chain: bloom plus a color filter."
   },
   {
+    "file": "input-playground.js",
+    "id": "curated:input-playground",
+    "title": "Input Playground",
+    "category": "Showcase",
+    "description": "An interactive tour of the F9 input API: mouse move/down/wheel callbacks paint a particle trail, keyboard events and held-state queries steer it, and surface-pixel pointer coordinates are mapped into the 2D frame. Self-plays until you interact."
+  },
+  {
     "file": "texture-showcase.js",
     "id": "curated:texture-showcase",
     "title": "Texture Showcase",
