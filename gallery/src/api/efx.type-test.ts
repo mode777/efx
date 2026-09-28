@@ -32,7 +32,7 @@ efx.loadMeshData('models/quad.glb', { mesh: 'm' }).destroy();
 efx.loadMeshData('models/quad.glb', { mesh: 0 }).destroy();
 efx.createTexture(
   efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }),
-  { wrap: 'clamp', filter: 'nearest' },
+  { wrap: 'clamp', filter: 'nearest', mipmaps: true },
 ).destroy();
 
 // The type document must reject a mistyped member and a malformed options bag.
@@ -44,5 +44,7 @@ efx.setCamera3D({});
 efx.setBlendMode('multiply');
 // @ts-expect-error — unknown texture wrap value
 efx.createTexture(efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }), { wrap: 'bogus' });
+// @ts-expect-error — mipmaps is a boolean
+efx.createTexture(efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }), { mipmaps: 'yes' });
 // @ts-expect-error — loadMeshData mesh selector is a number or a name
 efx.loadMeshData('models/quad.glb', { mesh: {} });

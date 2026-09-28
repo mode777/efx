@@ -3,7 +3,7 @@
  * provider + image decode + createTexture path end to end. The 8x8 checker
  * is drawn scaled; the captured frame is the committed golden.
  */
-var tex = efx.loadTexture('sprite.png');
+var tex = efx.createTexture(efx.loadImage('sprite.png'));
 
 efx.setClearColor([0.05, 0.05, 0.08, 1]);
 efx.setCamera2D({ frame: [640, 480] });

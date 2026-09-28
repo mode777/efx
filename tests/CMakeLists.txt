@@ -143,6 +143,7 @@ endforeach()
 foreach(CASE
     compose_camera compose_quad value_snapshot default_camera_viewport
     blend_snapshot record_budget texture_lifecycle record_fields batching
+    texture_mipmaps
     meshdata_validation meshdata_skinning mesh_lifecycle mesh_pending_upload
     mesh_record_fields mesh_record_order mesh_record_budget
     lights_state light_snapshot material_binding lighting_reference
@@ -203,7 +204,7 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 post_colorfilter post_blur_small post_blur_large post_bloom
                 post_mix post_scale_nearest post_scale_linear
                 post_order_a post_order_b post_user_rt load_png gltf_import
-                skin_import)
+                skin_import mipmaps)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

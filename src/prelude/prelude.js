@@ -309,11 +309,6 @@ function __efxPreludeInstall(efx) {
     efx.makeCube = __efxMakeCube;
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
-
-    /* F6a: convenience composition on the public C layer — no host deps */
-    efx.loadTexture = function (path) {
-        return efx.createTexture(efx.loadImage(path));
-    };
 }
 
 __efxPreludeInstall(efx);

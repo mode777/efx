@@ -236,8 +236,9 @@ static int zip_bad_root(void) {
 /* ---------------------------------------------------------- F6b glTF import */
 
 static void *gltf_mock_create(void *ud, int w, int h, const uint8_t *rgba,
-                              int wrap, int filter) {
+                              int wrap, int filter, int mipmaps) {
     (void)ud; (void)w; (void)h; (void)rgba; (void)wrap; (void)filter;
+    (void)mipmaps;
     return malloc(8);
 }
 
@@ -380,7 +381,7 @@ static int gltf_glb(void) {
     const efx_surface *s0 = &md->surfaces[0];
     const efx_surface *s1 = &md->surfaces[1];
     int wrap = -1, filter = -1;
-    efx_render_texture_sampler(s0->material.diffuse_map, &wrap, &filter);
+    efx_render_texture_sampler(s0->material.diffuse_map, &wrap, &filter, NULL);
     int ok = md->surface_count == 2 && s0->has_material && s1->has_material &&
              s0->material.diffuse_map != 0 && s0->material.alpha_mask != 0 &&
              s0->material.alpha_mask == s0->material.diffuse_map &&
@@ -403,15 +404,15 @@ static int gltf_dedup(void) {
     uint64_t h1 = md->surfaces[1].material.diffuse_map;
     uint64_t h2 = md->surfaces[2].material.diffuse_map;
     int wrap0 = -1, wrap2 = -1;
-    efx_render_texture_sampler(h0, &wrap0, NULL);
-    efx_render_texture_sampler(h2, &wrap2, NULL);
+    efx_render_texture_sampler(h0, &wrap0, NULL, NULL);
+    efx_render_texture_sampler(h2, &wrap2, NULL, NULL);
     int ok = h0 != 0 && h0 == h1 && h2 != h0 &&
              efx_render_texture_ref_count(h0) == 2 &&
              wrap0 == EFX_TEX_WRAP_REPEAT && wrap2 == EFX_TEX_WRAP_REPEAT;
     /* h0 uses the linear sampler, h2 the nearest one */
     int f0 = -1, f2 = -1;
-    efx_render_texture_sampler(h0, NULL, &f0);
-    efx_render_texture_sampler(h2, NULL, &f2);
+    efx_render_texture_sampler(h0, NULL, &f0, NULL);
+    efx_render_texture_sampler(h2, NULL, &f2, NULL);
     ok = ok && f0 == EFX_FILTER_LINEAR && f2 == EFX_FILTER_NEAREST;
     efx_meshdata_destroy(md);
     efx_render_shutdown();

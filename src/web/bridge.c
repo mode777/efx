@@ -189,13 +189,14 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_imagedata_destroy(int id) {
 }
 
 EMSCRIPTEN_KEEPALIVE double efx_bridge_texture_create(int id, int wrap,
-                                                      int filter) {
+                                                      int filter,
+                                                      int mipmaps) {
     img_slot *s = img_get(id);
     if (!s || !s->alive) {
         return 0;
     }
     return (double)efx_render_texture_create(s->w, s->h, s->pixels, wrap,
-                                             filter);
+                                             filter, mipmaps);
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_texture_destroy(double handle) {

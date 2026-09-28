@@ -12,7 +12,7 @@ efx.setCamera3D({ pos: [3.4, 2.8, 4.6], target: [0, 0.3, 0], fov: 55 });
 efx.setLight(0, { pos: [4.0, 6.0, 3.5], color: [1, 0.96, 0.9, 1], range: 40 });
 efx.setDirectionalLight({ dir: [-0.4, -0.9, -0.4], color: [0.2, 0.22, 0.3, 1] });
 
-const tex = efx.loadTexture('paving_color.jpg');
+const tex = efx.createTexture(efx.loadImage('paving_color.jpg'));
 
 // Ground plane whose UVs run 0..6, so the repeat sampler tiles the texture.
 const ground = efx.createMesh(efx.createMeshData({
