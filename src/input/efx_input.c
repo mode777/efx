@@ -107,7 +107,7 @@ static struct {
     float accum_wx, accum_wy;   /* wheel arriving between frames */
     int w, h;          /* surface size */
     float dpi_scale;
-} P;
+} P = {.dpi_scale = 1.0f};
 
 static efx_input_event EVENTS[EFX_INPUT_QUEUE_MAX];
 static int event_count;
