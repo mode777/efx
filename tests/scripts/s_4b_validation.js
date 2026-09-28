@@ -57,7 +57,7 @@ expectThrow('md-map-length', RE, () => efx.createMeshData({ surfaces: [{ positio
 efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex }, alphaMask: tex });
 tex.destroy();
 efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });
-efx.drawMesh({ mesh });
+efx.drawMesh(mesh);
 expectThrow('map-destroyed', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } }));
 // rebind without the map releases it
 efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1] } });

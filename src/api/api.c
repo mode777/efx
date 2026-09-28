@@ -1982,65 +1982,65 @@ static efxjs_mesh *get_live_mesh(JSContext *ctx, JSValueConst v) {
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
                         int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return type_error(ctx, "drawMesh requires an options object");
-    }
-    JSValueConst opts = argv[0];
-    static const char *known[] = {"mesh", "transform", "color"};
-    if (check_known_fields(ctx, opts, known, 3, "drawMesh") != 0) {
-        return JS_EXCEPTION;
-    }
-    JSValue mv = JS_GetPropertyStr(ctx, opts, "mesh");
-    if (JS_IsUndefined(mv)) {
-        JS_FreeValue(ctx, mv);
+    if (argc < 1) {
         return type_error(ctx, "drawMesh requires a mesh");
     }
-    efxjs_mesh *mesh = get_live_mesh(ctx, mv);
-    JS_FreeValue(ctx, mv);
+    efxjs_mesh *mesh = get_live_mesh(ctx, argv[0]);
     if (!mesh) {
         return JS_EXCEPTION;
     }
 
     float transform[16];
     int has_transform = 0;
-    JSValue tv = JS_GetPropertyStr(ctx, opts, "transform");
-    if (JS_IsUndefined(tv)) {
-        JS_FreeValue(ctx, tv);
-    } else {
-        float *buf = NULL;
-        int len = 0;
-        int rc = read_number_array(ctx, tv, &buf, &len, "transform");
-        JS_FreeValue(ctx, tv);
-        if (rc != 0) {
-            return JS_EXCEPTION;
-        }
-        if (len != 16) {
-            free(buf);
-            return range_error(ctx, "transform must hold 16 numbers");
-        }
-        memcpy(transform, buf, sizeof(transform));
-        free(buf);
-        has_transform = 1;
-    }
-
     float color[4] = {1, 1, 1, 1};
-    JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
-    if (JS_IsUndefined(cv)) {
-        JS_FreeValue(ctx, cv);
-    } else {
-        float *buf = NULL;
-        int len = 0;
-        int rc = read_number_array(ctx, cv, &buf, &len, "color");
-        JS_FreeValue(ctx, cv);
-        if (rc != 0) {
+
+    if (argc >= 2 && !JS_IsUndefined(argv[1])) {
+        JSValueConst opts = argv[1];
+        if (!JS_IsObject(opts)) {
+            return type_error(ctx, "drawMesh options must be an object");
+        }
+        static const char *known[] = {"transform", "color"};
+        if (check_known_fields(ctx, opts, known, 2, "drawMesh") != 0) {
             return JS_EXCEPTION;
         }
-        if (len != 4) {
+        JSValue tv = JS_GetPropertyStr(ctx, opts, "transform");
+        if (JS_IsUndefined(tv)) {
+            JS_FreeValue(ctx, tv);
+        } else {
+            float *buf = NULL;
+            int len = 0;
+            int rc = read_number_array(ctx, tv, &buf, &len, "transform");
+            JS_FreeValue(ctx, tv);
+            if (rc != 0) {
+                return JS_EXCEPTION;
+            }
+            if (len != 16) {
+                free(buf);
+                return range_error(ctx, "transform must hold 16 numbers");
+            }
+            memcpy(transform, buf, sizeof(transform));
             free(buf);
-            return range_error(ctx, "color must hold 4 numbers");
+            has_transform = 1;
         }
-        memcpy(color, buf, sizeof(color));
-        free(buf);
+
+        JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
+        if (JS_IsUndefined(cv)) {
+            JS_FreeValue(ctx, cv);
+        } else {
+            float *buf = NULL;
+            int len = 0;
+            int rc = read_number_array(ctx, cv, &buf, &len, "color");
+            JS_FreeValue(ctx, cv);
+            if (rc != 0) {
+                return JS_EXCEPTION;
+            }
+            if (len != 4) {
+                free(buf);
+                return range_error(ctx, "color must hold 4 numbers");
+            }
+            memcpy(color, buf, sizeof(color));
+            free(buf);
+        }
     }
 
     int rc = efx_render_mesh(mesh->handle, has_transform ? transform : NULL,

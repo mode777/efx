@@ -534,7 +534,7 @@ static int mesh_js(void) {
         "md.destroy();" /* Mesh is a copy */
         "if (mesh.surfaceCount !== 1) throw new Error('after source destroy');"
         "efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });"
-        "efx.drawMesh({ mesh, transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,1],"
+        "efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,1],"
         "  color: [0.5, 0.25, 1, 1] });"
         "function t(fn, kind) {"
         "  try { fn(); throw new Error('did not throw'); }"
@@ -543,18 +543,21 @@ static int mesh_js(void) {
         "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
         "  }"
         "}"
+        "t(() => efx.drawMesh(), TypeError);"
         "t(() => efx.drawMesh({}), TypeError);"
-        "t(() => efx.drawMesh({ mesh: {} }), TypeError);"
-        "t(() => efx.drawMesh({ mesh, transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3] }), RangeError);"
-        "t(() => efx.drawMesh({ mesh, transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,'x',1] }), TypeError);"
-        "t(() => efx.drawMesh({ mesh, color: [1, 0, 1] }), RangeError);"
-        "t(() => efx.drawMesh({ mesh, frobnicate: 1 }), TypeError);"
+        "t(() => efx.drawMesh(null), TypeError);"
+        "t(() => efx.drawMesh(mesh, 5), TypeError);"
+        "t(() => efx.drawMesh(mesh, { mesh }), TypeError);"
+        "t(() => efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3] }), RangeError);"
+        "t(() => efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,'x',1] }), TypeError);"
+        "t(() => efx.drawMesh(mesh, { color: [1, 0, 1] }), RangeError);"
+        "t(() => efx.drawMesh(mesh, { frobnicate: 1 }), TypeError);"
         "const t2 = efx.createTexture("
         "  efx.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) }));"
         "t2.destroy();"
-        "efx.drawMesh({ mesh });"
+        "efx.drawMesh(mesh);"
         "mesh.destroy(); mesh.destroy();" /* idempotent */
-        "t(() => efx.drawMesh({ mesh }), TypeError);"
+        "t(() => efx.drawMesh(mesh), TypeError);"
         "try { mesh.surfaceCount; throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
     if (ok_js(code)) {
@@ -651,7 +654,7 @@ static int f4a_js(void) {
         "const mesh=efx.createMesh(md);"
         "efx.setMeshSurfaceMaterial(mesh, 0, { diffuse:{color:[0.1,0.2,0.3,1]} });"
         "efx.setCamera3D({pos:[0,2,5], target:[0,0,0], fov:60});"
-        "efx.drawMesh({ mesh });"
+        "efx.drawMesh(mesh);"
         "function t(fn, kind){"
         "  try{fn();throw new Error('no');}catch(e){"
         "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
@@ -709,9 +712,9 @@ static int f4b_js(void) {
         "  materials:[M] });"
         "const mesh=efx.createMesh(md);"
         "efx.setCamera3D({pos:[0,0,5], target:[0,0,0], fov:60});"
-        "efx.drawMesh({ mesh });"
+        "efx.drawMesh(mesh);"
         "tex.destroy();"                 /* retained by the bound map */
-        "efx.drawMesh({ mesh });"        /* still renders (no throw) */
+        "efx.drawMesh(mesh);"        /* still renders (no throw) */
         "function t(fn,kind){"
         "  try{fn();throw new Error('no');}catch(e){"
         "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
@@ -776,9 +779,9 @@ static int f5a_js(void) {
         "  positions:[0,0,0, 1,0,0, 0,1,0], uvs:[0,0, 1,0, 0,1], indices:[0,1,2]}));"
         "efx.setCamera3D({pos:[0,0,5],target:[0,0,0],fov:60});"
         "efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:live}});"
-        "efx.drawMesh({mesh});"
+        "efx.drawMesh(mesh);"
         "efx.beginRenderTarget(live);"
-        "t(()=>efx.drawMesh({mesh}), TypeError);" /* mesh feedback */
+        "t(()=>efx.drawMesh(mesh), TypeError);" /* mesh feedback */
         "efx.endRenderTarget();"
         "const dead=efx.createRenderTarget({width:8,height:8});"
         "dead.destroy();"

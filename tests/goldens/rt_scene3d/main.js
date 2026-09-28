@@ -13,10 +13,10 @@ const rt = efx.createRenderTarget({ width: 400, height: 400 });
 function update() {}
 function render() {
     efx.beginRenderTarget(rt);
-    efx.drawMesh({ mesh: ground,
+    efx.drawMesh(ground, {
                    transform: efx.mat4.translate(efx.mat4.identity(),
                                                  [0, -0.5, 0]) });
-    efx.drawMesh({ mesh: cube,
+    efx.drawMesh(cube, {
                    transform: efx.mat4.translate(efx.mat4.identity(),
                                                  [0, 0.2, 0]) });
     efx.endRenderTarget();

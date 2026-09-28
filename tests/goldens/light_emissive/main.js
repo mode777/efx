@@ -11,5 +11,5 @@ efx.setMeshSurfaceMaterial(ball, 0, {
 function update() {}
 function render() {
     // a non-white tint must not change the emissive term
-    efx.drawMesh({ mesh: ball, color: [0.1, 0.1, 0.1, 1] });
+    efx.drawMesh(ball, { color: [0.1, 0.1, 0.1, 1] });
 }

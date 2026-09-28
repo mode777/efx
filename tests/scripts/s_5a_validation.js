@@ -63,7 +63,7 @@ const mesh = efx.createMesh(efx.createMeshData({
 }));
 efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });
 efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: a } });
-efx.drawMesh({ mesh });
+efx.drawMesh(mesh);
 expectThrow('mesh-map-destroyed', TE, () => {
     const dead = efx.createRenderTarget({ width: 8, height: 8 });
     dead.destroy();
@@ -73,7 +73,7 @@ expectThrow('map-number', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { diffus
 
 // drawing the mesh with a map onto the target it samples is rejected
 efx.beginRenderTarget(a);
-expectThrow('mesh-feedback', TE, () => efx.drawMesh({ mesh }));
+expectThrow('mesh-feedback', TE, () => efx.drawMesh(mesh));
 efx.endRenderTarget();
 
 // default camera frame follows the active target (record-level assertions

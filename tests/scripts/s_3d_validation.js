@@ -53,22 +53,25 @@ if (mesh.surfaceCount !== 2) { efx.log('FAIL mesh surfaceCount'); efx.quit(3); }
 md.destroy(); // Mesh is a copy
 if (mesh.surfaceCount !== 2) { efx.log('FAIL mesh after source destroy'); efx.quit(3); }
 
-// drawMesh validation
-expectThrow('dm-none', TE, () => efx.drawMesh({}));
-expectThrow('dm-nonmesh', TE, () => efx.drawMesh({ mesh: {} }));
-expectThrow('dm-transform-short', RE, () => efx.drawMesh({ mesh, transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3] }));
-expectThrow('dm-transform-type', TE, () => efx.drawMesh({ mesh, transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 'x'] }));
-expectThrow('dm-color-short', RE, () => efx.drawMesh({ mesh, color: [1, 0, 1] }));
-expectThrow('dm-unknown', TE, () => efx.drawMesh({ mesh, frobnicate: 1 }));
+// drawMesh validation: mesh is a required positional argument
+expectThrow('dm-none', TE, () => efx.drawMesh());
+expectThrow('dm-nonmesh', TE, () => efx.drawMesh({}));
+expectThrow('dm-null-mesh', TE, () => efx.drawMesh(null));
+expectThrow('dm-bag-nonobject', TE, () => efx.drawMesh(mesh, 5));
+expectThrow('dm-mesh-in-bag', TE, () => efx.drawMesh(mesh, { mesh }));
+expectThrow('dm-transform-short', RE, () => efx.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3] }));
+expectThrow('dm-transform-type', TE, () => efx.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 'x'] }));
+expectThrow('dm-color-short', RE, () => efx.drawMesh(mesh, { color: [1, 0, 1] }));
+expectThrow('dm-unknown', TE, () => efx.drawMesh(mesh, { frobnicate: 1 }));
 
 // valid draws record headless (uploads queue until a GPU surface exists)
 efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });
-efx.drawMesh({ mesh, transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1], color: [0.5, 0.25, 1, 1] });
-efx.drawMesh({ mesh });
+efx.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1], color: [0.5, 0.25, 1, 1] });
+efx.drawMesh(mesh);
 
 mesh.destroy();
 mesh.destroy(); // idempotent
-expectThrow('dm-destroyed', TE, () => efx.drawMesh({ mesh }));
+expectThrow('dm-destroyed', TE, () => efx.drawMesh(mesh));
 expectThrow('sc-destroyed', TE, () => mesh.surfaceCount);
 one.destroy();
 expectThrow('md-destroyed', TE, () => one.surfaceCount);

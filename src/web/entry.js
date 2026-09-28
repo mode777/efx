@@ -1371,35 +1371,36 @@ function __efxEnsureApi() {
             }
             return new EfxMesh(handle);
         },
-        drawMesh: function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('drawMesh requires an options object');
-            }
-            var known = { mesh: 1, transform: 1, color: 1 };
-            var names = Object.getOwnPropertyNames(opts);
-            for (var i = 0; i < names.length; i++) {
-                if (!known[names[i]]) {
-                    throw new TypeError("unknown drawMesh option '" + names[i] + "'");
-                }
-            }
-            var mesh = opts['mesh'];
-            if (mesh === undefined) {
+        drawMesh: function (mesh, opts) {
+            if (arguments.length < 1) {
                 throw new TypeError('drawMesh requires a mesh');
             }
             var m = liveMesh(mesh);
             var transform = null, color = null;
-            var tv = opts['transform'];
-            if (tv !== undefined) {
-                transform = __efxFloat32Array(tv, 'transform');
-                if (transform.length !== 16) {
-                    throw new RangeError('transform must hold 16 numbers');
+            if (arguments.length >= 2 && opts !== undefined) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('drawMesh options must be an object');
                 }
-            }
-            var cv = opts['color'];
-            if (cv !== undefined) {
-                color = __efxFloat32Array(cv, 'color');
-                if (color.length !== 4) {
-                    throw new RangeError('color must hold 4 numbers');
+                var known = { transform: 1, color: 1 };
+                var names = Object.getOwnPropertyNames(opts);
+                for (var i = 0; i < names.length; i++) {
+                    if (!known[names[i]]) {
+                        throw new TypeError("unknown drawMesh option '" + names[i] + "'");
+                    }
+                }
+                var tv = opts['transform'];
+                if (tv !== undefined) {
+                    transform = __efxFloat32Array(tv, 'transform');
+                    if (transform.length !== 16) {
+                        throw new RangeError('transform must hold 16 numbers');
+                    }
+                }
+                var cv = opts['color'];
+                if (cv !== undefined) {
+                    color = __efxFloat32Array(cv, 'color');
+                    if (color.length !== 4) {
+                        throw new RangeError('color must hold 4 numbers');
+                    }
                 }
             }
             var tPtr = 0, cPtr = 0;

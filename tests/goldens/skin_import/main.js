@@ -7,5 +7,5 @@ efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
 const skinned = efx.createMesh(efx.loadMeshData('skin.gltf'));
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: skinned });
+    efx.drawMesh(skinned);
 }

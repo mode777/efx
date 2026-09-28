@@ -28,5 +28,5 @@ function render() {
             range: 9,
         });
     }
-    efx.drawMesh({ mesh: ball });
+    efx.drawMesh(ball);
 }

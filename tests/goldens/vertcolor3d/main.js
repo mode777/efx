@@ -36,8 +36,8 @@ efx.setMeshSurfaceMaterial(triTinted, 0, MAT);
 function update() {}
 function render() {
     const right = efx.mat4.translate(efx.mat4.identity(), [-1.2, 0, 0]);
-    efx.drawMesh({ mesh: tri, transform: right });                    // white tint
+    efx.drawMesh(tri, { transform: right });                    // white tint
     const left = efx.mat4.translate(efx.mat4.identity(), [1.25, 0, 0]);
-    efx.drawMesh({ mesh: triTinted, transform: left,
+    efx.drawMesh(triTinted, { transform: left,
                    color: [1, 0.6, 0.5, 1] });                       // warm tint
 }

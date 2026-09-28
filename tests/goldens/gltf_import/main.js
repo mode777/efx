@@ -7,5 +7,5 @@ efx.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
 const gltfMesh = efx.createMesh(efx.loadMeshData('quad.glb'));
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: gltfMesh });
+    efx.drawMesh(gltfMesh);
 }

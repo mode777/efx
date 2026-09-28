@@ -131,10 +131,18 @@ for (let i = 0; i < sphere24.positions.length; i += 3) {
         !near(z / 2, sphere24.normals[i + 2])) fail('sphere normals');
 }
 
+// primitive material option: bound to the single surface at creation
+const primMat = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
+const cubeMat = spyPrim(() => efx.makeCube({ size: 1, material: primMat }));
+if (!cubeMat.materials || cubeMat.materials.length !== 1 ||
+    cubeMat.materials[0] !== primMat) fail('cube material binding');
+const sphereNoMat = spyPrim(() => efx.makeSphere());
+if (sphereNoMat.materials !== undefined) fail('sphere default material');
+
 // primitives draw like any MeshData
-efx.drawMesh({ mesh: efx.createMesh(efx.makeCube({ size: 2 })) });
-efx.drawMesh({ mesh: efx.createMesh(efx.makePlane({ size: 4, segments: 3 })) });
-efx.drawMesh({ mesh: efx.createMesh(efx.makeSphere({ radius: 2, segments: 24 })) });
+efx.drawMesh(efx.createMesh(efx.makeCube({ size: 2 })));
+efx.drawMesh(efx.createMesh(efx.makePlane({ size: 4, segments: 3 })));
+efx.drawMesh(efx.createMesh(efx.makeSphere({ radius: 2, segments: 24 })));
 
 function expectThrow(name, kind, fn) {
     try { fn(); efx.log('FAIL no-throw ' + name); efx.quit(1); }
@@ -149,5 +157,6 @@ expectThrow('plane-frac', RangeError, () => efx.makePlane({ segments: 1.5 }));
 expectThrow('sphere-neg', RangeError, () => efx.makeSphere({ radius: -1 }));
 expectThrow('cube-unknown', TypeError, () => efx.makeCube({ radius: 1 }));
 expectThrow('plane-seg-type', RangeError, () => efx.makePlane({ segments: 'many' }));
+expectThrow('prim-material-bad', TypeError, () => efx.makePlane({ material: 42 }));
 
 efx.log('s-3d-math-ok');
