@@ -67,10 +67,12 @@ wrapping a native handle with an explicit `destroy()` release method; such
 a class MAY additionally expose documented read-only query properties, which
 MUST be listed in the reference — the instances are Texture's `width` and
 `height`, MeshData's and Mesh's read-only `surfaceCount` delivered by F3,
-and RenderTarget's `width` and `height` delivered by F5a), or slot-based
+RenderTarget's `width` and `height` delivered by F5a, and Font's `size`,
+`lineHeight`, `ascent`, and `descent` delivered by F8), or slot-based
 (a fixed pre-allocated bank of indexed resources).
 The native-backed classes SHALL be exactly: MeshData, ImageData, Mesh,
-Texture, and RenderTarget; skins, skeletons, and animation clips are
+Texture, RenderTarget, FontData, and Font; skins, skeletons, and animation
+clips are
 implicit Mesh payload — loaded with the mesh and posed by the script
 (`efx.poseMesh`) — and are not script resources; extending the class list
 requires a `js-api` delta. A live RenderTarget SHALL be accepted wherever a
@@ -121,7 +123,7 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 #### Scenario: Query properties are documented per class
 
 - **WHEN** the reference document's native-backed class entries are read
-- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, and every other entry states that it has none
+- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the FontData entry lists none, and every other entry states that it has none
 
 #### Scenario: Render targets are accepted wherever textures are
 
@@ -147,6 +149,7 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 
 - **WHEN** a change proposes exposing a new resource type to scripts without classifying it as JS-managed, native-backed class, or slot-based
 - **THEN** the change is incomplete and MUST NOT update the API reference
+
 
 ### Requirement: Explicit lifecycle hook registration
 The engine SHALL expose `efx.registerUpdateHook(fn)` and
@@ -472,3 +475,49 @@ in the gallery type document, both updated in the same change.
 #### Scenario: No resources added
 - **WHEN** the API reference's resource classes and fixed limits are read after this change
 - **THEN** they are unchanged: input adds no native-backed class, no `destroy()`, and no slot bank
+
+### Requirement: Font and text API
+
+The script API SHALL expose font loading, font creation, text drawing, and
+text measurement as C-implemented members of the single `efx` namespace, with
+identical names, signatures, semantics, and error behavior across the desktop
+and web bindings:
+
+- `efx.loadFontData(path)` → a native-backed `FontData` resource (the parsed
+  font, no GPU resource), released by `destroy()`.
+- `efx.createFont(fontData, opts)` → a native-backed `Font` that bakes a
+  fixed glyph atlas at the requested size and optional baked outline/shadow
+  effects; released by `destroy()`; read-only `size`, `lineHeight`, `ascent`,
+  `descent`.
+- `efx.drawText(text, font, x, y, opts?)` → lays out and draws the text as
+  display-list quads and returns the laid-out bounds
+  `{ width, height, lines }`.
+- `efx.measureText(text, font, opts?)` → returns the same bounds without
+  drawing.
+
+Text drawing SHALL be a mid-level C facility (like `drawQuad`/`drawMesh`) —
+not a pure-JS high-level convenience — and SHALL be 2D-only. Formatting SHALL
+be limited to newlines, greedy word wrapping, horizontal alignment
+(`left`/`center`/`right`/`justify`), and vertical alignment
+(`top`/`middle`/`bottom`); there SHALL be no rich text (per-span styles or
+markup), no 3D/world-space text, and no script-visible glyph metrics, atlas,
+or shader. The font/text behavior SHALL be defined by the `font-text`
+capability. `docs/js-api.md` and the gallery type document
+(`gallery/src/api/efx.d.ts`) SHALL be updated in the same change, and the
+provisional `loadFont` entry SHALL be removed.
+
+#### Scenario: Font pipeline is exposed
+- **WHEN** the API reference is read after this change
+- **THEN** it catalogs `loadFontData`, `createFont`, `drawText`, and `measureText`, each tagged C-implemented and F8, and does not catalog a `loadFont` convenience
+
+#### Scenario: Text drawing is mid-level C
+- **WHEN** a reviewer checks the layer of the text entries
+- **THEN** `drawText` and `measureText` are tagged C-implemented mid-level functions, distinct from the pure-JS high-level layer
+
+#### Scenario: No rich text or 3D text
+- **WHEN** the API reference's font/text section is read
+- **THEN** it documents wrapping and the four horizontal and three vertical alignment modes, and states that rich text, 3D text, and script-visible glyph metrics are not provided
+
+#### Scenario: Type document is updated in the same change
+- **WHEN** this change updates `docs/js-api.md`
+- **THEN** `gallery/src/api/efx.d.ts` (and its type-test) declare `FontData`, `Font`, `drawText`, and `measureText` consistently with the reference
