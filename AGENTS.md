@@ -104,7 +104,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   ADR 0038, which supersedes ADR 0013's pure-JS-font clause); the remaining
   F8 slice (`drawModel`, demo pack) is provisional. Its gate is the text
   golden scenes plus headless layout/measure unit tests and the portable
-  `web_8a_text`/`smoke_8a_text` script cases.
+  `web_8a_text`/`smoke_8a_text` script cases; the four-target gate is
+  **green** (ci run 36486291011: native suites incl. the text goldens on
+  Linux/Windows/macOS, Emscripten ctest incl. `web_8a_text` + web goldens +
+  cross-runtime compare `8a_text`).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web

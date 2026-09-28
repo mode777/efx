@@ -49,4 +49,4 @@
 
 - [x] 8.1 Run the Linux pipeline first (headless unit tests + native golden suite) and fix any failures
 - [x] 8.2 Run `python3 tools/verify_remote.py all <branch>` and fix any failures before dispatching CI
-- [ ] 8.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate is green (native suites incl. text goldens on Linux/Windows/macOS, Emscripten ctest + web goldens + browser harness + cross-runtime compare)
+- [x] 8.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate is green (native suites incl. text goldens on Linux/Windows/macOS, Emscripten ctest + web goldens + browser harness + cross-runtime compare)
