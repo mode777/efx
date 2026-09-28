@@ -81,9 +81,10 @@ function curatedSamples() {
     const manifestPath = path.join(curatedDir, 'manifest.json');
     if (!fs.existsSync(manifestPath)) return [];
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const samplesDir = path.join(galleryDir, 'public', 'samples');
     return manifest.map((entry) => {
         const source = fs.readFileSync(path.join(curatedDir, entry.file), 'utf8');
-        return {
+        const sample = {
             id: entry.id || `curated:${entry.file.replace(/\.js$/, '')}`,
             origin: 'curated',
             title: entry.title,
@@ -91,6 +92,22 @@ function curatedSamples() {
             description: entry.description || '',
             source,
         };
+        // A curated sample may ship a committed asset pack (a zip beside its
+        // manifest). Copy it into the site and point the runner's host asset
+        // channel at it, exactly as golden scenes do.
+        if (entry.assets) {
+            const pack = path.join(curatedDir, entry.assets);
+            if (!fs.existsSync(pack)) {
+                throw new Error(
+                    `curated asset pack not found for '${sample.id}': ${entry.assets}`
+                );
+            }
+            fs.mkdirSync(samplesDir, { recursive: true });
+            const zipName = path.basename(entry.assets);
+            fs.copyFileSync(pack, path.join(samplesDir, zipName));
+            sample.assets = `samples/${zipName}`;
+        }
+        return sample;
     });
 }
 

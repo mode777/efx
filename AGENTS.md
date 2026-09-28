@@ -132,8 +132,11 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   host, and a Monaco (CDN) editor with the API type document
   (`gallery/src/api/efx.d.ts`). Samples are the committed golden scenes
   plus a curated showcase set; the catalog is generated from
-  `tests/goldens/` by `gallery/scripts/gen-catalog.mjs`. Build with
-  `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
+  `tests/goldens/` by `gallery/scripts/gen-catalog.mjs`. A curated
+  sample may ship a committed CC0 asset pack (a zip beside its manifest,
+  copied into the site by `gen-catalog.mjs` and mounted as the resource
+  root); see `gallery/samples/curated/CREDITS.md` for provenance. Build
+  with `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
   (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).
   See ADR 0030 for the host↔engine embedding contract.
 - Verification: ctest runs smoke + headless display-list/JS-API unit tests
