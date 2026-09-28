@@ -47,6 +47,7 @@ directory holds only what stays true after a change is archived.
 | [0033](0033-gltf-rig-payload.md) | Accepted | F6c imports glTF skins/clips as CPU-only per-surface joints/weights plus an opaque MeshData→Mesh rig payload (LINEAR/STEP exact, CUBICSPLINE→LINEAR); no script rig API |
 | [0034](0034-texture-mipmaps.md) | Accepted | F6e adds an opt-in `mipmaps` texture option: a deterministic CPU 2×2 box-filter chain uploaded in one image, with the sampler's `mipmap_filter` driven by `filter`; removes the `loadTexture` convenience |
 | [0035](0035-cpu-skinning-pipeline.md) | Accepted | F7 poses imported rigs on the CPU: bind-locals reconstructed from inverse bind matrices, joint-space FK + skin-matrix palette, per-vertex weight normalization, and dual bind/posed vertex buffers selected by the `skinned` draw flag |
+| [0036](0036-input-c-owned-frame-staged.md) | Accepted | F9 input is C-owned and frame-staged: one pure-C core feeds both bindings, queries plus unsubscribe-returning event callbacks, surface-pixel coordinates, and a test-only injection seam |
 
 ## Adding a decision
 

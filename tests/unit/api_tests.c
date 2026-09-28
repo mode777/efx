@@ -7,6 +7,7 @@
 #include "render/render.h"
 #include "resource/resource.h"
 #include "runtime/runtime.h"
+#include "input/efx_input.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1204,6 +1205,136 @@ static int repl_eval(void) {
     return ok ? 0 : fail("repl line evaluation");
 }
 
+/* F9: input namespace bindings + frame-staged dispatch through the real
+ * quickjs runtime: query/event parity, validation/unsubscribe matrix, and
+ * callback-before-update ordering (injected via the C simulation seam). */
+static int input_js(void) {
+    efx_input_reset();
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    efx_input_set_window(1024, 600, 1.0f);
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) {
+        return fail("runtime");
+    }
+    int rc = 0;
+    const char *setup =
+        "globalThis.__log = [];"
+        "function kind(fn){ try { fn(); return 'none'; } catch (e) { return e.constructor.name; } }"
+        "if (kind(() => efx.keyboard.isDown('notakey')) !== 'TypeError') throw new Error('unknown key');"
+        "if (kind(() => efx.mouse.isDown('side')) !== 'TypeError') throw new Error('unknown button');"
+        "if (kind(() => efx.keyboard.onDown(5)) !== 'TypeError') throw new Error('non-function reg');"
+        "if (kind(() => efx.mouse.onWheel(null)) !== 'TypeError') throw new Error('non-function reg2');"
+        "var off = efx.keyboard.onDown(function () { __log.push('SHOULD-NOT-FIRE'); });"
+        "off(); off();"
+        "efx.keyboard.onDown(function (e) { __log.push('kd:' + e.key + ':' + e.repeat + ':' + e.mods.join(',')); });"
+        "efx.keyboard.onUp(function (e) { __log.push('ku:' + e.key); });"
+        "efx.keyboard.onChar(function (e) { __log.push('ch:' + e.char); });"
+        "efx.mouse.onMove(function (e) { __log.push('mm:' + e.x + ':' + e.dx); });"
+        "efx.mouse.onWheel(function (e) { __log.push('mw:' + e.dx + ':' + e.dy); });"
+        "efx.registerUpdateHook(function (dt) {"
+        "  __log.push('u:' + efx.keyboard.isDown('space') + ':' +"
+        "    efx.keyboard.isPressed('space') + ':' + efx.keyboard.isReleased('space')); });";
+    if (efx_runtime_eval_string(g_rt, "input-setup", setup) != 0) {
+        rc = fail("input setup");
+        goto done;
+    }
+    int key = efx_input_key_id("space");
+    efx_input_inject_key(key, 1, 0, EFX_INPUT_MOD_SHIFT);
+    efx_input_inject_char('A');
+    efx_input_inject_mouse_move(10, 20, 3, 4);
+    efx_input_inject_wheel(0, 2);
+    efx_input_begin_frame();
+    if (efx_runtime_dispatch_input(g_rt) != EFX_HOOK_OK) {
+        rc = fail("input dispatch");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "input-mid",
+        "if (__log.join('|') !== 'kd:space:false:shift|ch:A|mm:10:3|mw:0:2')"
+        "  throw new Error('order/params: ' + __log.join('|'));"
+        "if (!efx.keyboard.isDown('space') || !efx.keyboard.isPressed('space') ||"
+        "    efx.keyboard.isReleased('space')) throw new Error('key state');"
+        "if (efx.mouse.x !== 10 || efx.mouse.y !== 20) throw new Error('pointer');"
+        "if (efx.mouse.delta[0] !== 3 || efx.mouse.delta[1] !== 4) throw new Error('delta');"
+        "if (efx.mouse.wheel[0] !== 0 || efx.mouse.wheel[1] !== 2) throw new Error('wheel');"
+        "if (efx.window.width !== 1024 || efx.window.height !== 600 || efx.window.dpiScale !== 1)"
+        "  throw new Error('window');"
+        "if (efx.window.size[0] !== 1024 || efx.window.size[1] !== 600) throw new Error('window size');") != 0) {
+        rc = fail("input mid-frame state");
+        goto done;
+    }
+    if (efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK) {
+        rc = fail("input update hook");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "input-frame1",
+        "if (__log.join('|') !== 'kd:space:false:shift|ch:A|mm:10:3|mw:0:2|u:true:true:false')"
+        "  throw new Error('callback-before-update: ' + __log.join('|'));") != 0) {
+        rc = fail("callback ordering");
+        goto done;
+    }
+    efx_input_end_frame();
+
+    efx_input_begin_frame();
+    if (efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK) {
+        rc = fail("frame2 update");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "input-frame2",
+        "if (__log[__log.length - 1] !== 'u:true:false:false') throw new Error('edge expiry');") != 0) {
+        rc = fail("press edge expiry");
+        goto done;
+    }
+    efx_input_end_frame();
+
+    efx_input_inject_key(key, 0, 0, 0);
+    efx_input_begin_frame();
+    if (efx_runtime_dispatch_input(g_rt) != EFX_HOOK_OK ||
+        efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK) {
+        rc = fail("release dispatch");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "input-frame3",
+        "if (__log[__log.length - 2] !== 'ku:space' ||"
+        "    __log[__log.length - 1] !== 'u:false:false:true')"
+        "  throw new Error('release: ' + __log.join('|'));") != 0) {
+        rc = fail("release edge");
+        goto done;
+    }
+    efx_input_end_frame();
+
+    efx_input_begin_frame();
+    if (efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK) {
+        rc = fail("frame4 update");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "input-frame4",
+        "if (__log[__log.length - 1] !== 'u:false:false:false') throw new Error('release expiry');") != 0) {
+        rc = fail("release edge expiry");
+        goto done;
+    }
+    efx_input_end_frame();
+
+    efx_input_inject_key(efx_input_key_id("a"), 1, 0, 0);
+    efx_input_focus_lost();
+    efx_input_begin_frame();
+    if (efx_runtime_eval_string(g_rt, "input-focus",
+        "if (efx.keyboard.isDown('a')) throw new Error('focus clearing');") != 0) {
+        rc = fail("focus clearing");
+        goto done;
+    }
+    efx_input_end_frame();
+
+done:
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return rc;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -1238,6 +1369,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "skin_js")) return skin_js();
     if (!strcmp(c, "pose_js")) return pose_js();
     if (!strcmp(c, "repl_eval")) return repl_eval();
+    if (!strcmp(c, "input_js")) return input_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

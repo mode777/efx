@@ -7,7 +7,9 @@ render scale), F6a (resource root + text/image loading), F6b (glTF static
 import), F6c (glTF rig import), F6d (interactive console run mode —
 no new API), F6e (texture creation options), and F7 (CPU skinning +
 animation — `poseMesh` and the `skinned` draw option) are implemented
-(current behavior). F8 onward is a provisional contract — names and
+(current behavior). F9 (input — keyboard + mouse query and event API) is
+implemented and **provisional** until its four-target gate passes; F8 onward
+is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
 the same change). See `vision.md` for product goals and
@@ -981,6 +983,70 @@ efx.registerRenderHook(() => {
 });
 ```
 
+### F9 — Input: keyboard, mouse & window (provisional)
+
+Keyboard and mouse input as three sub-namespaces of the single `efx` object,
+with a query API for polling current state and an event API with callbacks
+returning unsubscribe functions (ADR 0036). Input adds **no resource types**:
+no native-backed class, no `destroy()`, no slot bank.
+
+```js
+// F9 · C · provisional — namespaces on the single efx object (ADR 0004/0036)
+efx.keyboard.isDown(key) / isPressed(key) / isReleased(key)   // → boolean
+efx.keyboard.onDown(fn) / onUp(fn) / onChar(fn)               // → unsubscribe
+efx.mouse.isDown(button) / isPressed(button) / isReleased(button)
+efx.mouse.onDown(fn) / onUp(fn) / onMove(fn) / onWheel(fn)
+efx.mouse.position  // [x, y] surface px      efx.mouse.delta  // [dx, dy]
+efx.mouse.x / y     // surface px             efx.mouse.wheel  // [dx, dy]
+efx.window.size     // [width, height] surface px
+efx.window.width / height / dpiScale
+```
+
+- **Semantics.** Level state updates on arrival; `isPressed`/`isReleased`
+  are the up-to-down / down-to-up edges, valid for exactly one frame (an
+  auto-repeat does not re-raise the press edge). Movement/wheel are
+  per-frame deltas. Callbacks drain once per frame in arrival order **before**
+  the update hooks, so a callback never runs outside a frame and queries and
+  events agree within a frame. Focus loss clears held state without emitting
+  synthetic up events.
+- **Event arguments** are one plain object of engine primitives — never a
+  DOM/host event: `{ key, repeat, mods }` (key down), `{ key, mods }` (key
+  up), `{ char }` (text input), `{ button, x, y, mods }` (mouse down/up),
+  `{ x, y, dx, dy }` (mouse move), `{ dx, dy }` (wheel). `key`/`button` are
+  name strings; `char` is the decoded text (e.g. `'A'`); `mods` is an array
+  of active modifier names (`'shift'`, `'ctrl'`, `'alt'`, `'super'`).
+- **Key names** (lowercase) include `a`–`z`, `0`–`9`, `f1`–`f12`, the arrows
+  `left`/`right`/`up`/`down`, `space`, `enter`, `escape`, `tab`, `backspace`,
+  `insert`, `delete`, `home`, `end`, `pageup`, `pagedown`, `lshift`/`rshift`,
+  `lctrl`/`rctrl`, `lalt`/`ralt`, `lsuper`/`rsuper`, the punctuation set
+  (`apostrophe`, `comma`, `minus`, `period`, `slash`, `semicolon`, `equal`,
+  `leftbracket`, `backslash`, `rightbracket`, `grave`), the keypad set
+  (`kp0`–`kp9`, `kpdecimal`, `kpdivide`, `kpmultiply`, `kpsubtract`, `kpadd`,
+  `kpenter`, `kpequal`), the locks (`capslock`, `scrolllock`, `numlock`,
+  `printscreen`, `pause`), and `menu`. Mouse buttons are `left`, `right`,
+  `middle`.
+- **Coordinates** are **surface (framebuffer) pixels** with a top-left origin
+  and y down — the same space as `drawQuad` and the 2D frame — so hit-testing
+  against drawn content needs no conversion. On high-DPI displays the surface
+  is larger than the logical window; `efx.window.dpiScale` is the
+  surface-to-logical ratio for scripts that want logical units.
+- **Errors.** Registration requires a function and throws `TypeError`
+  otherwise; a query with an unknown key or button name throws `TypeError`;
+  each registration returns an idempotent unsubscribe function.
+- **Simulation.** A deterministic injection seam (`efx_input_inject_*`) exists
+  for tests only and is not part of the script API — no simulation function
+  is exposed on `efx`.
+
+```js
+// main.js — F9 sample
+efx.registerUpdateHook(dt => {
+    if (efx.keyboard.isPressed('space')) startJump();
+    if (efx.keyboard.isDown('left')) x -= speed * dt;
+});
+const offMove = efx.mouse.onMove(e => { aimX = e.x; aimY = e.y; });
+efx.mouse.onWheel(e => { zoom *= (1 + e.dy * 0.1); });
+```
+
 ## Vision traceability
 
 Every consumer-API property named in `vision.md` maps to exactly one catalog
@@ -1003,6 +1069,7 @@ section (or an open question below):
 | Resource folder / zip root (`res://`-like) | F6a (load paths + dir/zip provider, current) |
 | REPL console mode | F6d (drives the same `efx` namespace) |
 | Skinning and animations | F7 (`poseMesh`, `drawMesh({ skinned })`, current) |
+| Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, provisional) |
 | High-level functions in pure JS (`drawModel`, `drawText`) | F8 |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
 | Low/mid C + high-level JS layering | Overview (two layers), every entry tag |
@@ -1017,9 +1084,6 @@ section (or an open question below):
 Flagged gaps and deferred decisions — recorded here rather than inventing
 API for them:
 
-- **Input handling** — absent from vision.md. No keys/mouse/gamepad API is
-  cataloged. If vision grows this capability, it enters through a future
-  change with a `js-api` delta.
 - **Audio** — absent from vision.md. Same treatment as input.
 - **Asset format** — glTF 2.0 is pinned as the import format (meshes,
   images, skins, animation clips — roadmap F6, data model per ADR 0014).

@@ -197,6 +197,15 @@ static int repl_on_frame(void *ud, double dt) {
         return repl_stop(r);
     }
 
+    /* F9: input callbacks run before the update hooks, in arrival order */
+    int irc = efx_runtime_dispatch_input(rt);
+    if (irc != EFX_HOOK_OK) {
+        return repl_stop(r);
+    }
+    if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
+        return repl_stop(r);
+    }
+
     int rc = efx_runtime_call_hook(rt, 1, dt);
     if (rc != EFX_HOOK_OK) {
         return repl_stop(r);

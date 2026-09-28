@@ -7,7 +7,8 @@
 // Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7 are current
 // behavior. F6d (the `--repl [<root>]` interactive console) adds no API —
 // it drives this same namespace from stdin; `.help`/`.exit` are host
-// commands, not `efx` functions. F8+ entries are provisional and will be
+// commands, not `efx` functions. F9 (input) is provisional until its gate
+// passes. F8 and later entries are provisional and will be
 // added when delivered.
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
@@ -18,6 +19,90 @@ type Vec2 = [number, number];
 type Vec3 = [number, number, number];
 type Mat4 = number[];
 type Quat = number[];
+
+/** F9: engine-owned lowercase keyboard identifier set (docs/js-api.md). */
+type EfxKey =
+  | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l'
+  | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x'
+  | 'y' | 'z'
+  | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+  | 'f1' | 'f2' | 'f3' | 'f4' | 'f5' | 'f6' | 'f7' | 'f8' | 'f9' | 'f10'
+  | 'f11' | 'f12'
+  | 'space' | 'apostrophe' | 'comma' | 'minus' | 'period' | 'slash'
+  | 'semicolon' | 'equal' | 'leftbracket' | 'backslash' | 'rightbracket'
+  | 'grave' | 'escape' | 'enter' | 'tab' | 'backspace' | 'insert' | 'delete'
+  | 'right' | 'left' | 'down' | 'up' | 'pageup' | 'pagedown' | 'home' | 'end'
+  | 'capslock' | 'scrolllock' | 'numlock' | 'printscreen' | 'pause'
+  | 'kp0' | 'kp1' | 'kp2' | 'kp3' | 'kp4' | 'kp5' | 'kp6' | 'kp7' | 'kp8'
+  | 'kp9' | 'kpdecimal' | 'kpdivide' | 'kpmultiply' | 'kpsubtract' | 'kpadd'
+  | 'kpenter' | 'kpequal'
+  | 'lshift' | 'lctrl' | 'lalt' | 'lsuper'
+  | 'rshift' | 'rctrl' | 'ralt' | 'rsuper'
+  | 'menu';
+
+type EfxMouseButton = 'left' | 'right' | 'middle';
+type EfxMod = 'shift' | 'ctrl' | 'alt' | 'super';
+
+interface KeyboardDownEvent {
+  key: EfxKey;
+  repeat: boolean;
+  mods: EfxMod[];
+}
+interface KeyboardUpEvent {
+  key: EfxKey;
+  mods: EfxMod[];
+}
+interface CharEvent {
+  char: string;
+}
+interface MouseButtonEvent {
+  button: EfxMouseButton;
+  x: number;
+  y: number;
+  mods: EfxMod[];
+}
+interface MouseMoveEvent {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+}
+interface MouseWheelEvent {
+  dx: number;
+  dy: number;
+}
+
+/** F9 input namespaces (sub-members of the single `efx` object). */
+interface EfxKeyboard {
+  isDown(key: EfxKey): boolean;
+  isPressed(key: EfxKey): boolean;
+  isReleased(key: EfxKey): boolean;
+  onDown(fn: (e: KeyboardDownEvent) => void): () => void;
+  onUp(fn: (e: KeyboardUpEvent) => void): () => void;
+  onChar(fn: (e: CharEvent) => void): () => void;
+}
+
+interface EfxMouse {
+  isDown(button: EfxMouseButton): boolean;
+  isPressed(button: EfxMouseButton): boolean;
+  isReleased(button: EfxMouseButton): boolean;
+  onDown(fn: (e: MouseButtonEvent) => void): () => void;
+  onUp(fn: (e: MouseButtonEvent) => void): () => void;
+  onMove(fn: (e: MouseMoveEvent) => void): () => void;
+  onWheel(fn: (e: MouseWheelEvent) => void): () => void;
+  readonly position: Vec2;
+  readonly x: number;
+  readonly y: number;
+  readonly delta: Vec2;
+  readonly wheel: Vec2;
+}
+
+interface EfxWindow {
+  readonly size: Vec2;
+  readonly width: number;
+  readonly height: number;
+  readonly dpiScale: number;
+}
 
 interface EfxImageData {
   readonly width: number;
@@ -291,6 +376,11 @@ interface Efx {
 
   // F7 — CPU skinning & animation (the script owns the clock)
   poseMesh(mesh: EfxMesh, pose: PoseSample | PoseSample[]): void;
+
+  // F9 — input (provisional): sub-namespaces of the single efx object
+  keyboard: EfxKeyboard;
+  mouse: EfxMouse;
+  window: EfxWindow;
 }
 
 declare const efx: Efx;

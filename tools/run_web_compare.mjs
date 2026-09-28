@@ -52,6 +52,7 @@ const CASES = [
     { name: '6c_skin', script: 'tests/scripts/s_6c_skin.js', args: [] },
     { name: '7_skin_pose', script: 'tests/scripts/s_7_skin_pose.js', args: [],
       assets: ['tests/scripts/skin.gltf', 'tests/scripts/skin.bin'] },
+    { name: '9_input', script: 'tests/scripts/s_9_input.js', args: [] },
 ];
 
 function run(cmd, args) {

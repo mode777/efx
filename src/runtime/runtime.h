@@ -25,6 +25,10 @@ int efx_runtime_eval_string(efx_runtime *rt, const char *name, const char *code)
 int efx_runtime_eval_repl_line(efx_runtime *rt, const char *line);
 void efx_runtime_pick_hooks(efx_runtime *rt, int *has_update, int *has_render);
 int efx_runtime_call_hook(efx_runtime *rt, int update_not_render, double dt);
+/* F9: drain the frame's staged input events into the registered input
+ * callbacks, in arrival order (called before the update hooks). Returns
+ * EFX_HOOK_OK / EFX_HOOK_QUIT / EFX_HOOK_ERROR. */
+int efx_runtime_dispatch_input(efx_runtime *rt);
 
 int efx_runtime_quit_requested(const efx_runtime *rt);
 int efx_runtime_quit_code(const efx_runtime *rt);

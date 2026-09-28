@@ -18,6 +18,7 @@ Here are some properties I want in unspecified order:
 - Simple phong material system: Ambient, Diffuse, Specular, Emissive with support for maps for each of those channels
 - Support for alpha masks
 - Support for 2d drawing via quads
+- Keyboard and mouse input with both a query API for polling current state and an event API with callbacks (Löve-style), owned by the engine core and identical across all platforms
 - Core written in C or C++
 - Consumer API written in ECMA Script 6
 - Cross platform compatibility for Win, Linux, MacOS, and EMscripten
@@ -37,6 +38,7 @@ Here are some properties I want in unspecified order:
 - Low level functions written in C/C++
 - Mid level functions implemented in C/C++ and exposed to JS API (e.g. drawQuad, drawMesh, setLight, setMaterial)
 - High level functions implemented on top in pure JS (e.g. drawModel, drawText etc…)
+- Input is grouped into sub-namespaces of the single `efx` object (`efx.keyboard`, `efx.mouse`, `efx.window`): `is*`/query members for current state and `on*` registrations returning unsubscribe functions for events
 - JS functions must not have any dependencies to browser APIs or NodeJS (also not transitively)
 - Minimum number of memory managed resources exposed as handles 
 - Try to manage as many resources (e.g. materials, meshes) as possible on JS level.

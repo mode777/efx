@@ -148,7 +148,15 @@ int efx_player_frame(void *ud, double dt) {
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
         return player_stop(rt);
     }
-    int r = efx_runtime_call_hook(rt, 1, dt);
+    /* F9: input callbacks run before the update hooks, in arrival order */
+    int r = efx_runtime_dispatch_input(rt);
+    if (r != EFX_HOOK_OK) {
+        return player_stop(rt);
+    }
+    if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
+        return player_stop(rt);
+    }
+    r = efx_runtime_call_hook(rt, 1, dt);
     if (r != EFX_HOOK_OK) {
         return player_stop(rt);
     }

@@ -56,6 +56,7 @@ if(EMSCRIPTEN)
     add_library(efx_core STATIC
         src/render/render.c
         src/render/skin.c
+        src/input/efx_input.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -68,6 +69,7 @@ else()
         src/runtime/runtime.c
         src/render/render.c
         src/render/skin.c
+        src/input/efx_input.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -280,6 +282,21 @@ else()
     target_compile_options(efx_render_tests PRIVATE -Wall -Wextra -Werror)
 endif()
 
+# headless input-core unit tests (F9): pure-C state model + injection seam
+add_executable(efx_input_tests
+    src/input/efx_input.c
+    tests/unit/input_tests.c
+)
+target_include_directories(efx_input_tests PRIVATE src)
+if(EMSCRIPTEN)
+    target_link_options(efx_input_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
+endif()
+if(MSVC)
+    target_compile_options(efx_input_tests PRIVATE /W4 /WX)
+else()
+    target_compile_options(efx_input_tests PRIVATE -Wall -Wextra -Werror)
+endif()
+
 # headless resource provider tests (F6a directory backend + path safety);
 # desktop-only: they read the filesystem
 if(NOT EMSCRIPTEN)
@@ -314,6 +331,7 @@ add_executable(efx_api_tests
     src/runtime/runtime.c
     src/render/render.c
     src/render/skin.c
+    src/input/efx_input.c
     src/resource/gltf.c
     src/resource/image.c
     src/resource/resource.c

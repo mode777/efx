@@ -53,6 +53,10 @@ JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc, JSV
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 
+/* F9: attach the efx.keyboard / efx.mouse / efx.window sub-namespaces to
+ * the single efx object (shared by the desktop binding) */
+int efx_api_register_input(JSContext *ctx, JSValueConst efx);
+
 void efx_log(const char *msg);
 
 #endif

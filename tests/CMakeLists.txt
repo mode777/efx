@@ -53,6 +53,7 @@ add_player_test(smoke_6a_resource ARGS "--script;${S}/s_6a_resource.js" EXPECT 0
 add_player_test(smoke_6b_gltf ARGS "--script;${S}/s_6b_gltf.js" EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 add_player_test(smoke_6c_skin ARGS "--script;${S}/s_6c_skin.js" EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
 add_player_test(smoke_7_skin_pose ARGS "--script;${S}/s_7_skin_pose.js;--root;${F}/resource/gltf" EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
+add_player_test(smoke_9_input ARGS "--script;${S}/s_9_input.js" EXPECT 0 EXPECT_OUT "s-9-input-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 # gallery showcase samples run against their committed asset packs: a failed
@@ -121,6 +122,7 @@ if(EMSCRIPTEN)
     add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
     add_web_test(web_6c_skin ${S}/s_6c_skin.js EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
     add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
+    add_web_test(web_9_input ${S}/s_9_input.js EXPECT 0 EXPECT_OUT "s-9-input-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
@@ -141,6 +143,10 @@ foreach(CASE
     identity perspective_values ortho_values look_at_values mul_order
     translate_rotate_scale vec3_ops mvp_compose)
     add_unit_test(efx_math_tests ${CASE})
+endforeach()
+
+foreach(CASE names level_edge repeat ordering deltas mouse focus chars window mods)
+    add_unit_test(efx_input_tests ${CASE})
 endforeach()
 
 foreach(CASE
@@ -176,7 +182,7 @@ foreach(CASE
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
-    resource_js createTexture_js gltf_js skin_js pose_js repl_eval)
+    resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()

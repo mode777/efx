@@ -7,6 +7,7 @@
 
 #include "platform/platform.h"
 #include "render/render.h"
+#include "input/efx_input.h"
 #include "prelude/prelude.h"
 #include "resource/gltf.h"
 #include "resource/image.h"
@@ -768,6 +769,166 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_set_material(int id, int index,
     return 0;
 }
 
+/* ------------------------------------------------- F9 (input) */
+
+/* name lookup + validation (single C source shared with the desktop binding) */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_key_id(const char *name) {
+    return efx_input_key_id(name);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_button_id(const char *name) {
+    return efx_input_button_id(name);
+}
+
+EMSCRIPTEN_KEEPALIVE const char *efx_bridge_key_name(int key) {
+    return efx_input_key_name(key);
+}
+
+EMSCRIPTEN_KEEPALIVE const char *efx_bridge_button_name(int button) {
+    return efx_input_button_name(button);
+}
+
+/* level / edge queries */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_key_down(int key) {
+    return efx_input_key_is_down(key);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_key_pressed(int key) {
+    return efx_input_key_is_pressed(key);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_key_released(int key) {
+    return efx_input_key_is_released(key);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_button_down(int button) {
+    return efx_input_button_is_down(button);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_button_pressed(int button) {
+    return efx_input_button_is_pressed(button);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_button_released(int button) {
+    return efx_input_button_is_released(button);
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_mouse_x(void) {
+    float x = 0, y = 0;
+    efx_input_pointer(&x, &y);
+    return x;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_mouse_y(void) {
+    float x = 0, y = 0;
+    efx_input_pointer(&x, &y);
+    return y;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_mouse_dx(void) {
+    float dx = 0, dy = 0;
+    efx_input_delta(&dx, &dy);
+    return dx;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_mouse_dy(void) {
+    float dx = 0, dy = 0;
+    efx_input_delta(&dx, &dy);
+    return dy;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_wheel_dx(void) {
+    float dx = 0, dy = 0;
+    efx_input_wheel_delta(&dx, &dy);
+    return dx;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_wheel_dy(void) {
+    float dx = 0, dy = 0;
+    efx_input_wheel_delta(&dx, &dy);
+    return dy;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_window_width(void) {
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    return w;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_window_height(void) {
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    return h;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_window_dpi(void) {
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    return dpi;
+}
+
+/* frame event queue (entry.js builds the plain event objects) */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_count(void) {
+    return efx_input_event_count();
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_type(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->type : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_key(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->key : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_button(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->button : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_repeat(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->repeat : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_mods(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? (int)ev->mods : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_input_char(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? (int)ev->codepoint : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_input_x(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->x : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_input_y(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->y : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_input_dx(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->dx : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_input_dy(int index) {
+    const efx_input_event *ev = efx_input_event_at(index);
+    return ev ? ev->dy : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_input_clear(void) {
+    efx_input_clear_events();
+}
+
 static int web_frame(void *ud, double dt) {
     (void)ud;
     int stop = 0;
@@ -795,7 +956,10 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_frame(void) {
     double dt = W.frame_have_now ? (now - W.frame_last_now) / 1000.0 : 0.0;
     W.frame_have_now = 1;
     W.frame_last_now = now;
-    return web_frame(NULL, dt);
+    efx_input_begin_frame();
+    int rc = web_frame(NULL, dt);
+    efx_input_end_frame();
+    return rc;
 }
 
 EMSCRIPTEN_KEEPALIVE const char *efx_web_root(void) {

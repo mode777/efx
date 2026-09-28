@@ -1,5 +1,6 @@
 #include "api/api.h"
 #include "runtime/runtime_internal.h"
+#include "input/efx_input.h"
 #include "render/render.h"
 #include "resource/gltf.h"
 #include "resource/image.h"
@@ -81,8 +82,9 @@ static int check_known_fields(JSContext *ctx, JSValueConst obj,
 
 /* --------------------------------------------- F1 lifecycle hooks */
 
-/* unsubscribe closure: magic selects the list (0 = update, 1 = render),
-   func_data[0] carries the stable entry index (design D1/D2) */
+/* unsubscribe closure: magic selects the host callback list (see
+   EFX_HOOK_LIST_* in runtime_internal.h), func_data[0] carries the stable
+   entry index (design D1/D2, extended by F9 input) */
 static JSValue efx_js_unsubscribe(JSContext *ctx, JSValueConst this_val,
                                   int argc, JSValueConst *argv, int magic,
                                   JSValue *func_data) {
@@ -90,7 +92,7 @@ static JSValue efx_js_unsubscribe(JSContext *ctx, JSValueConst this_val,
     (void)argc;
     (void)argv;
     struct efx_host_state *h = host_state(ctx);
-    struct efx_hook_list *list = magic ? &h->render_hooks : &h->update_hooks;
+    struct efx_hook_list *list = efx_host_hook_list(h, magic);
     int32_t idx = -1;
     JS_ToInt32(ctx, &idx, func_data[0]);
     if (idx >= 0 && idx < list->count) {
@@ -99,19 +101,19 @@ static JSValue efx_js_unsubscribe(JSContext *ctx, JSValueConst this_val,
     return JS_UNDEFINED;
 }
 
-static JSValue register_hook(JSContext *ctx, JSValueConst fn, int is_render) {
+static JSValue register_hook(JSContext *ctx, JSValueConst fn, int which) {
     if (!JS_IsFunction(ctx, fn)) {
         return type_error(ctx, "hook must be a function");
     }
     struct efx_host_state *h = host_state(ctx);
-    struct efx_hook_list *list = is_render ? &h->render_hooks : &h->update_hooks;
+    struct efx_hook_list *list = efx_host_hook_list(h, which);
     int idx = efx_hooks_append(ctx, list, fn);
     if (idx < 0) {
         return generic_error(ctx, "out of memory");
     }
     JSValue data = JS_NewInt32(ctx, idx);
-    JSValue unsub = JS_NewCFunctionData(ctx, efx_js_unsubscribe, 0,
-                                        is_render ? 1 : 0, 1, &data);
+    JSValue unsub = JS_NewCFunctionData(ctx, efx_js_unsubscribe, 0, which, 1,
+                                        &data);
     JS_FreeValue(ctx, data);
     return unsub;
 }
@@ -122,7 +124,7 @@ JSValue efx_js_registerUpdateHook(JSContext *ctx, JSValueConst this_val,
     if (argc < 1) {
         return type_error(ctx, "registerUpdateHook requires a function");
     }
-    return register_hook(ctx, argv[0], 0);
+    return register_hook(ctx, argv[0], EFX_HOOK_LIST_UPDATE);
 }
 
 JSValue efx_js_registerRenderHook(JSContext *ctx, JSValueConst this_val,
@@ -131,7 +133,7 @@ JSValue efx_js_registerRenderHook(JSContext *ctx, JSValueConst this_val,
     if (argc < 1) {
         return type_error(ctx, "registerRenderHook requires a function");
     }
-    return register_hook(ctx, argv[0], 1);
+    return register_hook(ctx, argv[0], EFX_HOOK_LIST_RENDER);
 }
 
 /* read a flat array (JS array or typed array) of exactly n floats;
@@ -2697,4 +2699,222 @@ JSValue efx_js_setRenderScale(JSContext *ctx, JSValueConst this_val,
         return generic_error(ctx, "setRenderScale failed");
     }
     return JS_UNDEFINED;
+}
+
+/* -------------------------------------------------------- F9 input bindings */
+
+/* keyboard.isDown/isPressed/isReleased — magic 0/1/2 */
+static JSValue efx_js_key_query(JSContext *ctx, JSValueConst this_val,
+                                int argc, JSValueConst *argv, int magic) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return type_error(ctx, "keyboard query requires a key name");
+    }
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) {
+        return JS_EXCEPTION;
+    }
+    int key = efx_input_key_id(name);
+    JS_FreeCString(ctx, name);
+    if (key < 0) {
+        return type_error(ctx, "unknown key");
+    }
+    int v;
+    if (magic == 1) {
+        v = efx_input_key_is_pressed(key);
+    } else if (magic == 2) {
+        v = efx_input_key_is_released(key);
+    } else {
+        v = efx_input_key_is_down(key);
+    }
+    return JS_NewBool(ctx, v);
+}
+
+/* keyboard.onDown/onUp/onChar — magic 0/1/2; returns an unsubscribe fn */
+static JSValue efx_js_key_on(JSContext *ctx, JSValueConst this_val,
+                             int argc, JSValueConst *argv, int magic) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx, "input callback registration requires a function");
+    }
+    int which = magic == 1 ? EFX_HOOK_LIST_KB_UP
+              : magic == 2 ? EFX_HOOK_LIST_KB_CHAR
+                           : EFX_HOOK_LIST_KB_DOWN;
+    return register_hook(ctx, argv[0], which);
+}
+
+/* mouse.isDown/isPressed/isReleased — magic 0/1/2 */
+static JSValue efx_js_mouse_query(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv, int magic) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return type_error(ctx, "mouse query requires a button name");
+    }
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) {
+        return JS_EXCEPTION;
+    }
+    int button = efx_input_button_id(name);
+    JS_FreeCString(ctx, name);
+    if (button < 0) {
+        return type_error(ctx, "unknown mouse button");
+    }
+    int v;
+    if (magic == 1) {
+        v = efx_input_button_is_pressed(button);
+    } else if (magic == 2) {
+        v = efx_input_button_is_released(button);
+    } else {
+        v = efx_input_button_is_down(button);
+    }
+    return JS_NewBool(ctx, v);
+}
+
+/* mouse.onDown/onUp/onMove/onWheel — magic 0/1/2/3 */
+static JSValue efx_js_mouse_on(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv, int magic) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx, "input callback registration requires a function");
+    }
+    int which;
+    switch (magic) {
+    case 1:
+        which = EFX_HOOK_LIST_MOUSE_UP;
+        break;
+    case 2:
+        which = EFX_HOOK_LIST_MOUSE_MOVE;
+        break;
+    case 3:
+        which = EFX_HOOK_LIST_MOUSE_WHEEL;
+        break;
+    default:
+        which = EFX_HOOK_LIST_MOUSE_DOWN;
+        break;
+    }
+    return register_hook(ctx, argv[0], which);
+}
+
+static JSValue num_pair(JSContext *ctx, float a, float b) {
+    JSValue arr = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, arr, 0, JS_NewFloat64(ctx, a));
+    JS_SetPropertyUint32(ctx, arr, 1, JS_NewFloat64(ctx, b));
+    return arr;
+}
+
+static JSValue efx_js_mouse_getPosition(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    float x = 0, y = 0;
+    efx_input_pointer(&x, &y);
+    return num_pair(ctx, x, y);
+}
+
+static JSValue efx_js_mouse_getX(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    float x = 0, y = 0;
+    efx_input_pointer(&x, &y);
+    return JS_NewFloat64(ctx, x);
+}
+
+static JSValue efx_js_mouse_getY(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    float x = 0, y = 0;
+    efx_input_pointer(&x, &y);
+    return JS_NewFloat64(ctx, y);
+}
+
+static JSValue efx_js_mouse_getDelta(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    float dx = 0, dy = 0;
+    efx_input_delta(&dx, &dy);
+    return num_pair(ctx, dx, dy);
+}
+
+static JSValue efx_js_mouse_getWheel(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    float dx = 0, dy = 0;
+    efx_input_wheel_delta(&dx, &dy);
+    return num_pair(ctx, dx, dy);
+}
+
+static JSValue efx_js_window_getSize(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    JSValue arr = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, arr, 0, JS_NewInt32(ctx, w));
+    JS_SetPropertyUint32(ctx, arr, 1, JS_NewInt32(ctx, h));
+    return arr;
+}
+
+static JSValue efx_js_window_getWidth(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    return JS_NewInt32(ctx, w);
+}
+
+static JSValue efx_js_window_getHeight(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    return JS_NewInt32(ctx, h);
+}
+
+static JSValue efx_js_window_getDpiScale(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    int w = 0, h = 0;
+    float dpi = 1;
+    efx_input_window_size(&w, &h, &dpi);
+    return JS_NewFloat64(ctx, dpi);
+}
+
+int efx_api_register_input(JSContext *ctx, JSValueConst efx) {
+    static const JSCFunctionListEntry kb_funcs[] = {
+        JS_CFUNC_MAGIC_DEF("isDown", 1, efx_js_key_query, 0),
+        JS_CFUNC_MAGIC_DEF("isPressed", 1, efx_js_key_query, 1),
+        JS_CFUNC_MAGIC_DEF("isReleased", 1, efx_js_key_query, 2),
+        JS_CFUNC_MAGIC_DEF("onDown", 1, efx_js_key_on, 0),
+        JS_CFUNC_MAGIC_DEF("onUp", 1, efx_js_key_on, 1),
+        JS_CFUNC_MAGIC_DEF("onChar", 1, efx_js_key_on, 2),
+    };
+    static const JSCFunctionListEntry mouse_funcs[] = {
+        JS_CFUNC_MAGIC_DEF("isDown", 1, efx_js_mouse_query, 0),
+        JS_CFUNC_MAGIC_DEF("isPressed", 1, efx_js_mouse_query, 1),
+        JS_CFUNC_MAGIC_DEF("isReleased", 1, efx_js_mouse_query, 2),
+        JS_CFUNC_MAGIC_DEF("onDown", 1, efx_js_mouse_on, 0),
+        JS_CFUNC_MAGIC_DEF("onUp", 1, efx_js_mouse_on, 1),
+        JS_CFUNC_MAGIC_DEF("onMove", 1, efx_js_mouse_on, 2),
+        JS_CFUNC_MAGIC_DEF("onWheel", 1, efx_js_mouse_on, 3),
+        JS_CGETSET_DEF("position", efx_js_mouse_getPosition, NULL),
+        JS_CGETSET_DEF("x", efx_js_mouse_getX, NULL),
+        JS_CGETSET_DEF("y", efx_js_mouse_getY, NULL),
+        JS_CGETSET_DEF("delta", efx_js_mouse_getDelta, NULL),
+        JS_CGETSET_DEF("wheel", efx_js_mouse_getWheel, NULL),
+    };
+    static const JSCFunctionListEntry window_funcs[] = {
+        JS_CGETSET_DEF("size", efx_js_window_getSize, NULL),
+        JS_CGETSET_DEF("width", efx_js_window_getWidth, NULL),
+        JS_CGETSET_DEF("height", efx_js_window_getHeight, NULL),
+        JS_CGETSET_DEF("dpiScale", efx_js_window_getDpiScale, NULL),
+    };
+    JSValue kb = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, kb, kb_funcs,
+                               (int)(sizeof(kb_funcs) / sizeof(kb_funcs[0])));
+    JSValue mouse = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, mouse, mouse_funcs,
+                               (int)(sizeof(mouse_funcs) /
+                                     sizeof(mouse_funcs[0])));
+    JSValue window = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, window, window_funcs,
+                               (int)(sizeof(window_funcs) /
+                                     sizeof(window_funcs[0])));
+    /* JS_SetPropertyStr consumes the value reference */
+    JS_SetPropertyStr(ctx, efx, "keyboard", kb);
+    JS_SetPropertyStr(ctx, efx, "mouse", mouse);
+    JS_SetPropertyStr(ctx, efx, "window", window);
+    return 0;
 }

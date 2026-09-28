@@ -3,6 +3,7 @@
 #include "runtime/runtime.h"
 #include "runtime/runtime_internal.h"
 #include "api/api.h"
+#include "input/efx_input.h"
 #include "prelude/prelude.h"
 
 #include <stdio.h>
@@ -53,6 +54,30 @@ void efx_hooks_free_all(JSContext *ctx, struct efx_hook_list *list) {
     list->entries = NULL;
     list->count = 0;
     list->cap = 0;
+}
+
+struct efx_hook_list *efx_host_hook_list(struct efx_host_state *h, int which) {
+    switch (which) {
+    case EFX_HOOK_LIST_RENDER:
+        return &h->render_hooks;
+    case EFX_HOOK_LIST_KB_DOWN:
+        return &h->input_key_down;
+    case EFX_HOOK_LIST_KB_UP:
+        return &h->input_key_up;
+    case EFX_HOOK_LIST_KB_CHAR:
+        return &h->input_char;
+    case EFX_HOOK_LIST_MOUSE_DOWN:
+        return &h->input_mouse_down;
+    case EFX_HOOK_LIST_MOUSE_UP:
+        return &h->input_mouse_up;
+    case EFX_HOOK_LIST_MOUSE_MOVE:
+        return &h->input_mouse_move;
+    case EFX_HOOK_LIST_MOUSE_WHEEL:
+        return &h->input_mouse_wheel;
+    case EFX_HOOK_LIST_UPDATE:
+    default:
+        return &h->update_hooks;
+    }
 }
 
 static char *dup_string(const char *s) {
@@ -183,6 +208,13 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));
+    if (efx_api_register_input(rt->ctx, efx) < 0) {
+        fprintf(stderr, "player: input api init failed\n");
+        JS_FreeValue(rt->ctx, efx);
+        JS_FreeValue(rt->ctx, glob);
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
     JS_SetPropertyStr(rt->ctx, glob, "efx", efx);
     JS_FreeValue(rt->ctx, glob);
     if (efx_api_init(rt->ctx) < 0) {
@@ -221,6 +253,13 @@ void efx_runtime_destroy(efx_runtime *rt) {
     }
     efx_hooks_free_all(rt->ctx, &rt->host.update_hooks);
     efx_hooks_free_all(rt->ctx, &rt->host.render_hooks);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_key_down);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_key_up);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_char);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_down);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_up);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_move);
+    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_wheel);
     JS_FreeValue(rt->ctx, rt->host.quit_sentinel);
     if (rt->host.has_white_texture) {
         JS_FreeValue(rt->ctx, rt->host.white_texture);
@@ -339,6 +378,161 @@ int efx_runtime_call_hook(efx_runtime *rt, int update_not_render, double dt) {
             return EFX_HOOK_QUIT;
         }
     }
+    return EFX_HOOK_OK;
+}
+
+/* ---------------------------------------------- F9 input dispatch */
+
+static int utf8_encode(uint32_t cp, char out[5]) {
+    if (cp < 0x80u) {
+        out[0] = (char)cp;
+        out[1] = '\0';
+        return 1;
+    }
+    if (cp < 0x800u) {
+        out[0] = (char)(0xC0u | (cp >> 6));
+        out[1] = (char)(0x80u | (cp & 0x3Fu));
+        out[2] = '\0';
+        return 2;
+    }
+    if (cp < 0x10000u) {
+        out[0] = (char)(0xE0u | (cp >> 12));
+        out[1] = (char)(0x80u | ((cp >> 6) & 0x3Fu));
+        out[2] = (char)(0x80u | (cp & 0x3Fu));
+        out[3] = '\0';
+        return 3;
+    }
+    if (cp <= 0x10FFFFu) {
+        out[0] = (char)(0xF0u | (cp >> 18));
+        out[1] = (char)(0x80u | ((cp >> 12) & 0x3Fu));
+        out[2] = (char)(0x80u | ((cp >> 6) & 0x3Fu));
+        out[3] = (char)(0x80u | (cp & 0x3Fu));
+        out[4] = '\0';
+        return 4;
+    }
+    out[0] = '?';
+    out[1] = '\0';
+    return 1;
+}
+
+static JSValue make_mods_array(JSContext *ctx, unsigned mods) {
+    static const unsigned BITS[4] = {EFX_INPUT_MOD_SHIFT, EFX_INPUT_MOD_CTRL,
+                                      EFX_INPUT_MOD_ALT, EFX_INPUT_MOD_SUPER};
+    JSValue arr = JS_NewArray(ctx);
+    uint32_t n = 0;
+    for (int i = 0; i < 4; i++) {
+        if (mods & BITS[i]) {
+            const char *name = efx_input_mod_name(BITS[i]);
+            JS_SetPropertyUint32(ctx, arr, n++, JS_NewString(ctx, name));
+        }
+    }
+    return arr;
+}
+
+static JSValue make_input_event(JSContext *ctx, const efx_input_event *ev) {
+    JSValue obj = JS_NewObject(ctx);
+    switch (ev->type) {
+    case EFX_INPUT_KEY_DOWN: {
+        const char *name = efx_input_key_name(ev->key);
+        JS_SetPropertyStr(ctx, obj, "key",
+                          JS_NewString(ctx, name ? name : ""));
+        JS_SetPropertyStr(ctx, obj, "repeat", JS_NewBool(ctx, ev->repeat));
+        JS_SetPropertyStr(ctx, obj, "mods", make_mods_array(ctx, ev->mods));
+        break;
+    }
+    case EFX_INPUT_KEY_UP: {
+        const char *name = efx_input_key_name(ev->key);
+        JS_SetPropertyStr(ctx, obj, "key",
+                          JS_NewString(ctx, name ? name : ""));
+        JS_SetPropertyStr(ctx, obj, "mods", make_mods_array(ctx, ev->mods));
+        break;
+    }
+    case EFX_INPUT_CHAR: {
+        char utf8[5];
+        utf8_encode(ev->codepoint, utf8);
+        JS_SetPropertyStr(ctx, obj, "char", JS_NewString(ctx, utf8));
+        break;
+    }
+    case EFX_INPUT_MOUSE_DOWN:
+    case EFX_INPUT_MOUSE_UP: {
+        const char *name = efx_input_button_name(ev->button);
+        JS_SetPropertyStr(ctx, obj, "button",
+                          JS_NewString(ctx, name ? name : ""));
+        JS_SetPropertyStr(ctx, obj, "x", JS_NewFloat64(ctx, ev->x));
+        JS_SetPropertyStr(ctx, obj, "y", JS_NewFloat64(ctx, ev->y));
+        JS_SetPropertyStr(ctx, obj, "mods", make_mods_array(ctx, ev->mods));
+        break;
+    }
+    case EFX_INPUT_MOUSE_MOVE:
+        JS_SetPropertyStr(ctx, obj, "x", JS_NewFloat64(ctx, ev->x));
+        JS_SetPropertyStr(ctx, obj, "y", JS_NewFloat64(ctx, ev->y));
+        JS_SetPropertyStr(ctx, obj, "dx", JS_NewFloat64(ctx, ev->dx));
+        JS_SetPropertyStr(ctx, obj, "dy", JS_NewFloat64(ctx, ev->dy));
+        break;
+    case EFX_INPUT_WHEEL:
+        JS_SetPropertyStr(ctx, obj, "dx", JS_NewFloat64(ctx, ev->dx));
+        JS_SetPropertyStr(ctx, obj, "dy", JS_NewFloat64(ctx, ev->dy));
+        break;
+    default:
+        break;
+    }
+    return obj;
+}
+
+static int input_event_list(const efx_input_event *ev) {
+    switch (ev->type) {
+    case EFX_INPUT_KEY_DOWN:
+        return EFX_HOOK_LIST_KB_DOWN;
+    case EFX_INPUT_KEY_UP:
+        return EFX_HOOK_LIST_KB_UP;
+    case EFX_INPUT_CHAR:
+        return EFX_HOOK_LIST_KB_CHAR;
+    case EFX_INPUT_MOUSE_DOWN:
+        return EFX_HOOK_LIST_MOUSE_DOWN;
+    case EFX_INPUT_MOUSE_UP:
+        return EFX_HOOK_LIST_MOUSE_UP;
+    case EFX_INPUT_MOUSE_MOVE:
+        return EFX_HOOK_LIST_MOUSE_MOVE;
+    case EFX_INPUT_WHEEL:
+        return EFX_HOOK_LIST_MOUSE_WHEEL;
+    default:
+        return -1;
+    }
+}
+
+int efx_runtime_dispatch_input(efx_runtime *rt) {
+    int n = efx_input_event_count();
+    for (int i = 0; i < n; i++) {
+        const efx_input_event *ev = efx_input_event_at(i);
+        int which = input_event_list(ev);
+        if (which < 0) {
+            continue;
+        }
+        struct efx_hook_list *list = efx_host_hook_list(&rt->host, which);
+        JSValue arg = make_input_event(rt->ctx, ev);
+        if (JS_IsException(arg)) {
+            return finish_exception(rt) ? EFX_HOOK_ERROR : EFX_HOOK_QUIT;
+        }
+        for (int j = 0; j < list->count; j++) {
+            if (!list->entries[j].active) {
+                continue;
+            }
+            JSValue result = JS_Call(rt->ctx, list->entries[j].fn,
+                                     JS_UNDEFINED, 1, &arg);
+            if (JS_IsException(result)) {
+                JS_FreeValue(rt->ctx, arg);
+                int rc = finish_exception(rt);
+                return rc == 0 ? EFX_HOOK_QUIT : EFX_HOOK_ERROR;
+            }
+            JS_FreeValue(rt->ctx, result);
+            if (rt->host.quit_requested) {
+                JS_FreeValue(rt->ctx, arg);
+                return EFX_HOOK_QUIT;
+            }
+        }
+        JS_FreeValue(rt->ctx, arg);
+    }
+    efx_input_clear_events();
     return EFX_HOOK_OK;
 }
 

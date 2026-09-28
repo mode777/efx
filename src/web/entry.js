@@ -8,7 +8,9 @@
 function __efxState() {
     var st = globalThis['__efx_state'];
     if (!st) {
-        st = { api: null, quitSentinel: null, updateHooks: [], renderHooks: [], started: false };
+        st = { api: null, quitSentinel: null, updateHooks: [], renderHooks: [], started: false,
+               keyboardDown: [], keyboardUp: [], keyboardChar: [],
+               mouseDown: [], mouseUp: [], mouseMove: [], mouseWheel: [] };
         globalThis['__efx_state'] = st;
     }
     return st;
@@ -110,6 +112,102 @@ function __efxIsObject(v) {
     return v !== null && (typeof v === 'object' || typeof v === 'function');
 }
 
+function __efxMods(mask) {
+    var out = [];
+    if (mask & 1) { out.push('shift'); }
+    if (mask & 2) { out.push('ctrl'); }
+    if (mask & 4) { out.push('alt'); }
+    if (mask & 8) { out.push('super'); }
+    return out;
+}
+
+/* invoke an input callback list with one plain event object; mirrors the
+   lifecycle dispatch's error/quit contract (0 ok, 1 quit, 2 error) */
+function __efxCallHooks(st, hooks, ev) {
+    for (var i = 0; i < hooks.length; i++) {
+        var entry = hooks[i];
+        if (!entry.active) {
+            continue;
+        }
+        try {
+            entry.fn(ev);
+        } catch (e) {
+            if (st.quitSentinel !== null && e === st.quitSentinel) {
+                return 1;
+            }
+            Module['_efx_bridge_set_error']();
+            __efxReportError(e);
+            __efxSyncExit();
+            return 2;
+        }
+    }
+    return 0;
+}
+
+/* F9: drain the frame's staged input events into the registered callbacks,
+   in arrival order, before the update hooks run (design D2/D3) */
+function __efxDispatchInput(st) {
+    var bridge = Module;
+    var n = bridge['_efx_bridge_input_count']();
+    for (var i = 0; i < n; i++) {
+        var type = bridge['_efx_bridge_input_type'](i);
+        var hooks = null;
+        var ev = null;
+        if (type === 0) {
+            hooks = st.keyboardDown;
+            ev = {
+                key: UTF8ToString(bridge['_efx_bridge_key_name'](
+                    bridge['_efx_bridge_input_key'](i))),
+                repeat: !!bridge['_efx_bridge_input_repeat'](i),
+                mods: __efxMods(bridge['_efx_bridge_input_mods'](i)),
+            };
+        } else if (type === 1) {
+            hooks = st.keyboardUp;
+            ev = {
+                key: UTF8ToString(bridge['_efx_bridge_key_name'](
+                    bridge['_efx_bridge_input_key'](i))),
+                mods: __efxMods(bridge['_efx_bridge_input_mods'](i)),
+            };
+        } else if (type === 2) {
+            hooks = st.keyboardChar;
+            ev = { char: String.fromCodePoint(bridge['_efx_bridge_input_char'](i)) };
+        } else if (type === 3 || type === 4) {
+            hooks = type === 3 ? st.mouseDown : st.mouseUp;
+            ev = {
+                button: UTF8ToString(bridge['_efx_bridge_button_name'](
+                    bridge['_efx_bridge_input_button'](i))),
+                x: bridge['_efx_bridge_input_x'](i),
+                y: bridge['_efx_bridge_input_y'](i),
+                mods: __efxMods(bridge['_efx_bridge_input_mods'](i)),
+            };
+        } else if (type === 5) {
+            hooks = st.mouseMove;
+            ev = {
+                x: bridge['_efx_bridge_input_x'](i),
+                y: bridge['_efx_bridge_input_y'](i),
+                dx: bridge['_efx_bridge_input_dx'](i),
+                dy: bridge['_efx_bridge_input_dy'](i),
+            };
+        } else if (type === 6) {
+            hooks = st.mouseWheel;
+            ev = {
+                dx: bridge['_efx_bridge_input_dx'](i),
+                dy: bridge['_efx_bridge_input_dy'](i),
+            };
+        }
+        if (hooks === null) {
+            continue;
+        }
+        var rc = __efxCallHooks(st, hooks, ev);
+        if (rc !== 0) {
+            bridge['_efx_bridge_input_clear']();
+            return rc;
+        }
+    }
+    bridge['_efx_bridge_input_clear']();
+    return 0;
+}
+
 function __efxEnsureApi() {
     var st = __efxState();
     if (st.api) {
@@ -118,6 +216,13 @@ function __efxEnsureApi() {
     var bridge = Module;
 
     st.dispatch = function (which, dt) {
+        /* F9: input callbacks fire before the update hooks each frame */
+        if (which) {
+            var irc = __efxDispatchInput(st);
+            if (irc !== 0) {
+                return irc;
+            }
+        }
         var hooks = which ? st.updateHooks : st.renderHooks;
         for (var i = 0; i < hooks.length; i++) {
             var entry = hooks[i];
@@ -1629,6 +1734,110 @@ function __efxEnsureApi() {
             bridge['_efx_bridge_mem_free'](mapsptr);
         },
     };
+
+    /* F9 input namespaces (desktop parity: one C source for names/state) */
+    function makeInputRegister(list) {
+        return function (fn) {
+            if (typeof fn !== 'function') {
+                throw new TypeError('hook must be a function');
+            }
+            var entry = { fn: fn, active: true };
+            list.push(entry);
+            return function () {
+                entry.active = false;
+            };
+        };
+    }
+    function __keyId(name) {
+        if (typeof name !== 'string') {
+            throw new TypeError('keyboard query requires a key name');
+        }
+        var p = __efxAllocCStr(name);
+        var id = bridge['_efx_bridge_key_id'](p);
+        bridge['_efx_bridge_mem_free'](p);
+        if (id < 0) {
+            throw new TypeError('unknown key');
+        }
+        return id;
+    }
+    function __buttonId(name) {
+        if (typeof name !== 'string') {
+            throw new TypeError('mouse query requires a button name');
+        }
+        var p = __efxAllocCStr(name);
+        var id = bridge['_efx_bridge_button_id'](p);
+        bridge['_efx_bridge_mem_free'](p);
+        if (id < 0) {
+            throw new TypeError('unknown mouse button');
+        }
+        return id;
+    }
+    api.keyboard = {
+        isDown: function (key) {
+            return !!bridge['_efx_bridge_key_down'](__keyId(key));
+        },
+        isPressed: function (key) {
+            return !!bridge['_efx_bridge_key_pressed'](__keyId(key));
+        },
+        isReleased: function (key) {
+            return !!bridge['_efx_bridge_key_released'](__keyId(key));
+        },
+        onDown: makeInputRegister(st.keyboardDown),
+        onUp: makeInputRegister(st.keyboardUp),
+        onChar: makeInputRegister(st.keyboardChar),
+    };
+    api.mouse = {
+        isDown: function (b) {
+            return !!bridge['_efx_bridge_button_down'](__buttonId(b));
+        },
+        isPressed: function (b) {
+            return !!bridge['_efx_bridge_button_pressed'](__buttonId(b));
+        },
+        isReleased: function (b) {
+            return !!bridge['_efx_bridge_button_released'](__buttonId(b));
+        },
+        onDown: makeInputRegister(st.mouseDown),
+        onUp: makeInputRegister(st.mouseUp),
+        onMove: makeInputRegister(st.mouseMove),
+        onWheel: makeInputRegister(st.mouseWheel),
+    };
+    Object.defineProperty(api.mouse, 'position', {
+        get: function () {
+            return [bridge['_efx_bridge_mouse_x'](), bridge['_efx_bridge_mouse_y']()];
+        },
+    });
+    Object.defineProperty(api.mouse, 'x', {
+        get: function () { return bridge['_efx_bridge_mouse_x'](); },
+    });
+    Object.defineProperty(api.mouse, 'y', {
+        get: function () { return bridge['_efx_bridge_mouse_y'](); },
+    });
+    Object.defineProperty(api.mouse, 'delta', {
+        get: function () {
+            return [bridge['_efx_bridge_mouse_dx'](), bridge['_efx_bridge_mouse_dy']()];
+        },
+    });
+    Object.defineProperty(api.mouse, 'wheel', {
+        get: function () {
+            return [bridge['_efx_bridge_wheel_dx'](), bridge['_efx_bridge_wheel_dy']()];
+        },
+    });
+    api.window = {};
+    Object.defineProperty(api.window, 'size', {
+        get: function () {
+            return [bridge['_efx_bridge_window_width'](),
+                    bridge['_efx_bridge_window_height']()];
+        },
+    });
+    Object.defineProperty(api.window, 'width', {
+        get: function () { return bridge['_efx_bridge_window_width'](); },
+    });
+    Object.defineProperty(api.window, 'height', {
+        get: function () { return bridge['_efx_bridge_window_height'](); },
+    });
+    Object.defineProperty(api.window, 'dpiScale', {
+        get: function () { return bridge['_efx_bridge_window_dpi'](); },
+    });
 
     var whiteTex = null;
     Object.defineProperty(api, 'whiteTexture', {
