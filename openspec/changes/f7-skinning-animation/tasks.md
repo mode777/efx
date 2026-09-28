@@ -40,4 +40,4 @@
 
 - [x] 6.1 Run `python3 tools/verify_remote.py all <branch>` (native goldens + web suites + gallery) and fix any failures.
 - [x] 6.2 Dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` following Linux → Windows → macOS, and confirm the run is green.
-- [ ] 6.3 Merge the branch to `main`, push, and archive the change (syncing specs).
+- [x] 6.3 Merge the branch to `main`, push, and archive the change (syncing specs).
