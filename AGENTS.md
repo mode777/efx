@@ -74,6 +74,19 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   Its four-target gate is **green** (ci run 36448429521: native suites incl.
   all goldens + the new input cases on Linux/Windows/macOS, Emscripten ctest
   incl. `web_9_input` + web goldens + cross-runtime compare `9_input`).
+- F10 (script modules — CommonJS) is **implemented** as the second orthogonal
+  milestone (predecessors: the F1–F2 dual script bindings and the F6a dir/zip
+  resource provider) — one shared pure-JS `require` runtime in
+  `src/prelude/prelude.js` (shipped identically to both bindings) loads modules
+  synchronously through `efx.loadText`, with a restricted resolver
+  (relative/root-relative, exact then `.js` fallback, `.json` modules, escape
+  rejection, no bare/`node_modules` specifiers), resolved-path caching,
+  circular-require partial exports, `__esModule` interop, and `main.js`
+  evaluated as the entry module on both bindings (change `f10-commonjs-modules`,
+  ADR 0037). `require`/`module`/`exports` stay module-scoped; the entry's
+  `module.exports.update`/`render` join the global sugar without double
+  registration. Its non-visual gate is portable module smoke tests on all four
+  targets (no golden image); the four-target gate is pending.
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -169,8 +182,13 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   onDown/onUp/onChar), `efx.mouse` (the same queries plus onMove/onWheel;
   read-only `position`/`x`/`y`/`delta`/`wheel`), and `efx.window` (read-only
   `size`/`width`/`height`/`dpiScale`) —
+  plus F10's CommonJS module facilities — `require`/`module`/`exports` are
+  module-scoped authoring facilities, not members of `efx` and not free
+  globals; `main.js` is the entry module and its `module.exports.update`/
+  `.render` join the global `update`/`render` load-time sugar (registered once)
+  —
   cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7 entries are current
-  behavior; F9 is provisional until its gate passes;
+  behavior; F9 and F10 are provisional until their gates pass;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
   The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
   batch and shorthand forms as an exclusive union (the batch form does not
@@ -280,8 +298,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 spec is `openspec/specs/feature-roadmap`. The order is fixed: a milestone
 must not start before its predecessor's verification gate passes on all
 four targets, and every feature proposal must name the milestone it
-implements. F9 (input) is the one **orthogonal** milestone: its only
-predecessor is F2, so it may land independently of F3–F8.
+implements. F9 (input) and F10 (script modules — CommonJS) are the
+**orthogonal** milestones: F9's only predecessor is F2, and F10's only
+predecessors are F1–F2 plus the F6a dir/zip resource provider, so both may land
+independently of F3–F8.
 
 | # | Milestone | Scope (one line) | Verification gate | Status |
 |---|-----------|------------------|-------------------|--------|
@@ -294,6 +314,7 @@ predecessor is F2, so it may land independently of F3–F8.
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, script-driven posing | FK joint-transform tests vs CPU reference + golden images | done — `poseMesh` + `skinned` draw option, CPU-reference unit tests, `skin_pose` golden, CC0 Fox gallery sample (ADR 0035); four-target gate green (run 36443794987) |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
 | F9 | Input (keyboard + mouse) | **Orthogonal** (predecessor F2; independent of F3–F8): pure-C frame-staged input core, `efx.keyboard`/`efx.mouse`/`efx.window` query + event API, surface-pixel coordinates, test-only injection seam | Non-visual: headless unit tests over the C core + a script-level simulation harness, all four targets (no golden image) | implemented — change `f9-input`, ADR 0036; four-target gate green (run 36448429521) |
+| F10 | Script modules (CommonJS) | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F9): synchronous provider-backed `require` in the shared pure-JS prelude, restricted resolver, module caching/cycles, `__esModule` interop, JSON modules, `main.js` as a module, TypeScript `import`→CommonJS authoring | Script-level module tests on all four targets (ctest + Emscripten ctest + cross-runtime compare; no golden image) | implemented — change `f10-commonjs-modules`, ADR 0037; four-target gate pending |
 
 Deferred cross-cutting decisions settle inside specific milestones, not
 before: golden-image tolerance + CI determinism (incl. emsdk pinning) in

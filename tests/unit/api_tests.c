@@ -16,6 +16,12 @@
 #ifndef EFX_RES_FIXTURES
 #define EFX_RES_FIXTURES "tests/fixtures/resource"
 #endif
+#ifndef EFX_MOD_FIXTURES
+#define EFX_MOD_FIXTURES "tests/fixtures/modules"
+#endif
+#ifndef EFX_MOD_ERROR_FIXTURES
+#define EFX_MOD_ERROR_FIXTURES "tests/fixtures/modules_error"
+#endif
 
 static int fail(const char *what) {
     fprintf(stderr, "FAIL: %s\n", what);
@@ -1335,6 +1341,259 @@ done:
     return rc;
 }
 
+/* F10: run an entry in a fresh runtime bound to `root`; returns 1 when the
+ * run raised/reported an error (the expected outcome for the error cases). */
+static int module_expect_error(const char *root, const char *entry,
+                               const char *source) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    efx_runtime *rt = efx_runtime_new(NULL, 0);
+    if (!rt) {
+        efx_render_end_frame();
+        efx_render_shutdown();
+        return 0;
+    }
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(root, &err);
+    if (!res) {
+        efx_runtime_destroy(rt);
+        efx_render_end_frame();
+        efx_render_shutdown();
+        return 0;
+    }
+    efx_runtime_set_resource(rt, res);
+    int rc = efx_runtime_run_entry(rt, entry, source);
+    int failed = (rc != 0) || efx_runtime_in_error(rt);
+    efx_runtime_destroy(rt);
+    efx_resource_close(res);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return failed;
+}
+
+/* F10: the shared CommonJS runtime driven through the desktop binding —
+ * relative/parent/root resolution, the .js fallback, cache identity, cycles,
+ * __esModule interop, star re-export, JSON modules, and module errors. */
+static int module_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) {
+        efx_render_end_frame();
+        efx_render_shutdown();
+        return fail("runtime");
+    }
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_MOD_FIXTURES, &err);
+    if (!res) {
+        end_js();
+        return fail("open module fixtures");
+    }
+    efx_runtime_set_resource(g_rt, res);
+    const char *entry =
+        "var m1 = require('./lib/math.js');"
+        "var m2 = require('./lib/math.js');"
+        "globalThis.__m = {"
+        "  ident: m1 === m2, sum: m1.add(1, 2), value: m1.value,"
+        "  root: require('shared/util.js').tag,"
+        "  parent: require('./lib/uses_parent.js').tag,"
+        "  fallback: require('./lib/math').value,"
+        "  jsonName: require('./json/config.json').name,"
+        "  cycName: require('./cycle/a.js').name,"
+        "  cycB: require('./cycle/a.js').b.name,"
+        "  cycAName: require('./cycle/a.js').b.aName,"
+        "  cycDone: require('./cycle/a.js').done,"
+        "  interop: require('./interop/consumer.js').got,"
+        "  starNamed: require('./interop/star.js').named,"
+        "  starExtra: require('./interop/star.js').extra"
+        "};";
+    int rc = efx_runtime_run_entry(g_rt, "entry.js", entry);
+    if (rc != 0 || efx_runtime_in_error(g_rt)) {
+        end_js();
+        efx_resource_close(res);
+        return fail("module success entry raised");
+    }
+    rc = efx_runtime_eval_string(g_rt, "check",
+        "var m = globalThis.__m;"
+        "if (!m.ident || m.sum !== 3 || m.value !== 21) throw new Error('identity/math');"
+        "if (m.root !== 'shared' || m.parent !== 'shared') throw new Error('resolution');"
+        "if (m.fallback !== 21) throw new Error('fallback');"
+        "if (m.jsonName !== 'config') throw new Error('json');"
+        "if (m.cycName !== 'a' || m.cycB !== 'b' || m.cycAName !== 'a' || !m.cycDone)"
+        "  throw new Error('cycle');"
+        "if (m.interop !== 42) throw new Error('interop');"
+        "if (m.starNamed !== 'hello' || m.starExtra !== 'x') throw new Error('star');");
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_resource_close(res);
+    if (rc != 0) {
+        return fail("module semantics assertion failed");
+    }
+
+    if (!module_expect_error(EFX_MOD_FIXTURES, "entry.js",
+                             "require('./definitely_missing.js');")) {
+        return fail("missing module did not error");
+    }
+    if (!module_expect_error(EFX_MOD_FIXTURES, "entry.js",
+                             "require('../outside.js');")) {
+        return fail("root escape did not error");
+    }
+    if (!module_expect_error(EFX_MOD_FIXTURES, "entry.js",
+                             "require('./json/bad.json');")) {
+        return fail("invalid JSON did not error");
+    }
+    if (!module_expect_error(EFX_MOD_FIXTURES, "entry.js",
+                             "import x from './lib/math.js';")) {
+        return fail("static import did not error");
+    }
+    if (!module_expect_error(EFX_MOD_FIXTURES, "not_a_module.js", NULL)) {
+        return fail("missing entry did not error");
+    }
+    if (!module_expect_error(EFX_MOD_ERROR_FIXTURES, "main.js", NULL)) {
+        return fail("throwing module did not error");
+    }
+    return 0;
+}
+
+/* F10: module-shaped and global entry hooks register once, in order, with
+ * the same pick_hooks semantics on the desktop binding. */
+static int module_hooks_js(void) {
+    const char *root = EFX_MOD_FIXTURES;
+    int ok = 1;
+
+    /* exported hooks == local declarations: the explicit hook stays first and
+       the entry hook is registered once (not twice) */
+    {
+        efx_render_install_sink(&g_sink);
+        efx_render_reset_state();
+        efx_render_set_viewport(1024, 600);
+        efx_render_begin_frame();
+        int err = EFX_RESOURCE_OK;
+        efx_resource *res = efx_resource_open(root, &err);
+        g_rt = efx_runtime_new(NULL, 0);
+        if (!g_rt || !res) {
+            ok = 0;
+        } else {
+            efx_runtime_set_resource(g_rt, res);
+            const char *entry =
+                "globalThis.__calls = [];"
+                "function update(dt) { globalThis.__calls.push('u' + dt); }"
+                "function render() { globalThis.__calls.push('r'); }"
+                "module.exports.update = update;"
+                "module.exports.render = render;"
+                "efx.registerUpdateHook(function () { globalThis.__calls.push('explicit'); });";
+            if (efx_runtime_run_entry(g_rt, "hooks.js", entry) != 0 ||
+                efx_runtime_in_error(g_rt)) {
+                ok = 0;
+            } else {
+                int has_u = 0, has_r = 0;
+                efx_runtime_pick_hooks(g_rt, &has_u, &has_r);
+                if (!has_u || !has_r) {
+                    ok = 0;
+                } else if (efx_runtime_call_hook(g_rt, 1, 0.5) != EFX_HOOK_OK ||
+                           efx_runtime_call_hook(g_rt, 0, 0.0) != EFX_HOOK_OK) {
+                    ok = 0;
+                } else if (efx_runtime_eval_string(g_rt, "check",
+                        "if (globalThis.__calls.join(',') !== 'explicit,u0.5,r')"
+                        "  throw new Error(globalThis.__calls.join(','));") != 0) {
+                    ok = 0;
+                }
+            }
+        }
+        efx_runtime_destroy(g_rt);
+        g_rt = NULL;
+        efx_render_end_frame();
+        efx_render_shutdown();
+        efx_resource_close(res);
+        if (!ok) return fail("module-shaped exported hooks");
+    }
+
+    /* exports-only entry (no local declarations) */
+    {
+        efx_render_install_sink(&g_sink);
+        efx_render_reset_state();
+        efx_render_set_viewport(1024, 600);
+        efx_render_begin_frame();
+        int err = EFX_RESOURCE_OK;
+        efx_resource *res = efx_resource_open(root, &err);
+        g_rt = efx_runtime_new(NULL, 0);
+        if (!g_rt || !res) {
+            ok = 0;
+        } else {
+            efx_runtime_set_resource(g_rt, res);
+            const char *entry =
+                "globalThis.__n = 0;"
+                "module.exports.update = function () { globalThis.__n++; };"
+                "module.exports.render = function () {};";
+            int has_u = 0, has_r = 0;
+            if (efx_runtime_run_entry(g_rt, "hooks2.js", entry) != 0 ||
+                efx_runtime_in_error(g_rt)) {
+                ok = 0;
+            } else {
+                efx_runtime_pick_hooks(g_rt, &has_u, &has_r);
+                if (!has_u || !has_r ||
+                    efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK ||
+                    efx_runtime_eval_string(g_rt, "check",
+                        "if (globalThis.__n !== 1) throw new Error('exports hook');") != 0) {
+                    ok = 0;
+                }
+            }
+        }
+        efx_runtime_destroy(g_rt);
+        g_rt = NULL;
+        efx_render_end_frame();
+        efx_render_shutdown();
+        efx_resource_close(res);
+        if (!ok) return fail("exports-only hooks");
+    }
+
+    /* global-only entry still works through the load-time sugar */
+    {
+        efx_render_install_sink(&g_sink);
+        efx_render_reset_state();
+        efx_render_set_viewport(1024, 600);
+        efx_render_begin_frame();
+        int err = EFX_RESOURCE_OK;
+        efx_resource *res = efx_resource_open(root, &err);
+        g_rt = efx_runtime_new(NULL, 0);
+        if (!g_rt || !res) {
+            ok = 0;
+        } else {
+            efx_runtime_set_resource(g_rt, res);
+            const char *entry =
+                "globalThis.__g = 0;"
+                "function update() { globalThis.__g++; }"
+                "function render() {}";
+            int has_u = 0, has_r = 0;
+            if (efx_runtime_run_entry(g_rt, "hooks3.js", entry) != 0 ||
+                efx_runtime_in_error(g_rt)) {
+                ok = 0;
+            } else {
+                efx_runtime_pick_hooks(g_rt, &has_u, &has_r);
+                if (!has_u || !has_r ||
+                    efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK ||
+                    efx_runtime_eval_string(g_rt, "check",
+                        "if (globalThis.__g !== 1) throw new Error('global hook');") != 0) {
+                    ok = 0;
+                }
+            }
+        }
+        efx_runtime_destroy(g_rt);
+        g_rt = NULL;
+        efx_render_end_frame();
+        efx_render_shutdown();
+        efx_resource_close(res);
+        if (!ok) return fail("global-sugar hooks");
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -1370,6 +1629,8 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "pose_js")) return pose_js();
     if (!strcmp(c, "repl_eval")) return repl_eval();
     if (!strcmp(c, "input_js")) return input_js();
+    if (!strcmp(c, "module_js")) return module_js();
+    if (!strcmp(c, "module_hooks_js")) return module_hooks_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

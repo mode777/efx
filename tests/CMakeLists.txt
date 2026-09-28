@@ -54,6 +54,12 @@ add_player_test(smoke_6b_gltf ARGS "--script;${S}/s_6b_gltf.js" EXPECT 0 EXPECT_
 add_player_test(smoke_6c_skin ARGS "--script;${S}/s_6c_skin.js" EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
 add_player_test(smoke_7_skin_pose ARGS "--script;${S}/s_7_skin_pose.js;--root;${F}/resource/gltf" EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
 add_player_test(smoke_9_input ARGS "--script;${S}/s_9_input.js" EXPECT 0 EXPECT_OUT "s-9-input-ok")
+add_player_test(smoke_10_modules ARGS "${F}/modules" EXPECT 0 EXPECT_OUT "s-10-modules-ok")
+add_player_test(smoke_10_module_throw ARGS "${F}/modules_error" EXPECT nonzero EXPECT_ERR "intentional-module-throw")
+add_player_test(smoke_10_missing ARGS "--script;${S}/s_10_missing.js" EXPECT nonzero EXPECT_ERR "cannot find module")
+add_player_test(smoke_10_escape ARGS "--script;${S}/s_10_escape.js" EXPECT nonzero EXPECT_ERR "escapes the resource root")
+add_player_test(smoke_10_unsupported ARGS "--script;${S}/s_10_unsupported.js" EXPECT nonzero)
+add_player_test(smoke_10_nohost ARGS "--script;${S}/s_10_nohost.js" EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 # gallery showcase samples run against their committed asset packs: a failed
@@ -123,6 +129,12 @@ if(EMSCRIPTEN)
     add_web_test(web_6c_skin ${S}/s_6c_skin.js EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
     add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
     add_web_test(web_9_input ${S}/s_9_input.js EXPECT 0 EXPECT_OUT "s-9-input-ok")
+    add_web_test(web_10_modules ${F}/modules EXPECT 0 EXPECT_OUT "s-10-modules-ok")
+    add_web_test(web_10_module_throw ${F}/modules_error EXPECT nonzero EXPECT_ERR "intentional-module-throw")
+    add_web_test(web_10_missing ${S}/s_10_missing.js EXPECT nonzero EXPECT_ERR "cannot find module")
+    add_web_test(web_10_escape ${S}/s_10_escape.js EXPECT nonzero EXPECT_ERR "escapes the resource root")
+    add_web_test(web_10_unsupported ${S}/s_10_unsupported.js EXPECT nonzero)
+    add_web_test(web_10_nohost ${S}/s_10_nohost.js EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
@@ -182,7 +194,8 @@ foreach(CASE
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
-    resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js)
+    resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
+    module_js module_hooks_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()

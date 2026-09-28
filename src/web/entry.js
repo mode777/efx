@@ -1853,10 +1853,13 @@ function __efxEnsureApi() {
         },
     });
 
-    /* engine-bundled pure-JS layer (F3 math + primitives): the same
-       embedded source the desktop quickjs runtime evaluates (ADR 0022) */
+    /* engine-bundled pure-JS layer (F3 math + primitives, F10 CommonJS
+       runtime): the same embedded source the desktop quickjs runtime
+       evaluates (ADR 0022). The IIFE returns the module-runtime factory,
+       which is instantiated per entry below with the web host-global
+       shadow. */
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
-    new Function('efx', preludeSrc)(api);
+    st.createModuleRuntime = new Function('efx', preludeSrc)(api);
 
     globalThis['efx'] = api;
     st.api = api;
@@ -1947,8 +1950,65 @@ function __efxResolveAssets() {
     });
 }
 
+/* F10: report a module-runtime/entry failure through the same error/exit
+   contract the classic entry used, preserving the `efx.quit` sentinel. */
+function __efxModuleFail(st, e) {
+    if (st.quitSentinel !== null && e === st.quitSentinel) {
+        __efxSyncExit();
+        __efxMarkEnded();
+        __efxNodeExit();
+        return;
+    }
+    Module['_efx_bridge_set_error']();
+    __efxReportError(e);
+    __efxSyncExit();
+    __efxMarkEnded();
+    __efxNodeExit();
+}
+
 function __efxEvaluateEntry() {
     var st = __efxState();
+    /* host-global shadow: the entry (and every module it requires) is
+       evaluated with these free globals denied, so host/browser/Node
+       facilities stay unreachable even though module bodies compile through
+       the page's global scope. `require`/`module`/`exports` are module-scoped
+       parameters and are only denied as free globals. */
+    var hostGlobals = ['window', 'document', 'require', 'process', 'fetch',
+        'XMLHttpRequest', 'module', 'exports', 'Buffer', 'global'];
+    var deny = {};
+    for (var gi = 0; gi < hostGlobals.length; gi++) {
+        deny[hostGlobals[gi]] = 1;
+    }
+    var shadowGlobal = new Proxy(globalThis, {
+        has: function (t, k) {
+            return !deny[k] && (k in t);
+        },
+        get: function (t, k) {
+            if (k === 'globalThis') {
+                return shadowGlobal;
+            }
+            if (deny[k]) {
+                return undefined;
+            }
+            return t[k];
+        },
+        set: function (t, k, v) {
+            t[k] = v;
+            return true;
+        },
+    });
+    var moduleHostGlobals = ['window', 'document', 'process', 'fetch',
+        'XMLHttpRequest', 'Buffer', 'global'];
+    var runtime;
+    try {
+        runtime = st.createModuleRuntime(st.api, {
+            hostGlobals: moduleHostGlobals,
+            globalObject: shadowGlobal,
+        });
+    } catch (e) {
+        __efxModuleFail(st, e);
+        return;
+    }
     /* Host-provided entry source (web gallery embedding): when the embedding
        page supplies `globalThis.__efx_main_js` before boot it replaces the
        resource-root `main.js`. The channel is consumed and deleted before the
@@ -1993,61 +2053,20 @@ function __efxEvaluateEntry() {
         code = UTF8ToString(mptr);
         Module['_efx_bridge_mem_free'](mptr);
     }
-    var hostGlobals = ['window', 'document', 'require', 'process', 'fetch',
-        'XMLHttpRequest', 'module', 'exports', 'Buffer', 'global'];
-    var deny = {};
-    for (var gi = 0; gi < hostGlobals.length; gi++) {
-        deny[hostGlobals[gi]] = 1;
-    }
-    var shadowGlobal = new Proxy(globalThis, {
-        has: function (t, k) {
-            return !deny[k] && (k in t);
-        },
-        get: function (t, k) {
-            if (k === 'globalThis') {
-                return shadowGlobal;
-            }
-            if (deny[k]) {
-                return undefined;
-            }
-            return t[k];
-        },
-        set: function (t, k, v) {
-            t[k] = v;
-            return true;
-        },
-    });
-    var paramNames = ['efx'].concat(hostGlobals).concat(['globalThis']);
-    var epilogue = ';return { u: typeof update === "function" ? update : null,'
-        + ' r: typeof render === "function" ? render : null };';
-    var hooks;
+    var res;
     try {
-        var factory = new Function(paramNames.join(','), code + epilogue);
-        var callArgs = [st.api];
-        for (var i = 0; i < hostGlobals.length; i++) {
-            callArgs.push(undefined);
-        }
-        callArgs.push(shadowGlobal);
-        hooks = factory.apply(null, callArgs);
+        res = runtime.runEntry('main.js', code);
     } catch (e) {
-        if (st.quitSentinel !== null && e === st.quitSentinel) {
-            __efxSyncExit();
-            __efxMarkEnded();
-            __efxNodeExit();
-            return;
-        }
-        Module['_efx_bridge_set_error']();
-        __efxReportError(e);
-        __efxSyncExit();
-        __efxMarkEnded();
-        __efxNodeExit();
+        __efxModuleFail(st, e);
         return;
     }
-    if (hooks && typeof hooks.u === 'function') {
-        st.updateHooks.push({ fn: hooks.u, active: true });
+    /* explicit hooks registered during evaluation stay first; the entry's
+       exported (or module-local) hooks are appended once each */
+    if (res && typeof res.update === 'function') {
+        st.updateHooks.push({ fn: res.update, active: true });
     }
-    if (hooks && typeof hooks.r === 'function') {
-        st.renderHooks.push({ fn: hooks.r, active: true });
+    if (res && typeof res.render === 'function') {
+        st.renderHooks.push({ fn: res.render, active: true });
     }
     __efxSyncExit();
     var dom = false;

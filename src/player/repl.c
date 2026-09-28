@@ -236,7 +236,7 @@ int efx_repl_run(struct efx_resource *resource) {
         int eerr = EFX_RESOURCE_OK;
         char *code = efx_resource_read_text(resource, "main.js", &eerr);
         if (code) {
-            int rc = efx_runtime_eval_string(rt, "main.js", code);
+            int rc = efx_runtime_run_entry(rt, "main.js", code);
             efx_resource_free(code);
             if (rc == -1 || efx_runtime_in_error(rt)) {
                 efx_runtime_destroy(rt);

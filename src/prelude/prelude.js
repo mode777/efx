@@ -296,6 +296,202 @@ function __efxMakeSphere(opts) {
     });
 }
 
+/* ------------------------------------------ F10 CommonJS module runtime
+ *
+ * A small, synchronous, provider-backed CommonJS implementation shared by both
+ * bindings (ADR 0037). `require(path)` loads a file under the resource root via
+ * the synchronous `efx.loadText` provider, evaluates it in a wrapper scope that
+ * exposes `require`/`module`/`exports`, caches `module.exports` by resolved
+ * path, and returns it. Specifiers are relative (`./`, `../`) or root-relative;
+ * resolution tries the exact path then a deterministic `.js` fallback, and
+ * `.json` files load as parsed JSON modules. There is no Node environment:
+ * bare packages and Node built-ins simply do not resolve.
+ *
+ * `new Function` compiles each module body. On the web binding the host globals
+ * are passed as shadowing parameters so module code never reaches them; the
+ * desktop binding has no host globals to shadow. */
+
+function __efxModuleDirname(p) {
+    var i = p.lastIndexOf('/');
+    return i < 0 ? '' : p.slice(0, i);
+}
+
+function __efxModuleNormalize(p) {
+    var segs = String(p).split('/');
+    var out = [];
+    for (var i = 0; i < segs.length; i++) {
+        var s = segs[i];
+        if (s === '' || s === '.') {
+            continue;
+        }
+        if (s === '..') {
+            if (out.length === 0) {
+                throw new Error("module path escapes the resource root: '" + p + "'");
+            }
+            out.pop();
+        } else {
+            out.push(s);
+        }
+    }
+    return out.join('/');
+}
+
+function __efxModuleResolve(fromPath, spec) {
+    if (typeof spec !== 'string' || spec.length === 0) {
+        throw new TypeError('require: specifier must be a non-empty string');
+    }
+    if (spec.indexOf('\\') >= 0 ||
+        /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(spec) || spec.charAt(0) === '/') {
+        throw new Error("unsupported module specifier '" + spec + "'");
+    }
+    var base;
+    if (spec === '.' || spec === '..' ||
+        spec.slice(0, 2) === './' || spec.slice(0, 3) === '../') {
+        var d = __efxModuleDirname(fromPath);
+        base = d ? d + '/' + spec : spec;
+    } else {
+        base = spec;
+    }
+    return __efxModuleNormalize(base);
+}
+
+function __efxModuleError(e, path) {
+    if (!(e instanceof Error) || e.__efxModulePath) {
+        return e; /* sentinels, non-Error throws and already-annotated errors */
+    }
+    var msg = (e.message !== undefined) ? String(e.message) : '';
+    var err = new Error("module '" + path + "': " + msg);
+    err.__efxModulePath = path;
+    if (e.stack) {
+        err.stack = e.stack;
+    }
+    return err;
+}
+
+function __efxCreateModuleRuntime(efx, opts) {
+    var hostGlobals = (opts && opts.hostGlobals) ? opts.hostGlobals : [];
+    var globalObject = (opts && opts.globalObject !== undefined)
+        ? opts.globalObject
+        : (typeof globalThis !== 'undefined' ? globalThis : undefined);
+    var cache = {};
+
+    function resolvePath(fromPath, spec) {
+        var norm = __efxModuleResolve(fromPath, spec);
+        var src = null;
+        try {
+            src = efx.loadText(norm);
+        } catch (e) {
+            src = null;
+        }
+        if (src !== null) {
+            return { path: norm, source: src };
+        }
+        if (!/\.js$/.test(norm) && !/\.json$/.test(norm)) {
+            try {
+                src = efx.loadText(norm + '.js');
+            } catch (e) {
+                src = null;
+            }
+            if (src !== null) {
+                return { path: norm + '.js', source: src };
+            }
+        }
+        throw new Error("cannot find module '" + spec + "' required from '" +
+            (fromPath || '<entry>') + "'");
+    }
+
+    function makeRequire(path) {
+        function req(spec) {
+            var res = resolvePath(path, spec);
+            return loadModule(res.path, res.source, false);
+        }
+        req.resolve = function (spec) {
+            return resolvePath(path, spec).path;
+        };
+        req.cache = cache;
+        return req;
+    }
+
+    function compile(body, path) {
+        var params = ['efx', 'require', 'module', 'exports',
+                      '__filename', '__dirname'].concat(hostGlobals)
+                      .concat(['globalThis']);
+        var src = body + '\n//# sourceURL=' + path + '\n';
+        return new Function(params.join(','), src);
+    }
+
+    function loadModule(path, source, isEntry) {
+        if (cache[path]) {
+            if (isEntry) {
+                return { exports: cache[path].exports, update: null, render: null };
+            }
+            return cache[path].exports;
+        }
+        var moduleObj = { id: path, exports: {}, loaded: false };
+        cache[path] = moduleObj;
+        var src = source;
+        if (src === undefined || src === null) {
+            src = efx.loadText(path);
+        }
+        if (/\.json$/.test(path)) {
+            var parsed;
+            try {
+                parsed = JSON.parse(src);
+            } catch (e) {
+                throw new Error("invalid JSON in module '" + path + "': " +
+                    (e && e.message ? e.message : e));
+            }
+            moduleObj.exports = parsed;
+            moduleObj.loaded = true;
+            return isEntry ? { exports: parsed, update: null, render: null } : parsed;
+        }
+        var body = src;
+        if (isEntry) {
+            body = src + '\n;return { e: module.exports,'
+                + ' u: (typeof update === "function" ? update : null),'
+                + ' r: (typeof render === "function" ? render : null) };';
+        }
+        var args = [efx, makeRequire(path), moduleObj, moduleObj.exports,
+                    path, __efxModuleDirname(path)];
+        for (var i = 0; i < hostGlobals.length; i++) {
+            args.push(undefined);
+        }
+        args.push(globalObject);
+        var ret;
+        try {
+            var fn = compile(body, path);
+            ret = fn.apply(undefined, args);
+        } catch (e) {
+            throw __efxModuleError(e, path);
+        }        moduleObj.loaded = true;
+        if (!isEntry) {
+            return moduleObj.exports;
+        }
+        var exp = (ret && ret.e !== undefined) ? ret.e : moduleObj.exports;
+        moduleObj.exports = exp;
+        var u = (exp && typeof exp.update === 'function') ? exp.update
+              : ((ret && typeof ret.u === 'function') ? ret.u : null);
+        var r = (exp && typeof exp.render === 'function') ? exp.render
+              : ((ret && typeof ret.r === 'function') ? ret.r : null);
+        return { exports: exp, update: u, render: r };
+    }
+
+    return {
+        runEntry: function (path, source) {
+            var norm = __efxModuleNormalize(path);
+            var src = source;
+            if (src === undefined || src === null) {
+                var res = resolvePath('', norm);
+                norm = res.path;
+                src = res.source;
+            }
+            return loadModule(norm, src, true);
+        },
+        resolve: resolvePath,
+        cache: cache,
+    };
+}
+
 function __efxPreludeInstall(efx) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -326,3 +522,7 @@ function __efxPreludeInstall(efx) {
 }
 
 __efxPreludeInstall(efx);
+
+/* the bindings capture this factory and call it with `(efx, opts)` to create
+   the shared module runtime; on web `opts` carries the shadowed host globals */
+return __efxCreateModuleRuntime;

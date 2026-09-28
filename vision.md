@@ -38,6 +38,7 @@ Here are some properties I want in unspecified order:
 - Low level functions written in C/C++
 - Mid level functions implemented in C/C++ and exposed to JS API (e.g. drawQuad, drawMesh, setLight, setMaterial)
 - High level functions implemented on top in pure JS (e.g. drawModel, drawText etc…)
+- Scripts are organized as CommonJS modules loaded synchronously from the resource root (`require`); the entry `main.js` is itself a module. TypeScript is a supported authoring language: `import`/`export` are compiled down to CommonJS before packaging, keeping full type safety
 - Input is grouped into sub-namespaces of the single `efx` object (`efx.keyboard`, `efx.mouse`, `efx.window`): `is*`/query members for current state and `on*` registrations returning unsubscribe functions for events
 - JS functions must not have any dependencies to browser APIs or NodeJS (also not transitively)
 - Minimum number of memory managed resources exposed as handles 
@@ -51,6 +52,7 @@ Here are some properties I want in unspecified order:
 - This serves as resource root similar to godots res://
 - Zip files are similar to Löve2Ds .love files
 - Root has a main.js file where the runtime will pick-up the hooks
+- Root scripts are CommonJS modules resolved synchronously from the root (a directory or zip); `require` loads a module and returns its `module.exports`, with module caching, JSON modules, and no Node/npm compatibility (no `node_modules`, no Node built-ins)
 
 
 ## Development

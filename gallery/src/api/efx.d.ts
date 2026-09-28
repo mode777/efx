@@ -4,8 +4,8 @@
 // and grows with it. Update this file in the same change as any script-facing
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
-// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7, and F9 are
-// current behavior. F6d (the `--repl [<root>]` interactive console) adds no
+// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7, F9, and F10
+// are current behavior. F6d (the `--repl [<root>]` interactive console) adds no
 // API — it drives this same namespace from stdin; `.help`/`.exit` are host
 // commands, not `efx` functions. F8 and later entries are provisional and will
 // be added when delivered.
@@ -383,3 +383,36 @@ interface Efx {
 }
 
 declare const efx: Efx;
+
+// F10 — CommonJS module authoring facilities. Every script file under the
+// resource root is a module; `require`/`module`/`exports` exist only inside a
+// module's own scope (never on `efx` and never as true globals), and `require`
+// loads synchronously from the resource root. TypeScript authors normally write
+// `import`/`export` and let `tsc` (`module: commonjs`) emit the `require` form.
+interface EfxModuleCacheEntry {
+  id: string;
+  exports: unknown;
+  loaded: boolean;
+}
+
+interface EfxRequire {
+  /** Resolve a relative (`./`, `../`) or root-relative specifier and return
+   * its `module.exports` synchronously. */
+  (specifier: string): unknown;
+  /** Resolve a specifier to its root-relative module path. */
+  resolve(specifier: string): string;
+  /** Modules cached by resolved path. */
+  readonly cache: Record<string, EfxModuleCacheEntry>;
+}
+
+interface EfxModule {
+  exports: unknown;
+  id: string;
+  loaded: boolean;
+}
+
+declare const require: EfxRequire;
+declare const module: EfxModule;
+declare const exports: Record<string, unknown>;
+declare const __filename: string;
+declare const __dirname: string;

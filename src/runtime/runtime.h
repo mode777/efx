@@ -17,6 +17,12 @@ void efx_runtime_set_resource(efx_runtime *rt, struct efx_resource *resource);
 
 int efx_runtime_eval_file(efx_runtime *rt, const char *path);
 int efx_runtime_eval_string(efx_runtime *rt, const char *name, const char *code);
+/* F10: evaluate a script as a CommonJS entry module through the shared module
+ * runtime. When `source` is NULL the entry at `path` is loaded through the
+ * resource provider. The entry module's exported `update`/`render` (or its
+ * module-local declarations) are captured for efx_runtime_pick_hooks. Returns
+ * 0 on success (including a `efx.quit` request) and 1 on a fatal error. */
+int efx_runtime_run_entry(efx_runtime *rt, const char *path, const char *source);
 /* F6d: evaluate one REPL line in the persistent global context. Prints the
  * completion value to stdout when it is not `undefined`, prints a thrown
  * exception to stderr, and never sets the fatal error flag (a throw is

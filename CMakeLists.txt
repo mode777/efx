@@ -342,7 +342,9 @@ target_include_directories(efx_api_tests PRIVATE src)
 target_include_directories(efx_api_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
 target_compile_definitions(efx_api_tests PRIVATE
-    EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
+    EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
+    EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
+    EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error")
 if(UNIX)
     target_link_libraries(efx_api_tests PRIVATE m)
 endif()

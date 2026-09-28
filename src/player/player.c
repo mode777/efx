@@ -207,7 +207,7 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
         return 1;
     }
     efx_runtime_set_resource(rt, res);
-    int rc = efx_runtime_eval_string(rt, "main.js", code);
+    int rc = efx_runtime_run_entry(rt, "main.js", code);
     efx_resource_free(code);
     if (rc == -1) {
         efx_runtime_destroy(rt);

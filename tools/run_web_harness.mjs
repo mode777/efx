@@ -148,6 +148,8 @@ const scenarios = [
     { name: 'eval_throw', root: `${F}/web/root_eval_throw`, exit: 1, consoleIncludes: ['intentional-smoke-throw'], expectLoopStop: true },
     { name: 'no_entry', root: `${F}/root_no_entry`, exit: 1, consoleIncludes: ['no main.js in resource root'], expectLoopStop: true },
     { name: 'missing_dir', root: `${F}/no_such_dir`, exit: 1, consoleIncludes: ['not a directory'], expectLoopStop: true },
+    { name: 'modules', root: `${F}/modules`, exit: 0, consoleIncludes: ['s-10-modules-ok'], expectLoopStop: true },
+    { name: 'module_throw', root: `${F}/modules_error`, exit: 1, consoleIncludes: ['intentional-module-throw'], expectLoopStop: true },
 ];
 
 let failures = 0;

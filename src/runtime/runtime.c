@@ -17,6 +17,13 @@ struct efx_runtime {
     JSContext *ctx;
     int in_error;
     int hooks_sugar_done; /* global update/render registered once after eval */
+    /* F10 shared CommonJS runtime (owned JS values) */
+    JSValue module_runtime;
+    JSValue module_run_entry;
+    JSValue entry_exports;
+    JSValue entry_update;
+    JSValue entry_render;
+    int has_entry;
 };
 
 int efx_hooks_append(JSContext *ctx, struct efx_hook_list *list, JSValueConst fn) {
@@ -161,6 +168,11 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         fprintf(stderr, "player: out of memory\n");
         return NULL;
     }
+    rt->module_runtime = JS_UNDEFINED;
+    rt->module_run_entry = JS_UNDEFINED;
+    rt->entry_exports = JS_UNDEFINED;
+    rt->entry_update = JS_UNDEFINED;
+    rt->entry_render = JS_UNDEFINED;
     rt->js_rt = JS_NewRuntime();
     rt->ctx = JS_NewContext(rt->js_rt);
     rt->host.quit_sentinel = JS_NewObject(rt->ctx);
@@ -222,8 +234,10 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         efx_runtime_destroy(rt);
         return NULL;
     }
-    /* engine-bundled pure-JS layer (F3 math + primitives); evaluated
-       against the efx namespace so both bindings share one source */
+    /* engine-bundled pure-JS layer (F3 math + primitives, F10 CommonJS
+       runtime); evaluated against the efx namespace so both bindings share
+       one source. The IIFE returns the module-runtime factory, which we
+       instantiate here for the desktop binding. */
     static const char wrapper[] =
         "(function(efx){\n";
     size_t wrap_len = sizeof(wrapper) - 1;
@@ -237,13 +251,36 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
     memcpy(code, wrapper, wrap_len);
     memcpy(code + wrap_len, EFX_JS_PRELUDE, (size_t)EFX_JS_PRELUDE_LEN);
     memcpy(code + wrap_len + (size_t)EFX_JS_PRELUDE_LEN, "\n})(efx);\n", 11);
-    if (efx_runtime_eval_string(rt, "<prelude>", code) != 0) {
+    size_t code_len = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + 10;
+    JSValue factory =
+        JS_Eval(rt->ctx, code, code_len, "<prelude>", JS_EVAL_TYPE_GLOBAL);
+    free(code);
+    if (JS_IsException(factory)) {
         fprintf(stderr, "player: prelude evaluation failed\n");
-        free(code);
+        finish_exception(rt);
         efx_runtime_destroy(rt);
         return NULL;
     }
-    free(code);
+    JSValue glob2 = JS_GetGlobalObject(rt->ctx);
+    JSValue efx_obj = JS_GetPropertyStr(rt->ctx, glob2, "efx");
+    JS_FreeValue(rt->ctx, glob2);
+    rt->module_runtime = JS_Call(rt->ctx, factory, JS_UNDEFINED, 1, &efx_obj);
+    JS_FreeValue(rt->ctx, factory);
+    JS_FreeValue(rt->ctx, efx_obj);
+    if (JS_IsException(rt->module_runtime)) {
+        fprintf(stderr, "player: module runtime init failed\n");
+        rt->module_runtime = JS_UNDEFINED;
+        finish_exception(rt);
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
+    rt->module_run_entry =
+        JS_GetPropertyStr(rt->ctx, rt->module_runtime, "runEntry");
+    if (!JS_IsFunction(rt->ctx, rt->module_run_entry)) {
+        fprintf(stderr, "player: module runtime missing runEntry\n");
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
     return rt;
 }
 
@@ -261,6 +298,11 @@ void efx_runtime_destroy(efx_runtime *rt) {
     efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_move);
     efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_wheel);
     JS_FreeValue(rt->ctx, rt->host.quit_sentinel);
+    JS_FreeValue(rt->ctx, rt->module_runtime);
+    JS_FreeValue(rt->ctx, rt->module_run_entry);
+    JS_FreeValue(rt->ctx, rt->entry_exports);
+    JS_FreeValue(rt->ctx, rt->entry_update);
+    JS_FreeValue(rt->ctx, rt->entry_render);
     if (rt->host.has_white_texture) {
         JS_FreeValue(rt->ctx, rt->host.white_texture);
     }
@@ -284,11 +326,39 @@ int efx_runtime_eval_file(efx_runtime *rt, const char *path) {
         fprintf(stderr, "player: cannot read script file: %s\n", path);
         return -1;
     }
-    JSValue result = JS_Eval(rt->ctx, code, len, path, JS_EVAL_TYPE_GLOBAL);
+    /* F10: the headless script is evaluated as the entry module; its resolved
+       path is the bare file name so `require('./x')` resolves against the
+       resource root (the script's own directory by default, or --root) */
+    const char *base = path;
+    for (const char *p = path; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+    int rc = efx_runtime_run_entry(rt, base, code);
     free(code);
+    return rc;
+}
+
+int efx_runtime_run_entry(efx_runtime *rt, const char *path, const char *source) {
+    JSValue args[2];
+    args[0] = JS_NewString(rt->ctx, path);
+    args[1] = source ? JS_NewString(rt->ctx, source) : JS_UNDEFINED;
+    JSValue result = JS_Call(rt->ctx, rt->module_run_entry, rt->module_runtime,
+                             2, args);
+    JS_FreeValue(rt->ctx, args[0]);
+    JS_FreeValue(rt->ctx, args[1]);
     if (JS_IsException(result)) {
         return finish_exception(rt);
     }
+    JS_FreeValue(rt->ctx, rt->entry_exports);
+    JS_FreeValue(rt->ctx, rt->entry_update);
+    JS_FreeValue(rt->ctx, rt->entry_render);
+    rt->entry_exports = JS_GetPropertyStr(rt->ctx, result, "exports");
+    rt->entry_update = JS_GetPropertyStr(rt->ctx, result, "update");
+    rt->entry_render = JS_GetPropertyStr(rt->ctx, result, "render");
+    JS_FreeValue(rt->ctx, result);
+    rt->has_entry = 1;
     return 0;
 }
 
@@ -298,6 +368,7 @@ int efx_runtime_eval_string(efx_runtime *rt, const char *name, const char *code)
     if (JS_IsException(result)) {
         return finish_exception(rt);
     }
+    JS_FreeValue(rt->ctx, result);
     return 0;
 }
 
@@ -330,9 +401,27 @@ int efx_runtime_eval_repl_line(efx_runtime *rt, const char *line) {
 void efx_runtime_pick_hooks(efx_runtime *rt, int *has_update, int *has_render) {
     if (!rt->hooks_sugar_done) {
         rt->hooks_sugar_done = 1;
-        JSValue glob = JS_GetGlobalObject(rt->ctx);
-        JSValue u = JS_GetPropertyStr(rt->ctx, glob, "update");
-        JSValue r = JS_GetPropertyStr(rt->ctx, glob, "render");
+        /* F10: the entry module may export update/render (resolved by the
+           module runtime), which take precedence over the global sugar; a
+           hook present in both forms is registered once, not twice */
+        JSValue u = JS_UNDEFINED;
+        JSValue r = JS_UNDEFINED;
+        if (rt->has_entry) {
+            u = JS_DupValue(rt->ctx, rt->entry_update);
+            r = JS_DupValue(rt->ctx, rt->entry_render);
+        }
+        if (!JS_IsFunction(rt->ctx, u)) {
+            JS_FreeValue(rt->ctx, u);
+            JSValue glob = JS_GetGlobalObject(rt->ctx);
+            u = JS_GetPropertyStr(rt->ctx, glob, "update");
+            JS_FreeValue(rt->ctx, glob);
+        }
+        if (!JS_IsFunction(rt->ctx, r)) {
+            JS_FreeValue(rt->ctx, r);
+            JSValue glob = JS_GetGlobalObject(rt->ctx);
+            r = JS_GetPropertyStr(rt->ctx, glob, "render");
+            JS_FreeValue(rt->ctx, glob);
+        }
         if (JS_IsFunction(rt->ctx, u)) {
             efx_hooks_append(rt->ctx, &rt->host.update_hooks, u);
         }
@@ -341,7 +430,6 @@ void efx_runtime_pick_hooks(efx_runtime *rt, int *has_update, int *has_render) {
         }
         JS_FreeValue(rt->ctx, u);
         JS_FreeValue(rt->ctx, r);
-        JS_FreeValue(rt->ctx, glob);
     }
     if (has_update) {
         *has_update = efx_hooks_active(&rt->host.update_hooks) > 0;

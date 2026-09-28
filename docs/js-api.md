@@ -6,8 +6,9 @@ maps + alpha masks), F5a (render targets), F5b (post-effect chain +
 render scale), F6a (resource root + text/image loading), F6b (glTF static
 import), F6c (glTF rig import), F6d (interactive console run mode —
 no new API), F6e (texture creation options), F7 (CPU skinning +
-animation — `poseMesh` and the `skinned` draw option), and F9 (input —
-keyboard + mouse query and event API) are implemented
+animation — `poseMesh` and the `skinned` draw option), F9 (input —
+keyboard + mouse query and event API), and F10 (script modules — CommonJS
+`require`) are implemented
 (current behavior). F8 onward is a provisional contract — names and
 signatures may be reshaped by
 the change that delivers them (every API change must update this document in
@@ -121,12 +122,71 @@ efx.registerRenderHook(fn)   // fn() — no arguments
   script defines them, the engine registers them after evaluation in load
   order, so they run after any hooks registered during evaluation. Scripts
   using only the globals keep working unchanged; the only difference is that
-  the global `update` now also receives `dt`.
+  the global `update` now also receives `dt`. The entry is evaluated as a
+  CommonJS module (F10 — see Script modules), so `module.exports.update` /
+  `module.exports.render` are accepted as the module-shaped equivalent, and a
+  hook present in both forms is registered once.
 - The REPL (F6) registers and unregisters through the same functions — the
   reason registration, not globals, is the normative model.
 - The engine's readiness guarantee covers the script-visible API; moving
   window/GL-context creation ahead of `main.js` evaluation is deferred
   (ADR 0016, amended).
+
+## Script modules (CommonJS, F10)
+
+Every script file under the resource root is a **CommonJS module**, and the
+entry `main.js` is itself a module. `require(path)` loads a module
+**synchronously** through the resource provider (directory or zip) and returns
+its `module.exports`; it never returns a promise. Evaluating a module exposes
+`require`, `module`, and `exports` to that module's own scope (`exports`
+initially aliases `module.exports`). These are module-scoped authoring
+facilities — they are **not** members of `efx` and not free globals (ADR 0037).
+
+```js
+// lib/math.js — F10 · JS · current
+exports.add = (a, b) => a + b;
+
+// main.js — F10 · JS · current
+const math = require('./lib/math.js');   // sibling module
+const cfg  = require('data/config.json'); // JSON module → parsed value
+globalThis.answer = math.add(cfg.base, 1);
+```
+
+- **Resolution.** A specifier is relative to the requiring module (`./`,
+  `../`) or root-relative (e.g. `lib/math.js`). Resolution tries the exact path
+  and then a deterministic `.js` fallback; `.json` files load as parsed JSON
+  modules. Paths use forward slashes and obey the resource root's escape rules:
+  a specifier that normalizes outside the root fails and reads nothing outside
+  it. Bare package names (`lodash`), `node_modules`, `package.json`,
+  directory-index resolution, and native addons are **not** supported and fail
+  loudly rather than guessing.
+- **Caching and cycles.** A module is cached by its resolved path: repeated
+  `require`s return the same `module.exports` object and the body runs once. A
+  circular require receives the other module's partially populated `exports`
+  instead of recursing.
+- **`__esModule` interop.** The `module.exports`/`exports` alias and the
+  `__esModule` marker are honored so the TypeScript/Babel `commonjs` transform
+  (`__importDefault`/`__importStar`/`__exportStar`) loads correctly: a module
+  with `__esModule` exposes `default` to the default-import helper, named
+  exports are reachable, and star re-exports forward names.
+- **JSON modules.** `require('data/config.json')` returns the parsed JSON value
+  and participates in the module cache; invalid JSON throws.
+- **Entry hooks.** The load-time `update`/`render` sugar stays: functions
+  defined at the entry module's top level are registered after evaluation, in
+  load order and after any explicitly registered hooks. The entry's
+  `module.exports.update`/`module.exports.render` are accepted with the same
+  semantics; a hook present in both forms registers once, not twice. Modules
+  required by the entry may register hooks during evaluation.
+- **Unsupported forms.** Static `import`/`export`, dynamic `import()`, and
+  `import.meta` are not executed by the engine — they fail. Top-level `await`
+  is not expressible in CommonJS. ESM is a **source** format: TypeScript
+  compiles `import`/`export` to CommonJS (`module: commonjs`, `target:
+  es2015+`, `esModuleInterop: true`, `verbatimModuleSyntax: true`) before
+  packaging, and the engine executes the emitted `require` form.
+- **No Node/npm environment.** Node built-ins (`fs`, `path`, `process`,
+  `Buffer`, …) are not provided, host globals stay shadowed on web, and
+  npm-package compatibility is an explicit non-goal. The no-browser/Node
+  dependency rule is unchanged and applies transitively to modules.
 
 ## Resource & memory model
 
@@ -1069,6 +1129,7 @@ section (or an open question below):
 | REPL console mode | F6d (drives the same `efx` namespace) |
 | Skinning and animations | F7 (`poseMesh`, `drawMesh({ skinned })`, current) |
 | Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, current) |
+| Script modules / splitting authored code (TypeScript `import`) | F10 (CommonJS `require`, current — Script modules section) |
 | High-level functions in pure JS (`drawModel`, `drawText`) | F8 |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
 | Low/mid C + high-level JS layering | Overview (two layers), every entry tag |

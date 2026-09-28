@@ -53,6 +53,8 @@ const CASES = [
     { name: '7_skin_pose', script: 'tests/scripts/s_7_skin_pose.js', args: [],
       assets: ['tests/scripts/skin.gltf', 'tests/scripts/skin.bin'] },
     { name: '9_input', script: 'tests/scripts/s_9_input.js', args: [] },
+    { name: '10_modules', root: 'tests/fixtures/modules' },
+    { name: '10_nohost', script: 'tests/scripts/s_10_nohost.js', args: [] },
 ];
 
 function run(cmd, args) {
@@ -75,15 +77,24 @@ let failures = 0;
 
 for (const c of CASES) {
     process.stdout.write(`compare/${c.name}: `);
-    const script = path.join(ROOT, c.script);
-    const native = run(NATIVE, ['--script', script, ...c.args]);
-    const rootDir = path.join(tmp, c.name);
-    fs.mkdirSync(rootDir, { recursive: true });
-    fs.copyFileSync(script, path.join(rootDir, 'main.js'));
-    for (const a of c.assets || []) {
-        fs.copyFileSync(path.join(ROOT, a), path.join(rootDir, path.basename(a)));
+    let native;
+    let web;
+    if (c.root) {
+        /* resource-root mode on both runtimes (multi-module fixture graph) */
+        const rootPath = path.join(ROOT, c.root);
+        native = run(NATIVE, [rootPath]);
+        web = run(process.execPath, [WEB, rootPath]);
+    } else {
+        const script = path.join(ROOT, c.script);
+        native = run(NATIVE, ['--script', script, ...c.args]);
+        const rootDir = path.join(tmp, c.name);
+        fs.mkdirSync(rootDir, { recursive: true });
+        fs.copyFileSync(script, path.join(rootDir, 'main.js'));
+        for (const a of c.assets || []) {
+            fs.copyFileSync(path.join(ROOT, a), path.join(rootDir, path.basename(a)));
+        }
+        web = run(process.execPath, [WEB, rootDir, ...c.args]);
     }
-    const web = run(process.execPath, [WEB, rootDir, ...c.args]);
 
     const problems = [];
     if (native.code !== web.code) {

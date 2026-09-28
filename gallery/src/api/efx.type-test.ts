@@ -78,3 +78,17 @@ efx.drawMesh(cube, { transform: efx.mat4.identity(), color: [1, 1, 1, 1], skinne
 efx.poseMesh(cube, { clip: 'Walk', time: 1, bogus: true });
 // @ts-expect-error — skinned is a boolean
 efx.drawMesh(cube, { skinned: 1 });
+
+// F10 — CommonJS module authoring facilities: module-scoped, resolved from the
+// resource root, and never members of `efx`.
+const dep: unknown = require('./lib/math.js');
+const resolved: string = require.resolve('./lib/math.js');
+require.cache[resolved];
+module.exports = dep;
+exports.named = dep;
+const here: string = __filename;
+const dir: string = __dirname;
+// @ts-expect-error — require takes a specifier string
+require(42);
+// @ts-expect-error — the module facilities are not part of the efx namespace
+efx.require('./lib/math.js');
