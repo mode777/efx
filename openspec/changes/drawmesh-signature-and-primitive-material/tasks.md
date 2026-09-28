@@ -33,7 +33,7 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run the Linux native suite including all goldens (`ctest`) and confirm the committed PNGs are reproduced unchanged — the reshape is call-site only. Verify: no golden diff.
-- [ ] 7.2 Run the Emscripten ctest suite, web goldens, browser harness, and cross-runtime compare; confirm desktop and web bindings reject the same inputs. Verify: all green.
-- [ ] 7.3 Pre-filter on the verification server: `python3 tools/verify_remote.py all <branch>`. Verify: native + web golden jobs green.
-- [ ] 7.4 Dispatch the four-target gate `gh workflow run ci.yml --ref <branch>` and confirm all four targets pass before archive. Verify: the run is green on Linux, Windows, macOS, and Emscripten.
+- [x] 7.1 Run the Linux native suite including all goldens (`ctest`) and confirm the committed PNGs are reproduced unchanged — the reshape is call-site only. Verify: no golden diff.
+- [x] 7.2 Run the Emscripten ctest suite, web goldens, browser harness, and cross-runtime compare; confirm desktop and web bindings reject the same inputs. Verify: all green.
+- [x] 7.3 Pre-filter on the verification server: `python3 tools/verify_remote.py all <branch>`. Verify: native + web golden jobs green.
+- [x] 7.4 Dispatch the four-target gate `gh workflow run ci.yml --ref <branch>` and confirm all four targets pass before archive. Verify: the run is green on Linux, Windows, macOS, and Emscripten.
