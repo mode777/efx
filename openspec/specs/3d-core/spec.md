@@ -10,7 +10,6 @@ and the engine-bundled pure-JS math layer.
 
 ## Requirements
 
-
 ### Requirement: 3D camera
 `efx.setCamera3D(opts)` SHALL configure the engine's single 3D camera from an
 option object `{ pos, target, fov, near?, far? }`: `pos` and `target` are
@@ -190,19 +189,21 @@ taxonomy).
 `efx.drawMesh(mesh, opts?)` SHALL record one draw for the whole mesh, with
 `mesh` as a required first positional argument that MUST be a live Mesh
 (nothing, a non-Mesh, or a destroyed Mesh throws `TypeError`). `opts?` is an
-optional option bag restricted to `{ transform?, color? }`: `transform?` is a
-flat array (or typed array) of exactly 16 finite numbers — a column-major 4×4
-matrix, default identity (a wrong length throws `RangeError`, non-number
+optional option bag restricted to `{ transform?, color?, skinned? }`: `transform?`
+is a flat array (or typed array) of exactly 16 finite numbers — a column-major
+4×4 matrix, default identity (a wrong length throws `RangeError`, non-number
 elements throw `TypeError`); `color?` is a `[r, g, b, a]` tint, default
-opaque white. The option bag, when present, MUST be an object; unknown option
-fields (including `mesh`, which is no longer an option) SHALL throw
-`TypeError`. Playback SHALL draw every surface in surface order under the
-recorded camera, with the depth test enabled and depth writing on: a nearer
-surface occludes a farther one regardless of record order, and equal-depth
-fragments resolve by record order (deterministic). Per-surface shading SHALL
-be the `lighting` capability's F4 lit result — the F4a Phong equation
-**including the F4b per-channel maps and alpha mask** — with albedo equal to
-the tint multiplied by the surface's vertex color where the `colors`
+opaque white; `skinned?` is a boolean, default `false` — `false`/absent draws
+the mesh's bind-pose vertices and `true` draws the current CPU-posed vertices,
+and `true` on a mesh without a rig throws `TypeError`. The option bag, when
+present, MUST be an object; unknown option fields (including `mesh`, which is no
+longer an option) SHALL throw `TypeError`. Playback SHALL draw every surface in
+surface order under the recorded camera, with the depth test enabled and depth
+writing on: a nearer surface occludes a farther one regardless of record order,
+and equal-depth fragments resolve by record order (deterministic). Per-surface
+shading SHALL be the `lighting` capability's F4 lit result — the F4a Phong
+equation **including the F4b per-channel maps and alpha mask** — with albedo
+equal to the tint multiplied by the surface's vertex color where the `colors`
 attribute is present, or the tint alone otherwise. The surface `uvs`
 attribute (validated and stored since F3) SHALL be consumed by that shading
 as the map/alpha-mask texture coordinate; a surface without `uvs` uses the
@@ -256,8 +257,15 @@ draws participate in the per-frame record budget like any record.
 - **WHEN** `drawMesh(mesh, { transform, color })` is called with a valid bag,
   or `drawMesh(mesh, { mesh })` / `drawMesh(mesh, { frobnicate: 1 })` is
   called with an unknown field
-- **THEN** the valid bag records the draw (with transform/color applied), and
-  the unknown field throws `TypeError` and records nothing
+- **THEN** the valid bag records the draw (transform/color applied; the
+  documented `skinned` option is also accepted), and the unknown field throws
+  `TypeError` and records nothing
+
+#### Scenario: Skinned draw on a static mesh rejected
+
+- **WHEN** `drawMesh(mesh, { skinned: true })` is called on a mesh with no
+  imported rig
+- **THEN** the call throws `TypeError` and records nothing
 
 #### Scenario: Validation errors
 
@@ -322,6 +330,7 @@ that are not material objects throw `TypeError`).
 - **WHEN** `makePlane({ material: 42 })` is called with a value that is not
   a material object
 - **THEN** the call throws `TypeError`
+
 ### Requirement: Script math layer
 The engine SHALL bundle pure-JS math helpers on the `efx` object — `efx.mat4`
 (`identity`, `perspective(fovY, aspect, near, far)`, `ortho(width, height,

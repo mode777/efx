@@ -256,10 +256,11 @@ in the same change, and the provisional `loadMesh` entry SHALL be removed.
 `createMeshData` surfaces SHALL accept optional `joints` and `weights`
 attributes for skinned meshes (four influences per vertex, glTF-style), with
 the same count as the surface's positions. The skeleton and animation clips
-associated with an imported skinned asset SHALL be implicit `MeshData`/`Mesh`
-payload — no script resource, no function, and no read-only query property is
-added; the native-backed class list and the `destroy()` lifecycle are
-unchanged. Playback is delivered by F7 (`poseMesh` / `drawMesh` `skinned`).
+associated with an imported skinned asset SHALL remain implicit `MeshData`/`Mesh`
+payload — no separate script resource and no read-only clip or joint query
+property — while posing is exposed through `efx.poseMesh` and the `skinned`
+`drawMesh` option (F7). The native-backed class list and the `destroy()`
+lifecycle are unchanged.
 
 #### Scenario: Skinned surface accepted
 - **WHEN** `createMeshData` receives a surface with `joints` and `weights`
@@ -275,8 +276,9 @@ unchanged. Playback is delivered by F7 (`poseMesh` / `drawMesh` `skinned`).
 #### Scenario: No new rig API
 - **WHEN** the API reference and gallery type document are read after this
   change
-- **THEN** they catalog the joints/weights surface attributes and no clip or
-  joint query function or property
+- **THEN** they catalog the joints/weights surface attributes, `poseMesh`, and
+  the `skinned` draw option, and no skeleton/clip resource, clip/joint query
+  property, or playback function
 
 ### Requirement: Resource loading and texture composition
 
@@ -349,10 +351,17 @@ MUST agree with that reference document.
 
 #### Scenario: drawMesh takes a positional mesh
 
-- **WHEN** `efx.drawMesh(mesh, { transform, color })` and
+- **WHEN** `efx.drawMesh(mesh, { transform, color, skinned })` and
   `efx.drawMesh(mesh)` are type-checked
 - **THEN** both compile, and the former option bag holds only
-  `transform`/`color` (a `mesh` field in the bag is rejected)
+  `transform`/`color`/`skinned` (a `mesh` field in the bag is rejected)
+
+#### Scenario: Posing API is typed
+
+- **WHEN** `efx.poseMesh(mesh, { clip: 'Walk', time: 1 })` and
+  `efx.poseMesh(mesh, [{ clip: 0, time: 1, weight: 0.5 }])` are type-checked
+- **THEN** both compile, the sample `clip` accepts a name or index, and an
+  unknown sample field is rejected
 
 #### Scenario: Primitive material option is typed
 
