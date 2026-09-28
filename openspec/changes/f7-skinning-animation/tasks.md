@@ -23,21 +23,21 @@
 
 ## 4. Verification harness
 
-- [ ] 4.1 Add a committed golden scene under `tests/goldens/` that loads a skinned fixture, poses it deterministically, and draws `skinned: true`; capture the golden on the verification server (llvmpipe) per `docs/verification-server.md` and confirm the pixel diff passes.
-- [ ] 4.2 Add a script smoke test exercising `poseMesh` + `skinned` (and the rig-less rejection) through the `--script` run mode, and register it with ctest.
-- [ ] 4.3 Run the native unit suites (including the CPU-reference skinning tests) and the Emscripten ctest/web-compare suites locally, fixing anything that fails before remote verification.
+- [x] 4.1 Add a committed golden scene under `tests/goldens/` that loads a skinned fixture, poses it deterministically, and draws `skinned: true`; capture the golden on the verification server (llvmpipe) per `docs/verification-server.md` and confirm the pixel diff passes.
+- [x] 4.2 Add a script smoke test exercising `poseMesh` + `skinned` (and the rig-less rejection) through the `--script` run mode, and register it with ctest.
+- [x] 4.3 Run the native unit suites (including the CPU-reference skinning tests) and the Emscripten ctest/web-compare suites locally, fixing anything that fails before remote verification.
 
 ## 5. Gallery sample and docs
 
 - [x] 5.1 Fetch a fully-CC0 rigged model (Quaternius `Fox` from *Ultimate Animated Animals*), optimize it to the importer's supported feature set (base-color factors, PBR→Phong factors), and build a deterministic root-level `fox-walk.zip`; add the `gallery/samples/curated/` manifest entry with `assets`, a `CREDITS.md` provenance row + recipe, and a `fox-walk.js` sample that poses `Walk` from a script clock and draws `skinned: true`.
 - [x] 5.2 Add an analogous `smoke_showcase_fox` player test to `tests/CMakeLists.txt` and verify the sample runs clean under the gallery smoke harness.
-- [ ] 5.3 Update `docs/js-api.md`: turn the F7 entry from provisional to current (`poseMesh`, `drawMesh({ skinned })`), document signatures, errors, time-wrap/weight rules, and that no playback helper exists; update the resource/limits notes if needed.
-- [ ] 5.4 Update `gallery/src/api/efx.d.ts` and `gallery/src/api/efx.type-test.ts` for `poseMesh` and the `skinned` draw option, and verify `npm --prefix gallery run check` passes.
-- [ ] 5.5 Write ADR `docs/decisions/0035-cpu-skinning-pipeline.md` (bind-local derivation, FK/palette, weight normalization, non-joint-ancestor limitation, dual-buffer semantics) and add it to `docs/decisions/README.md`.
-- [ ] 5.6 Update `AGENTS.md` (roadmap/current-state rows for F7) and confirm `openspec validate --strict` passes for the change.
+- [x] 5.3 Update `docs/js-api.md`: turn the F7 entry from provisional to current (`poseMesh`, `drawMesh({ skinned })`), document signatures, errors, time-wrap/weight rules, and that no playback helper exists; update the resource/limits notes if needed.
+- [x] 5.4 Update `gallery/src/api/efx.d.ts` and `gallery/src/api/efx.type-test.ts` for `poseMesh` and the `skinned` draw option, and verify `npm --prefix gallery run check` passes.
+- [x] 5.5 Write ADR `docs/decisions/0035-cpu-skinning-pipeline.md` (bind-local derivation, FK/palette, weight normalization, non-joint-ancestor limitation, dual-buffer semantics) and add it to `docs/decisions/README.md`.
+- [x] 5.6 Update `AGENTS.md` (roadmap/current-state rows for F7) and confirm `openspec validate --strict` passes for the change.
 
 ## 6. Gate
 
-- [ ] 6.1 Run `python3 tools/verify_remote.py all <branch>` (native goldens + web suites + gallery) and fix any failures.
-- [ ] 6.2 Dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` following Linux → Windows → macOS, and confirm the run is green.
+- [x] 6.1 Run `python3 tools/verify_remote.py all <branch>` (native goldens + web suites + gallery) and fix any failures.
+- [x] 6.2 Dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` following Linux → Windows → macOS, and confirm the run is green.
 - [ ] 6.3 Merge the branch to `main`, push, and archive the change (syncing specs).
