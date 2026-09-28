@@ -19,4 +19,4 @@
 
 - [x] 4.1 Run `npm --prefix gallery run check` and `npm --prefix gallery run build`; verify the build succeeds and the sample is in `gallery/src/samples/generated.json`.
 - [x] 4.2 Run `python3 tools/verify_remote.py gallery <branch>`; verify `gallery smoke PASSED` and the native module smoke case passes.
-- [ ] 4.3 Run the four-target gate (`gh workflow run ci.yml --ref <branch>`) after 4.2 is green and confirm all targets pass.
+- [x] 4.3 Run the four-target gate (`gh workflow run ci.yml --ref <branch>`) after 4.2 is green and confirm all targets pass.
