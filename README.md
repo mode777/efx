@@ -34,7 +34,15 @@ scripted in ES6. See `vision.md` for the product vision and
 ## JavaScript API
 
 The normative script-facing API reference — current behavior plus the
-provisional F2–F8 catalog — lives in [`docs/js-api.md`](docs/js-api.md).
+provisional F8 catalog — lives in [`docs/js-api.md`](docs/js-api.md).
+
+Scripts are **CommonJS modules** loaded synchronously from the resource root
+(a directory or zip): every script file is a module, `require(path)` returns
+its `module.exports`, and `main.js` is the entry module. Module caching,
+circular-require partial exports, `__esModule` interop, and `.json` modules
+are supported; there is no Node/npm compatibility. TypeScript authors write
+`import`/`export` and compile to CommonJS before packaging. See the "Script
+modules" section of [`docs/js-api.md`](docs/js-api.md) and ADR 0037.
 
 ## Repository layout
 

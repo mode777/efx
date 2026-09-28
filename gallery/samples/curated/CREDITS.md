@@ -60,3 +60,15 @@ their root, so the sample scripts address them root-relative.
    `pbrMetallicRoughness`. (The importer binds only base-color and emissive;
    this pack has no textures.)
 3. Zip `Fox.glb` at the archive root.
+
+### `modules-showcase.zip`
+
+This pack is **authored in-repo** (no third-party assets), so it is not CC0
+material and has no credit line. The readable CommonJS sources live under
+`gallery/samples/curated/modules/`; the pack is regenerated deterministically
+(fixed entry timestamps, stored entries) with:
+
+```sh
+python3 gallery/scripts/pack-curated-modules.py
+python3 gallery/scripts/pack-curated-modules.py --check   # drift check
+```

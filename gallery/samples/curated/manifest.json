@@ -57,5 +57,13 @@
     "category": "Assets",
     "description": "A real CC0 rigged model (Fox, Quaternius' Ultimate Animated Animals) imported with loadMeshData and CPU-posed with poseMesh from a script-owned clock, drawn with skinned: true.",
     "assets": "fox-walk.zip"
+  },
+  {
+    "file": "modules-showcase.js",
+    "id": "curated:modules-showcase",
+    "title": "Script Modules",
+    "category": "Scripting",
+    "description": "A lit 3D scene split across files with the F10 CommonJS module system: synchronous require loads a relative module (palette.js), an extension-less specifier with the deterministic .js fallback (orbit), and a JSON module (data/scene.json) from the sample's asset pack, then registers update/render hooks from the composed data.",
+    "assets": "modules-showcase.zip"
   }
 ]
