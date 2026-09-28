@@ -17,6 +17,11 @@ typedef struct efx_platform_desc {
 } efx_platform_desc;
 
 int efx_platform_run(const efx_platform_desc *desc, efx_frame_hooks hooks);
+/* Record the code a deliberate windowed quit should exit with. On
+ * Linux/Windows `efx_platform_run` returns and the caller propagates it;
+ * macOS's Cocoa run loop never returns (sokol), so the platform layer exits
+ * with the recorded code when the frame callback requests a stop. */
+void efx_platform_set_exit_code(int code);
 void efx_platform_shutdown(void); /* after callers released GPU resources */
 
 #endif

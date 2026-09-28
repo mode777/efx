@@ -155,11 +155,28 @@ static void repl_consume(efx_repl *r) {
 
 /* ------------------------------------------------------------ frame loop */
 
+static int repl_exit_code(const efx_repl *r) {
+    if (efx_runtime_in_error(r->rt)) {
+        return 1;
+    }
+    if (efx_runtime_quit_requested(r->rt)) {
+        return efx_runtime_quit_code(r->rt);
+    }
+    return 0; /* `.exit` and EOF are clean */
+}
+
+/* record the intended code, then stop the frame loop (macOS's Cocoa loop
+ * never returns, so the platform layer exits with the recorded code) */
+static int repl_stop(efx_repl *r) {
+    efx_platform_set_exit_code(repl_exit_code(r));
+    return 1;
+}
+
 static int repl_on_frame(void *ud, double dt) {
     efx_repl *r = (efx_repl *)ud;
     efx_runtime *rt = r->rt;
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
-        return 1;
+        return repl_stop(r);
     }
 
     if (!r->done && !r->eof) {
@@ -177,22 +194,25 @@ static int repl_on_frame(void *ud, double dt) {
     repl_consume(r);
     if (r->done || r->eof || efx_runtime_quit_requested(rt) ||
         efx_runtime_in_error(rt)) {
-        return 1;
+        return repl_stop(r);
     }
 
     int rc = efx_runtime_call_hook(rt, 1, dt);
     if (rc != EFX_HOOK_OK) {
-        return 1;
+        return repl_stop(r);
     }
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
-        return 1;
+        return repl_stop(r);
     }
     rc = efx_runtime_call_hook(rt, 0, dt);
     if (rc != EFX_HOOK_OK) {
-        return 1;
+        return repl_stop(r);
     }
     efx_runtime_collect(rt);
-    return efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt);
+    if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
+        return repl_stop(r);
+    }
+    return 0;
 }
 
 int efx_repl_run(struct efx_resource *resource) {

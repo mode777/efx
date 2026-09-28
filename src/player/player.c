@@ -128,28 +128,46 @@ static int run_repl_mode(const char *root) {
     return rc;
 }
 
+/* signal the frame loop to stop, recording the intended exit code first
+ * (macOS's Cocoa loop never returns, so the platform layer exits for us) */
+static int player_stop(efx_runtime *rt) {
+    int code;
+    if (efx_runtime_in_error(rt)) {
+        code = 1;
+    } else if (efx_runtime_quit_requested(rt)) {
+        code = efx_runtime_quit_code(rt);
+    } else {
+        code = 0;
+    }
+    efx_platform_set_exit_code(code);
+    return 1;
+}
+
 int efx_player_frame(void *ud, double dt) {
     efx_runtime *rt = (efx_runtime *)ud;
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
-        return 1;
+        return player_stop(rt);
     }
     int r = efx_runtime_call_hook(rt, 1, dt);
     if (r != EFX_HOOK_OK) {
-        return 1;
+        return player_stop(rt);
     }
 
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
-        return 1;
+        return player_stop(rt);
     }
     r = efx_runtime_call_hook(rt, 0, dt);
     if (r != EFX_HOOK_OK) {
-        return 1;
+        return player_stop(rt);
     }
 
     /* frame-end collection: unreferenced native resources are finalized
        within roughly a frame (js-api resource lifecycle rules) */
     efx_runtime_collect(rt); /* frame-end GC (js-api lifecycle rules) */
-    return efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt);
+    if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
+        return player_stop(rt);
+    }
+    return 0;
 }
 
 static int on_frame(void *ud, double dt) {
