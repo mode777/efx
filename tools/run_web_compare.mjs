@@ -104,8 +104,13 @@ for (const c of CASES) {
         problems.push(`stdout ${JSON.stringify(native.out)} vs ${JSON.stringify(web.out)}`);
     }
     if (c.stderrFirstLine) {
-        const a = native.err[0] ?? '';
-        const b = web.err[0] ?? '';
+        // A module error names the failing module path; desktop runs the entry
+        // via --script (its file name) while web stages it as main.js, so strip
+        // that path prefix and compare the underlying diagnostic.
+        const norm = (l) => l.replace(/^uncaught exception: module '[^']*': /,
+                                      'uncaught exception: ');
+        const a = norm(native.err[0] ?? '');
+        const b = norm(web.err[0] ?? '');
         if (!a.startsWith('uncaught exception:') || !b.startsWith('uncaught exception:') ||
             a.split(':')[1] !== b.split(':')[1]) {
             problems.push(`stderr-first ${JSON.stringify(a)} vs ${JSON.stringify(b)}`);
