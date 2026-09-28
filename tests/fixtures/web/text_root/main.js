@@ -48,3 +48,4 @@ font.destroy();
 fx.destroy();
 fd.destroy();
 efx.log('s-8a-text-ok');
+efx.quit(0);
