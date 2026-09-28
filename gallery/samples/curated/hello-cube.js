@@ -17,5 +17,5 @@ function update(dt) { t += dt; }
 function render() {
     const spin = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
     const tilt = efx.mat4.rotate(spin, 18, [1, 0, 0]);
-    efx.drawMesh({ mesh: cube, transform: tilt, color: [0.95, 0.5, 0.2, 1] });
+    efx.drawMesh(cube, { transform: tilt, color: [0.95, 0.5, 0.2, 1] });
 }

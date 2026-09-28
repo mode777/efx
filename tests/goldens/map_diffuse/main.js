@@ -24,5 +24,5 @@ efx.setMeshSurfaceMaterial(plane, 0, {
 });
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: plane });
+    efx.drawMesh(plane);
 }

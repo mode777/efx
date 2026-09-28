@@ -34,5 +34,5 @@ const two = efx.createMesh(efx.createMeshData({
 }));
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: two });
+    efx.drawMesh(two);
 }

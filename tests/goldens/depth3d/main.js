@@ -16,11 +16,11 @@ efx.setMeshSurfaceMaterial(far, 0, MAT);
 function update() {}
 function render() {
     // nearer (z = 1.6) recorded first
-    efx.drawMesh({ mesh: near,
+    efx.drawMesh(near, {
         transform: efx.mat4.translate(efx.mat4.identity(), [0.35, 0, 1.6]),
         color: [0.95, 0.35, 0.25, 1] });
     // farther (origin) recorded second, overlapping on screen
-    efx.drawMesh({ mesh: far,
+    efx.drawMesh(far, {
         transform: efx.mat4.translate(efx.mat4.identity(), [-0.35, 0, 0]),
         color: [0.25, 0.8, 0.45, 1] });
 }

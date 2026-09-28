@@ -128,8 +128,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   F2's 2D layer — `setCamera2D` (virtual frame), `drawQuad`, `setBlendMode`,
   `setClearColor`, `createImageData`, `createTexture`, `whiteTexture` —
   and F3's 3D core — `setCamera3D`, multi-surface `createMeshData` /
-  `createMesh` / `drawMesh`, `efx.mat4`/`efx.vec3`/`efx.quat`,
-  `makeCube`/`makePlane`/`makeSphere` — plus F4's lighting and materials —
+  `createMesh` / `drawMesh(mesh, opts?)` (the mesh is a required positional
+  argument; `mesh` is not an option), `efx.mat4`/`efx.vec3`/`efx.quat`,
+  `makeCube`/`makePlane`/`makeSphere` (each taking an optional `material`
+  bound to its single surface) — plus F4's lighting and materials —
   `setLight`, `setDirectionalLight`, `setMeshSurfaceMaterial`, and
   `createMeshData`'s `materials` array (F4a), whose channels take optional
   per-channel `map` textures and a material-level `alphaMask` (F4b) — plus
@@ -138,6 +140,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `createTexture` taking `wrap`/`filter`/`mipmaps` (F6e; no `loadTexture`) —
   cataloged in `docs/js-api.md` (F1/F2/F3/F4 entries are current behavior;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
+  The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
+  batch and shorthand forms as an exclusive union (the batch form does not
+  require `positions`, and mixing the forms is rejected).
 - `gallery/` is the public sample gallery (Vite + TypeScript + Svelte)
   deployed to GitHub Pages: a left sample list, an iframe-per-run engine
   host, and a Monaco (CDN) editor with the API type document

@@ -42,10 +42,9 @@ let t = 0;
 function update(dt) { t += dt; }
 
 function render() {
-    efx.drawMesh({ mesh: ground });
+    efx.drawMesh(ground);
     const spin = efx.mat4.rotate(efx.mat4.identity(), t * 35, [0, 1, 0]);
-    efx.drawMesh({
-        mesh: cube,
+    efx.drawMesh(cube, {
         transform: efx.mat4.translate(spin, [0, 0.55, 0]),
     });
 

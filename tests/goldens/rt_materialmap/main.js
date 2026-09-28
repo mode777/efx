@@ -32,5 +32,5 @@ function render() {
     efx.drawQuad(0, 0, red, { size: [4, 8] });
     efx.drawQuad(4, 0, blue, { size: [4, 8] });
     efx.endRenderTarget();
-    efx.drawMesh({ mesh: plane });
+    efx.drawMesh(plane);
 }

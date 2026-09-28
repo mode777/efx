@@ -16,8 +16,7 @@ const yaw = efx.mat4.rotate(efx.mat4.identity(), 35, [0, 1, 0]);
 const pitch = efx.mat4.rotate(yaw, 22, [1, 0, 0]);
 function update() {}
 function render() {
-    efx.drawMesh({
-        mesh: cube,
+    efx.drawMesh(cube, {
         transform: pitch,
         color: [0.95, 0.45, 0.15, 1],
     });

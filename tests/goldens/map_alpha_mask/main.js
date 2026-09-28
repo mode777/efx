@@ -27,5 +27,5 @@ const pair = efx.createMesh(efx.createMeshData({
 }));
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: pair });
+    efx.drawMesh(pair);
 }

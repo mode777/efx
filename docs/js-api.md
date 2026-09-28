@@ -384,7 +384,7 @@ efx.setCamera3D(opts)      // { pos, target, fov, near? = 0.1, far? = 100 }
                            // fov: vertical, degrees; up is +Y; the one 3D camera
 efx.createMeshData(data)   // → MeshData; multi-surface, below
 efx.createMesh(meshData)   // → Mesh; uploads ALL surfaces CPU → GPU
-efx.drawMesh(opts)         // { mesh, transform?, color? } — whole mesh, depth-tested
+efx.drawMesh(mesh, opts?)  // { transform?, color? } — whole mesh, depth-tested
 ```
 
 - `setCamera3D` is a projection state **separate from the 2D frame**:
@@ -419,7 +419,11 @@ efx.drawMesh(opts)         // { mesh, transform?, color? } — whole mesh, depth
   creation from the `materials` array or rebound via
   `setMeshSurfaceMaterial` (F4a); an unbound surface renders with
   the engine default material.
-- **`drawMesh({ mesh, transform?, color? })`** draws the whole mesh:
+- **`drawMesh(mesh, opts?)`** draws the whole mesh: `mesh` is a **required
+  positional argument** and must be a live Mesh (nothing, a non-Mesh, or a
+  destroyed Mesh throws `TypeError`). `opts?` is an optional bag restricted
+  to `{ transform?, color? }` (an unknown field, including `mesh`, throws
+  `TypeError`). It draws
   every surface in surface order under the recorded camera, depth-tested
   against earlier 3D records (equal depth resolves by record order).
   `transform` is a flat column-major 16-number array (default identity;
@@ -449,10 +453,12 @@ efx.quat.multiply(a, b) efx.quat.toMat4(q)  // consumed by F7
 // MeshData (pinned layouts: cube 24 verts / 36 indices with per-face
 // normals + 0..1 uvs; plane on XZ facing +Y, (segments+1)^2 grid; UV
 // sphere with normals = normalized positions and equirectangular uvs)
-efx.makeCube(opts?)     // { size? = 1 }
-efx.makePlane(opts?)    // { size? = 1, segments? = 1 }
-efx.makeSphere(opts?)   // { radius? = 1, segments? = 16 }
+efx.makeCube(opts?)     // { size? = 1, material? }
+efx.makePlane(opts?)    // { size? = 1, segments? = 1, material? }
+efx.makeSphere(opts?)   // { radius? = 1, segments? = 16, material? }
 // size/radius: finite > 0; segments: positive integer; unknown fields throw
+// material?: a material object (or null = engine default) bound to the
+// single surface at creation, carried to createMesh
 ```
 
 ```js
@@ -465,8 +471,7 @@ let yaw = 0;
 efx.registerUpdateHook(dt => { yaw += dt * 45; });
 
 efx.registerRenderHook(() => {
-    efx.drawMesh({
-        mesh: cube,
+    efx.drawMesh(cube, {
         transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]),
         color: [0.9, 0.4, 0.2, 1],
     });
@@ -539,7 +544,7 @@ efx.setMeshSurfaceMaterial(ball, 0, {
 });
 
 efx.registerRenderHook(() => {
-    efx.drawMesh({ mesh: ball });
+    efx.drawMesh(ball);
 });
 ```
 
@@ -601,7 +606,7 @@ efx.setMeshSurfaceMaterial(ground, 0, {
     alphaMask: tex,     // discard fragments where tex alpha < 0.5
 });
 
-efx.registerRenderHook(() => { efx.drawMesh({ mesh: ground }); });
+efx.registerRenderHook(() => { efx.drawMesh(ground); });
 ```
 
 ### F5a — Render targets (current)
@@ -840,7 +845,7 @@ efx.setDirectionalLight({ dir: [0, -0.5, -1], color: [1, 1, 1, 1] });
 const teapot = efx.createMesh(efx.loadMeshData('models/teapot.glb'));
 
 efx.registerRenderHook(() => {
-    efx.drawMesh({ mesh: teapot });
+    efx.drawMesh(teapot);
 });
 ```
 
@@ -896,7 +901,7 @@ import, play/pause/blend.
 // F7 · C · provisional — skin, skeleton, and clips are implicit Mesh payload (ADR 0017);
 // the script drives posing, no engine playback state (ADR 0018)
 efx.poseMesh(mesh, pose)   // pose: { clip, time, weight? } or [ samples ]; CPU-poses in place
-efx.drawMesh({ mesh, transform?, color?, skinned? }) // skinned: true → current posed buffer
+efx.drawMesh(mesh, { transform?, color?, skinned? }) // skinned: true → current posed buffer
 ```
 
 - Skin weights stay per-surface vertex attributes (`joints`/`weights`,
@@ -932,8 +937,8 @@ efx.registerUpdateHook(dt => {
 });
 
 efx.registerRenderHook(() => {
-    efx.drawMesh({ mesh: hero, skinned: true }); // current CPU-skinned pose
-    // efx.drawMesh({ mesh: hero });             // bind (rest) pose
+    efx.drawMesh(hero, { skinned: true }); // current CPU-skinned pose
+    // efx.drawMesh(hero);                 // bind (rest) pose
 });
 ```
 

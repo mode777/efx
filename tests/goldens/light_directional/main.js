@@ -11,5 +11,5 @@ efx.setMeshSurfaceMaterial(ball, 0, {
 });
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: ball, color: [0.85, 0.82, 0.75, 1] });
+    efx.drawMesh(ball, { color: [0.85, 0.82, 0.75, 1] });
 }

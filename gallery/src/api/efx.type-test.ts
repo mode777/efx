@@ -15,7 +15,27 @@ efx.setMeshSurfaceMaterial(cube, 0, {
   diffuse: { color: [1, 1, 1, 1] },
   specular: { color: [1, 1, 1, 1], shininess: 32 },
 });
-efx.drawMesh({ mesh: cube, transform: efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]) });
+efx.drawMesh(cube, { transform: efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]) });
+efx.drawMesh(cube);
+
+// Primitives bind an optional material to their single surface.
+const mat: Material = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
+efx.makeCube({ size: 1, material: mat });
+efx.makeSphere({ material: null });
+
+// The batch form does not require shorthand fields; mixing the forms is rejected.
+const batch: EfxMeshData = efx.createMeshData({
+  surfaces: [{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] }],
+  materials: [mat],
+});
+efx.createMesh(batch).destroy();
+batch.destroy();
+// @ts-expect-error — surfaces and single-surface fields cannot be combined
+efx.createMeshData({ surfaces: [{ positions: [0, 0, 0] }], positions: [0, 0, 0] });
+// @ts-expect-error — drawMesh takes the mesh positionally, not in the bag
+efx.drawMesh({ mesh: cube });
+// @ts-expect-error — the drawMesh option bag has no `mesh` field
+efx.drawMesh(cube, { mesh: cube });
 
 const rt: EfxRenderTarget = efx.createRenderTarget({ width: 64, height: 64 });
 efx.beginRenderTarget(rt);

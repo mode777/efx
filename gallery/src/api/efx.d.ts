@@ -116,14 +116,30 @@ interface Material {
   alphaMask?: EfxSample | null;
 }
 
-interface CreateMeshDataOptions extends MeshSurfaceData {
-  surfaces?: MeshSurfaceData[];
+interface MeshDataBatch {
+  surfaces: MeshSurfaceData[];
   /** One entry per surface; null selects the engine default material. */
   materials?: (Material | null)[];
+  /** Shorthand fields are forbidden in the batch form (exclusive union). */
+  positions?: never;
+  normals?: never;
+  uvs?: never;
+  colors?: never;
+  joints?: never;
+  weights?: never;
+  indices?: never;
 }
 
-interface DrawMeshOptions {
-  mesh: EfxMesh;
+interface MeshDataShorthand extends MeshSurfaceData {
+  /** One entry; null selects the engine default material. */
+  materials?: (Material | null)[];
+  /** The batch field is forbidden in the shorthand form (exclusive union). */
+  surfaces?: never;
+}
+
+type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
+
+interface DrawMeshCallOptions {
   transform?: Mat4;
   color?: Color;
 }
@@ -141,14 +157,20 @@ interface DirectionalLightOptions {
 
 interface MakeCubeOptions {
   size?: number;
+  /** Material bound to the primitive's single surface; null = engine default. */
+  material?: Material | null;
 }
 interface MakePlaneOptions {
   size?: number;
   segments?: number;
+  /** Material bound to the primitive's single surface; null = engine default. */
+  material?: Material | null;
 }
 interface MakeSphereOptions {
   radius?: number;
   segments?: number;
+  /** Material bound to the primitive's single surface; null = engine default. */
+  material?: Material | null;
 }
 
 type EfxPostEffect =
@@ -224,7 +246,7 @@ interface Efx {
   setCamera3D(opts: Camera3DOptions): void;
   createMeshData(data: CreateMeshDataOptions): EfxMeshData;
   createMesh(meshData: EfxMeshData): EfxMesh;
-  drawMesh(opts: DrawMeshOptions): void;
+  drawMesh(mesh: EfxMesh, opts?: DrawMeshCallOptions): void;
   makeCube(opts?: MakeCubeOptions): EfxMeshData;
   makePlane(opts?: MakePlaneOptions): EfxMeshData;
   makeSphere(opts?: MakeSphereOptions): EfxMeshData;

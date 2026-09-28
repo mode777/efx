@@ -21,5 +21,5 @@ efx.setMeshSurfaceMaterial(slab, 0, {
 });
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: slab });
+    efx.drawMesh(slab);
 }

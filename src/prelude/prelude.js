@@ -186,10 +186,21 @@ function __efxPrimOpts(opts, keys, floats, ints, defaults) {
     return out;
 }
 
+/* primitive material option: `material` (a material object or null) is
+   bound to the primitive's single surface at createMeshData time; undefined
+   leaves the engine default. The material is validated/snapshotted by the
+   existing createMeshData materials path. */
+function __efxPrimMaterial(opts) {
+    if (opts === undefined || opts === null) {
+        return undefined;
+    }
+    return opts.material === undefined ? undefined : [opts.material];
+}
+
 /* axis-aligned cube centered on the origin; per-face normals and per-face
    0..1 uvs; outward CCW winding; 24 verts / 36 indices */
 function __efxMakeCube(opts) {
-    var o = __efxPrimOpts(opts, ['size'], ['size'], [], [1]);
+    var o = __efxPrimOpts(opts, ['size', 'material'], ['size'], [], [1]);
     var h = o.size / 2;
     /* normal, edge u, edge v with cross(u, v) = normal */
     var faces = [
@@ -219,13 +230,14 @@ function __efxMakeCube(opts) {
     }
     return efx.createMeshData({
         positions: positions, normals: normals, uvs: uvs, indices: indices,
+        materials: __efxPrimMaterial(opts),
     });
 }
 
 /* plane in the XZ plane facing +Y, centered; segments x segments quads;
    uv spans 0..1; CCW seen from above */
 function __efxMakePlane(opts) {
-    var o = __efxPrimOpts(opts, ['size', 'segments'], ['size'], ['segments'], [1, 1]);
+    var o = __efxPrimOpts(opts, ['size', 'segments', 'material'], ['size'], ['segments'], [1, 1]);
     var S = o.segments, h = o.size / 2;
     var step = o.size / S;
     var positions = [], uvs = [], indices = [];
@@ -244,13 +256,14 @@ function __efxMakePlane(opts) {
             indices.push(a, d, e, a, e, b);
         }
     }
-    return efx.createMeshData({ positions: positions, uvs: uvs, indices: indices });
+    return efx.createMeshData({ positions: positions, uvs: uvs, indices: indices,
+        materials: __efxPrimMaterial(opts) });
 }
 
 /* UV sphere centered on the origin; segments latitude rings x segments
    longitude slices; normals = normalized positions; equirectangular uv */
 function __efxMakeSphere(opts) {
-    var o = __efxPrimOpts(opts, ['radius', 'segments'], ['radius'], ['segments'], [1, 16]);
+    var o = __efxPrimOpts(opts, ['radius', 'segments', 'material'], ['radius'], ['segments'], [1, 16]);
     var S = o.segments, R = o.radius;
     var positions = [], normals = [], uvs = [], indices = [];
     for (var i = 0; i <= S; i++) {
@@ -279,6 +292,7 @@ function __efxMakeSphere(opts) {
     }
     return efx.createMeshData({
         positions: positions, normals: normals, uvs: uvs, indices: indices,
+        materials: __efxPrimMaterial(opts),
     });
 }
 

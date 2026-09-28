@@ -17,8 +17,8 @@ efx.setMeshSurfaceMaterial(blue, 0, {
 });
 function update() {}
 function render() {
-    efx.drawMesh({ mesh: red,
+    efx.drawMesh(red, {
         transform: efx.mat4.translate(efx.mat4.identity(), [-1.15, 0, 0]) });
-    efx.drawMesh({ mesh: blue,
+    efx.drawMesh(blue, {
         transform: efx.mat4.translate(efx.mat4.identity(), [1.15, 0, 0]) });
 }
