@@ -32,4 +32,4 @@
 - [x] 6.1 Build the gallery (`npm --prefix gallery ci && npm --prefix gallery run build`) and confirm the new samples and their zips are in `gallery/dist/`. Verify the build succeeds and `gallery/dist/samples/` contains both zips.
 - [x] 6.2 Run the native ctest smoke suite (including the new showcase player tests, which need a display) on the verification server, plus the headless unit suite locally. Verify all pass.
 - [x] 6.3 Run `python3 tools/verify_remote.py all <branch>` on the verification server and confirm the native suites, web goldens, gallery smoke, and cross-runtime compare are green.
-- [ ] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) only after 6.3 is green, and confirm all four targets pass.
+- [x] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) only after 6.3 is green, and confirm all four targets pass.
