@@ -35,4 +35,4 @@
 ## 6. Verification
 
 - [x] 6.1 Run the Linux signal first (server verification per `docs/verification-server.md`: `python3 tools/verify_remote.py all <branch>`) and fix any failure before dispatching the gate
-- [ ] 6.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and verify the native ctest suites (incl. module smoke tests), Emscripten ctest, and the cross-runtime comparison are green on Linux, Windows, and macOS; no golden-image test is added
+- [x] 6.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and verify the native ctest suites (incl. module smoke tests), Emscripten ctest, and the cross-runtime comparison are green on Linux, Windows, and macOS; no golden-image test is added
