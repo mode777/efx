@@ -54,6 +54,11 @@ add_player_test(smoke_6b_gltf ARGS "--script;${S}/s_6b_gltf.js" EXPECT 0 EXPECT_
 add_player_test(smoke_6c_skin ARGS "--script;${S}/s_6c_skin.js" EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
+# gallery showcase samples run against their committed asset packs: a failed
+# load throws and exits non-zero, so exit 0 proves the pack loads on the player
+set(GALLERY ${CMAKE_SOURCE_DIR}/gallery/samples/curated)
+add_player_test(smoke_showcase_texture ARGS "--script;${GALLERY}/texture-showcase.js;--root;${GALLERY}/texture-showcase.zip" EXPECT 0)
+add_player_test(smoke_showcase_gltf ARGS "--script;${GALLERY}/gltf-showcase.js;--root;${GALLERY}/gltf-showcase.zip" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()

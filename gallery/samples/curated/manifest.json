@@ -26,5 +26,21 @@
     "title": "CRT Bloom",
     "category": "Showcase",
     "description": "A declarative post-effect chain: bloom plus a color filter."
+  },
+  {
+    "file": "texture-showcase.js",
+    "id": "curated:texture-showcase",
+    "title": "Texture Showcase",
+    "category": "Textures",
+    "description": "A real CC0 paving-stone texture (ambientCG) loaded from the sample's asset pack: shown full and cropped with sourceRect, and tiled across a 3D ground plane and spinning cube.",
+    "assets": "texture-showcase.zip"
+  },
+  {
+    "file": "gltf-showcase.js",
+    "id": "curated:gltf-showcase",
+    "title": "glTF Model",
+    "category": "Assets",
+    "description": "A real CC0 glTF model (Avocado by Microsoft, Khronos glTF-Sample-Assets) imported with loadMeshData, base-color mapped and lit under the engine's Phong model.",
+    "assets": "gltf-showcase.zip"
   }
 ]
