@@ -46,7 +46,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   opts?)` flow) and `createTexture` gains a boolean `mipmaps` option
   (deterministic CPU 2×2 box-filter chain, sampler mipmap filter driven by
   `filter`; change `f6e-texture-creation-options`, ADR 0034); its
-  four-target gate is **pending**.
+  four-target gate is **green** (ci run 36392688547: native suites incl.
+  all goldens on Linux/Windows/macOS, Emscripten ctest + web goldens +
+  cross-runtime compare).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -247,7 +249,7 @@ implements.
 | F3 | 3D core | Camera, multi-surface mesh resources (ADR 0024), `drawMesh` with depth test, GLM math wrapper, vertex colors, procedural primitives, pure-JS math layer | Golden images + math unit tests | done — four-target gate green (run 36122872839); ADR 0024/0025 |
 | F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | done — F4a gate green (run 36271736775, ADR 0026); F4b gate green (run 36284454599, ADR 0027) |
 | F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
-| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d (interactive console) done, gate green (run 36367478373); F6e (texture creation options) implemented, gate pending |
+| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d (interactive console) done, gate green (run 36367478373); F6e (texture creation options) done, gate green (run 36392688547) |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, play/pause/blend | FK joint-transform tests vs CPU reference + golden images | planned |
 | F8 | High-level JS + text | `drawModel`, `drawText` (font atlas built on quads), demo resource pack | Golden images; demo pack runs end-to-end on all four targets | planned |
 

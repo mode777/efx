@@ -18,7 +18,7 @@
 
 ## 4. Tests and goldens
 
-- [ ] 4.1 Add a mipmap golden scene under `tests/goldens/` that draws a minified, mipmapped texture next to a non-mipmapped one so aliasing differences are visible; capture its reference on the verification server (llvmpipe only, per `docs/verification-server.md`) and commit scene + reference. Verify: native ctest golden suite passes on the server and the Emscripten golden suite reproduces it.
+- [x] 4.1 Add a mipmap golden scene under `tests/goldens/` that draws a minified, mipmapped texture next to a non-mipmapped one so aliasing differences are visible; capture its reference on the verification server (llvmpipe only, per `docs/verification-server.md`) and commit scene + reference. Verify: native ctest golden suite passes on the server and the Emscripten golden suite reproduces it.
 - [x] 4.2 Add/extend unit coverage for the new option validation and mipmap state (render-layer unit test in `tests/unit/`, plus the existing desktop/web smoke cases). Verify: `ctest` passes with the display-free targets locally (`-DEFX_HEADLESS=ON`) and all targets on the gate.
 
 ## 5. Docs and decisions
@@ -30,6 +30,6 @@
 
 ## 6. Verification and archive
 
-- [ ] 6.1 Run `python3 tools/verify_remote.py all <branch>` and fix anything it reports; the native ctest (incl. all goldens) and Emscripten golden/compare suites must be green. Verify: the pre-CI server report is clean.
-- [ ] 6.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate (Linux → Windows → macOS plus Emscripten) is green. Verify: the run's native suites, all goldens, web goldens, and cross-runtime compare pass.
+- [x] 6.1 Run `python3 tools/verify_remote.py all <branch>` and fix anything it reports; the native ctest (incl. all goldens) and Emscripten golden/compare suites must be green. Verify: the pre-CI server report is clean.
+- [x] 6.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate (Linux → Windows → macOS plus Emscripten) is green. Verify: the run's native suites, all goldens, web goldens, and cross-runtime compare pass.
 - [ ] 6.3 Merge to `main` and push (triggers the Pages deploy), then archive the change (`openspec archive`) and push the archive. Verify: `main` contains the merged change and the archive folder, and the gate run that justified it is recorded in the change notes.
