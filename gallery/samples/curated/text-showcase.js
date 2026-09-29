@@ -42,23 +42,29 @@ efx.registerRenderHook(function () {
     efx.drawText('Text Showcase', titleFont, 320, 20, {
         align: 'center',
         color: [1, 0.85, 0.2, 1],
-        outlineColor: [0.12, 0.05, 0, 1],
-        shadowColor: [0, 0, 0, 0.6],
+        outlineColor: [0.95, 0.25, 0.05, 1],
+        shadowColor: [0, 0, 0, 0.85],
     });
-    efx.drawText(paragraph, bodyFont, 40, 108, {
+    efx.drawText('BAKED OUTLINE + SHADOW', titleFont, 320, 86, {
+        align: 'center',
+        color: [0.85, 0.92, 1, 1],
+        outlineColor: [0.1, 0.35, 0.8, 1],
+        shadowColor: [0, 0, 0, 0.85],
+    });
+    efx.drawText(paragraph, bodyFont, 40, 168, {
         width: 560,
         align: ALIGNS[alignIndex],
         color: [0.85, 0.88, 0.95, 1],
     });
     efx.drawText('alignment: ' + ALIGNS[alignIndex] + '  (Tab to cycle)',
-        bodyFont, 40, 232, { color: [0.5, 0.7, 1, 1] });
+        bodyFont, 40, 292, { color: [0.5, 0.7, 1, 1] });
     efx.drawText('Wrapped + justified text from one baked atlas.',
-        bodyFont, 40, 268, {
+        bodyFont, 40, 328, {
             width: 560,
             align: 'justify',
             color: [0.7, 0.85, 0.7, 1],
         });
-    efx.drawText(typed.length ? typed : PLACEHOLDER, bodyFont, 40, 340, {
+    efx.drawText(typed.length ? typed : PLACEHOLDER, bodyFont, 40, 396, {
         width: 560,
         color: typed.length ? [1, 1, 1, 1] : [0.45, 0.48, 0.55, 1],
     });
