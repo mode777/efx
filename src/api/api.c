@@ -974,6 +974,11 @@ static int read_particle_config(JSContext *ctx, JSValueConst opts,
     }
     JS_FreeValue(ctx, fv);
 
+    if (c->space == EFX_SPACE_SCREEN && c->facing != EFX_FACING_VIEW) {
+        type_error(ctx, "facing must be 'view' for screen space");
+        return -1;
+    }
+
     if (pcfg_vec(ctx, opts, "normal", c->normal, 0) < 0) return -1;
 
     JSValue bv = JS_GetPropertyStr(ctx, opts, "blend");
@@ -3270,6 +3275,20 @@ JSValue efx_js_createParticleSystem(JSContext *ctx, JSValueConst this_val,
     if (argc < 1 || !JS_IsObject(argv[0])) {
         return type_error(ctx, "createParticleSystem requires an options object");
     }
+    /* required fields throw TypeError when absent (web-binding parity);
+       range problems are raised by the engine validation below */
+    JSValue rq = JS_GetPropertyStr(ctx, argv[0], "max");
+    int has_max = !JS_IsUndefined(rq);
+    JS_FreeValue(ctx, rq);
+    if (!has_max) {
+        return type_error(ctx, "createParticleSystem requires max");
+    }
+    rq = JS_GetPropertyStr(ctx, argv[0], "lifetime");
+    int has_life = !JS_IsUndefined(rq);
+    JS_FreeValue(ctx, rq);
+    if (!has_life) {
+        return type_error(ctx, "createParticleSystem requires lifetime");
+    }
     efx_particle_config c;
     memset(&c, 0, sizeof(c));
     c.space = EFX_SPACE_WORLD;
@@ -3348,6 +3367,18 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
         return type_error(ctx, "drawBillboard requires (pos, opts)");
     }
     float pos[3];
+    if (!JS_IsArray(argv[0])) {
+        return type_error(ctx, "drawBillboard pos must be [x,y,z]");
+    }
+    {
+        JSValue lv = JS_GetPropertyStr(ctx, argv[0], "length");
+        int32_t ln = -1;
+        JS_ToInt32(ctx, &ln, lv);
+        JS_FreeValue(ctx, lv);
+        if (ln != 3) {
+            return type_error(ctx, "drawBillboard pos must be [x,y,z]");
+        }
+    }
     if (get_float_array(ctx, argv[0], pos, 3) != 0) {
         return JS_EXCEPTION;
     }

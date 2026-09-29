@@ -1720,7 +1720,7 @@ static int particles_js(void) {
         "  if (!(e instanceof TypeError)) throw e; }"
         "try { efx.createParticleSystem({ max: 4 }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
-        "try { efx.createParticleSystem({ texture: t, max: 0 }); throw new Error('no'); }"
+        "try { efx.createParticleSystem({ texture: t, max: 0, lifetime: 1 }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof RangeError)) throw e; }";
     if (ok_js(code)) {
         end_js();
