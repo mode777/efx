@@ -84,7 +84,8 @@ static uint64_t hash_state(efx_physics_world *w) {
 static void build_replay_scene(efx_physics_world *w) {
     test_static_box(w, efx_v3(0, -0.5f, 0), efx_v3(20, 1, 20));
     for (int i = 0; i < 8; i++) {
-        test_dynamic_sphere(w, efx_v3((float)(i - 4) * 0.8f, 2.0f + i * 0.7f, 0),
+        test_dynamic_sphere(w, efx_v3((float)(i - 4) * 0.8f,
+                                      2.0f + (float)i * 0.7f, 0),
                             0.4f, 1.0f);
     }
 }

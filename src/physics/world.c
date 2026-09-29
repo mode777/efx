@@ -459,11 +459,11 @@ void efx_world_generate_contacts(efx_physics_world *w) {
                                         ch->mask)) {
                 continue;
             }
-            efx_shape cap = efx_shape_capsule(ch->radius,
+            efx_shape cap_shape = efx_shape_capsule(ch->radius,
                                               ch->half_height * 2 +
                                                   ch->radius * 2);
             efx_narrow_contact c;
-            if (efx_narrow_overlap(&a->shape, a->position, &cap, ch->position,
+            if (efx_narrow_overlap(&a->shape, a->position, &cap_shape, ch->position,
                                    &c)) {
                 push_pair(w, 0, i, 1, ci, &c, a->sensor, 0.4f,
                           a->restitution);
@@ -764,12 +764,12 @@ int efx_physics_overlap(efx_physics_world *w, const efx_shape *shape,
             efx_pcharacter *ch = &w->chars[ci];
             if (!ch->alive) continue;
             if (!ray_mask_ok(ch->layer, mask)) continue;
-            efx_shape cap = efx_shape_capsule(
+            efx_shape cap_shape = efx_shape_capsule(
                 ch->radius, ch->half_height * 2 + ch->radius * 2);
             efx_aabb cb;
-            efx_shape_bounds(&cap, ch->position, &cb);
+            efx_shape_bounds(&cap_shape, ch->position, &cb);
             if (efx_aabb_overlap(cb, qbounds) &&
-                world_mesh_overlap(&cap, ch->position, shape->mesh, position,
+                world_mesh_overlap(&cap_shape, ch->position, shape->mesh, position,
                                    cb)) {
                 overlap_add(&ctx, 0, ch->id, 0);
             }
@@ -798,10 +798,10 @@ int efx_physics_overlap(efx_physics_world *w, const efx_shape *shape,
         efx_pcharacter *ch = &w->chars[ci];
         if (!ch->alive) continue;
         if (!ray_mask_ok(ch->layer, mask)) continue;
-        efx_shape cap = efx_shape_capsule(
+        efx_shape cap_shape = efx_shape_capsule(
             ch->radius, ch->half_height * 2 + ch->radius * 2);
         efx_narrow_contact c;
-        if (efx_narrow_overlap(shape, position, &cap, ch->position, &c)) {
+        if (efx_narrow_overlap(shape, position, &cap_shape, ch->position, &c)) {
             overlap_add(&ctx, 0, ch->id, 0);
         }
     }
@@ -916,11 +916,11 @@ int efx_physics_shape_cast(efx_physics_world *w, const efx_shape *shape,
         efx_pcharacter *ch = &w->chars[ci];
         if (!ch->alive) continue;
         if (!ray_mask_ok(ch->layer, mask)) continue;
-        efx_shape cap = efx_shape_capsule(
+        efx_shape cap_shape = efx_shape_capsule(
             ch->radius, ch->half_height * 2 + ch->radius * 2);
         float t;
         efx_vec3 point, normal;
-        if (efx_narrow_sweep(shape, from, motion, &cap, ch->position, &t,
+        if (efx_narrow_sweep(shape, from, motion, &cap_shape, ch->position, &t,
                              &point, &normal)) {
             sweep_consider(&ctx, t, point, normal, 0, ch->id, 0);
         }

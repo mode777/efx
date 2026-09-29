@@ -432,11 +432,11 @@ static int capsule_box_contact(efx_vec3 cap, float hh, float r, efx_vec3 bc,
         for (int i = 0; i < 3; i++) {
             if (i == 1) {
                 if (cap.y > bc.y + bh.y) {
-                    float d = cap.y - (bc.y + bh.y);
-                    if (d < best) { best = d; axis = 1; sign = 1; }
+                    float dy = cap.y - (bc.y + bh.y);
+                    if (dy < best) { best = dy; axis = 1; sign = 1; }
                 } else if (cap.y < bc.y - bh.y) {
-                    float d = (bc.y - bh.y) - cap.y;
-                    if (d < best) { best = d; axis = 1; sign = -1; }
+                    float dy = (bc.y - bh.y) - cap.y;
+                    if (dy < best) { best = dy; axis = 1; sign = -1; }
                 }
                 continue;
             }

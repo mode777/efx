@@ -260,8 +260,8 @@ int t_bvh_query(void) {
     /* compare BVH query against brute force over a few boxes */
     for (int q = 0; q < 5; q++) {
         efx_aabb box;
-        box.min = efx_v3(-3 + q, -0.5f, -3);
-        box.max = efx_v3(3 - q, 0.5f, 1 + q);
+        box.min = efx_v3(-3.0f + (float)q, -0.5f, -3);
+        box.max = efx_v3(3.0f - (float)q, 0.5f, 1.0f + (float)q);
         int bvh = 0;
         efx_phys_mesh_query_aabb(m, box, bvh_collect_cb, &bvh);
         int brute = 0;

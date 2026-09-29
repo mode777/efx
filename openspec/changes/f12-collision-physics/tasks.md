@@ -55,28 +55,28 @@
 - [x] 8.1 Register the `efx.physics` namespace (gravity, iterations, step, clear, createBody, createCharacter, createStaticMesh, raycast, overlap, shapeCast) in `src/api/api.c` with the documented validation/errors and verify a local script smoke via the player
 - [x] 8.2 Implement native-backed `Body` and `Character` JS classes (`destroy()` idempotent, GC finalizer backstop, read-only props, `Body.transform` translation matrix, `contacts`) and verify destroy/use-after-destroy/GC-reclaim tests
 - [x] 8.3 Mirror the namespace and classes in the `src/web/` bridge with identical names/semantics/errors and verify the web smoke path runs the same script
-- [ ] 8.4 Verify desktop/web parity with a script that exercises bodies, queries, sensors, and a character and prints rounded deterministic output through both runtimes
+- [x] 8.4 Verify desktop/web parity with a script that exercises bodies, queries, sensors, and a character and prints rounded deterministic output through both runtimes
 
 ## 9. Portable script tests and cross-runtime gate
 
-- [ ] 9.1 Add `tests/scripts/physics_smoke.js` (settle, slide, step, sensor, push, queries with rounded assertions) and verify it passes under the native ctest runner
-- [ ] 9.2 Add the `web_12_physics` Emscripten case and verify the Emscripten ctest + `tools/run_web_compare.mjs` cross-runtime comparison matches
+- [x] 9.1 Add `tests/scripts/physics_smoke.js` (settle, slide, step, sensor, push, queries with rounded assertions) and verify it passes under the native ctest runner
+- [x] 9.2 Add the `web_12_physics` Emscripten case and verify the Emscripten ctest + `tools/run_web_compare.mjs` cross-runtime comparison matches
 - [x] 9.3 Wire the physics tests into the headless ctest set and verify `ctest` passes with `-DEFX_HEADLESS=ON`
 
 ## 10. Documentation
 
-- [ ] 10.1 Update `docs/js-api.md` with the `efx.physics` catalog, the `Body`/`Character` class entries (classification, read-only props, destroy), shapes, validation, and the F12 tags and verify it against the specs
-- [ ] 10.2 Update `gallery/src/api/efx.d.ts` so every new call form type-checks and invalid shapes/fields are rejected, and verify the gallery type-test passes
-- [ ] 10.3 Write `docs/decisions/0040-physics-core.md` (pure-C/no-GLM wall, linear-only impulses, script-owned step, single world, one-way kinematic push, sensors, determinism) and add its index row
-- [ ] 10.4 Update the `AGENTS.md` roadmap table and current-state section for F12 and verify a session can place the milestone from `AGENTS.md` alone
+- [x] 10.1 Update `docs/js-api.md` with the `efx.physics` catalog, the `Body`/`Character` class entries (classification, read-only props, destroy), shapes, validation, and the F12 tags and verify it against the specs
+- [x] 10.2 Update `gallery/src/api/efx.d.ts` so every new call form type-checks and invalid shapes/fields are rejected, and verify the gallery type-test passes
+- [x] 10.3 Write `docs/decisions/0040-physics-core.md` (pure-C/no-GLM wall, linear-only impulses, script-owned step, single world, one-way kinematic push, sensors, determinism) and add its index row
+- [x] 10.4 Update the `AGENTS.md` roadmap table and current-state section for F12 and verify a session can place the milestone from `AGENTS.md` alone
 
 ## 11. Gallery showcase sample
 
-- [ ] 11.1 Add a curated physics showcase sample (character `moveAndSlide` over wall/slope/step, a sensor trigger, falling/pushable props, a raycast) using only the public API and procedural geometry, and verify it runs in the gallery host and under the player
+- [x] 11.1 Add a curated physics showcase sample (character `moveAndSlide` over wall/slope/step, a sensor trigger, falling/pushable props, a raycast) using only the public API and procedural geometry, and verify it runs in the gallery host and under the player
 
 ## 12. Verification gate
 
-- [ ] 12.1 Re-read the main `js-api` and `feature-roadmap` specs and re-sync this change's MODIFIED blocks if `f11-particles-billboards` has archived, then verify `npx openspec validate --strict` passes
-- [ ] 12.2 Run the Linux pipeline first (native suites incl. goldens + `efx_physics_tests`) via `python3 tools/verify_remote.py all <branch>` and fix any failures
+- [x] 12.1 Re-read the main `js-api` and `feature-roadmap` specs and re-sync this change's MODIFIED blocks if `f11-particles-billboards` has archived, then verify `npx openspec validate --strict` passes
+- [x] 12.2 Run the Linux pipeline first (native suites incl. goldens + `efx_physics_tests`) via `python3 tools/verify_remote.py all <branch>` and fix any failures
 - [ ] 12.3 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and confirm native Linux/Windows/macOS suites and the Emscripten ctest + cross-runtime compare are green
 - [ ] 12.4 Merge to `main` and push once the gate is green, then archive the change and sync the specs
