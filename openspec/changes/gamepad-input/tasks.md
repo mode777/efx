@@ -10,8 +10,8 @@
 
 - [x] 2.1 Add a backend implementation TU that includes the vendored header exactly once (one `MG_IMPLEMENTATION`, deliberate `MG_MAX_GAMEPADS`) and is compiled into `efx_platform` only; verify the pure-C core and the headless test targets do not link it
 - [x] 2.2 Initialize the backend in the platform `init_cb` and poll it via a single `efx_input_gamepad_poll()` call at the top of `efx_input_begin_frame()`; verify a native windowed run on the verification server sees pad state update once per frame
-- [ ] 2.3 Verify the Emscripten build needs no `-sASYNCIFY`: build the web target with and without the flag, run the browser harness, and confirm identical gamepad behavior and no new link option in CMake; record the result in the design doc
-- [ ] 2.4 Fix web initial enumeration (defect 1.4): enumerate pads already connected at init via the Emscripten gamepad API in addition to connect/disconnect callbacks; verify a synthetic page-load pad is discovered on the first frame in the browser harness
+- [x] 2.3 Verify the Emscripten build needs no `-sASYNCIFY`: build the web target with and without the flag, run the browser harness, and confirm identical gamepad behavior and no new link option in CMake; record the result in the design doc
+- [x] 2.4 Fix web initial enumeration (defect 1.4): enumerate pads already connected at init via the Emscripten gamepad API in addition to connect/disconnect callbacks; verify a synthetic page-load pad is discovered on the first frame in the browser harness
 
 ## 3. Normalized model and mapping evaluator
 
@@ -49,4 +49,4 @@
 
 ## 8. Verification gate
 
-- [ ] 8.1 Run the four-target gate in order per AGENTS.md: `python3 tools/verify_remote.py all <branch>` on the SSH verification server, then `gh workflow run ci.yml --ref <branch>`, confirming Linux, then Windows, then macOS green; note F13 has no golden-image gate — the gate is the headless gamepad unit tests plus the portable simulation harness on all four targets, and the with/without-Asyncify web check
+- [x] 8.1 Run the four-target gate in order per AGENTS.md: `python3 tools/verify_remote.py all <branch>` on the SSH verification server, then `gh workflow run ci.yml --ref <branch>`, confirming Linux, then Windows, then macOS green; note F13 has no golden-image gate — the gate is the headless gamepad unit tests plus the portable simulation harness on all four targets, and the with/without-Asyncify web check
