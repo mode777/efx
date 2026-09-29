@@ -3,7 +3,7 @@
 ## 1. Architecture record and docs scaffolding
 
 - [x] 1.1 Write `docs/decisions/0039-cpu-particle-billboard-pipeline.md` per `docs/decisions/TEMPLATE.md`, recording the durable decisions (CPU simulation ownership, the shared billboard/oriented-quad basis, the depth-test/no-write policy, within-batch particle sorting, `facing` on the system vs `drawBillboard` camera-only), and add its row to `docs/decisions/README.md`; verify the index links resolve.
-- [ ] 1.2 Update `AGENTS.md` (roadmap table + current-state notes) and `openspec/specs/feature-roadmap` current text with milestone F11 once the change lands; verify `npx openspec validate --strict` still passes.
+- [x] 1.2 Update `AGENTS.md` (roadmap table + current-state notes) and `openspec/specs/feature-roadmap` current text with milestone F11 once the change lands; verify `npx openspec validate --strict` still passes.
 
 ## 2. Billboard render path
 

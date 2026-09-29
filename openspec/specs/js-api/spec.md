@@ -68,10 +68,12 @@ a class MAY additionally expose documented read-only query properties, which
 MUST be listed in the reference — the instances are Texture's `width` and
 `height`, MeshData's and Mesh's read-only `surfaceCount` delivered by F3,
 RenderTarget's `width` and `height` delivered by F5a, and Font's `size`,
-`lineHeight`, `ascent`, and `descent` delivered by F8), or slot-based
+`lineHeight`, `ascent`, and `descent` delivered by F8, and ParticleSystem's
+`count` delivered by F11), or slot-based
 (a fixed pre-allocated bank of indexed resources).
 The native-backed classes SHALL be exactly: MeshData, ImageData, Mesh,
-Texture, RenderTarget, FontData, and Font; skins, skeletons, and animation
+Texture, RenderTarget, FontData, Font, and ParticleSystem; skins, skeletons,
+and animation
 clips are
 implicit Mesh payload — loaded with the mesh and posed by the script
 (`efx.poseMesh`) — and are not script resources; extending the class list
@@ -90,7 +92,10 @@ the material does not own them and its
 classification and release contract are unchanged. Post-effect chain entries
 and their option bags (F5b) SHALL be classified JS-managed: plain objects
 snapshotted at `setPostEffects` call time, holding no native handle and no
-`destroy()`. Every resource requiring
+`destroy()`. A `ParticleSystem` SHALL be a native-backed class (F11) whose
+configuration is plain value state snapshotted by the engine; it SHALL retain
+the `Texture` or `RenderTarget` it draws with until the system is destroyed.
+Every resource requiring
 native storage MUST be a
 native-backed class — released deterministically by its `destroy()`,
 reclaimed by its GC finalizer if the script never calls it, and finalized
@@ -102,13 +107,14 @@ display list MUST stay alive until playback completes, and a `Texture` or
 `RenderTarget` referenced by a bound material map MUST stay alive until that
 binding is released. The reference SHALL
 document the engine's fixed limits: 4 point lights, 1 directional light,
-1 camera, 16 surfaces per mesh (F3), and a post-effect chain of at most
-8 entries (F5b); lights are the only slot bank.
+1 camera, 16 surfaces per mesh (F3), a post-effect chain of at most
+8 entries (F5b), and at most 65536 particles per particle system (F11);
+lights are the only slot bank.
 
 #### Scenario: Fixed limits stated
 
 - **WHEN** the reference document's limits section is read
-- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, and the 8-entry post-effect chain cap, matching vision.md and the 3d-core and post-fx capabilities
+- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, the 8-entry post-effect chain cap, and the 65536-particle system cap, matching vision.md and the 3d-core, post-fx, and particles capabilities
 
 #### Scenario: Unreleased native resource is reclaimed
 
@@ -123,7 +129,7 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 #### Scenario: Query properties are documented per class
 
 - **WHEN** the reference document's native-backed class entries are read
-- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the FontData entry lists none, and every other entry states that it has none
+- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the ParticleSystem entry lists the read-only `count`, the FontData entry lists none, and every other entry states that it has none
 
 #### Scenario: Render targets are accepted wherever textures are
 
@@ -145,11 +151,15 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 - **WHEN** the reference document's post-effect entries are read
 - **THEN** chain entries and option bags are stated to be plain JS objects snapshotted at call time, with no native handle and no `destroy()`, and the native effect passes are stated to be engine-owned (never script-visible)
 
+#### Scenario: Particle system is a native-backed class
+
+- **WHEN** the reference document's particle entries are read
+- **THEN** `ParticleSystem` is listed as a native-backed class with a `count` query property, a `destroy()` release, and a retained texture, and its configuration is stated to be plain value state snapshotted by the engine
+
 #### Scenario: Resource without a classification
 
 - **WHEN** a change proposes exposing a new resource type to scripts without classifying it as JS-managed, native-backed class, or slot-based
 - **THEN** the change is incomplete and MUST NOT update the API reference
-
 
 ### Requirement: Explicit lifecycle hook registration
 The engine SHALL expose `efx.registerUpdateHook(fn)` and
@@ -203,10 +213,11 @@ the globals SHALL keep working (their update callback now also receives `dt`).
   channel, and the player exits non-zero
 
 ### Requirement: Normative API reference document
+
 The project SHALL maintain `docs/js-api.md` as the normative, developer-facing
 reference of the entire script API. It SHALL contain an entry for every public
 API function with a signature sketch, a description, its layer tag, and the
-roadmap milestone (F1–F10) that delivers it. Entries for functions whose
+roadmap milestone (F1–F11) that delivers it. Entries for functions whose
 milestone has not passed its verification gate SHALL be explicitly marked
 provisional. The document SHALL also document the lifecycle model — loading `main.js`
 as the implicit init, with the `efx` namespace and engine API ready before it
@@ -223,17 +234,20 @@ adds, modifies, or removes a public API function
 MUST update the document in the same change.
 
 #### Scenario: Callable-today vs planned is distinguishable
+
 - **WHEN** a reader opens the reference
 - **THEN** the F1 functions (`efx.log`, `efx.quit`, `efx.args`,
   `efx.registerUpdateHook`, `efx.registerRenderHook`) are presented as current
   behavior, and later-milestone entries are marked provisional
 
 #### Scenario: Milestone change updates the reference
+
 - **WHEN** a feature change adds or changes an API function
 - **THEN** the same change contains the matching `docs/js-api.md` update with
   the function's signature, layer, and milestone tags
 
 #### Scenario: Input namespaces are documented
+
 - **WHEN** the reference is read after this change
 - **THEN** it catalogs `efx.keyboard`, `efx.mouse`, and `efx.window` with
   their query functions, event registrations, read-only properties, the
@@ -241,13 +255,23 @@ MUST update the document in the same change.
   tag
 
 #### Scenario: Module model is documented
+
 - **WHEN** the reference is read after this change
 - **THEN** it documents the CommonJS module format, the synchronous resolver
   and its supported/unsupported specifier forms, module caching and cycles,
   JSON modules, the module-shaped entry hooks, and the F10 milestone tag, and
   states that Node/npm compatibility is not provided
 
+#### Scenario: Particle, billboard, and sprite API is documented
+
+- **WHEN** the reference is read after this change
+- **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
+  and `drawParticles` with their options, error behavior, the `ParticleSystem`
+  class and its lifecycle, the `facing` render modes, and the F11 milestone
+  tag
+
 #### Scenario: Catalog derived from vision
+
 - **WHEN** the document's function catalog is checked against vision.md
 - **THEN** every capability vision.md names for the consumer API (2D quads,
   meshes, vertex colors, cameras, lights, Phong materials with maps, alpha
@@ -521,3 +545,61 @@ provisional `loadFont` entry SHALL be removed.
 #### Scenario: Type document is updated in the same change
 - **WHEN** this change updates `docs/js-api.md`
 - **THEN** `gallery/src/api/efx.d.ts` (and its type-test) declare `FontData`, `Font`, `drawText`, and `measureText` consistently with the reference
+
+### Requirement: Billboard, sprite-batch, and particle API
+
+The script API SHALL expose world-space billboard drawing, batched 2D sprite
+drawing, and CPU particle systems as C-implemented members of the single `efx`
+namespace, with identical names, signatures, semantics, and error behavior
+across the desktop and web bindings:
+
+- `efx.drawBillboard(pos, opts)` → records one world-space textured quad at a
+  3D position, oriented by the engine from the recorded 3D camera. `opts`
+  carries `texture`, `size`, `color`, `sourceRect`, `rotation`, `facing`
+  (`'view'` default or `'y'`), and `depthTest`, per the `billboards`
+  capability.
+- `efx.drawSprites(texture, sprites)` → records one 2D textured quad per entry
+  with `drawQuad` semantics, per the `2d-layer` capability.
+- `efx.createParticleSystem(opts)` → a native-backed `ParticleSystem`.
+- `efx.drawParticles(sys)` → records one particle batch for a live system.
+
+`ParticleSystem` SHALL be a native-backed class exposing a read-only `count`,
+a read-write `speedScale`, an `emit(n)` burst, `start`/`stop`/`pause`/`reset`,
+a `set(opts)` partial reconfiguration, and `destroy()` with a GC finalizer
+backstop. `drawSprites` SHALL be 2D-only; `drawBillboard` and `drawParticles`
+SHALL use the 3D camera. The `js-api` reference (`docs/js-api.md`) and the
+gallery type document (`gallery/src/api/efx.d.ts`) SHALL be updated in the same
+change, and the particle pool limit and the `ParticleSystem` class SHALL be
+reflected in the fixed-limits table and the native-backed class list.
+
+#### Scenario: New entries are cataloged
+
+- **WHEN** the API reference is read after this change
+- **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
+  and `drawParticles`, each tagged C-implemented and F11
+
+#### Scenario: Billboard is a 3D primitive
+
+- **WHEN** a script calls `drawBillboard(pos, { texture })` under a 3D camera
+- **THEN** the quad is placed and oriented in world space from the recorded 3D
+  camera, with no camera state supplied by the script
+
+#### Scenario: Sprite batch is 2D-only
+
+- **WHEN** a script calls `drawSprites(tex, [{ x, y }])`
+- **THEN** the sprites are recorded as 2D quads in the current 2D frame and are
+  not depth-tested or 3D-oriented
+
+#### Scenario: Particle system is exposed
+
+- **WHEN** a script calls `createParticleSystem(opts)` and reads the returned
+  object
+- **THEN** it is a `ParticleSystem` with a read-only `count` and the documented
+  methods, and `drawParticles` accepts it
+
+#### Scenario: Reference and type document are updated
+
+- **WHEN** this change updates `docs/js-api.md`
+- **THEN** `gallery/src/api/efx.d.ts` declares `drawBillboard`, `drawSprites`,
+  `ParticleSystem`, `createParticleSystem`, and `drawParticles` consistently
+  with the reference
