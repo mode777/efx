@@ -79,4 +79,4 @@
 - [x] 12.1 Re-read the main `js-api` and `feature-roadmap` specs and re-sync this change's MODIFIED blocks if `f11-particles-billboards` has archived, then verify `npx openspec validate --strict` passes
 - [x] 12.2 Run the Linux pipeline first (native suites incl. goldens + `efx_physics_tests`) via `python3 tools/verify_remote.py all <branch>` and fix any failures
 - [x] 12.3 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and confirm native Linux/Windows/macOS suites and the Emscripten ctest + cross-runtime compare are green
-- [ ] 12.4 Merge to `main` and push once the gate is green, then archive the change and sync the specs
+- [x] 12.4 Merge to `main` and push once the gate is green, then archive the change and sync the specs
