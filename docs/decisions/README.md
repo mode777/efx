@@ -51,6 +51,7 @@ directory holds only what stays true after a change is archived.
 | [0037](0037-commonjs-module-format.md) | Accepted | F10 makes CommonJS the engine module format: synchronous `require` resolved through the dir/zip provider by one shared pure-JS runtime, with a restricted resolver; ESM is a source format compiled to CommonJS and npm/Node compatibility is a non-goal |
 | [0038](0038-native-font-typesetting.md) | Accepted | F8a text is mid-level C: `loadFontData`→`createFont` bakes a fixed RGBA8 glyph atlas (optional baked outline/shadow) and `drawText`/`measureText` record opaque 2D quads; vendored stb_truetype/stb_rect_pack, no rich text/3D text (supersedes ADR 0013's font clause) |
 | [0039](0039-cpu-particle-billboard-pipeline.md) | Accepted | F11 particles are CPU-simulated native-backed systems; one oriented-quad basis serves `drawBillboard` and particle `facing` (`view`/`y`/`plane`) over a new depth-test/no-write pipeline variant; `drawSprites` reuses quad records; particles sort within their batch; curated showcases accompany the golden |
+| [0040](0040-physics-core.md) | Accepted | F12 collision/dynamics is a bespoke, dependency-free C11 core (its own math, no GLM) with one engine-owned world stepped by the script, a linear-only sequential-impulse solver, closest-feature narrowphase + conservative-advancement sweeps, one-way kinematic character push, sensors as a flag, and rounded cross-runtime determinism |
 
 ## Adding a decision
 

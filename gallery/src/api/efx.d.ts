@@ -5,10 +5,11 @@
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
 // Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7, F9, F10, F11,
-// and F8a are current behavior. F6d (the `--repl [<root>]` interactive console)
-// adds no API — it drives this same namespace from stdin; `.help`/`.exit` are
-// host commands, not `efx` functions. F8b is provisional and will be added when
-// delivered.
+// F12, and F8a are current behavior. F6d (the `--repl [<root>]` interactive
+// console) adds no API — it drives this same namespace from stdin;
+// `.help`/`.exit` are host commands, not `efx` functions. F8 is complete (F8b —
+// `drawModel`/demo pack — was retired as obsolete, superseded by multi-surface
+// meshes).
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
 // gallery editor (Monaco `addExtraLib`) and type-checked by `tsc`.
@@ -455,6 +456,138 @@ interface EfxQuat {
   toMat4(q: Quat): Mat4;
 }
 
+// F12 — collision, character & impulse dynamics
+
+/** A collision shape accepted by bodies and by the spatial queries. */
+type PhysicsShape =
+  | { type: 'sphere'; radius: number }
+  | { type: 'box'; size: Vec3 }
+  | { type: 'capsule'; radius: number; height: number }
+  | { type: 'mesh'; mesh: EfxMesh };
+
+interface CreateBodyOptions {
+  shape: PhysicsShape;
+  dynamic?: boolean;
+  sensor?: boolean;
+  position?: Vec3;
+  mass?: number;
+  friction?: number;
+  restitution?: number;
+  layer?: number;
+  mask?: number;
+}
+
+interface CreateStaticMeshOptions {
+  position?: Vec3;
+  sensor?: boolean;
+  friction?: number;
+  restitution?: number;
+  layer?: number;
+  mask?: number;
+}
+
+interface CreateCharacterOptions {
+  radius: number;
+  height: number;
+  position?: Vec3;
+  up?: Vec3;
+  floorMaxAngle?: number;
+  floorSnapLength?: number;
+  stepHeight?: number;
+  maxSlides?: number;
+  safeMargin?: number;
+  layer?: number;
+  mask?: number;
+}
+
+interface PhysicsContact {
+  readonly body: EfxBody | null;
+  readonly sensor: boolean;
+  readonly normal: Vec3;
+  readonly point: Vec3;
+  readonly depth: number;
+  readonly impulse: number;
+}
+
+interface EfxBody {
+  readonly position: Vec3;
+  velocity: Vec3;
+  readonly transform: Mat4;
+  readonly contacts: PhysicsContact[];
+  applyImpulse(v: Vec3): void;
+  applyForce(v: Vec3): void;
+  destroy(): void;
+}
+
+interface PhysicsMoveCollision {
+  readonly body: EfxBody | null;
+  readonly normal: Vec3;
+  readonly point: Vec3;
+}
+
+interface PhysicsMoveResult {
+  readonly position: Vec3;
+  readonly onFloor: boolean;
+  readonly onWall: boolean;
+  readonly onCeiling: boolean;
+  readonly floorNormal: Vec3;
+  readonly collisions: PhysicsMoveCollision[];
+}
+
+interface EfxCharacter {
+  readonly position: Vec3;
+  velocity: Vec3;
+  readonly onFloor: boolean;
+  moveAndSlide(motion: Vec3): PhysicsMoveResult;
+  destroy(): void;
+}
+
+interface RaycastOptions {
+  maxDistance: number;
+  mask?: number;
+  all?: boolean;
+  sensors?: boolean;
+}
+
+interface PhysicsRayHit {
+  readonly point: Vec3;
+  readonly normal: Vec3;
+  readonly distance: number;
+  readonly body: EfxBody | EfxCharacter | null;
+}
+
+interface OverlapOptions {
+  position?: Vec3;
+  mask?: number;
+}
+
+interface ShapeCastOptions {
+  mask?: number;
+  sensors?: boolean;
+}
+
+interface PhysicsShapeHit {
+  readonly point: Vec3;
+  readonly normal: Vec3;
+  readonly fraction: number;
+  readonly body: EfxBody | EfxCharacter | null;
+}
+
+interface EfxPhysics {
+  gravity: Vec3;
+  iterations: number;
+  step(dt: number): void;
+  clear(): void;
+  createBody(opts: CreateBodyOptions): EfxBody;
+  createStaticMesh(mesh: EfxMesh, opts?: CreateStaticMeshOptions): EfxBody;
+  createCharacter(opts: CreateCharacterOptions): EfxCharacter;
+  raycast(origin: Vec3, direction: Vec3, opts: RaycastOptions): PhysicsRayHit | null;
+  raycast(origin: Vec3, direction: Vec3, opts: RaycastOptions & { all: true }): PhysicsRayHit[];
+  overlap(shape: PhysicsShape, opts?: OverlapOptions): (EfxBody | EfxCharacter)[];
+  shapeCast(shape: PhysicsShape, from: Vec3, motion: Vec3,
+            opts?: ShapeCastOptions): PhysicsShapeHit | null;
+}
+
 interface Efx {
   // F1 — environment & lifecycle
   log(msg?: unknown): void;
@@ -528,6 +661,9 @@ interface Efx {
   drawSprites(texture: EfxSample, sprites: SpriteOptions[]): void;
   createParticleSystem(opts: ParticleSystemOptions): EfxParticleSystem;
   drawParticles(system: EfxParticleSystem): void;
+
+  // F12 — collision, character & impulse dynamics (single world, script-stepped)
+  physics: EfxPhysics;
 }
 
 declare const efx: Efx;

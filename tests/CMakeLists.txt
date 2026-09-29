@@ -61,6 +61,7 @@ add_player_test(smoke_10_escape ARGS "--script;${S}/s_10_escape.js" EXPECT nonze
 add_player_test(smoke_10_unsupported ARGS "--script;${S}/s_10_unsupported.js" EXPECT nonzero)
 add_player_test(smoke_10_nohost ARGS "--script;${S}/s_10_nohost.js" EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
 add_player_test(smoke_11_particles ARGS "--script;${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-11-particles-ok")
+add_player_test(smoke_12_physics ARGS "--script;${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
 add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
@@ -72,6 +73,7 @@ add_player_test(smoke_showcase_gltf ARGS "--script;${GALLERY}/gltf-showcase.js;-
 add_player_test(smoke_showcase_fox ARGS "--script;${GALLERY}/fox-walk.js;--root;${GALLERY}/fox-walk.zip" EXPECT 0)
 add_player_test(smoke_showcase_modules ARGS "--script;${GALLERY}/modules-showcase.js;--root;${GALLERY}/modules-showcase.zip" EXPECT 0)
 add_player_test(smoke_showcase_text ARGS "--script;${GALLERY}/text-showcase.js;--root;${GALLERY}/text-showcase.zip" EXPECT 0)
+add_player_test(smoke_showcase_physics ARGS "--script;${GALLERY}/physics-showcase.js" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
@@ -140,6 +142,7 @@ if(EMSCRIPTEN)
     add_web_test(web_10_unsupported ${S}/s_10_unsupported.js EXPECT nonzero)
     add_web_test(web_10_nohost ${S}/s_10_nohost.js EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
     add_web_test(web_11_particles ${S}/s_11_particles.js EXPECT 0 EXPECT_OUT "s-11-particles-ok")
+    add_web_test(web_12_physics ${S}/physics_smoke.js EXPECT 0 EXPECT_OUT "s-12-physics-ok")
     add_web_test(web_8a_text ${F}/web/text_root EXPECT 0 EXPECT_OUT "s-8a-text-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
@@ -165,6 +168,17 @@ endforeach()
 
 foreach(CASE names level_edge repeat ordering deltas mouse focus chars window mods)
     add_unit_test(efx_input_tests ${CASE})
+endforeach()
+
+# F12 physics core (pure C, display-free)
+foreach(CASE
+    t_support_basic t_shapes t_narrow_triangle t_narrow_pairs t_ray_shapes
+    t_sweep_shapes t_bvh_query t_world_registry t_broadphase_filter
+    t_determinism t_integrate t_contact_manifold t_restitution_friction
+    t_settle t_step_dt t_stress t_sensors t_contact_report t_raycast_query
+    t_overlap_query t_shapecast_query t_character_create t_move_slide
+    t_floor_classify t_floor_snap t_step_up t_character_push)
+    add_unit_test(efx_physics_tests ${CASE})
 endforeach()
 
 foreach(CASE
@@ -208,7 +222,7 @@ foreach(CASE
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
     resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
     module_js module_hooks_js font_js
-    billboard_js particles_js sprites_js)
+    billboard_js particles_js sprites_js physics_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()

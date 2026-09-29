@@ -101,8 +101,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `top`/`middle`/`bottom`; no rich text/3D text) and return
   `{ width, height, lines }`. The module is `src/render/text.c` over the
   vendored `stb_truetype`/`stb_rect_pack` (change `f8a-font-typesetting`,
-  ADR 0038, which supersedes ADR 0013's pure-JS-font clause); the remaining
-  F8 slice (`drawModel`, demo pack) is provisional. Its gate is the text
+  ADR 0038, which supersedes ADR 0013's pure-JS-font clause); the former
+  F8b slice (`drawModel` + demo pack) is retired as obsolete, superseded by
+  F3's multi-surface meshes (ADR 0024). Its gate is the text
   golden scenes plus headless layout/measure unit tests and the portable
   `web_8a_text`/`smoke_8a_text` script cases; the four-target gate is
   **green** (ci run 36486291011: native suites incl. the text goldens on
@@ -128,6 +129,30 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   billboard/particle golden scene, headless simulation/billboard unit tests,
   the portable `web_11_particles`/`smoke_11_particles` script cases, and two
   curated gallery showcases (effects + water plane).
+- F12 (collision + character + impulse dynamics) is **implemented** as an
+  orthogonal milestone (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8)
+  — a bespoke, dependency-free C11 core (`src/physics/`: its own
+  `vec3`/`quat`/`mat3`, no GLM, no renderer/platform/script deps) owns one
+  world of colliders (`efx.physics.clear`), stepped by the script
+  (`efx.physics.step(dt)`; the engine never steps). Shapes are plain option
+  bags (sphere, box, vertical capsule, static triangle mesh). Dynamic bodies
+  are linear-only (no rotation) with `mass`/`velocity`/`friction`/
+  `restitution`, `applyImpulse`/`applyForce`, per-body `layer`/`mask`, sensors
+  (never resolve, but reported), and a deterministic per-body `contacts` list
+  `{ body, sensor, normal, point, depth, impulse }` reset each step. A
+  sequential-impulse solver (fixed restitution target, clamped friction, slop
+  position correction) plus conservative-advancement sweeps back the capsule
+  `Character` (`createCharacter` → `moveAndSlide(motion)`: swept slide,
+  floor/wall/ceiling classification, floor snapping, step-up, `maxSlides`,
+  `safeMargin`) and the queries `raycast`/`overlap`/`shapeCast`. Characters
+  push dynamic bodies one-way (immovable during `step`; never blocked by
+  dynamics/sensors in `moveAndSlide`). `Body` and `Character` are native-backed
+  classes with idempotent `destroy()` and a GC-finalizer backstop, registered
+  identically by both bindings. Storage is dynamic (no fixed cap). Its gate is
+  the headless `efx_physics_tests` suite (narrowphase, invariants, scenarios,
+  determinism, stress), the portable `smoke_12_physics`/`web_12_physics` script
+  case through both runtimes, and the cross-runtime compare — no golden image
+  (change `f12-collision-physics`, ADR 0040, recorded in AGENTS.md).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -183,7 +208,7 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   (ADR 0022); the F2 change is archived at
   `openspec/changes/archive/2026-09-22-f2-2d-layer`.
 - `src/` is a single core static library (`platform`, `runtime`, `api`,
-  `player`, `render`) plus a thin `main.c` (ADR 0003). Sokol and
+  `player`, `render`, `physics`) plus a thin `main.c` (ADR 0003). Sokol and
   quickjs-ng are vendored pinned snapshots under `vendor/`
   (`vendor/README.md`, ADR 0006); stb is vendored for golden-image I/O.
 - The `efx` player binary has two run modes (ADR 0007): windowed
@@ -233,8 +258,13 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   globals; `main.js` is the entry module and its `module.exports.update`/
   `.render` join the global `update`/`render` load-time sugar (registered once)
   —
-  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F8a/F9/F10 entries are current
-  behavior; F8b — `drawModel`/demo pack — is provisional;
+  plus F12's physics sub-namespace — `efx.physics` (`gravity`/`iterations`,
+  `step`, `clear`, `createBody`, `createCharacter`, `createStaticMesh`,
+  `raycast`, `overlap`, `shapeCast`) with the native-backed `Body`/`Character`
+  classes (`destroy`, read-only `position`/`contacts`/`transform`/`onFloor`,
+  read-write `velocity`, `applyImpulse`/`applyForce`, `moveAndSlide`) —
+  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F8/F9/F10/F11/F12 entries
+  are current behavior;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
   The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
   batch and shorthand forms as an exclusive union (the batch form does not
@@ -361,12 +391,13 @@ independently of F3–F8.
 | F3 | 3D core | Camera, multi-surface mesh resources (ADR 0024), `drawMesh` with depth test, GLM math wrapper, vertex colors, procedural primitives, pure-JS math layer | Golden images + math unit tests | done — four-target gate green (run 36122872839); ADR 0024/0025 |
 | F4 | Lighting + Phong (F4a/F4b) | 4 point + 1 directional light, 4-channel Phong on solids/vertex colors (F4a); per-channel maps + alpha masks (F4b); F4 lighting shaders reuse the sokol-shdc pipeline (strategy settled in F2, ADR 0021) | Golden images + lighting unit tests against a CPU reference implementation | done — F4a gate green (run 36271736775, ADR 0026); F4b gate green (run 36284454599, ADR 0027) |
 | F5 | Render targets + post FX | F5a: RTT, texture-coerced sampling, segmentation (ADR 0028); F5b: fullscreen passes, declarative effect chain, `mix`, render scale (ADR 0029) | Golden images | done — F5a gate green (run 36309953607, archived 2026-09-27); F5b gate green (run 36313950553, archived 2026-09-27) |
-| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | in progress — F6a (resource root + text/image loading) done, gate green (run 36338597814); F6b (glTF static import) done, gate green (run 36344464419, ADR 0032); F6c (rig import) done, gate green (run 36347575565, ADR 0033); F6d (interactive console) done, gate green (run 36367478373); F6e (texture creation options) done, gate green (run 36392688547) |
+| F6 | Resource packaging | Zip resource root, glTF 2.0 asset import — meshes, images, skins, animation clips (profile decided here), interactive REPL | Script tests load assets from a zip; REPL exercised via piped stdin | done — F6a (resource root + text/image loading) gate green (run 36338597814); F6b (glTF static import) gate green (run 36344464419, ADR 0032); F6c (rig import) gate green (run 36347575565, ADR 0033); F6d (interactive console) gate green (run 36367478373); F6e (texture creation options) gate green (run 36392688547) |
 | F7 | Skinning + animation | CPU skinning into a mesh slot, skeleton/animation import, script-driven posing | FK joint-transform tests vs CPU reference + golden images | done — `poseMesh` + `skinned` draw option, CPU-reference unit tests, `skin_pose` golden, CC0 Fox gallery sample (ADR 0035); four-target gate green (run 36443794987) |
-| F8 | High-level JS + text | F8a: `loadFontData`/`createFont`/`drawText`/`measureText` (fixed C-baked atlas, wrap + alignment, baked outline/shadow); F8b: `drawModel`, demo resource pack | Golden images; demo pack runs end-to-end on all four targets | in progress — F8a implemented (change `f8a-font-typesetting`, ADR 0038); F8b provisional |
+| F8 | High-level JS + text | `loadFontData`/`createFont`/`drawText`/`measureText` (fixed C-baked atlas, wrap + alignment, baked outline/shadow) | Text golden images + headless layout/measure unit tests | done — F8a implemented (change `f8a-font-typesetting`, ADR 0038); F8b (`drawModel` + demo resource pack) retired as obsolete — superseded by F3's multi-surface meshes (ADR 0024) |
 | F9 | Input (keyboard + mouse) | **Orthogonal** (predecessor F2; independent of F3–F8): pure-C frame-staged input core, `efx.keyboard`/`efx.mouse`/`efx.window` query + event API, surface-pixel coordinates, test-only injection seam | Non-visual: headless unit tests over the C core + a script-level simulation harness, all four targets (no golden image) | implemented — change `f9-input`, ADR 0036; four-target gate green (run 36448429521) |
 | F10 | Script modules (CommonJS) | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F9): synchronous provider-backed `require` in the shared pure-JS prelude, restricted resolver, module caching/cycles, `__esModule` interop, JSON modules, `main.js` as a module, TypeScript `import`→CommonJS authoring | Script-level module tests on all four targets (ctest + Emscripten ctest + cross-runtime compare; no golden image) | implemented — change `f10-commonjs-modules`, ADR 0037; four-target gate green (run 36463101573) |
 | F11 | Particles + billboards | **Orthogonal** (predecessors F2 + F3, F6a for file textures; independent of F4/F5/F7/F8): CPU-simulated engine-owned particle systems (`createParticleSystem`/`emit`/`drawParticles`, 3D world or 2D screen, `facing` `view`/`y`/`plane`), world-space `drawBillboard`, batched 2D `drawSprites`, a depth-test/no-write billboard pipeline, and curated gallery showcases | Golden image + headless simulation/billboard unit tests + portable script case + curated showcases, all four targets | implemented — change `f11-particles-billboards`, ADR 0039; four-target gate green (run 36563480277) |
+| F12 | Collision + character + impulse dynamics | **Orthogonal** (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8): a bespoke dependency-free C11 core (`src/physics/`) — sphere/box/capsule/triangle-mesh colliders, one script-stepped world, linear-only sequential-impulse dynamics, sensors, `Body`/`Character` native-backed classes, the `moveAndSlide` capsule controller, and the `raycast`/`overlap`/`shapeCast` queries — plus a curated gallery showcase | Headless `efx_physics_tests` (narrowphase, invariants, scenarios, determinism, stress) + portable script case through both runtimes + cross-runtime compare (no golden image) | implemented — change `f12-collision-physics`, ADR 0040 |
 
 Deferred cross-cutting decisions settle inside specific milestones, not
 before: golden-image tolerance + CI determinism (incl. emsdk pinning) in
@@ -389,8 +420,8 @@ settled — see `docs/decisions/`.
   created attachments must declare the env-default pixel formats. "Only
   GL renders correctly" plus half-missing meshes means check this first.
 - JS API layering: low/mid-level in C/C++ (`drawQuad`, `drawMesh`,
-  `setMaterial`…), high-level conveniences in pure JS (`drawModel`,
-  `drawText`…).
+  `setMeshSurfaceMaterial`, `drawText`…), high-level conveniences in pure JS
+  (`makeCube`/`makePlane`/`makeSphere`…).
 - JS code must have **zero browser/Node dependencies, not even transitively**.
 - Memory rules: manage resources in JS where possible; unavoidable unmanaged
   resources are exposed as GC-finalized opaque classes with explicit

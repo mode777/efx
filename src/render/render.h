@@ -408,6 +408,15 @@ int efx_render_mesh_destroy(uint64_t h);
 int efx_render_mesh_alive(uint64_t h);
 int efx_render_mesh_surface_count(uint64_t h);
 void *efx_render_mesh_native(uint64_t h);
+
+/* F12: exports a live mesh's triangles for a physics static-mesh collider.
+ * geometry_count returns the total vertices (out_verts) and triangle indices
+ * (out_indices, multiple of 3) across all surfaces; geometry copies positions
+ * (3 floats/vertex) and triangle indices into caller buffers sized from the
+ * counts. Returns 1 on success, 0 for a dead/empty handle. */
+int efx_render_mesh_geometry_count(uint64_t h, int *out_verts,
+                                   int *out_indices);
+int efx_render_mesh_geometry(uint64_t h, float *positions, uint32_t *indices);
 /* test/introspection: the rig carried by a live Mesh (NULL when static;
  * ownership stays with the mesh). Not script-visible (F6c design D6). */
 const efx_rig *efx_render_mesh_rig(uint64_t h);

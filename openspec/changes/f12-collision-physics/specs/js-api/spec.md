@@ -12,12 +12,14 @@ a class MAY additionally expose documented read-only query properties, which
 MUST be listed in the reference — the instances are Texture's `width` and
 `height`, MeshData's and Mesh's read-only `surfaceCount` delivered by F3,
 RenderTarget's `width` and `height` delivered by F5a, Font's `size`,
-`lineHeight`, `ascent`, and `descent` delivered by F8, and the physics
+`lineHeight`, `ascent`, and `descent` delivered by F8, ParticleSystem's
+`count` delivered by F11, and the physics
 `Body`'s `position`, `velocity`, `contacts`, and `transform` and `Character`'s
 `position`, `velocity`, and `onFloor` delivered by F12), or slot-based
 (a fixed pre-allocated bank of indexed resources).
 The native-backed classes SHALL be exactly: MeshData, ImageData, Mesh,
-Texture, RenderTarget, FontData, Font, Body, and Character; skins, skeletons,
+Texture, RenderTarget, FontData, Font, ParticleSystem, Body, and Character;
+skins, skeletons,
 and animation
 clips are
 implicit Mesh payload — loaded with the mesh and posed by the script
@@ -37,7 +39,10 @@ the material does not own them and its
 classification and release contract are unchanged. Post-effect chain entries
 and their option bags (F5b) SHALL be classified JS-managed: plain objects
 snapshotted at `setPostEffects` call time, holding no native handle and no
-`destroy()`. Every resource requiring
+`destroy()`. A `ParticleSystem` SHALL be a native-backed class (F11) whose
+configuration is plain value state snapshotted by the engine; it SHALL retain
+the `Texture` or `RenderTarget` it draws with until the system is destroyed.
+Every resource requiring
 native storage MUST be a
 native-backed class — released deterministically by its `destroy()`,
 reclaimed by its GC finalizer if the script never calls it, and finalized
@@ -49,13 +54,14 @@ display list MUST stay alive until playback completes, and a `Texture` or
 `RenderTarget` referenced by a bound material map MUST stay alive until that
 binding is released. The reference SHALL
 document the engine's fixed limits: 4 point lights, 1 directional light,
-1 camera, 16 surfaces per mesh (F3), and a post-effect chain of at most
-8 entries (F5b); lights are the only slot bank.
+1 camera, 16 surfaces per mesh (F3), a post-effect chain of at most
+8 entries (F5b), and at most 65536 particles per particle system (F11);
+lights are the only slot bank.
 
 #### Scenario: Fixed limits stated
 
 - **WHEN** the reference document's limits section is read
-- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, and the 8-entry post-effect chain cap, matching vision.md and the 3d-core and post-fx capabilities
+- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, the 8-entry post-effect chain cap, and the 65536-particle system cap, matching vision.md and the 3d-core, post-fx, and particles capabilities
 
 #### Scenario: Unreleased native resource is reclaimed
 
@@ -70,7 +76,7 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 #### Scenario: Query properties are documented per class
 
 - **WHEN** the reference document's native-backed class entries are read
-- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the Body entry lists `position`, `velocity`, `contacts`, and `transform`, the Character entry lists `position`, `velocity`, and `onFloor`, the FontData entry lists none, and every other entry states that it has none
+- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the ParticleSystem entry lists the read-only `count`, the Body entry lists `position`, `velocity`, `contacts`, and `transform`, the Character entry lists `position`, `velocity`, and `onFloor`, the FontData entry lists none, and every other entry states that it has none
 
 #### Scenario: Render targets are accepted wherever textures are
 
@@ -91,6 +97,11 @@ document the engine's fixed limits: 4 point lights, 1 directional light,
 
 - **WHEN** the reference document's post-effect entries are read
 - **THEN** chain entries and option bags are stated to be plain JS objects snapshotted at call time, with no native handle and no `destroy()`, and the native effect passes are stated to be engine-owned (never script-visible)
+
+#### Scenario: Particle system is a native-backed class
+
+- **WHEN** the reference document's particle entries are read
+- **THEN** `ParticleSystem` is listed as a native-backed class with a `count` query property, a `destroy()` release, and a retained texture, and its configuration is stated to be plain value state snapshotted by the engine
 
 #### Scenario: Resource without a classification
 

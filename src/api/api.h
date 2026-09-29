@@ -69,6 +69,9 @@ int efx_api_init(JSContext *ctx);
  * the single efx object (shared by the desktop binding) */
 int efx_api_register_input(JSContext *ctx, JSValueConst efx);
 
+/* F12: attach the efx.physics sub-namespace to the single efx object */
+int efx_api_register_physics(JSContext *ctx, JSValueConst efx);
+
 void efx_log(const char *msg);
 
 #endif

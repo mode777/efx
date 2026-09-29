@@ -40,6 +40,12 @@ struct efx_host_state {
     struct efx_hook_list input_mouse_wheel;
     /* F6a resource root (owned by the player, not the runtime) */
     struct efx_resource *resource;
+    /* F12 physics: the single engine-owned world and the linked lists of live
+     * Body/Character wrappers (borrowed JSValues, used for contact/hit
+     * identity) */
+    void *physics_world;
+    void *physics_bodies;
+    void *physics_characters;
 };
 
 /* stable selector for the host callback lists (update/render + F9 input);

@@ -1538,9 +1538,9 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
         if (!native) {
             goto skin_alloc_fail;
         }
-        if (!skinned) {
-            pending_free(&pending); /* static meshes keep no CPU bind copy */
-        }
+        /* F12: the interleaved CPU bind copy is retained for every mesh (not
+         * just skinned ones) so createStaticMesh can read its triangles; it is
+         * freed with the mesh. */
     }
     m->used = 1;
     m->alive = 1;
@@ -1697,6 +1697,51 @@ int efx_render_mesh_surface_count(uint64_t h) {
 void *efx_render_mesh_native(uint64_t h) {
     mesh_slot *m = mesh_get(h);
     return m ? m->native : NULL;
+}
+
+int efx_render_mesh_geometry_count(uint64_t h, int *out_verts,
+                                   int *out_indices) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive) return 0;
+    int verts = 0, indices = 0;
+    for (int i = 0; i < m->pending.count; i++) {
+        const efx_mesh_gpu_surface *s = &m->pending.surfs[i];
+        verts += s->vertex_count;
+        indices += s->indices ? s->index_count : s->vertex_count;
+    }
+    if (out_verts) *out_verts = verts;
+    if (out_indices) *out_indices = indices;
+    return 1;
+}
+
+int efx_render_mesh_geometry(uint64_t h, float *positions,
+                             uint32_t *indices) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive || !positions || !indices) return 0;
+    int vbase = 0;
+    int ibase = 0;
+    for (int i = 0; i < m->pending.count; i++) {
+        const efx_mesh_gpu_surface *s = &m->pending.surfs[i];
+        for (int v = 0; v < s->vertex_count; v++) {
+            const float *src = &s->interleaved[(size_t)v * 12];
+            positions[(size_t)(vbase + v) * 3 + 0] = src[0];
+            positions[(size_t)(vbase + v) * 3 + 1] = src[1];
+            positions[(size_t)(vbase + v) * 3 + 2] = src[2];
+        }
+        if (s->indices) {
+            for (int k = 0; k < s->index_count; k++) {
+                indices[ibase + k] = (uint32_t)(vbase + s->indices[k]);
+            }
+            ibase += s->index_count;
+        } else {
+            for (int v = 0; v < s->vertex_count; v++) {
+                indices[ibase + v] = (uint32_t)(vbase + v);
+            }
+            ibase += s->vertex_count;
+        }
+        vbase += s->vertex_count;
+    }
+    return 1;
 }
 
 const efx_rig *efx_render_mesh_rig(uint64_t h) {

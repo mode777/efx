@@ -87,5 +87,12 @@
     "title": "Water Plane",
     "category": "Showcase",
     "description": "F11 oriented-plane particles: a water surface built from fixed `facing: 'plane'` quads (normal +Y) that stay world-aligned as the camera orbits, with a camera-facing spray and a y-billboard above it."
+  },
+  {
+    "file": "physics-showcase.js",
+    "id": "curated:physics-showcase",
+    "title": "Physics Playground",
+    "category": "Showcase",
+    "description": "F12 collision + character + dynamics: a capsule character walks a static course with moveAndSlide (floor/wall classification, a ramp, and a step), triggers a sensor volume, pushes falling and pushable crates, and casts a raycast for line of sight. Procedural geometry, no asset pack."
   }
 ]

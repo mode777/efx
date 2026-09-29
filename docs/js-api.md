@@ -9,14 +9,13 @@ no new API), F6e (texture creation options), F7 (CPU skinning +
 animation — `poseMesh` and the `skinned` draw option), F9 (input —
 keyboard + mouse query and event API), F10 (script modules — CommonJS
 `require`), F8a (font + text — `loadFontData`, `createFont`,
-`drawText`, `measureText`), and F11 (billboards, 2D sprite batches, and CPU
+`drawText`, `measureText`), F11 (billboards, 2D sprite batches, and CPU
 particle systems — `drawBillboard`, `drawSprites`, `createParticleSystem`,
-`drawParticles`) are implemented
-(current behavior). The remaining F8 slices (`drawModel`, demo resource
-pack) are a provisional contract — names and
-signatures may be reshaped by
-the change that delivers them (every API change must update this document in
-the same change). See `vision.md` for product goals and
+`drawParticles`), and F12 (collision + character + impulse dynamics —
+`efx.physics`) are implemented
+(current behavior). F8 is complete: the former F8b slice (`drawModel` + demo
+resource pack) is retired as obsolete, superseded by multi-surface meshes
+(ADR 0024). See `vision.md` for product goals and
 `openspec/specs/feature-roadmap` for the milestone ladder.
 
 ## Overview
@@ -207,7 +206,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Class | Meaning | Release path |
 |---|---|---|
 | **JS-managed** | Plain data objects; garbage collected | Drop the reference |
-| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`; Font: `size`/`lineHeight`/`ascent`/`descent`; ParticleSystem: `count`; FontData: none); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
+| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`; Font: `size`/`lineHeight`/`ascent`/`descent`; ParticleSystem: `count`; Body: `position`/`velocity`/`contacts`/`transform`; Character: `position`/`onFloor`; FontData: none); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
 | **Slot-based** | Fixed pre-allocated bank of indexed resources | Overwrite the slot |
 
 | Resource | Contents | Class | Side | Delivered | Notes |
@@ -222,6 +221,8 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | FontData | Parsed TrueType/OpenType font (CPU, no GPU resource) | Native class | CPU | F8a | `loadFontData(path)`; `destroy()`; no query properties |
 | Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | F8a | `createFont(fontData, opts)`; `destroy()`; read-only `size`/`lineHeight`/`ascent`/`descent`; passed to `drawText`/`measureText` |
 | ParticleSystem | CPU-simulated pool + emitter configuration (engine-owned) | Native class | CPU | F11 | `createParticleSystem(opts)`; `destroy()`; read-only `count`; read-write `speedScale`; `emit`/`start`/`stop`/`pause`/`reset`/`set`; retains its texture until destroyed; rendered by `drawParticles` |
+| Body | One collision collider in the single physics world: static, dynamic, or sensor; analytic shape or a static triangle mesh | Native class | CPU | F12 | `efx.physics.createBody` / `createStaticMesh`; `destroy()`; read-only `position`/`transform`/`contacts`; read-write `velocity`; `applyImpulse`/`applyForce` (dynamic only) |
+| Character | Kinematic vertical-capsule character controller in the single physics world | Native class | CPU | F12 | `efx.physics.createCharacter`; `destroy()`; read-only `position`/`onFloor`; read-write `velocity`; `moveAndSlide(motion)` |
 | Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
 
 **Resource lifecycle rules:**
@@ -252,6 +253,9 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Post-effect chain | 8 entries (F5b) |
 | Particles per system | 65536 (F11) |
 | Render-target size | 4096 per side (width and height, positive integers; F5a) |
+
+Physics colliders are **dynamic-count** (no fixed cap): the world grows with
+the script, with soft guidance rather than a hard maximum (F12, ADR 0040).
 
 ## API catalog
 
@@ -1090,32 +1094,6 @@ efx.registerRenderHook(() => {
 });
 ```
 
-### F8b — High-level model drawing (provisional)
-
-The remaining F8 slice: `drawModel`, a pure-JS convenience over the `[C]`
-mesh/material API, plus the demo resource pack.
-
-```js
-// F8b · JS · provisional
-efx.drawModel(mesh, mat?, opts?)     // { transform?, skinned? } — pure-JS:
-                                     // binds mat to every surface lacking a bound
-                                     // material, then drawMesh (ADR 0024)
-```
-
-```js
-// main.js — F8b sample (provisional API)
-efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });
-const teapot = efx.createMesh(efx.loadMeshData('models/teapot.gltf'));
-let yaw = 0;
-efx.registerUpdateHook(dt => { yaw += dt * 30; });
-efx.registerRenderHook(() => {
-    efx.drawModel(teapot, {
-        diffuse:  { color: [0.8, 0.3, 0.2, 1] },
-        specular: { color: [1, 1, 1, 1], shininess: 32 },
-    }, { transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]) });
-});
-```
-
 ### F9 — Input: keyboard, mouse & window (current)
 
 Keyboard and mouse input as three sub-namespaces of the single `efx` object,
@@ -1272,11 +1250,127 @@ efx.registerRenderHook(() => {
 });
 ```
 
+### F12 — Collision, character & impulse dynamics (current)
+
+A bespoke, CPU, deterministic collision + linear-dynamics + character system
+owned by the C core and exposed as a single `efx.physics` sub-namespace
+(ADR 0040). There is exactly **one world**, and the **script owns stepping**:
+`efx.physics.step(dt)` advances it and the engine never does. Bodies and
+characters are native-backed classes whose data lives in the world; the
+engine records contacts per dynamic body for polling. The core has no
+renderer, platform, or GLM dependency.
+
+**Shapes** are plain option bags accepted by bodies and by the queries:
+
+```js
+{ type: 'sphere',  radius }              // radius > 0
+{ type: 'box',     size: [x, y, z] }     // full extent, each > 0 (matches makeCube)
+{ type: 'capsule', radius, height }      // vertical; height >= 2 * radius (tip-to-tip)
+{ type: 'mesh',    mesh }                // live Mesh; static bodies/queries only
+```
+
+A non-positive `radius` or `size` component, or `capsule.height < 2 * radius`,
+throws `RangeError`; an unknown `type`, an unknown field, or a non-`Mesh`
+`mesh` throws `TypeError`.
+
+```js
+// world configuration
+efx.physics.gravity            // [x, y, z], read/write, default [0, -9.81, 0]
+efx.physics.iterations         // positive integer, read/write, default 8
+efx.physics.step(dt)           // advance the world by dt seconds (script-owned)
+efx.physics.clear()            // remove every collider
+
+// factories → Body / Character
+efx.physics.createBody(opts)         // [C]
+efx.physics.createCharacter(opts)    // [C]
+efx.physics.createStaticMesh(mesh, opts?) // [C]
+
+// spatial queries (physics-queries)
+efx.physics.raycast(origin, direction, opts?)     // → hit | null; opts.all → sorted array
+efx.physics.overlap(shape, opts?)                 // → Body/Character handles (incl. sensors)
+efx.physics.shapeCast(shape, from, motion, opts?) // → { point, normal, fraction, body } | null
+```
+
+**`createBody(opts)`** — `opts`: `shape` (required), `dynamic` (default
+`false`), `sensor` (default `false`), `position` (default `[0, 0, 0]`),
+`mass` (dynamic; default `1`, must be positive or `RangeError`), `friction`
+(default `0.5`), `restitution` (default `0`, in `[0, 1]`), `layer`, `mask`
+(32-bit bitmasks, default all bits). A dynamic body with a `mesh` shape
+throws `TypeError` (use a static body or `createStaticMesh`). Two colliders
+interact only when each one's `layer` is in the other's `mask`.
+
+**`createStaticMesh(mesh, opts?)`** — builds a static triangle-mesh collider
+from a live `Mesh` (arbitrary surface count); `opts` accepts `position`,
+`sensor`, `friction`, `restitution`, `layer`, `mask`.
+
+**`Body`** — native-backed class. Read-only `position`, `transform` (a flat
+16-number column-major translation matrix, directly usable by `drawMesh`),
+and `contacts`; read-write `velocity`; `applyImpulse(v)` / `applyForce(v)`
+(dynamic only, else `TypeError`); idempotent `destroy()`; GC-finalizer
+backstop. `body.contacts` is a read-only array of plain objects
+`{ body, sensor, normal, point, depth, impulse }`, valid until the next
+`step`; `body` is the other collider's handle (`null` for a static mesh or
+character), ordered deterministically. Dynamic bodies never rotate: boxes
+stay axis-aligned and capsules stay vertical.
+
+**`Character`** — a kinematic vertical capsule. `createCharacter(opts)`:
+`radius` and `height` (required; `height >= 2 * radius`), `position`
+(default `[0, 0, 0]`), `up` (default `[0, 1, 0]`, non-zero), `floorMaxAngle`
+(degrees, default `45`), `floorSnapLength` (default `0.1`), `stepHeight`
+(default `0.3`; `0` disables step-up), `maxSlides` (positive integer,
+default `6`), `safeMargin` (default `0.001`), `layer`, `mask`. Read-only
+`position` and `onFloor`; read-write `velocity`. `moveAndSlide(motion)`
+sweeps the capsule, slides it along blocking static/kinematic geometry,
+classifies floor / wall / ceiling, snaps to floors, climbs steps, and returns
+`{ position, onFloor, onWall, onCeiling, floorNormal, collisions }`.
+`collisions` lists `{ body, normal, point }`. Dynamic bodies and sensors
+never block a move; during `step` a character is an immovable collider, so a
+dynamic body in contact is pushed away from it (one-way push), driven by the
+character's script-set `velocity`.
+
+**Queries.** `raycast(origin, direction, opts?)` normalizes the direction and
+requires `maxDistance` (positive finite; missing or non-positive throws
+`TypeError`); `opts.mask` filters by layer, `opts.all` returns every hit
+sorted by distance, and `opts.sensors` includes sensors (excluded by
+default). `overlap(shape, opts?)` takes `position` (default `[0, 0, 0]`) and
+`mask`, and returns the live `Body` / `Character` handles it intersects
+(including sensors). `shapeCast(shape, from, motion, opts?)` sweeps a shape
+and returns the first hit `{ point, normal, fraction, body }` (`fraction` in
+`[0, 1]`) or `null`; `opts.sensors` includes sensors.
+
+```js
+// main.js — F12 sample
+efx.physics.gravity = [0, -9.81, 0];
+const ground = efx.physics.createBody({
+    shape: { type: 'box', size: [40, 1, 40] }, position: [0, -0.5, 0] });
+const crate = efx.physics.createBody({
+    dynamic: true, mass: 2, friction: 0.6, restitution: 0.1,
+    shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0] });
+const hero = efx.physics.createCharacter({ radius: 0.4, height: 1.8,
+    position: [0, 1, 0] });
+
+efx.registerUpdateHook((dt) => {
+    efx.physics.step(dt);
+    const move = hero.moveAndSlide([1.5 * dt, -9.81 * dt, 0]);
+    if (hero.contacts.length || crate.contacts.length) { /* react */ }
+});
+efx.registerRenderHook(() => {
+    efx.drawMesh(crateMesh, { transform: crate.transform });
+});
+```
+
+**Classification & lifecycle.** `Body` and `Character` are native-backed
+classes (ADR 0011/0013): `destroy()` is deterministic and idempotent, an
+unreferenced instance is reclaimed by its GC finalizer, and use after
+destruction throws. Physics storage is dynamically allocated — there is no
+fixed body cap, only soft guidance (aim well under a few thousand dynamic
+bodies for CPU comfort). The core is pure C11 with no GLM, and its unit
+tests build and run headless without a display (ADR 0040).
+
 ## Vision traceability
 
 Every consumer-API property named in `vision.md` maps to exactly one catalog
 section (or an open question below):
-
 | vision.md property | Where |
 |---|---|
 | 2D drawing via quads | F2 |
@@ -1297,9 +1391,10 @@ section (or an open question below):
 | PS2-era particle effects (fire, smoke, sparks) | F11 (`createParticleSystem` / `drawParticles`, current) |
 | World-space sprites / billboards | F11 (`drawBillboard`, current) |
 | Batched 2D sprite drawing | F11 (`drawSprites`, current) |
+| Collision detection / character controller / simple dynamics | F12 (`efx.physics` — `createBody`, `createCharacter`, `step`, current) |
+| Raycasts / line-of-sight / picking | F12 (`efx.physics.raycast`, `overlap`, `shapeCast`, current) |
 | Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, current) |
 | Script modules / splitting authored code (TypeScript `import`) | F10 (CommonJS `require`, current — Script modules section) |
-| High-level functions in pure JS (`drawModel`) | F8b |
 | Text / fonts (TrueType atlas + formatted 2D text) | F8a (native C typesetting, `loadFontData`/`createFont`/`drawText`/`measureText`) |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |
 | Low/mid C + high-level JS layering | Overview (two layers), every entry tag |

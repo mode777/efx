@@ -4,6 +4,7 @@
 #include "runtime/runtime_internal.h"
 #include "api/api.h"
 #include "input/efx_input.h"
+#include "physics/physics.h"
 #include "prelude/prelude.h"
 
 #include <stdio.h>
@@ -235,6 +236,13 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         efx_runtime_destroy(rt);
         return NULL;
     }
+    if (efx_api_register_physics(rt->ctx, efx) < 0) {
+        fprintf(stderr, "player: physics api init failed\n");
+        JS_FreeValue(rt->ctx, efx);
+        JS_FreeValue(rt->ctx, glob);
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
     JS_SetPropertyStr(rt->ctx, glob, "efx", efx);
     JS_FreeValue(rt->ctx, glob);
     if (efx_api_init(rt->ctx) < 0) {
@@ -318,8 +326,12 @@ void efx_runtime_destroy(efx_runtime *rt) {
         free(rt->host.args[i]);
     }
     free(rt->host.args);
+    /* F12: the finalizers above may destroy physics bodies through this world,
+     * so it must outlive JS_FreeContext/JS_FreeRuntime */
+    void *physics = rt->host.physics_world;
     JS_FreeContext(rt->ctx);
     JS_FreeRuntime(rt->js_rt);
+    efx_physics_world_free((efx_physics_world *)physics);
     free(rt);
 }
 

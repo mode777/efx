@@ -58,6 +58,12 @@ if(EMSCRIPTEN)
         src/render/skin.c
         src/render/text.c
         src/input/efx_input.c
+        src/physics/shape.c
+        src/physics/broadphase.c
+        src/physics/narrow.c
+        src/physics/solver.c
+        src/physics/character.c
+        src/physics/world.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -74,6 +80,12 @@ else()
         src/render/skin.c
         src/render/text.c
         src/input/efx_input.c
+        src/physics/shape.c
+        src/physics/broadphase.c
+        src/physics/narrow.c
+        src/physics/solver.c
+        src/physics/character.c
+        src/physics/world.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -303,6 +315,35 @@ else()
     target_compile_options(efx_input_tests PRIVATE -Wall -Wextra -Werror)
 endif()
 
+# headless physics-core tests (F12): a self-contained C module — its own math,
+# no renderer, platform layer, script runtime, or GLM — so this binary builds
+# and runs in milliseconds on every target
+add_executable(efx_physics_tests
+    src/physics/shape.c
+    src/physics/broadphase.c
+    src/physics/narrow.c
+    src/physics/solver.c
+    src/physics/character.c
+    src/physics/world.c
+    tests/physics/main.c
+    tests/physics/tests_narrow.c
+    tests/physics/tests_world.c
+    tests/physics/tests_character.c
+)
+target_include_directories(efx_physics_tests PRIVATE src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/physics)
+if(UNIX)
+    target_link_libraries(efx_physics_tests PRIVATE m)
+endif()
+if(EMSCRIPTEN)
+    target_link_options(efx_physics_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
+endif()
+if(MSVC)
+    target_compile_options(efx_physics_tests PRIVATE /W4 /WX)
+else()
+    target_compile_options(efx_physics_tests PRIVATE -Wall -Wextra -Werror)
+endif()
+
 # headless resource provider tests (F6a directory backend + path safety);
 # desktop-only: they read the filesystem
 if(NOT EMSCRIPTEN)
@@ -373,6 +414,12 @@ add_executable(efx_api_tests
     src/render/stb_truetype_impl.c
     src/render/stb_rect_pack_impl.c
     src/input/efx_input.c
+        src/physics/shape.c
+        src/physics/broadphase.c
+        src/physics/narrow.c
+        src/physics/solver.c
+        src/physics/character.c
+        src/physics/world.c
     src/resource/gltf.c
     src/resource/image.c
     src/resource/resource.c

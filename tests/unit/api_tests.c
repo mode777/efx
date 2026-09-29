@@ -1763,6 +1763,62 @@ static int sprites_js(void) {
     return 0;
 }
 
+/* F12: the efx.physics surface — world config, bodies, contacts, character,
+ * queries, validation, and destroy/use-after-destroy safety */
+static int physics_js(void) {
+    const char *code =
+        "efx.physics.clear();"
+        "if (Math.abs(efx.physics.gravity[1] + 9.81) > 0.001) throw new Error('gravity default');"
+        "efx.physics.gravity = [0, -10, 0];"
+        "if (efx.physics.gravity[1] !== -10) throw new Error('gravity set');"
+        "if (efx.physics.iterations !== 8) throw new Error('iter default');"
+        "efx.physics.iterations = 12;"
+        "try { efx.physics.gravity = [0, 1]; throw new Error('no'); } catch(e){ if(!(e instanceof RangeError)) throw e; }"
+        "try { efx.physics.iterations = 0; throw new Error('no'); } catch(e){ if(!(e instanceof RangeError)) throw e; }"
+        "const ground = efx.physics.createBody({ shape: { type: 'box', size: [10,1,10] }, position: [0,-0.5,0] });"
+        "const box = efx.physics.createBody({ dynamic: true, mass: 1, shape: { type: 'box', size: [1,1,1] }, position: [0,1,0] });"
+        "for (let i=0;i<180;i++) efx.physics.step(1/60);"
+        "const cs = box.contacts;"
+        "if (cs.length < 1) throw new Error('no contact');"
+        "if (cs[0].body !== ground) throw new Error('contact identity');"
+        "if (cs[0].normal[1] < 0.9) throw new Error('contact normal');"
+        "const tf = box.transform;"
+        "if (tf.length !== 16 || tf[12] !== box.position[0] || tf[13] !== box.position[1]) throw new Error('transform');"
+        "if (Math.abs(box.position[1] - 0.5) > 0.06) throw new Error('rest y ' + box.position[1]);"
+        "box.velocity = [1,0,0];"
+        "if (box.velocity[0] !== 1) throw new Error('velocity set');"
+        "box.applyImpulse([0,2,0]);"
+        "if (box.velocity[1] < 1.9) throw new Error('impulse');"
+        "const ch = efx.physics.createCharacter({ radius: 0.4, height: 1.8, position: [0,1,0] });"
+        "const mr = ch.moveAndSlide([0,-0.5,0]);"
+        "if (!mr.onFloor) throw new Error('char floor');"
+        "if (typeof ch.onFloor !== 'boolean') throw new Error('onFloor');"
+        "ch.velocity = [1,2,3];"
+        "if (ch.velocity[2] !== 3) throw new Error('char velocity');"
+        "const hit = efx.physics.raycast([0,5,0],[0,-1,0],{ maxDistance: 20 });"
+        "if (!hit || !hit.body) throw new Error('raycast');"
+        "try { efx.physics.raycast([0,0,0],[1,0,0]); throw new Error('no'); } catch(e){ if(!(e instanceof TypeError)) throw e; }"
+        "const ov = efx.physics.overlap({ type:'sphere', radius: 1 }, { position: [0,0.5,0] });"
+        "if (ov.length < 1) throw new Error('overlap');"
+        "const sc = efx.physics.shapeCast({ type:'sphere', radius: 0.5 }, [0,5,0], [0,-4,0]);"
+        "if (!sc || sc.fraction < 0 || sc.fraction > 1) throw new Error('shapecast');"
+        "try { efx.physics.createBody({ shape: { type:'sphere', radius: 0 } }); throw new Error('no'); } catch(e){ if(!(e instanceof RangeError)) throw e; }"
+        "try { efx.physics.createBody({ shape: { type:'nope' } }); throw new Error('no'); } catch(e){ if(!(e instanceof TypeError)) throw e; }"
+        "try { efx.physics.createBody({ shape: { type:'sphere', radius: 1, bogus: 1 } }); throw new Error('no'); } catch(e){ if(!(e instanceof TypeError)) throw e; }"
+        "try { efx.physics.createBody({ dynamic: true, mass: 0, shape: { type:'sphere', radius: 1 } }); throw new Error('no'); } catch(e){ if(!(e instanceof RangeError)) throw e; }"
+        "try { efx.physics.createCharacter({ radius: 0.4, height: 0.5 }); throw new Error('no'); } catch(e){ if(!(e instanceof RangeError)) throw e; }"
+        "box.destroy(); box.destroy();"
+        "try { box.position; throw new Error('no'); } catch(e){ if(!(e instanceof TypeError)) throw e; }"
+        "ch.destroy();"
+        "efx.physics.clear();";
+    if (ok_js(code)) {
+        end_js();
+        return fail("physics js snippet");
+    }
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -1804,6 +1860,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "billboard_js")) return billboard_js();
     if (!strcmp(c, "particles_js")) return particles_js();
     if (!strcmp(c, "sprites_js")) return sprites_js();
+    if (!strcmp(c, "physics_js")) return physics_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }
