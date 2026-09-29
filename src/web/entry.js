@@ -845,6 +845,439 @@ function __efxEnsureApi() {
         throw new TypeError('expected a Texture or RenderTarget');
     }
 
+    /* --------------------------------------------- F11 (billboards + particles) */
+
+    /* particle wire layout (floats); kept in sync with src/web/bridge.c */
+    var EFX_PART_WIRE_LEN = 352;
+
+    function __efxPartVec(v, what, allow2) {
+        if (!Array.isArray(v)) {
+            throw new TypeError(what + ' must be an array');
+        }
+        if (v.length !== 3 && !(allow2 && v.length === 2)) {
+            throw new TypeError(what + ' must be [x,y] or [x,y,z]');
+        }
+        var out = [0, 0, 0];
+        for (var i = 0; i < v.length; i++) {
+            out[i] = __efxFinite(v[i], what + ' entries must be finite numbers');
+        }
+        return out;
+    }
+
+    function __efxPartRange(v, what) {
+        if (Array.isArray(v)) {
+            return __efxFloatArray(v, 2);
+        }
+        var d = __efxFinite(v, what + ' must be a finite number');
+        return [d, d];
+    }
+
+    function __efxPartEnum(v, map, dflt, what) {
+        if (v === undefined) {
+            return dflt;
+        }
+        if (typeof v !== 'string' || !Object.prototype.hasOwnProperty.call(map, v)) {
+            throw new TypeError(what + ' has an unknown value');
+        }
+        return map[v];
+    }
+
+    function __efxSprite(tex, e) {
+        if (!__efxIsObject(e)) {
+            throw new TypeError('each sprite must be an object');
+        }
+        var known = { x: 1, y: 1, size: 1, color: 1, rotation: 1, scale: 1,
+                      sourceRect: 1, origin: 1 };
+        var names = Object.getOwnPropertyNames(e);
+        for (var i = 0; i < names.length; i++) {
+            if (!known[names[i]]) {
+                throw new TypeError('unknown drawSprites option');
+            }
+        }
+        var out = {
+            x: __efxFinite(e['x'], 'sprite x and y must be finite numbers'),
+            y: __efxFinite(e['y'], 'sprite x and y must be finite numbers'),
+            color: [1, 1, 1, 1],
+            rotation: 0,
+            scale: 1,
+            src: [0, 0, 0, 0],
+            hasSrc: 0,
+            origin: [0, 0],
+            hasOrigin: 0,
+        };
+        if (e['color'] !== undefined) {
+            out.color = __efxFloatArray(e['color'], 4);
+        }
+        if (e['rotation'] !== undefined) {
+            out.rotation = __efxFinite(e['rotation'], 'rotation must be a finite number');
+        }
+        if (e['scale'] !== undefined) {
+            out.scale = __efxFinite(e['scale'], 'scale must be a finite number');
+            if (out.scale <= 0) {
+                throw new RangeError('scale must be > 0');
+            }
+        }
+        if (e['size'] !== undefined) {
+            out.size = __efxFloatArray(e['size'], 2);
+            if (out.size[0] <= 0 || out.size[1] <= 0) {
+                throw new RangeError('size entries must be > 0');
+            }
+            out.hasSize = 1;
+        }
+        if (e['origin'] !== undefined) {
+            out.origin = __efxFloatArray(e['origin'], 2);
+            out.hasOrigin = 1;
+        }
+        if (e['sourceRect'] !== undefined) {
+            var srcv = e['sourceRect'];
+            if (!__efxIsObject(srcv)) {
+                throw new TypeError('sourceRect must be an object');
+            }
+            var skeys = ['x', 'y', 'w', 'h'];
+            for (var j = 0; j < 4; j++) {
+                out.src[j] = __efxFinite(srcv[skeys[j]],
+                    'sourceRect fields must be finite numbers');
+            }
+            if (out.src[2] <= 0 || out.src[3] <= 0) {
+                throw new RangeError('sourceRect extent must be > 0');
+            }
+            if (out.src[0] < 0 || out.src[1] < 0 ||
+                out.src[0] + out.src[2] > tex.w ||
+                out.src[1] + out.src[3] > tex.h) {
+                throw new RangeError('sourceRect outside texture bounds');
+            }
+            out.hasSrc = 1;
+        }
+        if (out.hasSize) {
+            out.w = out.size[0];
+            out.h = out.size[1];
+        } else if (out.hasSrc) {
+            out.w = out.src[2];
+            out.h = out.src[3];
+        } else {
+            out.w = tex.w;
+            out.h = tex.h;
+        }
+        out.ox = out.hasOrigin ? out.origin[0] : out.w * 0.5;
+        out.oy = out.hasOrigin ? out.origin[1] : out.h * 0.5;
+        return out;
+    }
+
+    /* parse + validate a particle options object into the wire layout;
+       mirrors the desktop binding's validation and error types */
+    function __efxParticleWire(opts) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('createParticleSystem requires an options object');
+        }
+        var known = { texture: 1, max: 1, space: 1, facing: 1, normal: 1,
+            blend: 1, lifetime: 1, emissionRate: 1, emitterLifetime: 1,
+            position: 1, direction: 1, spread: 1, speed: 1, gravity: 1,
+            linearAcceleration: 1, radialAcceleration: 1,
+            tangentialAcceleration: 1, linearDamping: 1, sizes: 1,
+            sizeVariation: 1, colors: 1, rotation: 1, spin: 1, spinVariation: 1,
+            relativeRotation: 1, emissionShape: 1, quads: 1, insertMode: 1,
+            speedScale: 1 };
+        var names = Object.getOwnPropertyNames(opts);
+        for (var i = 0; i < names.length; i++) {
+            if (!known[names[i]]) {
+                throw new TypeError("unknown createParticleSystem option '" +
+                                    names[i] + "'");
+            }
+        }
+        var w = new Float32Array(EFX_PART_WIRE_LEN);
+        /* defaults mirror efx_render_particles_create */
+        w[4] = 1; w[5] = 1; w[7] = -1; w[8] = 1; w[10] = 1; w[12] = 1;
+        w[25] = 1; w[44] = 1; w[52] = 1; w[53] = 1; w[54] = 1; w[55] = 1;
+        w[344] = 1;
+
+        if (opts['texture'] === undefined) {
+            throw new TypeError('createParticleSystem requires a texture');
+        }
+        var tex = liveSample(opts['texture']);
+
+        if (opts['max'] === undefined) {
+            throw new TypeError('createParticleSystem requires max');
+        }
+        if (typeof opts['max'] !== 'number' || !isFinite(opts['max']) ||
+            opts['max'] !== Math.floor(opts['max'])) {
+            throw new TypeError('max must be an integer');
+        }
+        if (opts['max'] < 1 || opts['max'] > 65536) {
+            throw new RangeError('max must be in 1..65536');
+        }
+        w[0] = opts['max'];
+
+        w[1] = __efxPartEnum(opts['space'], { world: 0, screen: 1 }, 0, 'space');
+        w[2] = __efxPartEnum(opts['facing'],
+                             { view: 0, y: 1, plane: 2 }, 0, 'facing');
+        if (w[1] === 1 && w[2] !== 0) {
+            throw new TypeError("facing must be 'view' for screen space");
+        }
+        w[3] = __efxPartEnum(opts['blend'],
+                             { alpha: 0, additive: 1, subtractive: 2 }, 0,
+                             'blend');
+        if (opts['normal'] !== undefined) {
+            var n = __efxPartVec(opts['normal'], 'normal', false);
+            w[343] = n[0]; w[344] = n[1]; w[345] = n[2];
+        }
+        if (opts['lifetime'] === undefined) {
+            throw new TypeError('createParticleSystem requires lifetime');
+        }
+        var life = __efxPartRange(opts['lifetime'], 'lifetime');
+        w[4] = life[0]; w[5] = life[1];
+        if (opts['emissionRate'] !== undefined) {
+            w[6] = __efxFinite(opts['emissionRate'], 'emissionRate must be a finite number');
+        }
+        if (opts['emitterLifetime'] !== undefined) {
+            w[7] = __efxFinite(opts['emitterLifetime'], 'emitterLifetime must be a finite number');
+        }
+        if (opts['speedScale'] !== undefined) {
+            w[8] = __efxFinite(opts['speedScale'], 'speedScale must be a finite number');
+        }
+        if (opts['spread'] !== undefined) {
+            w[9] = __efxFinite(opts['spread'], 'spread must be a finite number');
+        }
+        if (opts['position'] !== undefined) {
+            var p = __efxPartVec(opts['position'], 'position', true);
+            w[21] = p[0]; w[22] = p[1]; w[23] = p[2];
+        }
+        if (opts['direction'] !== undefined) {
+            var dir = __efxPartVec(opts['direction'], 'direction', true);
+            w[24] = dir[0]; w[25] = dir[1]; w[26] = dir[2];
+        }
+        if (opts['speed'] !== undefined) {
+            var sp = __efxPartRange(opts['speed'], 'speed');
+            w[27] = sp[0]; w[28] = sp[1];
+        }
+        if (opts['gravity'] !== undefined) {
+            var g = __efxPartVec(opts['gravity'], 'gravity', true);
+            w[29] = g[0]; w[30] = g[1]; w[31] = g[2];
+        }
+        if (opts['linearAcceleration'] !== undefined) {
+            var la = __efxPartVec(opts['linearAcceleration'], 'linearAcceleration', false);
+            for (i = 0; i < 3; i++) { w[32 + i] = la[i]; w[35 + i] = la[i]; }
+        }
+        if (opts['radialAcceleration'] !== undefined) {
+            var ra = __efxPartRange(opts['radialAcceleration'], 'radialAcceleration');
+            w[38] = ra[0]; w[39] = ra[1];
+        }
+        if (opts['tangentialAcceleration'] !== undefined) {
+            var ta = __efxPartRange(opts['tangentialAcceleration'], 'tangentialAcceleration');
+            w[40] = ta[0]; w[41] = ta[1];
+        }
+        if (opts['linearDamping'] !== undefined) {
+            var ld = __efxPartRange(opts['linearDamping'], 'linearDamping');
+            w[42] = ld[0]; w[43] = ld[1];
+        }
+        if (opts['sizes'] !== undefined) {
+            var sizes = Array.isArray(opts['sizes']) ? opts['sizes'] : [opts['sizes']];
+            if (sizes.length < 1 || sizes.length > 8) {
+                throw new RangeError('sizes must hold 1..8 entries');
+            }
+            for (i = 0; i < sizes.length; i++) {
+                var sv = __efxFinite(sizes[i], 'sizes must be finite numbers');
+                if (sv <= 0) {
+                    throw new RangeError('sizes must be > 0');
+                }
+                w[44 + i] = sv;
+            }
+            w[10] = sizes.length;
+        }
+        if (opts['sizeVariation'] !== undefined) {
+            w[11] = __efxFinite(opts['sizeVariation'], 'sizeVariation must be a finite number');
+        }
+        if (opts['colors'] !== undefined) {
+            var cols = (Array.isArray(opts['colors']) && opts['colors'].length &&
+                        Array.isArray(opts['colors'][0]))
+                ? opts['colors'] : [opts['colors']];
+            if (cols.length < 1 || cols.length > 8) {
+                throw new RangeError('colors must hold 1..8 entries');
+            }
+            for (i = 0; i < cols.length; i++) {
+                var col = __efxFloatArray(cols[i], 4);
+                for (var k = 0; k < 4; k++) {
+                    w[52 + i * 4 + k] = col[k];
+                }
+            }
+            w[12] = cols.length;
+        }
+        if (opts['rotation'] !== undefined) {
+            var ro = __efxPartRange(opts['rotation'], 'rotation');
+            w[16] = ro[0]; w[17] = ro[1];
+        }
+        if (opts['spin'] !== undefined) {
+            var spin = __efxPartRange(opts['spin'], 'spin');
+            w[18] = spin[0]; w[19] = spin[1];
+        }
+        if (opts['spinVariation'] !== undefined) {
+            w[20] = __efxFinite(opts['spinVariation'], 'spinVariation must be a finite number');
+        }
+        if (opts['relativeRotation'] !== undefined) {
+            if (typeof opts['relativeRotation'] !== 'boolean') {
+                throw new TypeError('relativeRotation must be a boolean');
+            }
+            w[13] = opts['relativeRotation'] ? 1 : 0;
+        }
+        if (opts['emissionShape'] !== undefined) {
+            var es = opts['emissionShape'];
+            if (!__efxIsObject(es)) {
+                throw new TypeError('emissionShape must be an object');
+            }
+            var ekn = { shape: 1, size: 1 };
+            var en = Object.getOwnPropertyNames(es);
+            for (i = 0; i < en.length; i++) {
+                if (!ekn[en[i]]) {
+                    throw new TypeError("unknown emissionShape option '" + en[i] + "'");
+                }
+            }
+            w[14] = __efxPartEnum(es['shape'],
+                { point: 0, box: 1, sphere: 2, sphereSurface: 3, disc: 4 }, 0,
+                'emissionShape.shape');
+            if (es['size'] !== undefined) {
+                var ss = __efxPartVec(es['size'], 'emissionShape.size', false);
+                w[84] = ss[0]; w[85] = ss[1]; w[86] = ss[2];
+            }
+        }
+        if (opts['quads'] !== undefined) {
+            var quads = opts['quads'];
+            if (!Array.isArray(quads)) {
+                throw new TypeError('quads must be an array');
+            }
+            if (quads.length > 64) {
+                throw new RangeError('quads must hold at most 64 entries');
+            }
+            for (i = 0; i < quads.length; i++) {
+                var q = quads[i];
+                var rect;
+                if (Array.isArray(q)) {
+                    rect = __efxFloatArray(q, 4);
+                } else if (__efxIsObject(q)) {
+                    rect = [
+                        __efxFinite(q['x'], 'quad rect fields must be finite numbers'),
+                        __efxFinite(q['y'], 'quad rect fields must be finite numbers'),
+                        __efxFinite(q['w'], 'quad rect fields must be finite numbers'),
+                        __efxFinite(q['h'], 'quad rect fields must be finite numbers'),
+                    ];
+                } else {
+                    throw new TypeError('each quad must be an object or [x,y,w,h]');
+                }
+                for (k = 0; k < 4; k++) {
+                    w[87 + i * 4 + k] = rect[k];
+                }
+            }
+            w[15] = quads.length;
+        }
+        if (opts['insertMode'] !== undefined) {
+            w[346] = __efxPartEnum(opts['insertMode'],
+                { top: 0, bottom: 1, random: 2 }, 0, 'insertMode');
+        }
+        return { wire: w, texture: tex.handle };
+    }
+
+    function livePS(v) {
+        if (!(v instanceof EfxParticleSystem)) {
+            throw new TypeError('expected a ParticleSystem');
+        }
+        if (!v.__alive) {
+            throw new TypeError('using a destroyed resource');
+        }
+        return v;
+    }
+
+    function EfxParticleSystem(handle, texture, opts) {
+        this.__handle = handle;
+        this.__texture = texture;
+        this.__opts = opts;
+        this.__alive = true;
+    }
+    EfxParticleSystem.prototype.destroy = function () {
+        if (!(this instanceof EfxParticleSystem)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_particles_destroy'](this.__handle);
+    };
+    EfxParticleSystem.prototype.emit = function (n) {
+        livePS(this);
+        if (arguments.length < 1 || typeof n !== 'number' || !isFinite(n) ||
+            n !== Math.floor(n) || n < 0) {
+            throw new RangeError('emit count must be a non-negative integer');
+        }
+        var rc = bridge['_efx_bridge_particles_emit'](this.__handle, n);
+        if (rc !== 0) {
+            throw new Error('emit failed');
+        }
+    };
+    EfxParticleSystem.prototype.start = function () {
+        livePS(this);
+        bridge['_efx_bridge_particles_start'](this.__handle);
+    };
+    EfxParticleSystem.prototype.stop = function () {
+        livePS(this);
+        bridge['_efx_bridge_particles_stop'](this.__handle);
+    };
+    EfxParticleSystem.prototype.pause = function () {
+        livePS(this);
+        bridge['_efx_bridge_particles_pause'](this.__handle);
+    };
+    EfxParticleSystem.prototype.reset = function () {
+        livePS(this);
+        bridge['_efx_bridge_particles_reset'](this.__handle);
+    };
+    EfxParticleSystem.prototype.set = function (opts) {
+        livePS(this);
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('set requires an options object');
+        }
+        var merged = {};
+        var k;
+        for (k in this.__opts) {
+            if (Object.prototype.hasOwnProperty.call(this.__opts, k)) {
+                merged[k] = this.__opts[k];
+            }
+        }
+        for (k in opts) {
+            if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                merged[k] = opts[k];
+            }
+        }
+        var parsed = __efxParticleWire(merged);
+        var ptr = mallocCopyF32(parsed.wire);
+        var rc = bridge['_efx_bridge_particles_set'](this.__handle, ptr,
+                                                     parsed.texture);
+        bridge['_efx_bridge_mem_free'](ptr);
+        if (rc !== 0) {
+            throw new RangeError('invalid particle configuration');
+        }
+        this.__opts = merged;
+        this.__texture = parsed.texture;
+    };
+    Object.defineProperty(EfxParticleSystem.prototype, 'count', {
+        get: function () {
+            livePS(this);
+            return bridge['_efx_bridge_particles_count'](this.__handle);
+        },
+    });
+    Object.defineProperty(EfxParticleSystem.prototype, 'speedScale', {
+        get: function () {
+            livePS(this);
+            return bridge['_efx_bridge_particles_speed_scale'](this.__handle);
+        },
+        set: function (v) {
+            livePS(this);
+            if (typeof v !== 'number' || !isFinite(v) || v <= 0) {
+                throw new RangeError('speedScale must be a finite number > 0');
+            }
+            bridge['_efx_bridge_particles_set_speed_scale'](this.__handle, v);
+            if (this.__opts) {
+                this.__opts['speedScale'] = v;
+            }
+        },
+    });
+
     var api = {
         log: function (msg) {
             var s = null;
@@ -1571,6 +2004,161 @@ function __efxEnsureApi() {
             }
             if (rc !== 0) {
                 throw new Error('drawQuad failed');
+            }
+        },
+        drawBillboard: function (pos, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('drawBillboard requires (pos, opts)');
+            }
+            var p = __efxPartVec(pos, 'pos', false);
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('drawBillboard options must be an object');
+            }
+            var known = { texture: 1, size: 1, color: 1, sourceRect: 1,
+                          rotation: 1, facing: 1, depthTest: 1, normal: 1 };
+            var names = Object.getOwnPropertyNames(opts);
+            for (var i = 0; i < names.length; i++) {
+                if (!known[names[i]]) {
+                    throw new TypeError("unknown drawBillboard option '" + names[i] + "'");
+                }
+            }
+            if (opts['texture'] === undefined) {
+                throw new TypeError('drawBillboard requires a texture');
+            }
+            var tex = liveSample(opts['texture']);
+            var size = [1, 1];
+            if (opts['size'] !== undefined) {
+                if (Array.isArray(opts['size'])) {
+                    size = __efxFloatArray(opts['size'], 2);
+                } else {
+                    var sd = __efxFinite(opts['size'], 'size must be a number or [w,h]');
+                    size = [sd, sd];
+                }
+            }
+            if (size[0] <= 0 || size[1] <= 0) {
+                throw new RangeError('size entries must be > 0');
+            }
+            var color = [1, 1, 1, 1];
+            if (opts['color'] !== undefined) {
+                color = __efxFloatArray(opts['color'], 4);
+            }
+            var rotation = 0;
+            if (opts['rotation'] !== undefined) {
+                rotation = __efxFinite(opts['rotation'], 'rotation must be a finite number');
+            }
+            var facing = __efxPartEnum(opts['facing'], { view: 0, y: 1 }, 0, 'facing');
+            var normal = [0, 1, 0];
+            if (opts['normal'] !== undefined) {
+                normal = __efxPartVec(opts['normal'], 'normal', false);
+            }
+            var depth = 1;
+            if (opts['depthTest'] !== undefined) {
+                if (typeof opts['depthTest'] !== 'boolean') {
+                    throw new TypeError('depthTest must be a boolean');
+                }
+                depth = opts['depthTest'] ? 1 : 0;
+            }
+            var src = [0, 0, 0, 0];
+            var hasSrc = 0;
+            if (opts['sourceRect'] !== undefined) {
+                var srcv = opts['sourceRect'];
+                if (!__efxIsObject(srcv)) {
+                    throw new TypeError('sourceRect must be an object');
+                }
+                var skeys = ['x', 'y', 'w', 'h'];
+                for (var j = 0; j < 4; j++) {
+                    src[j] = __efxFinite(srcv[skeys[j]],
+                        'sourceRect fields must be finite numbers');
+                }
+                if (src[2] <= 0 || src[3] <= 0) {
+                    throw new RangeError('sourceRect extent must be > 0');
+                }
+                if (src[0] < 0 || src[1] < 0 ||
+                    src[0] + src[2] > tex.w || src[1] + src[3] > tex.h) {
+                    throw new RangeError('sourceRect outside texture bounds');
+                }
+                hasSrc = 1;
+            }
+            var pPtr = mallocCopyF32(p);
+            var nPtr = mallocCopyF32(normal);
+            var rc = bridge['_efx_bridge_draw_billboard'](tex.handle, pPtr,
+                size[0], size[1], color[0], color[1], color[2], color[3],
+                rotation, facing, nPtr, depth, src[0], src[1], src[2], src[3],
+                hasSrc);
+            bridge['_efx_bridge_mem_free'](pPtr);
+            bridge['_efx_bridge_mem_free'](nPtr);
+            if (rc === 1) {
+                throw new RangeError('display list budget exceeded');
+            }
+            if (rc === 2) {
+                throw new TypeError('expected a Texture or RenderTarget');
+            }
+            if (rc === 10) {
+                throw new RangeError('invalid billboard size or facing');
+            }
+            if (rc !== 0) {
+                throw new Error('drawBillboard failed');
+            }
+        },
+        drawSprites: function (texture, sprites) {
+            if (arguments.length < 2) {
+                throw new TypeError('drawSprites requires (texture, sprites)');
+            }
+            var tex = liveSample(texture);
+            if (!Array.isArray(sprites)) {
+                throw new TypeError('sprites must be an array');
+            }
+            var parsed = [];
+            for (var i = 0; i < sprites.length; i++) {
+                parsed.push(__efxSprite(tex, sprites[i]));
+            }
+            for (i = 0; i < parsed.length; i++) {
+                var s = parsed[i];
+                var rc = bridge['_efx_bridge_draw_sprite'](tex.handle, s.x, s.y,
+                    s.w, s.h, s.color[0], s.color[1], s.color[2], s.color[3],
+                    s.rotation, s.scale, s.src[0], s.src[1], s.src[2], s.src[3],
+                    s.hasSrc, s.ox, s.oy);
+                if (rc === 1) {
+                    throw new RangeError('display list budget exceeded');
+                }
+                if (rc === 4) {
+                    throw new Error('no render surface (draw calls need a window)');
+                }
+                if (rc !== 0) {
+                    throw new Error('drawSprites failed');
+                }
+            }
+        },
+        createParticleSystem: function (opts) {
+            var parsed = __efxParticleWire(opts);
+            var ptr = mallocCopyF32(parsed.wire);
+            var handle = bridge['_efx_bridge_particles_create'](ptr, parsed.texture);
+            bridge['_efx_bridge_mem_free'](ptr);
+            if (!handle) {
+                throw new RangeError('invalid particle configuration');
+            }
+            var snapshot = {};
+            for (var k in opts) {
+                if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                    snapshot[k] = opts[k];
+                }
+            }
+            return new EfxParticleSystem(handle, parsed.texture, snapshot);
+        },
+        drawParticles: function (sys) {
+            livePS(sys);
+            var rc = bridge['_efx_bridge_particles_draw'](sys.__handle);
+            if (rc === 1) {
+                throw new RangeError('display list budget exceeded');
+            }
+            if (rc === 2) {
+                throw new TypeError('expected a live ParticleSystem');
+            }
+            if (rc === 9) {
+                throw new TypeError('cannot sample the render target being drawn into');
+            }
+            if (rc !== 0) {
+                throw new Error('drawParticles failed');
             }
         },
         setBlendMode: function (mode) {

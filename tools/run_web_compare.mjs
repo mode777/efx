@@ -56,6 +56,7 @@ const CASES = [
     { name: '8a_text', root: 'tests/fixtures/web/text_root' },
     { name: '10_modules', root: 'tests/fixtures/modules' },
     { name: '10_nohost', script: 'tests/scripts/s_10_nohost.js', args: [] },
+    { name: '11_particles', script: 'tests/scripts/s_11_particles.js', args: [] },
 ];
 
 function run(cmd, args) {
