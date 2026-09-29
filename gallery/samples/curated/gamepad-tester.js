@@ -61,6 +61,9 @@ efx.keyboard.onDown(function (e) {
 // ---------------------------------------------------------------- drawing
 
 function rect(x, y, w, h, c, a) {
+    if (w <= 0 || h <= 0) {
+        return; // drawQuad rejects non-positive sizes (e.g. an at-rest trigger)
+    }
     efx.drawQuad(x, y, efx.whiteTexture, {
         size: [w, h],
         origin: [0, 0],
