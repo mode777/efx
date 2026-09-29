@@ -28,7 +28,7 @@
 ## 5. Particle rendering
 
 - [x] 5.1 Add the particle-batch record and `drawParticles` playback that expands live particles into billboard (`view`/`y`), oriented `plane`, or 2D screen quads; verify each mode with a focused render test.
-- [ ] 5.2 Apply depth-test/no-write to particle quads and back-to-front ordering within alpha batches (additive/subtractive unsorted); verify ordering with a synthetic two-particle depth test.
+- [x] 5.2 Apply depth-test/no-write to particle quads and back-to-front ordering within alpha batches (additive/subtractive unsorted); verify ordering with a synthetic two-particle depth test.
 - [x] 5.3 Retain a system's `Texture`/`RenderTarget` until `destroy()` and release it on destroy; verify via the texture ref-count introspection used by existing retention tests.
 
 ## 6. Bindings and type document
@@ -43,9 +43,9 @@
 
 ## 8. Gallery showcases
 
-- [ ] 8.1 Add `gallery/samples/curated/particles-showcase.js` (world-space effects: `'view'`/`'y'` billboards, additive + alpha/subtractive blends, burst + continuous emission, lifetime-interpolated size/color, procedural `createImageData` textures) plus its `manifest.json` entry; verify it runs under a windowed build on the verification server (`player` against the sample, screenshot non-empty, exit 0 after a few frames).
-- [ ] 8.2 Add `gallery/samples/curated/particle-plane-showcase.js` (fixed `facing: 'plane'` oriented planes demonstrating a water-like surface, camera orbit) plus its `manifest.json` entry; verify it runs under a windowed build on the verification server and that the planes stay world-oriented as the camera moves.
-- [ ] 8.3 Confirm both showcases use only the public API (no browser/Node dependency, no asset pack) and that the gallery smoke drives at least one of them (name/order so it is covered), failing on any console/page error.
+- [x] 8.1 Add `gallery/samples/curated/particles-showcase.js` (world-space effects: `'view'`/`'y'` billboards, additive + alpha/subtractive blends, burst + continuous emission, lifetime-interpolated size/color, procedural `createImageData` textures) plus its `manifest.json` entry; verify it runs under a windowed build on the verification server (`player` against the sample, screenshot non-empty, exit 0 after a few frames).
+- [x] 8.2 Add `gallery/samples/curated/particle-plane-showcase.js` (fixed `facing: 'plane'` oriented planes demonstrating a water-like surface, camera orbit) plus its `manifest.json` entry; verify it runs under a windowed build on the verification server and that the planes stay world-oriented as the camera moves.
+- [x] 8.3 Confirm both showcases use only the public API (no browser/Node dependency, no asset pack) and that the gallery smoke drives at least one of them (name/order so it is covered), failing on any console/page error.
 
 ## 9. Verification
 
