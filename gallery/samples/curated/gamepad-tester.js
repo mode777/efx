@@ -18,12 +18,12 @@ const small = efx.createFont(efx.loadFontData('font.ttf'), { size: 11 });
 
 const W = 800;
 const H = 520;
-const PANEL = [0.075, 0.085, 0.12];
-const TRACK = [0.14, 0.16, 0.22];
-const DIM = [0.16, 0.18, 0.25];
-const LIT = [0.42, 0.92, 1.0];
-const WARM = [1.0, 0.66, 0.28];
-const MINT = [0.45, 1.0, 0.62];
+const PANEL = [0.075, 0.085, 0.12, 1];
+const TRACK = [0.14, 0.16, 0.22, 1];
+const DIM = [0.16, 0.18, 0.25, 1];
+const LIT = [0.42, 0.92, 1.0, 1];
+const WARM = [1.0, 0.66, 0.28, 1];
+const MINT = [0.45, 1.0, 0.62, 1];
 
 const BUTTON_NAMES = [
     'south', 'east', 'west', 'north', 'leftShoulder', 'rightShoulder',
@@ -83,7 +83,16 @@ function disc(cx, cy, r, c, a) {
 }
 
 function txt(s, x, y, f, opts) {
-    efx.drawText(String(s), f, x, y, opts || {});
+    const o = opts || {};
+    // drawText colors are RGBA; tolerate a 3-component RGB palette entry
+    if (o.color) o.color = rgba(o.color);
+    if (o.outlineColor) o.outlineColor = rgba(o.outlineColor);
+    if (o.shadowColor) o.shadowColor = rgba(o.shadowColor);
+    efx.drawText(String(s), f, x, y, o);
+}
+
+function rgba(c) {
+    return c.length === 4 ? c : [c[0], c[1], c[2], 1];
 }
 
 function label(s, x, y, c) {
