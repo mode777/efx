@@ -256,10 +256,10 @@ efx.registerRenderHook(function () {
 
     // d-pad and face buttons
     drawDpad(px + pw / 2 - 96, py + 150, 24);
-    drawFace(px + pw / 2 + 96, py + 118, 19, 'north', 'Y', [0.95, 0.85, 0.2]);
-    drawFace(px + pw / 2 + 66, py + 150, 19, 'west', 'X', [0.4, 0.7, 1.0]);
-    drawFace(px + pw / 2 + 126, py + 150, 19, 'east', 'B', [1.0, 0.4, 0.4]);
-    drawFace(px + pw / 2 + 96, py + 182, 19, 'south', 'A', [0.45, 1.0, 0.55]);
+    drawFace(px + pw / 2 + 96, py + 118, 19, 'north', 'Y', [0.95, 0.85, 0.2, 1]);
+    drawFace(px + pw / 2 + 66, py + 150, 19, 'west', 'X', [0.4, 0.7, 1.0, 1]);
+    drawFace(px + pw / 2 + 126, py + 150, 19, 'east', 'B', [1.0, 0.4, 0.4, 1]);
+    drawFace(px + pw / 2 + 96, py + 182, 19, 'south', 'A', [0.45, 1.0, 0.55, 1]);
 
     // center cluster
     drawPill(px + pw / 2, py + 44, 62, 20, 'guide', 'GUIDE');
