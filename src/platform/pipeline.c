@@ -1093,11 +1093,10 @@ static pipe_vertex *emit_billboard(pipe_vertex *v,
     return v;
 }
 
-static pipe_vertex *emit_particle_world(pipe_vertex *v,
-                                        const efx_particle_view *p,
-                                        const efx_camera3d *cam, int facing,
-                                        const float normal[3], float aspect,
-                                        int flip) {
+static void emit_particle_world(pipe_vertex out[4],
+                                const efx_particle_view *p,
+                                const efx_camera3d *cam, int facing,
+                                const float normal[3], float aspect, int flip) {
     const float *vp = view_projection(cam, aspect, flip);
     float mvp[16];
     memcpy(mvp, vp, sizeof(mvp));
@@ -1113,24 +1112,21 @@ static pipe_vertex *emit_particle_world(pipe_vertex *v,
         }
         float ndc[3];
         bill_clip(mvp, w, ndc);
-        v->x = ndc[0];
-        v->y = ndc[1];
-        v->z = ndc[2];
-        v->u = u0 + BILL_SU[i] * (u1 - u0);
-        v->v = v0 + BILL_SV[i] * (v1 - v0);
-        v->r = (uint8_t)(packed & 0xff);
-        v->g = (uint8_t)((packed >> 8) & 0xff);
-        v->b = (uint8_t)((packed >> 16) & 0xff);
-        v->a = (uint8_t)((packed >> 24) & 0xff);
-        v++;
+        out[i].x = ndc[0];
+        out[i].y = ndc[1];
+        out[i].z = ndc[2];
+        out[i].u = u0 + BILL_SU[i] * (u1 - u0);
+        out[i].v = v0 + BILL_SV[i] * (v1 - v0);
+        out[i].r = (uint8_t)(packed & 0xff);
+        out[i].g = (uint8_t)((packed >> 8) & 0xff);
+        out[i].b = (uint8_t)((packed >> 16) & 0xff);
+        out[i].a = (uint8_t)((packed >> 24) & 0xff);
     }
-    return v;
 }
 
-static pipe_vertex *emit_particle_screen(pipe_vertex *v,
-                                         const efx_particle_view *p,
-                                         const efx_particle_record *pr,
-                                         int flip) {
+static void emit_particle_screen(pipe_vertex out[4],
+                                 const efx_particle_view *p,
+                                 const efx_particle_record *pr, int flip) {
     efx_affine m = efx_camera_matrix(&pr->camera2d, pr->frame_w, pr->frame_h);
     uint32_t packed = pack_color(p->color);
     float u0 = p->uv[0], v0 = p->uv[1], u1 = p->uv[2], v1 = p->uv[3];
@@ -1139,21 +1135,34 @@ static pipe_vertex *emit_particle_screen(pipe_vertex *v,
         float cy = p->pos[1] + BILL_LY[i] * p->size;
         float fx = m.a * cx + m.c * cy + m.tx;
         float fy = m.b * cx + m.d * cy + m.ty;
-        v->x = 2.0f * fx / (pr->frame_w > 0 ? pr->frame_w : 1.0f) - 1.0f;
-        v->y = 1.0f - 2.0f * fy / (pr->frame_h > 0 ? pr->frame_h : 1.0f);
+        out[i].x = 2.0f * fx / (pr->frame_w > 0 ? pr->frame_w : 1.0f) - 1.0f;
+        out[i].y = 1.0f - 2.0f * fy / (pr->frame_h > 0 ? pr->frame_h : 1.0f);
         if (flip) {
-            v->y = -v->y;
+            out[i].y = -out[i].y;
         }
-        v->z = 0.0f;
-        v->u = u0 + BILL_SU[i] * (u1 - u0);
-        v->v = v0 + BILL_SV[i] * (v1 - v0);
-        v->r = (uint8_t)(packed & 0xff);
-        v->g = (uint8_t)((packed >> 8) & 0xff);
-        v->b = (uint8_t)((packed >> 16) & 0xff);
-        v->a = (uint8_t)((packed >> 24) & 0xff);
-        v++;
+        out[i].z = 0.0f;
+        out[i].u = u0 + BILL_SU[i] * (u1 - u0);
+        out[i].v = v0 + BILL_SV[i] * (v1 - v0);
+        out[i].r = (uint8_t)(packed & 0xff);
+        out[i].g = (uint8_t)((packed >> 8) & 0xff);
+        out[i].b = (uint8_t)((packed >> 16) & 0xff);
+        out[i].a = (uint8_t)((packed >> 24) & 0xff);
     }
-    return v;
+}
+
+/* append a quad to a triangle strip, inserting degenerate triangles after
+ * the first so consecutive particle quads are not bridged by a visible
+ * triangle (the same trick the 2D quad run uses) */
+static pipe_vertex *append_strip_quad(pipe_vertex *v, const pipe_vertex q[4],
+                                      int first) {
+    if (!first) {
+        v[0] = v[-1];
+        v[1] = q[0];
+        v[2] = q[0];
+        v += 3;
+    }
+    memcpy(v, q, sizeof(pipe_vertex) * 4);
+    return v + 4;
 }
 
 /* world-space particle views sorted back-to-front (alpha batches only) */
@@ -1294,10 +1303,13 @@ void efx_pipeline_play(void) {
             if (pc <= 0 || !views) {
                 continue;
             }
-            if (!scratch_reserve(total + pc * 4)) return;
+            /* reserve 4 verts per quad plus 3 bridge verts between them */
+            int need = pc * 4 + (pc - 1) * 3;
+            if (!scratch_reserve(total + need)) return;
             v = P.scratch + total;
             int start = total;
             int blend = r->u.particles.blend;
+            pipe_vertex q4[4];
             if (space == EFX_SPACE_WORLD) {
                 int facing = efx_render_particles_facing(sys);
                 float normal[3];
@@ -1326,27 +1338,30 @@ void efx_pipeline_play(void) {
                     }
                     qsort(order, (size_t)pc, sizeof(particle_sort), particle_cmp);
                     for (int k = 0; k < pc; k++) {
-                        v = emit_particle_world(v, order[k].view,
-                                                &r->u.particles.camera, facing,
-                                                normal, aspect, flip);
+                        emit_particle_world(q4, order[k].view,
+                                            &r->u.particles.camera, facing,
+                                            normal, aspect, flip);
+                        v = append_strip_quad(v, q4, k == 0);
                     }
                     free(order);
                 } else {
                     for (int k = 0; k < pc; k++) {
-                        v = emit_particle_world(v, &views[k],
-                                                &r->u.particles.camera, facing,
-                                                normal, aspect, flip);
+                        emit_particle_world(q4, &views[k],
+                                            &r->u.particles.camera, facing,
+                                            normal, aspect, flip);
+                        v = append_strip_quad(v, q4, k == 0);
                     }
                 }
             } else {
                 int flip = rec_flip(r, use_post);
                 for (int k = 0; k < pc; k++) {
-                    v = emit_particle_screen(v, &views[k], &r->u.particles, flip);
+                    emit_particle_screen(q4, &views[k], &r->u.particles, flip);
+                    v = append_strip_quad(v, q4, k == 0);
                 }
             }
             boff[i] = start;
-            bcnt[i] = pc * 4;
-            total += pc * 4;
+            bcnt[i] = need;
+            total += need;
         }
     }
     int vcount = total;
