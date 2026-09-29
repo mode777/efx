@@ -24,6 +24,19 @@
 
 #include "input/efx_gamepad.h"
 
+#if defined(_WIN32)
+/* minigamepad's Windows section includes <xinput.h>/<dinput.h>, which expect
+ * the base Win32 headers to be present first (otherwise the SDK's winnt.h
+ * raises "No Target Architecture"). */
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include "minigamepad.h"
 
 #if defined(__linux__)

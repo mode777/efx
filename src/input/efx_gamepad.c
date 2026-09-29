@@ -61,6 +61,19 @@ static int standard_ready;
 static efx_gamepad_source_fn SOURCE;
 static void *SOURCE_UD;
 
+/* bounded, always-terminating copy (avoids MSVC's strncpy deprecation) */
+static void copy_str(char *dst, size_t cap, const char *src) {
+    if (cap == 0 || !src) {
+        return;
+    }
+    size_t n = strlen(src);
+    if (n >= cap) {
+        n = cap - 1;
+    }
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+}
+
 static int CONNECT_EVENTS[EFX_GAMEPAD_MAX];
 static int connect_event_count;
 static int DISCONNECT_EVENTS[EFX_GAMEPAD_MAX];
@@ -501,10 +514,10 @@ static void slot_process(int slot) {
         s->connected = 1;
         memset(s->name, 0, sizeof(s->name));
         if (dev->name[0]) {
-            strncpy(s->name, dev->name, sizeof(s->name) - 1);
+            copy_str(s->name, sizeof(s->name), dev->name);
         }
         memset(s->guid, 0, sizeof(s->guid));
-        strncpy(s->guid, dev->guid, sizeof(s->guid) - 1);
+        copy_str(s->guid, sizeof(s->guid), dev->guid);
         slot_clear_state(s);
         if (dev->normalized) {
             standard_init();
@@ -585,12 +598,12 @@ void efx_input_gamepad_poll(void) {
                 STAGE[i].normalized = devs[i].normalized;
                 STAGE[i].mapped_hint = devs[i].mapped_hint;
                 if (devs[i].name[0]) {
-                    strncpy(STAGE[i].name, devs[i].name,
-                            sizeof(STAGE[i].name) - 1);
+                    copy_str(STAGE[i].name, sizeof(STAGE[i].name),
+                             devs[i].name);
                 }
                 if (!devs[i].normalized && devs[i].guid[0]) {
-                    strncpy(STAGE[i].guid, devs[i].guid,
-                            sizeof(STAGE[i].guid) - 1);
+                    copy_str(STAGE[i].guid, sizeof(STAGE[i].guid),
+                             devs[i].guid);
                 }
                 STAGE[i].raw_button_count = devs[i].raw_button_count;
                 if (STAGE[i].raw_button_count > EFX_GAMEPAD_RAW_BUTTON_MAX) {
@@ -766,11 +779,11 @@ void efx_input_gamepad_inject_connect(int slot, const char *name,
     STAGE[slot].mapped_hint = 1;
     STAGE[slot].name[0] = '\0';
     if (name) {
-        strncpy(STAGE[slot].name, name, sizeof(STAGE[slot].name) - 1);
+        copy_str(STAGE[slot].name, sizeof(STAGE[slot].name), name);
     }
     memset(STAGE[slot].guid, 0, sizeof(STAGE[slot].guid));
     if (!normalized && guid) {
-        strncpy(STAGE[slot].guid, guid, sizeof(STAGE[slot].guid) - 1);
+        copy_str(STAGE[slot].guid, sizeof(STAGE[slot].guid), guid);
     }
     staged = 1;
 }
