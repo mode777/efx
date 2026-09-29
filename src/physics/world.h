@@ -17,7 +17,7 @@
 #define EFX_PBODY_DYNAMIC 1
 
 /* solver tuning (design D6, open questions settled here) */
-#define EFX_PHYS_PEN_SLOP 0.005f
+#define EFX_PHYS_PEN_SLOP 0.001f
 #define EFX_PHYS_BAUMGARTE 0.0f
 #define EFX_PHYS_RESTITUTION_THRESHOLD 1.0f
 #define EFX_PHYS_MAX_CORRECTION 0.2f

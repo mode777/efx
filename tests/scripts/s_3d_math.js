@@ -131,6 +131,24 @@ for (let i = 0; i < sphere24.positions.length; i += 3) {
         !near(z / 2, sphere24.normals[i + 2])) fail('sphere normals');
 }
 
+// capsule: vertical, radius 1 / total height 4 => segment y in [-1, 1];
+// every surface point lies radius 1 from that segment
+const capsule = spyPrim(() => efx.makeCapsule({ radius: 1, height: 4 }));
+if (capsule.positions.length === 0 ||
+    capsule.positions.length % 3 !== 0) fail('capsule verts');
+if (!near(capsule.positions[0], 0) || !near(capsule.positions[1], 2) ||
+    !near(capsule.positions[2], 0)) fail('capsule top pole');
+for (let i = 0; i < capsule.positions.length; i += 3) {
+    const x = capsule.positions[i];
+    const y = capsule.positions[i + 1];
+    const z = capsule.positions[i + 2];
+    if (y > 2 + 1e-5 || y < -2 - 1e-5) fail('capsule height extent');
+    const cy = Math.max(-1, Math.min(1, y));
+    if (!near(Math.sqrt(x * x + (y - cy) * (y - cy) + z * z), 1)) {
+        fail('capsule radius');
+    }
+}
+
 // primitive material option: bound to the single surface at creation
 const primMat = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
 const cubeMat = spyPrim(() => efx.makeCube({ size: 1, material: primMat }));
@@ -143,6 +161,7 @@ if (sphereNoMat.materials !== undefined) fail('sphere default material');
 efx.drawMesh(efx.createMesh(efx.makeCube({ size: 2 })));
 efx.drawMesh(efx.createMesh(efx.makePlane({ size: 4, segments: 3 })));
 efx.drawMesh(efx.createMesh(efx.makeSphere({ radius: 2, segments: 24 })));
+efx.drawMesh(efx.createMesh(efx.makeCapsule({ radius: 1, height: 4 })));
 
 function expectThrow(name, kind, fn) {
     try { fn(); efx.log('FAIL no-throw ' + name); efx.quit(1); }
@@ -155,6 +174,10 @@ function expectThrow(name, kind, fn) {
 expectThrow('cube-zero', RangeError, () => efx.makeCube({ size: 0 }));
 expectThrow('plane-frac', RangeError, () => efx.makePlane({ segments: 1.5 }));
 expectThrow('sphere-neg', RangeError, () => efx.makeSphere({ radius: -1 }));
+expectThrow('capsule-short', RangeError,
+            () => efx.makeCapsule({ radius: 1, height: 1 }));
+expectThrow('capsule-unknown', TypeError,
+            () => efx.makeCapsule({ radius: 1, height: 3, bogus: 1 }));
 expectThrow('cube-unknown', TypeError, () => efx.makeCube({ radius: 1 }));
 expectThrow('plane-seg-type', RangeError, () => efx.makePlane({ segments: 'many' }));
 expectThrow('prim-material-bad', TypeError, () => efx.makePlane({ material: 42 }));

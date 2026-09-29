@@ -525,13 +525,16 @@ efx.quat.multiply(a, b) efx.quat.toMat4(q)  // consumed by F7
 // F3 · JS · current — procedural primitives producing single-surface
 // MeshData (pinned layouts: cube 24 verts / 36 indices with per-face
 // normals + 0..1 uvs; plane on XZ facing +Y, (segments+1)^2 grid; UV
-// sphere with normals = normalized positions and equirectangular uvs)
+// sphere with normals = normalized positions and equirectangular uvs;
+// vertical capsule on Y with hemispherical caps)
 efx.makeCube(opts?)     // { size? = 1, material? }
 efx.makePlane(opts?)    // { size? = 1, segments? = 1, material? }
 efx.makeSphere(opts?)   // { radius? = 1, segments? = 16, material? }
-// size/radius: finite > 0; segments: positive integer; unknown fields throw
-// material?: a material object (or null = engine default) bound to the
-// single surface at creation, carried to createMesh
+efx.makeCapsule(opts?)  // { radius? = 1, height? = 2, segments? = 16, material? }
+// size/radius: finite > 0; segments: positive integer; capsule height is the
+// total tip-to-tip length and must be >= 2*radius (else RangeError); unknown
+// fields throw; material?: a material object (or null = engine default) bound
+// to the single surface at creation, carried to createMesh
 ```
 
 ```js
@@ -1379,7 +1382,7 @@ section (or an open question below):
 | Rendering meshes | F3 (`createMesh` / `drawMesh`) |
 | Vertex colours | F3 (per-surface `colors?` attribute, `drawMesh` tint) |
 | Matrix math | F3 (`efx.mat4` / `efx.vec3` / `efx.quat`) |
-| Procedural primitives | F3 (`makeCube` / `makePlane` / `makeSphere`) |
+| Procedural primitives | F3 (`makeCube` / `makePlane` / `makeSphere` / `makeCapsule`) |
 | 4 point lights, 1 directional light | F4, limits table |
 | Phong material system, 4 channels + maps | F4a/F4b (`setMeshSurfaceMaterial`) |
 | Alpha masks | F4b (`alphaMask`) |

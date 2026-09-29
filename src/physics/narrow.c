@@ -94,13 +94,21 @@ int efx_narrow_closest_on_triangle(efx_vec3 p, efx_vec3 v0, efx_vec3 v1,
 
 static int point_in_triangle(efx_vec3 p, efx_vec3 v0, efx_vec3 v1,
                              efx_vec3 v2) {
-    efx_vec3 c = efx_v3_cross(efx_v3_sub(v1, v0), efx_v3_sub(p, v0));
-    efx_vec3 e = efx_v3_cross(efx_v3_sub(v2, v0), efx_v3_sub(p, v0));
-    efx_vec3 f = efx_v3_cross(efx_v3_sub(v1, v0), efx_v3_sub(v2, v0));
-    /* all cross products share the face normal's sign (or are ~0) */
+    /* same-side test against all three edges (the face normal is shared) */
     efx_vec3 n = tri_normal(v0, v1, v2);
-    return efx_v3_dot(c, n) >= -EPS && efx_v3_dot(e, n) >= -EPS &&
-           efx_v3_dot(f, n) >= -EPS;
+    if (efx_v3_dot(efx_v3_cross(efx_v3_sub(v1, v0), efx_v3_sub(p, v0)), n) <
+        -EPS) {
+        return 0;
+    }
+    if (efx_v3_dot(efx_v3_cross(efx_v3_sub(v2, v1), efx_v3_sub(p, v1)), n) <
+        -EPS) {
+        return 0;
+    }
+    if (efx_v3_dot(efx_v3_cross(efx_v3_sub(v0, v2), efx_v3_sub(p, v2)), n) <
+        -EPS) {
+        return 0;
+    }
+    return 1;
 }
 
 void efx_narrow_closest_segments(efx_vec3 p1, efx_vec3 q1, efx_vec3 p2,

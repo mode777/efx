@@ -104,7 +104,7 @@ void efx_solver_solve(efx_physics_world *w, float dt) {
         float k = inva + invb;
         if (k <= 0) continue;
         float corr =
-            fminf((p->depth - EFX_PHYS_PEN_SLOP) * 0.4f, EFX_PHYS_MAX_CORRECTION);
+            fminf((p->depth - EFX_PHYS_PEN_SLOP) * 0.9f, EFX_PHYS_MAX_CORRECTION);
         efx_vec3 push = efx_v3_scale(p->normal, corr / k);
         if (p->a_type == 0) {
             w->bodies[p->a_index].position =

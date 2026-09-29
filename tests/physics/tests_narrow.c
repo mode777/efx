@@ -92,6 +92,16 @@ int t_narrow_triangle(void) {
     CHECK(c.normal.y > 0.9f);
     CHECK(!efx_narrow_box_triangle(efx_v3(0, 5, 0),
                                    efx_v3(0.5f, 0.5f, 0.5f), v0, v1, v2, &c));
+
+    /* regression: a capsule whose segment line crosses the triangle's plane
+     * beyond an edge must NOT report an overlap (a broken point-in-triangle
+     * once produced a bogus zero-distance contact with a wrong normal) */
+    {
+        efx_vec3 t0 = efx_v3(-2, 0, -1.6f), t1 = efx_v3(4, 2.4f, 1.6f),
+                 t2 = efx_v3(4, 2.4f, -1.6f);
+        CHECK(!efx_narrow_capsule_triangle(efx_v3(4.593f, 3.110f, 0), 0.5f,
+                                           0.4f, t0, t1, t2, &c));
+    }
     return 0;
 }
 

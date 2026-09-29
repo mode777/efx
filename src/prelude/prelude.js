@@ -296,6 +296,61 @@ function __efxMakeSphere(opts) {
     });
 }
 
+/* vertical capsule centered on the origin (Y axis); `height` is the total
+   tip-to-tip length including the hemispherical caps and must be at least
+   2*radius; normals point outward; CCW winding; revolved with `segments`
+   longitude slices and a similar latitude resolution on each cap */
+function __efxMakeCapsule(opts) {
+    var o = __efxPrimOpts(opts, ['radius', 'height', 'segments', 'material'],
+                          ['radius', 'height'], ['segments'], [1, 2, 16]);
+    var R = o.radius, H = o.height, S = o.segments;
+    if (!(H >= 2 * R)) {
+        throw new RangeError('capsule height must be at least 2 * radius');
+    }
+    var hh = H / 2 - R;                 /* half segment length */
+    var half = Math.max(1, Math.ceil(S / 2));
+    /* profile rows top->bottom: [y, radial fraction, normal radial, normal y] */
+    var rows = [[hh + R, 0, 0, 1]];
+    var i, a;
+    for (i = 1; i < half; i++) {
+        a = (i / half) * (Math.PI / 2);
+        rows.push([hh + R * Math.cos(a), Math.sin(a), Math.sin(a), Math.cos(a)]);
+    }
+    rows.push([hh, 1, 1, 0]);
+    rows.push([-hh, 1, 1, 0]);
+    for (i = 1; i < half; i++) {
+        a = (i / half) * (Math.PI / 2);
+        rows.push([-hh - R * Math.cos(a), Math.sin(a), Math.sin(a),
+                   -Math.cos(a)]);
+    }
+    rows.push([-hh - R, 0, 0, -1]);
+    var positions = [], normals = [], uvs = [], indices = [];
+    var rowCount = rows.length;
+    for (var r = 0; r < rowCount; r++) {
+        var y = rows[r][0], rr = rows[r][1] * R, nr = rows[r][2], ny = rows[r][3];
+        for (var k = 0; k < S; k++) {
+            var phi = (k / S) * 2 * Math.PI;
+            var cp = Math.cos(phi), sp = Math.sin(phi);
+            positions.push(rr * cp, y, rr * sp);
+            normals.push(nr * cp, ny, nr * sp);
+            uvs.push(k / S, r / (rowCount - 1));
+        }
+    }
+    for (var q = 0; q < rowCount - 1; q++) {
+        for (var m = 0; m < S; m++) {
+            var p0 = q * S + m;
+            var p1 = q * S + ((m + 1) % S);
+            var p2 = (q + 1) * S + m;
+            var p3 = (q + 1) * S + ((m + 1) % S);
+            indices.push(p0, p3, p2, p0, p1, p3);
+        }
+    }
+    return efx.createMeshData({
+        positions: positions, normals: normals, uvs: uvs, indices: indices,
+        materials: __efxPrimMaterial(opts),
+    });
+}
+
 /* ------------------------------------------ F10 CommonJS module runtime
  *
  * A small, synchronous, provider-backed CommonJS implementation shared by both
@@ -519,6 +574,7 @@ function __efxPreludeInstall(efx) {
     efx.makeCube = __efxMakeCube;
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
+    efx.makeCapsule = __efxMakeCapsule;
 }
 
 __efxPreludeInstall(efx);

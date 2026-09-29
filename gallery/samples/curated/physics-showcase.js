@@ -87,6 +87,7 @@ function update(dt) {
 // ---- rendering -----------------------------------------------------------
 const cube = efx.createMesh(efx.makeCube());
 const sphere = efx.createMesh(efx.makeSphere());
+const capsule = efx.createMesh(efx.makeCapsule({ radius: 0.4, height: 1.8 }));
 efx.setMeshSurfaceMaterial(cube, 0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
     diffuse: { color: [1, 1, 1, 1] },
@@ -101,6 +102,11 @@ efx.setMeshSurfaceMaterial(sphere, 0, {
     ambient: { color: [0.1, 0.1, 0.14, 1] },
     diffuse: { color: [1, 1, 1, 1] },
     specular: { color: [1, 1, 1, 1], shininess: 48 },
+});
+efx.setMeshSurfaceMaterial(capsule, 0, {
+    ambient: { color: [0.12, 0.12, 0.16, 1] },
+    diffuse: { color: [1, 1, 1, 1] },
+    specular: { color: [1, 1, 1, 1], shininess: 32 },
 });
 
 function trs(pos, scale) {
@@ -140,13 +146,9 @@ function render() {
         drawBody(cube, props[i], [0.8, 0.8, 0.8],
                  [0.85, 0.5 + i * 0.08, 0.25, 1]);
     }
-    drawBody(sphere, ball, [1, 1, 1], [0.3, 0.7, 1, 1]);
+    // sphere mesh has unit radius; scale by the collider radius
+    drawBody(sphere, ball, [0.5, 0.5, 0.5], [0.3, 0.7, 1, 1]);
 
-    // the character as a stretched capsule-ish primitives: a body + a head
-    drawBody(sphere, hero, [0.8, 1.8, 0.8], [0.95, 0.9, 0.3, 1]);
-    efx.drawMesh(sphere, {
-        transform: trs([hero.position[0], hero.position[1] + 1.1, hero.position[2]],
-                       [0.55, 0.55, 0.55]),
-        color: [1, 0.95, 0.5, 1],
-    });
+    // the character is a capsule matching its collision volume exactly
+    drawBody(capsule, hero, [1, 1, 1], [0.95, 0.9, 0.3, 1]);
 }

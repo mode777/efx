@@ -317,6 +317,14 @@ interface MakeSphereOptions {
   /** Material bound to the primitive's single surface; null = engine default. */
   material?: Material | null;
 }
+interface MakeCapsuleOptions {
+  radius?: number;
+  /** Total tip-to-tip length including caps; must be >= 2 * radius. */
+  height?: number;
+  segments?: number;
+  /** Material bound to the primitive's single surface; null = engine default. */
+  material?: Material | null;
+}
 
 type EfxPostEffect =
   | {
@@ -613,6 +621,7 @@ interface Efx {
   makeCube(opts?: MakeCubeOptions): EfxMeshData;
   makePlane(opts?: MakePlaneOptions): EfxMeshData;
   makeSphere(opts?: MakeSphereOptions): EfxMeshData;
+  makeCapsule(opts?: MakeCapsuleOptions): EfxMeshData;
 
   // F3 — pure-JS math layer
   mat4: EfxMat4;
