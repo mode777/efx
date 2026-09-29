@@ -10,7 +10,8 @@ function __efxState() {
     if (!st) {
         st = { api: null, quitSentinel: null, updateHooks: [], renderHooks: [], started: false,
                keyboardDown: [], keyboardUp: [], keyboardChar: [],
-               mouseDown: [], mouseUp: [], mouseMove: [], mouseWheel: [] };
+               mouseDown: [], mouseUp: [], mouseMove: [], mouseWheel: [],
+               gamepadConnect: [], gamepadDisconnect: [] };
         globalThis['__efx_state'] = st;
     }
     return st;
@@ -144,6 +145,66 @@ function __efxCallHooks(st, hooks, ev) {
     return 0;
 }
 
+/* F13: the gamepad pad view — a plain JS object whose methods call the C core
+   (one source shared with the desktop binding) */
+function __efxGamepadView(slot) {
+    var bridge = Module;
+    function buttonId(name) {
+        if (typeof name !== 'string') {
+            throw new TypeError('gamepad button query requires a button name');
+        }
+        var p = __efxAllocCStr(name);
+        var id = bridge['_efx_bridge_gamepad_button_id'](p);
+        bridge['_efx_bridge_mem_free'](p);
+        if (id < 0) {
+            throw new TypeError('unknown gamepad button');
+        }
+        return id;
+    }
+    function axisId(name) {
+        if (typeof name !== 'string') {
+            throw new TypeError('gamepad axis query requires an axis name');
+        }
+        var p = __efxAllocCStr(name);
+        var id = bridge['_efx_bridge_gamepad_axis_id'](p);
+        bridge['_efx_bridge_mem_free'](p);
+        if (id < 0) {
+            throw new TypeError('unknown gamepad axis');
+        }
+        return id;
+    }
+    return {
+        index: slot,
+        connected: !!bridge['_efx_bridge_gamepad_connected'](slot),
+        name: UTF8ToString(bridge['_efx_bridge_gamepad_name'](slot)),
+        mapped: !!bridge['_efx_bridge_gamepad_mapped'](slot),
+        isDown: function (b) {
+            return !!bridge['_efx_bridge_gamepad_button_down'](slot, buttonId(b));
+        },
+        isPressed: function (b) {
+            return !!bridge['_efx_bridge_gamepad_button_pressed'](slot, buttonId(b));
+        },
+        isReleased: function (b) {
+            return !!bridge['_efx_bridge_gamepad_button_released'](slot, buttonId(b));
+        },
+        axis: function (a) {
+            return bridge['_efx_bridge_gamepad_axis'](slot, axisId(a));
+        },
+        rawButton: function (i) {
+            if (typeof i !== 'number') {
+                throw new TypeError('gamepad raw query requires an index');
+            }
+            return bridge['_efx_bridge_gamepad_raw_button'](slot, i | 0);
+        },
+        rawAxis: function (i) {
+            if (typeof i !== 'number') {
+                throw new TypeError('gamepad raw query requires an index');
+            }
+            return bridge['_efx_bridge_gamepad_raw_axis'](slot, i | 0);
+        },
+    };
+}
+
 /* F9: drain the frame's staged input events into the registered callbacks,
    in arrival order, before the update hooks run (design D2/D3) */
 function __efxDispatchInput(st) {
@@ -205,6 +266,24 @@ function __efxDispatchInput(st) {
         }
     }
     bridge['_efx_bridge_input_clear']();
+
+    /* F13: gamepad connect/disconnect callbacks fire with the pad view */
+    var cn = bridge['_efx_bridge_gamepad_connect_count']();
+    for (var c = 0; c < cn; c++) {
+        var slot = bridge['_efx_bridge_gamepad_connect_at'](c);
+        var rcc = __efxCallHooks(st, st.gamepadConnect, __efxGamepadView(slot));
+        if (rcc !== 0) {
+            return rcc;
+        }
+    }
+    var dn = bridge['_efx_bridge_gamepad_disconnect_count']();
+    for (var d = 0; d < dn; d++) {
+        var dslot = bridge['_efx_bridge_gamepad_disconnect_at'](d);
+        var rcd = __efxCallHooks(st, st.gamepadDisconnect, __efxGamepadView(dslot));
+        if (rcd !== 0) {
+            return rcd;
+        }
+    }
     return 0;
 }
 
@@ -2740,6 +2819,25 @@ function __efxEnsureApi() {
     });
     Object.defineProperty(api.window, 'dpiScale', {
         get: function () { return bridge['_efx_bridge_window_dpi'](); },
+    });
+
+    /* F13 gamepad namespace (desktop parity: same C core, same errors) */
+    api.gamepad = {
+        get: function (index) {
+            if (typeof index !== 'number') {
+                throw new TypeError('gamepad.get requires an index');
+            }
+            var i = index | 0;
+            if (!bridge['_efx_bridge_gamepad_connected'](i)) {
+                return null;
+            }
+            return __efxGamepadView(i);
+        },
+        onConnect: makeInputRegister(st.gamepadConnect),
+        onDisconnect: makeInputRegister(st.gamepadDisconnect),
+    };
+    Object.defineProperty(api.gamepad, 'count', {
+        get: function () { return bridge['_efx_bridge_gamepad_count'](); },
     });
 
     /* ---------------------------------------------- F12 physics */

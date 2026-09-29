@@ -62,6 +62,7 @@ add_player_test(smoke_10_unsupported ARGS "--script;${S}/s_10_unsupported.js" EX
 add_player_test(smoke_10_nohost ARGS "--script;${S}/s_10_nohost.js" EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
 add_player_test(smoke_11_particles ARGS "--script;${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-11-particles-ok")
 add_player_test(smoke_12_physics ARGS "--script;${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
+add_player_test(smoke_13_gamepad ARGS "--script;${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
 add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
@@ -143,6 +144,7 @@ if(EMSCRIPTEN)
     add_web_test(web_10_nohost ${S}/s_10_nohost.js EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
     add_web_test(web_11_particles ${S}/s_11_particles.js EXPECT 0 EXPECT_OUT "s-11-particles-ok")
     add_web_test(web_12_physics ${S}/physics_smoke.js EXPECT 0 EXPECT_OUT "s-12-physics-ok")
+    add_web_test(web_13_gamepad ${S}/s_13_gamepad.js EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
     add_web_test(web_8a_text ${F}/web/text_root EXPECT 0 EXPECT_OUT "s-8a-text-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
@@ -166,7 +168,9 @@ foreach(CASE
     add_unit_test(efx_math_tests ${CASE})
 endforeach()
 
-foreach(CASE names level_edge repeat ordering deltas mouse focus chars window mods)
+foreach(CASE names level_edge repeat ordering deltas mouse focus chars window mods
+              gp_names gp_edges gp_hotplug gp_mapping gp_half_invert gp_hat
+              gp_dpad_buttons gp_ranges gp_raw gp_guid_fallback gp_full)
     add_unit_test(efx_input_tests ${CASE})
 endforeach()
 
@@ -221,7 +225,7 @@ foreach(CASE
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
     resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
-    module_js module_hooks_js font_js
+    gamepad_js module_js module_hooks_js font_js
     billboard_js particles_js sprites_js physics_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()

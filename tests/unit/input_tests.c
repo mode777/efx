@@ -5,7 +5,9 @@
  * Usage: efx_input_tests <case> ; exit 0 = pass.
  */
 #include "input/efx_input.h"
+#include "input/efx_gamepad.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -243,6 +245,372 @@ static int mods(void) {
     return 0;
 }
 
+/* ------------------------------------------------------------ F13 gamepad */
+
+static int gp_names(void) {
+    static const char *btns[] = {
+        "south", "east", "west", "north", "leftShoulder", "rightShoulder",
+        "leftTrigger", "rightTrigger", "back", "start", "guide", "leftStick",
+        "rightStick", "dpadUp", "dpadDown", "dpadLeft", "dpadRight",
+    };
+    for (size_t i = 0; i < sizeof(btns) / sizeof(btns[0]); i++) {
+        int id = efx_input_gamepad_button_id(btns[i]);
+        if (id < 0 || !efx_input_gamepad_button_name(id) ||
+            strcmp(efx_input_gamepad_button_name(id), btns[i]) != 0) {
+            return fail("gamepad button name round-trip");
+        }
+    }
+    static const char *axes[] = {"leftX", "leftY", "rightX", "rightY",
+                                 "leftTrigger", "rightTrigger"};
+    for (size_t i = 0; i < sizeof(axes) / sizeof(axes[0]); i++) {
+        int id = efx_input_gamepad_axis_id(axes[i]);
+        if (id < 0 || !efx_input_gamepad_axis_name(id) ||
+            strcmp(efx_input_gamepad_axis_name(id), axes[i]) != 0) {
+            return fail("gamepad axis name round-trip");
+        }
+    }
+    if (efx_input_gamepad_button_id("notabutton") != -1 ||
+        efx_input_gamepad_axis_id("leftZ") != -1 ||
+        efx_input_gamepad_button_id(NULL) != -1) {
+        return fail("unknown gamepad name must fail lookup");
+    }
+    return 0;
+}
+
+/* press/release edges valid one frame on a normalized (standard) pad */
+static int gp_edges(void) {
+    efx_input_reset();
+    unsigned char btns[1] = {0};
+    float axes[6] = {0, 0, 0, 0, 0, 0};
+    efx_input_gamepad_inject_connect(0, "Pad", NULL, 1);
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (efx_input_gamepad_count() != 1 ||
+        efx_input_gamepad_connected(0) != 1) {
+        return fail("gamepad connect");
+    }
+    if (efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH)) {
+        return fail("gamepad initially up");
+    }
+    efx_input_end_frame();
+
+    btns[0] = 1;
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH) ||
+        !efx_input_gamepad_button_is_pressed(0, EFX_GPB_SOUTH) ||
+        efx_input_gamepad_button_is_released(0, EFX_GPB_SOUTH)) {
+        return fail("gamepad press edge");
+    }
+    efx_input_end_frame();
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH) ||
+        efx_input_gamepad_button_is_pressed(0, EFX_GPB_SOUTH)) {
+        return fail("gamepad press edge must expire");
+    }
+    efx_input_end_frame();
+
+    btns[0] = 0;
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH) ||
+        !efx_input_gamepad_button_is_released(0, EFX_GPB_SOUTH)) {
+        return fail("gamepad release edge");
+    }
+    return 0;
+}
+
+/* hot-plug: connect/disconnect events and clearing held state on unplug */
+static int gp_hotplug(void) {
+    efx_input_reset();
+    unsigned char down[1] = {1};
+    float axes[6] = {0, 0, 0, 0, 0, 0};
+    efx_input_gamepad_inject_connect(0, "Pad", NULL, 1);
+    efx_input_gamepad_inject_state(0, 1, down, 6, axes);
+    efx_input_begin_frame();
+    if (efx_input_gamepad_count() != 1 ||
+        efx_input_gamepad_connect_count() != 1 ||
+        efx_input_gamepad_connect_at(0) != 0) {
+        return fail("gamepad connect event");
+    }
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH)) {
+        return fail("gamepad held before unplug");
+    }
+    efx_input_end_frame();
+
+    efx_input_gamepad_inject_disconnect(0);
+    efx_input_begin_frame();
+    if (efx_input_gamepad_count() != 0 || efx_input_gamepad_connected(0)) {
+        return fail("gamepad disconnect");
+    }
+    if (efx_input_gamepad_disconnect_count() != 1 ||
+        efx_input_gamepad_disconnect_at(0) != 0) {
+        return fail("gamepad disconnect event");
+    }
+    if (efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH)) {
+        return fail("gamepad unplug must not leave stuck state");
+    }
+    return 0;
+}
+
+/* a synthetic SDL mapping drives the semantic surface */
+static int gp_mapping(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    if (!efx_input_gamepad_load_mapping_line(
+            "11110000000000000000000000000000,Test,a:b0,b:b1,leftx:a0,"
+            "lefty:a1,lefttrigger:+a2,righttrigger:+a3,")) {
+        return fail("gamepad load mapping");
+    }
+    unsigned char btns[2] = {1, 0};
+    float axes[4] = {0.5f, -0.5f, -1.0f, 1.0f};
+    efx_input_gamepad_inject_connect(0, "Test",
+                                     "11110000000000000000000000000000", 0);
+    efx_input_gamepad_inject_state(0, 2, btns, 4, axes);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_mapped(0)) {
+        return fail("gamepad mapping selected");
+    }
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH) ||
+        efx_input_gamepad_button_is_down(0, EFX_GPB_EAST)) {
+        return fail("gamepad mapped buttons");
+    }
+    if (fabsf(efx_input_gamepad_axis(0, EFX_GPA_LEFT_X) - 0.5f) > 1e-5f ||
+        fabsf(efx_input_gamepad_axis(0, EFX_GPA_LEFT_Y) + 0.5f) > 1e-5f) {
+        return fail("gamepad mapped sticks");
+    }
+    /* +aN half-axis collapses -1..1 onto 0..1 */
+    if (fabsf(efx_input_gamepad_axis(0, EFX_GPA_LEFT_TRIGGER) - 0.0f) > 1e-5f ||
+        fabsf(efx_input_gamepad_axis(0, EFX_GPA_RIGHT_TRIGGER) - 1.0f) > 1e-5f) {
+        return fail("gamepad mapped triggers");
+    }
+    if (efx_input_gamepad_button_is_down(0, EFX_GPB_LEFT_TRIGGER) ||
+        !efx_input_gamepad_button_is_down(0, EFX_GPB_RIGHT_TRIGGER)) {
+        return fail("gamepad digital triggers");
+    }
+    return 0;
+}
+
+/* half-axis, inversion, and the digital-trigger threshold */
+static int gp_half_invert(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    if (!efx_input_gamepad_load_mapping_line(
+            "22220000000000000000000000000000,Half,leftx:+a0,lefty:~a1,"
+            "lefttrigger:+a2,")) {
+        return fail("gamepad load half mapping");
+    }
+    unsigned char btns[1] = {0};
+    float axes[3] = {-1.0f, 1.0f, 0.0f};
+    efx_input_gamepad_inject_connect(0, "Half",
+                                     "22220000000000000000000000000000", 0);
+    efx_input_gamepad_inject_state(0, 1, btns, 3, axes);
+    efx_input_begin_frame();
+    /* +a0 at raw -1 -> 0; ~a1 at raw 1 -> -1; +a2 at raw 0 -> 0.5 */
+    if (fabsf(efx_input_gamepad_axis(0, EFX_GPA_LEFT_X) - 0.0f) > 1e-5f) {
+        return fail("half-axis positive range");
+    }
+    if (fabsf(efx_input_gamepad_axis(0, EFX_GPA_LEFT_Y) + 1.0f) > 1e-5f) {
+        return fail("inverted axis direction");
+    }
+    if (fabsf(efx_input_gamepad_axis(0, EFX_GPA_LEFT_TRIGGER) - 0.5f) > 1e-5f) {
+        return fail("half-axis trigger midpoint");
+    }
+    /* threshold is inclusive: exactly 0.5 is down */
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_LEFT_TRIGGER)) {
+        return fail("trigger threshold inclusive");
+    }
+    return 0;
+}
+
+/* hat-mapped and button-mapped d-pad both resolve */
+static int gp_hat(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    if (!efx_input_gamepad_load_mapping_line(
+            "33330000000000000000000000000000,Hat,dpup:h0.1,dpright:h0.2,"
+            "dpdown:h0.4,dpleft:h0.8,")) {
+        return fail("gamepad load hat mapping");
+    }
+    efx_input_gamepad_inject_connect(0, "Hat",
+                                     "33330000000000000000000000000000", 0);
+    unsigned char btns[1] = {0};
+    float axes[1] = {0.0f};
+    float hats[2] = {0.0f, -1.0f}; /* hat 0 y = up */
+    efx_input_gamepad_inject_state(0, 1, btns, 1, axes);
+    efx_input_gamepad_inject_hats(0, 2, hats);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_UP) ||
+        efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_DOWN) ||
+        efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_LEFT) ||
+        efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_RIGHT)) {
+        return fail("hat up");
+    }
+    efx_input_end_frame();
+
+    hats[0] = 1.0f;
+    hats[1] = 0.0f; /* hat 0 x = right */
+    efx_input_gamepad_inject_hats(0, 2, hats);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_RIGHT) ||
+        efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_UP)) {
+        return fail("hat right");
+    }
+    return 0;
+}
+
+/* d-pad expressed as buttons */
+static int gp_dpad_buttons(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    if (!efx_input_gamepad_load_mapping_line(
+            "44440000000000000000000000000000,Buttons,dpleft:b5,dpright:b4,")) {
+        return fail("gamepad load dpad-button mapping");
+    }
+    efx_input_gamepad_inject_connect(0, "Buttons",
+                                     "44440000000000000000000000000000", 0);
+    unsigned char btns[6] = {0, 0, 0, 0, 0, 1};
+    efx_input_gamepad_inject_state(0, 6, btns, 0, NULL);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_LEFT) ||
+        efx_input_gamepad_button_is_down(0, EFX_GPB_DPAD_RIGHT)) {
+        return fail("button d-pad");
+    }
+    return 0;
+}
+
+/* desktop-style and web-standard descriptors collapse to identical values */
+static int gp_ranges(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    if (!efx_input_gamepad_load_mapping_line(
+            "55550000000000000000000000000000,Desk,leftx:a0,lefty:a1,"
+            "rightx:a2,righty:a3,lefttrigger:+a4,righttrigger:+a5,")) {
+        return fail("gamepad load range mapping");
+    }
+    /* desktop: raw axes are -1..1 including triggers */
+    efx_input_gamepad_inject_connect(0, "Desk",
+                                     "55550000000000000000000000000000", 0);
+    float desktop[6] = {0.25f, -0.75f, 0.0f, 0.5f, 0.0f, 1.0f};
+    efx_input_gamepad_inject_state(0, 0, NULL, 6, desktop);
+    /* web standard: raw axes are already canonical (triggers 0..1) */
+    efx_input_gamepad_inject_connect(1, "Web", NULL, 1);
+    float web[6] = {0.25f, -0.75f, 0.0f, 0.5f, 0.5f, 1.0f};
+    efx_input_gamepad_inject_state(1, 0, NULL, 6, web);
+    efx_input_begin_frame();
+    for (int a = 0; a < EFX_GPA_COUNT; a++) {
+        float d = efx_input_gamepad_axis(0, a);
+        float w = efx_input_gamepad_axis(1, a);
+        if (fabsf(d - w) > 1e-5f) {
+            return fail("canonical range mismatch desktop vs web");
+        }
+    }
+    return 0;
+}
+
+/* an unmapped device is still connected and readable through the raw surface */
+static int gp_raw(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    efx_input_gamepad_inject_connect(0, "Unknown",
+                                     "99990000000000000000000000000000", 0);
+    unsigned char btns[2] = {0, 1};
+    float axes[3] = {0.1f, 0.2f, 0.3f};
+    efx_input_gamepad_inject_state(0, 2, btns, 3, axes);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_connected(0) || efx_input_gamepad_mapped(0)) {
+        return fail("unmapped pad reports connected+unmapped");
+    }
+    if (efx_input_gamepad_raw_button(0, 1) != 1 ||
+        efx_input_gamepad_raw_button(0, 0) != 0) {
+        return fail("raw button fallback");
+    }
+    if (fabsf(efx_input_gamepad_raw_axis(0, 2) - 0.3f) > 1e-5f) {
+        return fail("raw axis fallback");
+    }
+    /* semantic surface is inert without a mapping */
+    if (efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH) ||
+        efx_input_gamepad_axis(0, EFX_GPA_LEFT_X) != 0.0f) {
+        return fail("unmapped semantic surface must be inert");
+    }
+    return 0;
+}
+
+/* GUID selection: exact, permissive tail, and vendor/product prefix fallback
+ * (the engine-side counterpart of the Windows non-Xbox matching defect). */
+static int gp_guid_fallback(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    if (!efx_input_gamepad_load_mapping_line(
+            "aaaaaaaa000000000000000000000000,Vendor,a:b0,")) {
+        return fail("gamepad load guid mapping");
+    }
+    unsigned char btns[1] = {1};
+    /* exact match */
+    efx_input_gamepad_inject_connect(0, "Exact",
+                                     "aaaaaaaa000000000000000000000000", 0);
+    efx_input_gamepad_inject_state(0, 1, btns, 0, NULL);
+    /* differs only in the trailing bytes -> permissive tail fallback */
+    efx_input_gamepad_inject_connect(1, "Tail",
+                                     "aaaaaaaa0000000000000000deadbeef", 0);
+    efx_input_gamepad_inject_state(1, 1, btns, 0, NULL);
+    /* differs in the vendor/product prefix -> unmapped */
+    efx_input_gamepad_inject_connect(2, "Other",
+                                     "aaaaaaab000000000000000000000000", 0);
+    efx_input_gamepad_inject_state(2, 1, btns, 0, NULL);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_mapped(0) || !efx_input_gamepad_mapped(1)) {
+        return fail("guid exact/permissive match");
+    }
+    if (efx_input_gamepad_mapped(2)) {
+        return fail("different vendor must not match");
+    }
+    if (!efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH) ||
+        !efx_input_gamepad_button_is_down(1, EFX_GPB_SOUTH)) {
+        return fail("permissive mapping surface");
+    }
+    return 0;
+}
+
+/* full connect -> press -> release -> disconnect through the production path */
+static int gp_full(void) {
+    efx_input_reset();
+    unsigned char btns[1] = {0};
+    float axes[6] = {0, 0, 0, 0, 0, 0};
+    efx_input_gamepad_inject_connect(0, "Pad", NULL, 1);
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (efx_input_gamepad_count() != 1 ||
+        efx_input_gamepad_connect_count() != 1) {
+        return fail("full connect");
+    }
+    efx_input_end_frame();
+
+    btns[0] = 1;
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_pressed(0, EFX_GPB_SOUTH)) {
+        return fail("full press");
+    }
+    efx_input_end_frame();
+
+    btns[0] = 0;
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_button_is_released(0, EFX_GPB_SOUTH)) {
+        return fail("full release");
+    }
+    efx_input_end_frame();
+
+    efx_input_gamepad_inject_disconnect(0);
+    efx_input_begin_frame();
+    if (efx_input_gamepad_count() != 0 ||
+        efx_input_gamepad_disconnect_count() != 1) {
+        return fail("full disconnect");
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_input_tests <case>\n");
@@ -259,6 +627,17 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "chars")) return chars();
     if (!strcmp(c, "window")) return window();
     if (!strcmp(c, "mods")) return mods();
+    if (!strcmp(c, "gp_names")) return gp_names();
+    if (!strcmp(c, "gp_edges")) return gp_edges();
+    if (!strcmp(c, "gp_hotplug")) return gp_hotplug();
+    if (!strcmp(c, "gp_mapping")) return gp_mapping();
+    if (!strcmp(c, "gp_half_invert")) return gp_half_invert();
+    if (!strcmp(c, "gp_hat")) return gp_hat();
+    if (!strcmp(c, "gp_dpad_buttons")) return gp_dpad_buttons();
+    if (!strcmp(c, "gp_ranges")) return gp_ranges();
+    if (!strcmp(c, "gp_raw")) return gp_raw();
+    if (!strcmp(c, "gp_guid_fallback")) return gp_guid_fallback();
+    if (!strcmp(c, "gp_full")) return gp_full();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

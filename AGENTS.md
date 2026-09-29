@@ -153,6 +153,21 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   determinism, stress), the portable `smoke_12_physics`/`web_12_physics` script
   case through both runtimes, and the cross-runtime compare — no golden image
   (change `f12-collision-physics`, ADR 0040, recorded in AGENTS.md).
+- F13 (gamepad input) is **implemented** as an orthogonal milestone
+  (predecessor F9; independent of F3–F8 and F10–F12) — a pinned vendored
+  minigamepad poll backend confined to `efx_platform`
+  (`src/platform/gamepad_backend.c`), a pure-C fixed pad bank and portable
+  SDL-mapping evaluator in `src/input/efx_gamepad.{c,h}` (frame-begin polling,
+  one-frame edges, GUID selection with permissive fallback, half-axis/
+  inversion/hat handling, canonical stick −1..1 and trigger 0..1 ranges with a
+  0.5 digital-trigger threshold, raw fallback for unmapped pads), and the
+  `efx.gamepad` namespace (`count`, `get(index)`, the pad view, and
+  `onConnect`/`onDisconnect` returning unsubscribe functions) mirrored by both
+  bindings; no new resource type. Its gate is the headless `efx_input_tests`
+  gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator
+  with synthetic descriptors, the portable `smoke_13_gamepad`/`web_13_gamepad`
+  script case through both runtimes, and the cross-runtime compare — no golden
+  image (change `gamepad-input`, ADR 0041).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -263,8 +278,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `raycast`, `overlap`, `shapeCast`) with the native-backed `Body`/`Character`
   classes (`destroy`, read-only `position`/`contacts`/`transform`/`onFloor`,
   read-write `velocity`, `applyImpulse`/`applyForce`, `moveAndSlide`) —
-  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F8/F9/F10/F11/F12 entries
-  are current behavior;
+  plus F13's gamepad sub-namespace — `efx.gamepad` (`count`, `get(index)`, and
+  `onConnect`/`onDisconnect` returning unsubscribe functions; the pad view's
+  `connected`/`name`/`mapped`, `isDown`/`isPressed`/`isReleased`, `axis`, and
+  the `rawButton`/`rawAxis` fallback; no resource type) —
+  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F8/F9/F10/F11/F12/F13
+  entries are current behavior;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
   The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
   batch and shorthand forms as an exclusive union (the batch form does not
@@ -379,10 +398,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 spec is `openspec/specs/feature-roadmap`. The order is fixed: a milestone
 must not start before its predecessor's verification gate passes on all
 four targets, and every feature proposal must name the milestone it
-implements. F9 (input) and F10 (script modules — CommonJS) are the
-**orthogonal** milestones: F9's only predecessor is F2, and F10's only
-predecessors are F1–F2 plus the F6a dir/zip resource provider, so both may land
-independently of F3–F8.
+implements. F9 (input), F10 (script modules — CommonJS), F11 (particles +
+billboards), F12 (collision + character + impulse dynamics), and F13 (gamepad
+input) are the **orthogonal** milestones: F9's only predecessor is F2, F10's
+are F1–F2 plus the F6a dir/zip resource provider, F11's are F2 + F3 (+ F6a for
+file textures), F12's are F3 + F6a/F6b, and F13's only predecessor is F9, so
+they may land independently of the remaining F3–F8 milestones.
 
 | # | Milestone | Scope (one line) | Verification gate | Status |
 |---|-----------|------------------|-------------------|--------|
@@ -398,6 +419,7 @@ independently of F3–F8.
 | F10 | Script modules (CommonJS) | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F9): synchronous provider-backed `require` in the shared pure-JS prelude, restricted resolver, module caching/cycles, `__esModule` interop, JSON modules, `main.js` as a module, TypeScript `import`→CommonJS authoring | Script-level module tests on all four targets (ctest + Emscripten ctest + cross-runtime compare; no golden image) | implemented — change `f10-commonjs-modules`, ADR 0037; four-target gate green (run 36463101573) |
 | F11 | Particles + billboards | **Orthogonal** (predecessors F2 + F3, F6a for file textures; independent of F4/F5/F7/F8): CPU-simulated engine-owned particle systems (`createParticleSystem`/`emit`/`drawParticles`, 3D world or 2D screen, `facing` `view`/`y`/`plane`), world-space `drawBillboard`, batched 2D `drawSprites`, a depth-test/no-write billboard pipeline, and curated gallery showcases | Golden image + headless simulation/billboard unit tests + portable script case + curated showcases, all four targets | implemented — change `f11-particles-billboards`, ADR 0039; four-target gate green (run 36563480277) |
 | F12 | Collision + character + impulse dynamics | **Orthogonal** (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8): a bespoke dependency-free C11 core (`src/physics/`) — sphere/box/capsule/triangle-mesh colliders, one script-stepped world, linear-only sequential-impulse dynamics, sensors, `Body`/`Character` native-backed classes, the `moveAndSlide` capsule controller, and the `raycast`/`overlap`/`shapeCast` queries — plus a curated gallery showcase | Headless `efx_physics_tests` (narrowphase, invariants, scenarios, determinism, stress) + portable script case through both runtimes + cross-runtime compare (no golden image) | implemented — change `f12-collision-physics`, ADR 0040 |
+| F13 | Gamepad input | **Orthogonal** (predecessor F9; independent of F3–F8 and F10–F12): a vendored pinned minigamepad poll backend confined to the platform layer, a pure-C fixed pad bank (`src/input/efx_gamepad.c`) with frame-begin polling and F9-style one-frame edges, a portable SDL-mapping evaluator (GUID selection, half-axis/inversion/hat handling), canonical ranges + trigger threshold, a raw fallback for unmapped pads, and the `efx.gamepad` namespace (no new resource type) | Headless `efx_input_tests` gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator with synthetic descriptors, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `gamepad-input`, ADR 0041 |
 
 Deferred cross-cutting decisions settle inside specific milestones, not
 before: golden-image tolerance + CI determinism (incl. emsdk pinning) in

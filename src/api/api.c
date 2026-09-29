@@ -1,6 +1,8 @@
 #include "api/api.h"
+#include "runtime/runtime.h"
 #include "runtime/runtime_internal.h"
 #include "input/efx_input.h"
+#include "input/efx_gamepad.h"
 #include "physics/physics.h"
 #include "physics/broadphase.h"
 #include "render/render.h"
@@ -5146,6 +5148,40 @@ static JSValue efx_js_window_getDpiScale(JSContext *ctx, JSValueConst this_val) 
     return JS_NewFloat64(ctx, dpi);
 }
 
+/* F13 gamepad: count is a read-only property; get(index) returns the pad
+ * view or null; onConnect/onDisconnect return unsubscribe functions. */
+static JSValue efx_js_gamepad_count(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    return JS_NewInt32(ctx, efx_input_gamepad_count());
+}
+
+static JSValue efx_js_gamepad_get(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsNumber(argv[0])) {
+        return type_error(ctx, "gamepad.get requires an index");
+    }
+    int index = 0;
+    JS_ToInt32(ctx, &index, argv[0]);
+    if (index < 0 || index >= EFX_GAMEPAD_MAX ||
+        !efx_input_gamepad_connected(index)) {
+        return JS_NULL;
+    }
+    return efx_runtime_gamepad_view((efx_runtime *)host_state(ctx), index);
+}
+
+static JSValue efx_js_gamepad_on(JSContext *ctx, JSValueConst this_val,
+                                 int argc, JSValueConst *argv, int magic) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx,
+                          "input callback registration requires a function");
+    }
+    int which = magic == 1 ? EFX_HOOK_LIST_GP_DISCONNECT
+                           : EFX_HOOK_LIST_GP_CONNECT;
+    return register_hook(ctx, argv[0], which);
+}
+
 int efx_api_register_input(JSContext *ctx, JSValueConst efx) {
     static const JSCFunctionListEntry kb_funcs[] = {
         JS_CFUNC_MAGIC_DEF("isDown", 1, efx_js_key_query, 0),
@@ -5175,6 +5211,12 @@ int efx_api_register_input(JSContext *ctx, JSValueConst efx) {
         JS_CGETSET_DEF("height", efx_js_window_getHeight, NULL),
         JS_CGETSET_DEF("dpiScale", efx_js_window_getDpiScale, NULL),
     };
+    static const JSCFunctionListEntry gamepad_funcs[] = {
+        JS_CFUNC_DEF("get", 1, efx_js_gamepad_get),
+        JS_CFUNC_MAGIC_DEF("onConnect", 1, efx_js_gamepad_on, 0),
+        JS_CFUNC_MAGIC_DEF("onDisconnect", 1, efx_js_gamepad_on, 1),
+        JS_CGETSET_DEF("count", efx_js_gamepad_count, NULL),
+    };
     JSValue kb = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, kb, kb_funcs,
                                (int)(sizeof(kb_funcs) / sizeof(kb_funcs[0])));
@@ -5186,10 +5228,15 @@ int efx_api_register_input(JSContext *ctx, JSValueConst efx) {
     JS_SetPropertyFunctionList(ctx, window, window_funcs,
                                (int)(sizeof(window_funcs) /
                                      sizeof(window_funcs[0])));
+    JSValue gamepad = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, gamepad, gamepad_funcs,
+                               (int)(sizeof(gamepad_funcs) /
+                                     sizeof(gamepad_funcs[0])));
     /* JS_SetPropertyStr consumes the value reference */
     JS_SetPropertyStr(ctx, efx, "keyboard", kb);
     JS_SetPropertyStr(ctx, efx, "mouse", mouse);
     JS_SetPropertyStr(ctx, efx, "window", window);
+    JS_SetPropertyStr(ctx, efx, "gamepad", gamepad);
     return 0;
 }
 

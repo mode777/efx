@@ -116,6 +116,13 @@ MUST update the document in the same change.
   JSON modules, the module-shaped entry hooks, and the F10 milestone tag, and
   states that Node/npm compatibility is not provided
 
+#### Scenario: Particle, billboard, and sprite API is documented
+- **WHEN** the reference is read after this change
+- **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
+  and `drawParticles` with their options, error behavior, the `ParticleSystem`
+  class and its lifecycle, the `facing` render modes, and the F11 milestone
+  tag
+
 #### Scenario: Gamepad namespace is documented
 - **WHEN** the reference is read after this change
 - **THEN** it catalogs `efx.gamepad` with its `count`/`get`, the pad view's
@@ -129,5 +136,5 @@ MUST update the document in the same change.
   meshes, vertex colors, cameras, lights, Phong materials with maps, alpha
   masks, blending modes, render targets, post FX, resource loading,
   keyboard/mouse input query and events, gamepad input, script modules,
-  skinning/animation, high-level model and text drawing) has a corresponding
+  skinning/animation, high-level text drawing) has a corresponding
   catalog entry or an explicitly noted open question

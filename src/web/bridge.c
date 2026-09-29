@@ -10,6 +10,7 @@
 #include "physics/broadphase.h"
 #include "render/render.h"
 #include "input/efx_input.h"
+#include "input/efx_gamepad.h"
 #include "prelude/prelude.h"
 #include "resource/gltf.h"
 #include "resource/image.h"
@@ -1309,6 +1310,75 @@ EMSCRIPTEN_KEEPALIVE float efx_bridge_input_dy(int index) {
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_input_clear(void) {
     efx_input_clear_events();
+}
+
+/* ------------------------------------------------- F13 (gamepad) */
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_count(void) {
+    return efx_input_gamepad_count();
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_connected(int slot) {
+    return efx_input_gamepad_connected(slot);
+}
+
+EMSCRIPTEN_KEEPALIVE const char *efx_bridge_gamepad_name(int slot) {
+    const char *n = efx_input_gamepad_name(slot);
+    return n ? n : "";
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_mapped(int slot) {
+    return efx_input_gamepad_mapped(slot);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_button_id(const char *name) {
+    return efx_input_gamepad_button_id(name);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_axis_id(const char *name) {
+    return efx_input_gamepad_axis_id(name);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_button_down(int slot, int button) {
+    return efx_input_gamepad_button_is_down(slot, button);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_button_pressed(int slot,
+                                                           int button) {
+    return efx_input_gamepad_button_is_pressed(slot, button);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_button_released(int slot,
+                                                            int button) {
+    return efx_input_gamepad_button_is_released(slot, button);
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_gamepad_axis(int slot, int axis) {
+    return efx_input_gamepad_axis(slot, axis);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_raw_button(int slot, int index) {
+    return efx_input_gamepad_raw_button(slot, index);
+}
+
+EMSCRIPTEN_KEEPALIVE float efx_bridge_gamepad_raw_axis(int slot, int index) {
+    return efx_input_gamepad_raw_axis(slot, index);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_connect_count(void) {
+    return efx_input_gamepad_connect_count();
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_connect_at(int i) {
+    return efx_input_gamepad_connect_at(i);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_disconnect_count(void) {
+    return efx_input_gamepad_disconnect_count();
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_gamepad_disconnect_at(int i) {
+    return efx_input_gamepad_disconnect_at(i);
 }
 
 static int web_frame(void *ud, double dt) {

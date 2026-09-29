@@ -8,6 +8,7 @@
 #include "resource/resource.h"
 #include "runtime/runtime.h"
 #include "input/efx_input.h"
+#include "input/efx_gamepad.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1275,6 +1276,101 @@ static int repl_eval(void) {
     return ok ? 0 : fail("repl line evaluation");
 }
 
+/* F13: gamepad namespace bindings through the real quickjs runtime:
+ * count/get/pad-view queries, connect/disconnect callbacks with the pad view,
+ * validation/unsubscribe matrix (driven by the C injection seam). */
+static int gamepad_js(void) {
+    efx_input_reset();
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) {
+        return fail("runtime");
+    }
+    int rc = 0;
+    const char *setup =
+        "globalThis.__log = [];"
+        "function kind(fn){ try { fn(); return 'none'; } catch (e) { return e.constructor.name; } }"
+        "if (efx.gamepad.count !== 0) throw new Error('initial count');"
+        "if (efx.gamepad.get(0) !== null) throw new Error('initial get');"
+        "if (kind(() => efx.gamepad.onConnect(5)) !== 'TypeError') throw new Error('non-function reg');"
+        "if (kind(() => efx.gamepad.onDisconnect(null)) !== 'TypeError') throw new Error('non-function reg2');"
+        "var off = efx.gamepad.onConnect(function () { __log.push('SHOULD-NOT-FIRE'); });"
+        "off(); off();"
+        "efx.gamepad.onConnect(function (p) { __log.push('connect:' + p.name + ':' + p.connected); });"
+        "efx.gamepad.onDisconnect(function (p) { __log.push('disconnect:' + p.name); });"
+        "efx.registerUpdateHook(function (dt) {"
+        "  var p = efx.gamepad.get(0);"
+        "  __log.push('u:' + efx.gamepad.count + ':' + (p ? p.axis('leftX') : 'null') + ':' +"
+        "    (p ? p.isDown('south') : 'null')); });";
+    if (efx_runtime_eval_string(g_rt, "gp-setup", setup) != 0) {
+        rc = fail("gamepad setup");
+        goto done;
+    }
+
+    unsigned char btns[1] = {1};
+    float axes[6] = {0.25f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f};
+    efx_input_gamepad_inject_connect(0, "Pad", NULL, 1);
+    efx_input_gamepad_inject_state(0, 1, btns, 6, axes);
+    efx_input_begin_frame();
+    if (efx_runtime_dispatch_input(g_rt) != EFX_HOOK_OK) {
+        rc = fail("gamepad dispatch");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "gp-mid",
+        "if (efx.gamepad.count !== 1) throw new Error('count');"
+        "var p = efx.gamepad.get(0);"
+        "if (!p || !p.connected || p.name !== 'Pad' || !p.mapped) throw new Error('view');"
+        "if (!p.isDown('south') || !p.isPressed('south') || p.isReleased('south')) throw new Error('button');"
+        "if (p.axis('leftX') !== 0.25) throw new Error('axis');"
+        "if (p.rawButton(0) !== 1) throw new Error('rawButton');"
+        "if (p.rawAxis(0) !== 0.25) throw new Error('rawAxis');"
+        "if (kind(() => p.isDown('notabutton')) !== 'TypeError') throw new Error('unknown button');"
+        "if (kind(() => p.axis('leftZ')) !== 'TypeError') throw new Error('unknown axis');"
+        "if (kind(() => p.rawButton('x')) !== 'TypeError') throw new Error('bad raw index');"
+        "if (__log.join('|') !== 'connect:Pad:true') throw new Error('connect log: ' + __log.join('|'));"
+        "if (efx.gamepad.get(3) !== null) throw new Error('empty slot');") != 0) {
+        rc = fail("gamepad mid-frame state");
+        goto done;
+    }
+    if (efx_runtime_call_hook(g_rt, 1, 0.0) != EFX_HOOK_OK) {
+        rc = fail("gamepad update hook");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "gp-frame1",
+        "if (__log.join('|') !== 'connect:Pad:true|u:1:0.25:true')"
+        "  throw new Error('callback-before-update: ' + __log.join('|'));") != 0) {
+        rc = fail("gamepad callback ordering");
+        goto done;
+    }
+    efx_input_end_frame();
+
+    efx_input_gamepad_inject_disconnect(0);
+    efx_input_begin_frame();
+    if (efx_runtime_dispatch_input(g_rt) != EFX_HOOK_OK) {
+        rc = fail("gamepad disconnect dispatch");
+        goto done;
+    }
+    if (efx_runtime_eval_string(g_rt, "gp-frame2",
+        "if (efx.gamepad.count !== 0 || efx.gamepad.get(0) !== null)"
+        "  throw new Error('disconnect state');"
+        "if (__log[__log.length - 1] !== 'disconnect:Pad')"
+        "  throw new Error('disconnect log: ' + __log.join('|'));") != 0) {
+        rc = fail("gamepad disconnect");
+        goto done;
+    }
+    efx_input_end_frame();
+
+done:
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return rc;
+}
+
 /* F9: input namespace bindings + frame-staged dispatch through the real
  * quickjs runtime: query/event parity, validation/unsubscribe matrix, and
  * callback-before-update ordering (injected via the C simulation seam). */
@@ -1855,6 +1951,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "pose_js")) return pose_js();
     if (!strcmp(c, "repl_eval")) return repl_eval();
     if (!strcmp(c, "input_js")) return input_js();
+    if (!strcmp(c, "gamepad_js")) return gamepad_js();
     if (!strcmp(c, "module_js")) return module_js();
     if (!strcmp(c, "module_hooks_js")) return module_hooks_js();
     if (!strcmp(c, "billboard_js")) return billboard_js();

@@ -4,6 +4,7 @@
 #include "runtime/runtime_internal.h"
 #include "api/api.h"
 #include "input/efx_input.h"
+#include "input/efx_gamepad.h"
 #include "physics/physics.h"
 #include "prelude/prelude.h"
 
@@ -82,6 +83,10 @@ struct efx_hook_list *efx_host_hook_list(struct efx_host_state *h, int which) {
         return &h->input_mouse_move;
     case EFX_HOOK_LIST_MOUSE_WHEEL:
         return &h->input_mouse_wheel;
+    case EFX_HOOK_LIST_GP_CONNECT:
+        return &h->gamepad_connect;
+    case EFX_HOOK_LIST_GP_DISCONNECT:
+        return &h->gamepad_disconnect;
     case EFX_HOOK_LIST_UPDATE:
     default:
         return &h->update_hooks;
@@ -313,6 +318,8 @@ void efx_runtime_destroy(efx_runtime *rt) {
     efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_up);
     efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_move);
     efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_wheel);
+    efx_hooks_free_all(rt->ctx, &rt->host.gamepad_connect);
+    efx_hooks_free_all(rt->ctx, &rt->host.gamepad_disconnect);
     JS_FreeValue(rt->ctx, rt->host.quit_sentinel);
     JS_FreeValue(rt->ctx, rt->module_runtime);
     JS_FreeValue(rt->ctx, rt->module_run_entry);
@@ -608,6 +615,138 @@ static int input_event_list(const efx_input_event *ev) {
     }
 }
 
+/* ------------------------------------------------ F13 gamepad dispatch */
+
+static int gp_data_slot(JSValueConst *func_data) {
+    JSValueConst v = func_data[0];
+    int slot = -1;
+    /* data[0] is always a small int created by efx_runtime_gamepad_view */
+    slot = (int)JS_VALUE_GET_INT(v);
+    return slot;
+}
+
+static JSValue gp_view_button(JSContext *ctx, JSValueConst this_val,
+                              int argc, JSValueConst *argv, int magic,
+                              JSValueConst *func_data) {
+    (void)this_val;
+    int slot = gp_data_slot(func_data);
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return JS_ThrowTypeError(
+            ctx, "gamepad button query requires a button name");
+    }
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) {
+        return JS_EXCEPTION;
+    }
+    int b = efx_input_gamepad_button_id(name);
+    JS_FreeCString(ctx, name);
+    if (b < 0) {
+        return JS_ThrowTypeError(ctx, "unknown gamepad button");
+    }
+    int v = magic == 1 ? efx_input_gamepad_button_is_pressed(slot, b)
+          : magic == 2 ? efx_input_gamepad_button_is_released(slot, b)
+                       : efx_input_gamepad_button_is_down(slot, b);
+    return JS_NewBool(ctx, v);
+}
+
+static JSValue gp_view_axis(JSContext *ctx, JSValueConst this_val,
+                            int argc, JSValueConst *argv, int magic,
+                            JSValueConst *func_data) {
+    (void)this_val;
+    (void)magic;
+    int slot = gp_data_slot(func_data);
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return JS_ThrowTypeError(
+            ctx, "gamepad axis query requires an axis name");
+    }
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) {
+        return JS_EXCEPTION;
+    }
+    int a = efx_input_gamepad_axis_id(name);
+    JS_FreeCString(ctx, name);
+    if (a < 0) {
+        return JS_ThrowTypeError(ctx, "unknown gamepad axis");
+    }
+    return JS_NewFloat64(ctx, efx_input_gamepad_axis(slot, a));
+}
+
+static JSValue gp_view_raw(JSContext *ctx, JSValueConst this_val,
+                           int argc, JSValueConst *argv, int magic,
+                           JSValueConst *func_data) {
+    (void)this_val;
+    int slot = gp_data_slot(func_data);
+    if (argc < 1 || !JS_IsNumber(argv[0])) {
+        return JS_ThrowTypeError(
+            ctx, "gamepad raw query requires an index");
+    }
+    int index = 0;
+    JS_ToInt32(ctx, &index, argv[0]);
+    if (magic == 1) {
+        return JS_NewFloat64(ctx, efx_input_gamepad_raw_axis(slot, index));
+    }
+    return JS_NewInt32(ctx, efx_input_gamepad_raw_button(slot, index));
+}
+
+static JSValue gp_make_method(JSContext *ctx, JSCFunctionData *fn,
+                              const char *name, int magic, int slot) {
+    JSValue data[1] = {JS_NewInt32(ctx, slot)};
+    JSValue f = JS_NewCFunctionData2(ctx, fn, name, 1, magic, 1, data);
+    JS_FreeValue(ctx, data[0]);
+    return f;
+}
+
+JSValue efx_runtime_gamepad_view(efx_runtime *rt, int slot) {
+    JSContext *ctx = rt->ctx;
+    JSValue obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, obj, "isDown",
+                      gp_make_method(ctx, gp_view_button, "isDown", 0, slot));
+    JS_SetPropertyStr(ctx, obj, "isPressed",
+                      gp_make_method(ctx, gp_view_button, "isPressed", 1,
+                                     slot));
+    JS_SetPropertyStr(ctx, obj, "isReleased",
+                      gp_make_method(ctx, gp_view_button, "isReleased", 2,
+                                     slot));
+    JS_SetPropertyStr(ctx, obj, "axis",
+                      gp_make_method(ctx, gp_view_axis, "axis", 0, slot));
+    JS_SetPropertyStr(ctx, obj, "rawButton",
+                      gp_make_method(ctx, gp_view_raw, "rawButton", 0, slot));
+    JS_SetPropertyStr(ctx, obj, "rawAxis",
+                      gp_make_method(ctx, gp_view_raw, "rawAxis", 1, slot));
+    const char *name = efx_input_gamepad_name(slot);
+    JS_SetPropertyStr(ctx, obj, "index", JS_NewInt32(ctx, slot));
+    JS_SetPropertyStr(ctx, obj, "connected",
+                      JS_NewBool(ctx, efx_input_gamepad_connected(slot)));
+    JS_SetPropertyStr(ctx, obj, "name", JS_NewString(ctx, name ? name : ""));
+    JS_SetPropertyStr(ctx, obj, "mapped",
+                      JS_NewBool(ctx, efx_input_gamepad_mapped(slot)));
+    return obj;
+}
+
+/* invoke every active callback in `which` with one argument; mirrors the
+ * input event loop's quit/error handling */
+static int dispatch_arg_hooks(efx_runtime *rt, int which, JSValue arg) {
+    struct efx_hook_list *list = efx_host_hook_list(&rt->host, which);
+    for (int j = 0; j < list->count; j++) {
+        if (!list->entries[j].active) {
+            continue;
+        }
+        JSValue result = JS_Call(rt->ctx, list->entries[j].fn, JS_UNDEFINED,
+                                 1, &arg);
+        if (JS_IsException(result)) {
+            JS_FreeValue(rt->ctx, arg);
+            int rc = finish_exception(rt);
+            return rc == 0 ? EFX_HOOK_QUIT : EFX_HOOK_ERROR;
+        }
+        JS_FreeValue(rt->ctx, result);
+        if (rt->host.quit_requested) {
+            JS_FreeValue(rt->ctx, arg);
+            return EFX_HOOK_QUIT;
+        }
+    }
+    return EFX_HOOK_OK;
+}
+
 int efx_runtime_dispatch_input(efx_runtime *rt) {
     int n = efx_input_event_count();
     for (int i = 0; i < n; i++) {
@@ -641,6 +780,26 @@ int efx_runtime_dispatch_input(efx_runtime *rt) {
         JS_FreeValue(rt->ctx, arg);
     }
     efx_input_clear_events();
+
+    /* F13: gamepad connect/disconnect callbacks fire with the pad view */
+    for (int i = 0; i < efx_input_gamepad_connect_count(); i++) {
+        int slot = efx_input_gamepad_connect_at(i);
+        JSValue arg = efx_runtime_gamepad_view(rt, slot);
+        int rc = dispatch_arg_hooks(rt, EFX_HOOK_LIST_GP_CONNECT, arg);
+        if (rc != EFX_HOOK_OK) {
+            return rc;
+        }
+        JS_FreeValue(rt->ctx, arg);
+    }
+    for (int i = 0; i < efx_input_gamepad_disconnect_count(); i++) {
+        int slot = efx_input_gamepad_disconnect_at(i);
+        JSValue arg = efx_runtime_gamepad_view(rt, slot);
+        int rc = dispatch_arg_hooks(rt, EFX_HOOK_LIST_GP_DISCONNECT, arg);
+        if (rc != EFX_HOOK_OK) {
+            return rc;
+        }
+        JS_FreeValue(rt->ctx, arg);
+    }
     return EFX_HOOK_OK;
 }
 

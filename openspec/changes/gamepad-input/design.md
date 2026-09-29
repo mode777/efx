@@ -184,3 +184,30 @@ and the namespace entries; no data or format migration exists.
   a separate shim TU — an internal choice.
 - Whether a curated gallery gamepad sample ships with this change or a
   follow-up (the gate needs only the script harness, not gallery content).
+
+## Apply notes (settled during implementation)
+
+- **Defect-fix location (D7 / task 1.3).** The two web-path defects that
+  affect the engine's surface are patched in the vendored header and marked
+  `LOCAL PATCH (F13)`: the web axis map/loop now samples axis 5
+  (`MG_AXIS_RIGHT_TRIGGER`), `mg_gamepads_init_platform` enumerates pads
+  already connected at load, and the web connect path records
+  `gamepad->src.index`. The pinned revision and the patch are recorded in
+  `vendor/README.md`.
+- **Windows GUID matching (defect 1.6).** The engine does not consume
+  minigamepad's SDL-GUID matcher: the platform backend re-encodes
+  minigamepad's platform-mapped semantic state (whose XInput/DirectInput
+  paths already cover non-Xbox pads) into the canonical standard descriptor.
+  The pure-C evaluator additionally selects mappings by GUID with an exact,
+  tail-permissive, and vendor/product-prefix fallback, covered by
+  `gp_guid_fallback`. So a non-Xbox controller reached through the primary
+  path has a correct semantic surface at the engine boundary without a
+  vendored GUID-table change; the vendored matcher is not on the hot path.
+- **Ranges/threshold (D6).** The pad bank is `EFX_GAMEPAD_MAX = 4`; the
+  digital-trigger threshold is `EFX_GAMEPAD_TRIGGER_THRESHOLD = 0.5`
+  (inclusive). Both are pinned by unit tests and documented in
+  `docs/js-api.md`.
+- **No Asyncify (D4 / task 2.3).** The web backend is polled from the
+  existing synchronous animation-frame driver; no `-sASYNCIFY` link option is
+  added to CMake, and the with/without-flag behavior check runs as part of
+  the four-target gate (task 8.1).

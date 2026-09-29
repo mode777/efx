@@ -104,6 +104,37 @@ interface EfxWindow {
   readonly dpiScale: number;
 }
 
+/** F13: engine-owned semantic gamepad button/axis identifier sets. */
+type EfxGamepadButton =
+  | 'south' | 'east' | 'west' | 'north'
+  | 'leftShoulder' | 'rightShoulder' | 'leftTrigger' | 'rightTrigger'
+  | 'back' | 'start' | 'guide' | 'leftStick' | 'rightStick'
+  | 'dpadUp' | 'dpadDown' | 'dpadLeft' | 'dpadRight';
+type EfxGamepadAxis =
+  | 'leftX' | 'leftY' | 'rightX' | 'rightY' | 'leftTrigger' | 'rightTrigger';
+
+/** F13: a pad slot view. Plain data plus query methods; not a resource. */
+interface EfxGamepadView {
+  readonly index: number;
+  readonly connected: boolean;
+  readonly name: string;
+  readonly mapped: boolean;
+  isDown(button: EfxGamepadButton): boolean;
+  isPressed(button: EfxGamepadButton): boolean;
+  isReleased(button: EfxGamepadButton): boolean;
+  axis(axis: EfxGamepadAxis): number;
+  rawButton(index: number): number;
+  rawAxis(index: number): number;
+}
+
+/** F13 gamepad namespace (a fixed engine-owned bank of four pad slots). */
+interface EfxGamepad {
+  readonly count: number;
+  get(index: number): EfxGamepadView | null;
+  onConnect(fn: (pad: EfxGamepadView) => void): () => void;
+  onDisconnect(fn: (pad: EfxGamepadView) => void): () => void;
+}
+
 interface EfxImageData {
   readonly width: number;
   readonly height: number;
@@ -664,6 +695,8 @@ interface Efx {
   keyboard: EfxKeyboard;
   mouse: EfxMouse;
   window: EfxWindow;
+  // F13 — gamepad input: fixed bank of pad slots
+  gamepad: EfxGamepad;
 
   // F11 — world-space billboards, batched 2D sprites, CPU particles
   drawBillboard(pos: Vec3, opts: DrawBillboardOptions): void;

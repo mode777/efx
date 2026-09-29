@@ -13,6 +13,7 @@ replacing the snapshot and editing the table below.
 | `miniz/` | richgel999/miniz | 3.1.2 @ `77d0dce8627735138c51770d1799a1ef48f2117d` | https://github.com/richgel999/miniz (`miniz-3.1.2.zip` release amalgamation: `miniz.c`, `miniz.h`, `LICENSE`) |
 | `glm/` | g-truc/glm | 1.0.3 @ `8d1fd52e5ab5590e2c81768ace50c72bae28f2ed` | https://github.com/g-truc/glm (core headers + `detail/` + `simd/` + `ext/` + `gtc/`; excludes `gtx/`, the C++20 module `glm.cppm`, `CMakeLists.txt`, umbrella `ext.hpp`) |
 | `cgltf/` | jkuhlmann/cgltf | v1.15 @ `360db1a95480fe102ae9c69b27c5d101167ff5ba` | https://github.com/jkuhlmann/cgltf (`cgltf.h` single header; MIT, in-header notice) |
+| `minigamepad/` | ColleagueRiley/minigamepad | main @ `a7f8fde128a3732053dd17ce9ced440ed9926125` (2026-06-13) | https://github.com/ColleagueRiley/minigamepad (`minigamepad.h` + `LICENSE`; Zlib, in-header notice mislabels it "libpng license") |
 | — (tool, not vendored) | floooh/sokol-tools-bin | master @ `11d0cf678105d614d675e6d9bd2aaf3eeff12f8c` (2026-08-29) | https://github.com/floooh/sokol-tools-bin (`bin/linux/sokol-shdc`) — generation-time tool for `shaders/quad.h`; never linked into the player |
 
 Notes:
@@ -65,3 +66,34 @@ Notes:
   is compiled once in `src/resource/cgltf_impl.c` with warnings relaxed (same
   treatment as the vendored stb/miniz TUs); the engine includes only the
   declarations. Evaluation record: `openspec/changes/f6b-gltf-import/`.
+- minigamepad is vendored for the F13 gamepad poll backend (design D1): a
+  single-header C89 library with per-platform backends (evdev/inotify on
+  Linux, XInput/DirectInput on Windows, IOKit on macOS, the Emscripten
+  gamepad API on web), GLFW-compatible SDL GUID generation, and an SDL
+  game-controller mapping database. Zlib license. Chosen over libstem_gamepad
+  (no web backend, no SDL GUID/layout), GLFW's joystick layer (couples to the
+  GLFW platform struct), SDL2/3 (a second windowing/input system), and a
+  bespoke four-backend shim. Evaluation record:
+  `openspec/changes/gamepad-input/proposal.md`.
+  - The header is included exactly once, from
+    `src/platform/gamepad_backend.c`, with `MG_IMPLEMENTATION`,
+    `MG_MAX_GAMEPADS 4`, and `MG_API` left empty so its symbols stay local to
+    that translation unit. It is compiled into `efx_platform` only — never
+    into the pure-C core (`src/input/`) or the headless test targets.
+  - **Local divergence (documented, permitted by design D7).** The pinned
+    snapshot carries two web-path defects that affect the normalized surface
+    we consume; they are patched in place and marked `LOCAL PATCH (F13)` in
+    the header: (1) the web axis map duplicated the left trigger and advanced
+    `j += 2`, so axis 5 (right trigger) was never sampled — the loop now maps
+    every axis and axis 5 to `MG_AXIS_RIGHT_TRIGGER`; (2) `mg_gamepads_init_platform`
+    registered connect/disconnect callbacks but never enumerated pads already
+    connected at load — it now synthesizes the connect callback for each live
+    pad. It also records `gamepad->src.index` on the web connect path so the
+    per-frame update samples the right browser pad. Re-pin by replacing the
+    header and re-applying the three `LOCAL PATCH (F13)` hunks (or upstreaming
+    them).
+  - minigamepad's own SDL-mapping evaluator is **not** the engine's
+    normalization boundary: the backend re-encodes its platform-mapped
+    semantic state into the engine's canonical standard descriptor and the
+    pure-C evaluator in `src/input/efx_gamepad.c` owns the semantic surface
+    (ADR 0041).

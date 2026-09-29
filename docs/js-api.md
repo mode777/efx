@@ -12,7 +12,7 @@ keyboard + mouse query and event API), F10 (script modules — CommonJS
 `drawText`, `measureText`), F11 (billboards, 2D sprite batches, and CPU
 particle systems — `drawBillboard`, `drawSprites`, `createParticleSystem`,
 `drawParticles`), and F12 (collision + character + impulse dynamics —
-`efx.physics`) are implemented
+`efx.physics`), and F13 (gamepad input — `efx.gamepad`) are implemented
 (current behavior). F8 is complete: the former F8b slice (`drawModel` + demo
 resource pack) is retired as obsolete, superseded by multi-surface meshes
 (ADR 0024). See `vision.md` for product goals and
@@ -253,6 +253,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Post-effect chain | 8 entries (F5b) |
 | Particles per system | 65536 (F11) |
 | Render-target size | 4096 per side (width and height, positive integers; F5a) |
+| Connected gamepads | 4 (F13; fixed engine-owned bank reported by index) |
 
 Physics colliders are **dynamic-count** (no fixed cap): the world grows with
 the script, with soft guidance rather than a hard maximum (F12, ADR 0040).
@@ -1370,6 +1371,71 @@ fixed body cap, only soft guidance (aim well under a few thousand dynamic
 bodies for CPU comfort). The core is pure C11 with no GLM, and its unit
 tests build and run headless without a display (ADR 0040).
 
+### F13 — Gamepad input (current)
+
+Gamepad input as the sub-namespace `efx.gamepad` of the single `efx` object
+(ADR 0041). Pads are a **fixed engine-owned bank** of four slots reported by
+index; gamepad adds **no resource types** — no `create`, no `destroy`, no
+native-backed class (ADR 0011/0013 unchanged).
+
+```js
+// F13 · C · current — namespace on the single efx object (ADR 0004/0041)
+efx.gamepad.count              // → number of connected pads
+efx.gamepad.get(index)         // → pad view, or null when the slot is empty
+efx.gamepad.onConnect(fn)      // → unsubscribe; fn(padView)
+efx.gamepad.onDisconnect(fn)   // → unsubscribe; fn(padView)
+
+// pad view
+pad.connected                  // boolean
+pad.name                       // device name string
+pad.mapped                     // boolean: a semantic mapping was found
+pad.isDown(button) / isPressed(button) / isReleased(button)   // → boolean
+pad.axis(axis)                 // → normalized number
+pad.rawButton(i) / rawAxis(i)  // raw device values by index (unmapped pads)
+```
+
+- **Semantic button names** are the engine-owned set `south`, `east`, `west`,
+  `north`, `leftShoulder`, `rightShoulder`, `leftTrigger`, `rightTrigger`,
+  `back`, `start`, `guide`, `leftStick`, `rightStick`, `dpadUp`, `dpadDown`,
+  `dpadLeft`, `dpadRight`. **Semantic axis names** are `leftX`, `leftY`,
+  `rightX`, `rightY`, `leftTrigger`, `rightTrigger`.
+- **Canonical ranges.** Stick axes are −1..1 and trigger axes are 0..1 on
+  every target. Each trigger also reports as a digital button derived from
+  its axis at the documented threshold **0.5** (`>= 0.5` is down). Analog
+  face-button values are reported as digital.
+- **Semantics.** Gamepad state is sampled once per frame at frame begin, so
+  `isPressed`/`isReleased` are one-frame edges exactly like keyboard/mouse
+  (ADR 0036). A pad connected before the first frame — including a browser
+  pad present at page load — is reported connected on the first frame.
+  Unplugging a pad clears its state (no stuck buttons).
+- **Normalization.** A device is normalized through the SDL game-controller
+  mapping database by its GUID (with a permissive fallback); the mapping's
+  axis/button/hat kinds, half-axis (`+`/`-`) ranges, and inversion (`~`) are
+  honored. A browser pad reporting `mapping === 'standard'` normalizes
+  directly by the standard layout. A device with no mapping is still reported
+  `connected` with `mapped === false`, and its `rawButton`/`rawAxis` values
+  are readable by index.
+- **Events.** `onConnect`/`onDisconnect` fire once per change, before the
+  update hooks, and receive the pad view as one plain JS object of
+  engine-provided values (never a DOM/host gamepad object). Registration
+  returns an idempotent unsubscribe function.
+- **Errors.** `get` requires a numeric index (`TypeError` otherwise);
+  registration requires a function (`TypeError` otherwise); a query with an
+  unknown button or axis name throws `TypeError`.
+- **Simulation.** The deterministic injection seam is C-only and not part of
+  the script API — no gamepad simulation function is exposed on `efx`.
+
+```js
+// main.js — F13 sample
+efx.gamepad.onConnect(pad => efx.log('pad: ' + pad.name));
+efx.registerUpdateHook(dt => {
+    const pad = efx.gamepad.get(0);
+    if (!pad) return;
+    if (pad.isDown('rightTrigger')) boost = 1;
+    x += pad.axis('leftX') * speed * dt;
+});
+```
+
 ## Vision traceability
 
 Every consumer-API property named in `vision.md` maps to exactly one catalog
@@ -1397,6 +1463,7 @@ section (or an open question below):
 | Collision detection / character controller / simple dynamics | F12 (`efx.physics` — `createBody`, `createCharacter`, `step`, current) |
 | Raycasts / line-of-sight / picking | F12 (`efx.physics.raycast`, `overlap`, `shapeCast`, current) |
 | Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, current) |
+| Gamepad input query + events | F13 (`efx.gamepad`, current) |
 | Script modules / splitting authored code (TypeScript `import`) | F10 (CommonJS `require`, current — Script modules section) |
 | Text / fonts (TrueType atlas + formatted 2D text) | F8a (native C typesetting, `loadFontData`/`createFont`/`drawText`/`measureText`) |
 | Callbacks for update and rendering | F1 (Lifecycle hooks — explicit registration, ADR 0016) |

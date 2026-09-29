@@ -38,6 +38,9 @@ struct efx_host_state {
     struct efx_hook_list input_mouse_up;
     struct efx_hook_list input_mouse_move;
     struct efx_hook_list input_mouse_wheel;
+    /* F13 gamepad connection callback lists */
+    struct efx_hook_list gamepad_connect;
+    struct efx_hook_list gamepad_disconnect;
     /* F6a resource root (owned by the player, not the runtime) */
     struct efx_resource *resource;
     /* F12 physics: the single engine-owned world and the linked lists of live
@@ -59,7 +62,9 @@ struct efx_host_state {
 #define EFX_HOOK_LIST_MOUSE_UP 6
 #define EFX_HOOK_LIST_MOUSE_MOVE 7
 #define EFX_HOOK_LIST_MOUSE_WHEEL 8
-#define EFX_HOOK_LIST_COUNT 9
+#define EFX_HOOK_LIST_GP_CONNECT 9
+#define EFX_HOOK_LIST_GP_DISCONNECT 10
+#define EFX_HOOK_LIST_COUNT 11
 
 struct efx_hook_list *efx_host_hook_list(struct efx_host_state *h, int which);
 

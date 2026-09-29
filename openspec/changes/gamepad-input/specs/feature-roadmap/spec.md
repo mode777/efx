@@ -8,7 +8,7 @@ The roadmap SHALL define the F1–F8 ordered feature ladder — F1 (player
 skeleton), F2 (2D layer + display list + verification harness), F3 (3D core),
 F4 (lighting + Phong, split F4a/F4b), F5 (render targets + post FX), F6
 (resource packaging + glTF 2.0 asset import + REPL), F7 (skinning +
-animation), F8 (high-level JS layer + text + demo pack) — plus explicitly
+animation), F8 (high-level JS layer + text) — plus explicitly
 declared **orthogonal** milestones that are not inserted into the F3–F8
 dependency chain: F9 (input — keyboard + mouse query and event API), whose
 only predecessors are the F1–F2 window/frame loop and dual script bindings;

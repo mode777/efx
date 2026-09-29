@@ -58,6 +58,7 @@ if(EMSCRIPTEN)
         src/render/skin.c
         src/render/text.c
         src/input/efx_input.c
+        src/input/efx_gamepad.c
         src/physics/shape.c
         src/physics/broadphase.c
         src/physics/narrow.c
@@ -80,6 +81,7 @@ else()
         src/render/skin.c
         src/render/text.c
         src/input/efx_input.c
+        src/input/efx_gamepad.c
         src/physics/shape.c
         src/physics/broadphase.c
         src/physics/narrow.c
@@ -134,10 +136,16 @@ add_library(efx_platform STATIC
     src/platform/platform.c
     src/platform/pipeline.c
     src/platform/capture.c
+    src/platform/gamepad_backend.c
 )
 target_include_directories(efx_platform PUBLIC src ${CMAKE_CURRENT_SOURCE_DIR}/vendor/sokol
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb ${CMAKE_CURRENT_SOURCE_DIR})
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_SOURCE_DIR}/vendor/minigamepad)
 target_link_libraries(efx_platform PUBLIC efx_math)
+if(APPLE)
+    # minigamepad's macOS backend talks to the IOKit HID manager
+    target_link_libraries(efx_platform PRIVATE "-framework IOKit" "-framework CoreFoundation")
+endif()
 if(MSVC)
     target_compile_options(efx_platform PRIVATE /W4)
 elseif(NOT EMSCRIPTEN)
@@ -303,6 +311,7 @@ endif()
 # headless input-core unit tests (F9): pure-C state model + injection seam
 add_executable(efx_input_tests
     src/input/efx_input.c
+    src/input/efx_gamepad.c
     tests/unit/input_tests.c
 )
 target_include_directories(efx_input_tests PRIVATE src)
@@ -414,6 +423,7 @@ add_executable(efx_api_tests
     src/render/stb_truetype_impl.c
     src/render/stb_rect_pack_impl.c
     src/input/efx_input.c
+    src/input/efx_gamepad.c
         src/physics/shape.c
         src/physics/broadphase.c
         src/physics/narrow.c

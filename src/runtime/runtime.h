@@ -1,6 +1,8 @@
 #ifndef EFX_RUNTIME_H
 #define EFX_RUNTIME_H
 
+#include "quickjs.h"
+
 #define EFX_HOOK_OK 0
 #define EFX_HOOK_QUIT 1
 #define EFX_HOOK_ERROR 2
@@ -35,6 +37,9 @@ int efx_runtime_call_hook(efx_runtime *rt, int update_not_render, double dt);
  * callbacks, in arrival order (called before the update hooks). Returns
  * EFX_HOOK_OK / EFX_HOOK_QUIT / EFX_HOOK_ERROR. */
 int efx_runtime_dispatch_input(efx_runtime *rt);
+/* F13: build the plain gamepad pad-view object for a slot (shared by the
+ * desktop binding's `get` and the connect/disconnect dispatch). */
+JSValue efx_runtime_gamepad_view(efx_runtime *rt, int slot);
 
 int efx_runtime_quit_requested(const efx_runtime *rt);
 int efx_runtime_quit_code(const efx_runtime *rt);

@@ -1,4 +1,5 @@
 #include "input/efx_input.h"
+#include "input/efx_gamepad.h"
 
 #include <string.h>
 
@@ -213,9 +214,13 @@ void efx_input_reset(void) {
     P.h = 0;
     P.dpi_scale = 1.0f;
     event_count = 0;
+    efx_input_gamepad_reset();
 }
 
 void efx_input_begin_frame(void) {
+    /* F13: gamepads are poll-based, so sample them at frame begin before
+     * edges are finalized (design D2) */
+    efx_input_gamepad_poll();
     /* commit the movement/wheel that arrived since the previous frame; the
      * level/edge state is already current (design D2) */
     P.frame_dx = P.accum_dx;
@@ -234,6 +239,8 @@ void efx_input_end_frame(void) {
     memset(K.released, 0, sizeof(K.released));
     memset(B.pressed, 0, sizeof(B.pressed));
     memset(B.released, 0, sizeof(B.released));
+    /* F13: gamepad edges expire on the same one-frame schedule */
+    efx_input_gamepad_end_frame();
     /* the queue was consumed by the binding; clear defensively */
     event_count = 0;
     /* per-frame deltas read as 0 outside a frame */
