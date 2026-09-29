@@ -8,8 +8,10 @@ import), F6c (glTF rig import), F6d (interactive console run mode —
 no new API), F6e (texture creation options), F7 (CPU skinning +
 animation — `poseMesh` and the `skinned` draw option), F9 (input —
 keyboard + mouse query and event API), F10 (script modules — CommonJS
-`require`), and F8a (font + text — `loadFontData`, `createFont`,
-`drawText`, `measureText`) are implemented
+`require`), F8a (font + text — `loadFontData`, `createFont`,
+`drawText`, `measureText`), and F11 (billboards, 2D sprite batches, and CPU
+particle systems — `drawBillboard`, `drawSprites`, `createParticleSystem`,
+`drawParticles`) are implemented
 (current behavior). The remaining F8 slices (`drawModel`, demo resource
 pack) are a provisional contract — names and
 signatures may be reshaped by
@@ -205,7 +207,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Class | Meaning | Release path |
 |---|---|---|
 | **JS-managed** | Plain data objects; garbage collected | Drop the reference |
-| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`; Font: `size`/`lineHeight`/`ascent`/`descent`; FontData: none); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
+| **Native-backed class** | Opaque object wrapping a native handle — read-only query properties only where documented (Texture: `width`/`height`; ImageData: `width`/`height`; MeshData/Mesh: `surfaceCount`; RenderTarget: `width`/`height`; Font: `size`/`lineHeight`/`ascent`/`descent`; ParticleSystem: `count`; FontData: none); GC finalizer backstop | `res.destroy()` (primary), GC / shutdown (backstop) |
 | **Slot-based** | Fixed pre-allocated bank of indexed resources | Overwrite the slot |
 
 | Resource | Contents | Class | Side | Delivered | Notes |
@@ -219,6 +221,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | F5b | Plain objects snapshotted at `setPostEffects` call time; no native handle and no `destroy()`. The native passes they drive are engine-owned and never script-visible (ADR 0029) |
 | FontData | Parsed TrueType/OpenType font (CPU, no GPU resource) | Native class | CPU | F8a | `loadFontData(path)`; `destroy()`; no query properties |
 | Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | F8a | `createFont(fontData, opts)`; `destroy()`; read-only `size`/`lineHeight`/`ascent`/`descent`; passed to `drawText`/`measureText` |
+| ParticleSystem | CPU-simulated pool + emitter configuration (engine-owned) | Native class | CPU | F11 | `createParticleSystem(opts)`; `destroy()`; read-only `count`; read-write `speedScale`; `emit`/`start`/`stop`/`pause`/`reset`/`set`; retains its texture until destroyed; rendered by `drawParticles` |
 | Lights | — | Slot-based | — | F4a | 4 point slots + 1 directional (fixed) |
 
 **Resource lifecycle rules:**
@@ -247,6 +250,7 @@ map textures: ADR 0027, glTF rig payload: ADR 0033 — all under
 | Cameras | 1 3D camera (set, never created); the F2 2D projection frame is a separate projection state |
 | Surfaces per mesh | 16 |
 | Post-effect chain | 8 entries (F5b) |
+| Particles per system | 65536 (F11) |
 | Render-target size | 4096 per side (width and height, positive integers; F5a) |
 
 ## API catalog
@@ -1176,6 +1180,98 @@ const offMove = efx.mouse.onMove(e => { aimX = e.x; aimY = e.y; });
 efx.mouse.onWheel(e => { zoom *= (1 + e.dy * 0.1); });
 ```
 
+### F11 — Billboards, 2D sprites & CPU particles (current)
+
+World-space billboards (`drawBillboard`), batched 2D sprites (`drawSprites`),
+and engine-owned CPU particle systems (`createParticleSystem` /
+`drawParticles`). All are C-implemented mid-level facilities; particles are
+simulated on the CPU with a deterministic, engine-owned generator (ADR 0039).
+`drawSprites` is 2D-only; `drawBillboard` and world-space particles use the 3D
+camera. None of these require the script to read the camera.
+
+```js
+// F11 · C · current — desktop binding `C · quickjs`, web binding `C · bridge`;
+// identical semantics
+efx.drawBillboard(pos, opts)   // pos: [x, y, z] world position
+efx.drawSprites(texture, sprites)
+//   sprites: [{ x, y, size?, sourceRect?, color?, rotation?, scale?, origin? }]
+efx.createParticleSystem(opts) // → ParticleSystem
+efx.drawParticles(sys)
+```
+
+- **`drawBillboard(pos, opts)`** records one textured quad at the world
+  position `pos`, auto-faced by the engine using the 3D camera recorded at
+  call time. `opts`:
+  - `texture` (required) — a live Texture or RenderTarget.
+  - `size` — a world-unit number or `[w, h]` (default `1`, `[1, 1]`).
+  - `facing` — `'view'` (default, full camera-facing) or `'y'` (up pinned to
+    world `+Y`, yaw toward the camera).
+  - `rotation` — in-plane degrees (default `0`); `color` — `[r,g,b,a]` tint
+    (default opaque white); `sourceRect` — atlas region; `normal` — orientation
+    for `'plane'`; `depthTest` — boolean (default `true`).
+  - Billboards are depth-tested against opaque 3D geometry and **do not write
+    depth**, so meshes occlude them but they do not occlude one another.
+- **`drawSprites(texture, sprites)`** records one 2D quad per entry, each
+  exactly equivalent to `drawQuad(s.x, s.y, texture, s)` with the current 2D
+  camera and blend state. Validation is atomic: an invalid entry throws and
+  records none of the call's sprites. Consecutive same-texture/same-blend
+  entries render as one draw.
+- **`createParticleSystem(opts)`** returns a native-backed `ParticleSystem`.
+  `opts` is a single options object:
+
+  ```js
+  // required: texture, max, lifetime
+  {
+    texture, max,                  // max: 1..65536
+    space: 'world' | 'screen',     // default 'world' (3D emission + simulation)
+    facing: 'view' | 'y' | 'plane',// quad render mode (world); default 'view'
+    normal: [x, y, z],             // 'plane' orientation (e.g. [0, 1, 0] = water)
+    blend: 'alpha' | 'additive' | 'subtractive',   // default 'alpha'
+    lifetime: number | [min, max], // seconds
+    emissionRate, emitterLifetime, // rate/sec; emitter seconds (-1 infinite)
+    position, direction, spread, speed,   // spawn (2- or 3-component vectors)
+    gravity, linearAcceleration,
+    radialAcceleration, tangentialAcceleration, linearDamping,
+    sizes: number | number[],      // up to 8, interpolated over the lifetime
+    sizeVariation,                 // 0..1
+    colors: Color | Color[],       // up to 8, interpolated over the lifetime
+    rotation, spin, spinVariation, // degrees / degrees-per-second
+    relativeRotation,              // angle follows velocity
+    emissionShape: { shape, size },// 'point'|'box'|'sphere'|'sphereSurface'|'disc'
+    quads: SourceRect[],           // atlas frames over the lifetime
+    insertMode: 'top' | 'bottom' | 'random',
+    speedScale,                    // simulated-time factor (default 1)
+  }
+  ```
+
+- **`ParticleSystem`** methods: `emit(n)` (immediate burst), `start()`,
+  `stop()`, `pause()`, `reset()`, `set(opts)` (partial, atomic), plus the
+  read-only `count` and read-write `speedScale`. The engine auto-advances live
+  systems by `dt × speedScale` each frame. The system retains its texture until
+  `destroy()`.
+- **`drawParticles(sys)`** records one batch for the system's live particles.
+  Opaque geometry occludes particles (depth test, no depth write); alpha
+  batches sort back-to-front within the batch; additive/subtractive batches are
+  order-independent. `facing: 'plane'` draws true world-oriented quads (e.g. a
+  water surface) instead of billboards.
+
+```js
+// main.js — F11 sample (a billboard spark fountain)
+efx.setClearColor([0.02, 0.02, 0.05, 1]);
+efx.setCamera3D({ pos: [0, 2, 6], target: [0, 1, 0], fov: 60 });
+const glow = efx.createTexture(efx.createImageData({ width: 8, height: 8, pixels }));
+const spark = efx.createParticleSystem({
+    texture: glow, max: 500, lifetime: [0.5, 1.2], emissionRate: 120,
+    position: [0, 0, 0], direction: [0, 1, 0], spread: 25, speed: [2, 4],
+    gravity: [0, -2, 0], sizes: [0.3, 0.02],
+    colors: [[1, 0.8, 0.2, 1], [1, 0.2, 0, 0]], blend: 'additive',
+});
+efx.registerRenderHook(() => {
+    efx.drawBillboard([1.5, 1.5, 0], { texture: glow, size: 0.4, facing: 'view' });
+    efx.drawParticles(spark);
+});
+```
+
 ## Vision traceability
 
 Every consumer-API property named in `vision.md` maps to exactly one catalog
@@ -1198,6 +1294,9 @@ section (or an open question below):
 | Resource folder / zip root (`res://`-like) | F6a (load paths + dir/zip provider, current) |
 | REPL console mode | F6d (drives the same `efx` namespace) |
 | Skinning and animations | F7 (`poseMesh`, `drawMesh({ skinned })`, current) |
+| PS2-era particle effects (fire, smoke, sparks) | F11 (`createParticleSystem` / `drawParticles`, current) |
+| World-space sprites / billboards | F11 (`drawBillboard`, current) |
+| Batched 2D sprite drawing | F11 (`drawSprites`, current) |
 | Keyboard/mouse input query + events | F9 (`efx.keyboard`/`efx.mouse`/`efx.window`, current) |
 | Script modules / splitting authored code (TypeScript `import`) | F10 (CommonJS `require`, current — Script modules section) |
 | High-level functions in pure JS (`drawModel`) | F8b |

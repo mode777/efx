@@ -114,6 +114,47 @@ efx.drawText('x', 0, 0, { font });
 // @ts-expect-error — unknown font option
 efx.createFont(fontData, { size: 12, bogus: 1 });
 
+// F11 — billboards, batched 2D sprites, and CPU particle systems
+const f11tex: EfxTexture = efx.createTexture(
+  efx.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0] }),
+);
+efx.drawBillboard([0, 1, 0], {
+  texture: f11tex,
+  size: [2, 3],
+  facing: 'y',
+  color: [1, 1, 1, 1],
+  depthTest: true,
+});
+efx.drawSprites(f11tex, [{ x: 0, y: 0, size: [4, 4] }, { x: 8, y: 0, rotation: 45 }]);
+const ps: EfxParticleSystem = efx.createParticleSystem({
+  texture: f11tex,
+  max: 100,
+  lifetime: [1, 2],
+  emissionRate: 10,
+  position: [0, 0, 0],
+  direction: [0, 1, 0],
+  speed: [1, 2],
+  gravity: [0, -1, 0],
+  sizes: [1, 3],
+  colors: [[1, 0, 0, 1], [1, 1, 0, 0]],
+  facing: 'plane',
+  normal: [0, 1, 0],
+  emissionShape: { shape: 'sphere', size: [1, 1, 1] },
+  blend: 'additive',
+});
+ps.emit(10);
+ps.set({ emissionRate: 0, position: [1, 0, 0] });
+ps.speedScale = 2;
+ps.count;
+efx.drawParticles(ps);
+ps.destroy();
+// @ts-expect-error — createParticleSystem requires a lifetime
+efx.createParticleSystem({ texture: f11tex, max: 10 });
+// @ts-expect-error — facing is a fixed set
+efx.drawBillboard([0, 0, 0], { texture: f11tex, facing: 'sideways' });
+// @ts-expect-error — every sprite needs x and y
+efx.drawSprites(f11tex, [{ size: [4, 4] }]);
+
 // F10 — CommonJS module authoring facilities: module-scoped, resolved from the
 // resource root, and never members of `efx`.
 const dep: unknown = require('./lib/math.js');

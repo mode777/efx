@@ -35,11 +35,11 @@
 
 - [x] 6.1 Register `drawBillboard`, `drawSprites`, `createParticleSystem`, `drawParticles`, and the `ParticleSystem` class (query `count`, `speedScale`, methods) in the desktop quickjs binding (`src/api/`); verify with headless script cases for happy path and each error type.
 - [ ] 6.2 Mirror the exact names, signatures, semantics, and errors in the web binding (`src/web/`); verify the cross-runtime comparison (`tools/run_web_compare.mjs`) matches for the F11 script case.
-- [ ] 6.3 Update `gallery/src/api/efx.d.ts` and its type test with `drawBillboard`, `drawSprites`, `ParticleSystem`, `createParticleSystem`, and `drawParticles`, including the `facing`/`normal` discriminated forms; verify the gallery type-check passes.
+- [x] 6.3 Update `gallery/src/api/efx.d.ts` and its type test with `drawBillboard`, `drawSprites`, `ParticleSystem`, `createParticleSystem`, and `drawParticles`, including the `facing`/`normal` discriminated forms; verify the gallery type-check passes.
 
 ## 7. Developer reference
 
-- [ ] 7.1 Update `docs/js-api.md` with the four F11 entries, the `ParticleSystem` class table row (query property, retention), the `facing` render modes, the 65536-particle limit, and the F11 tags; verify every cataloged symbol has a matching `efx.d.ts` declaration.
+- [x] 7.1 Update `docs/js-api.md` with the four F11 entries, the `ParticleSystem` class table row (query property, retention), the `facing` render modes, the 65536-particle limit, and the F11 tags; verify every cataloged symbol has a matching `efx.d.ts` declaration.
 
 ## 8. Gallery showcases
 

@@ -4,11 +4,11 @@
 // and grows with it. Update this file in the same change as any script-facing
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
-// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7, F9, and F10
-// are current behavior. F6d (the `--repl [<root>]` interactive console) adds no
-// API — it drives this same namespace from stdin; `.help`/`.exit` are host
-// commands, not `efx` functions. F8 and later entries are provisional and will
-// be added when delivered.
+// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7, F9, F10, F11,
+// and F8a are current behavior. F6d (the `--repl [<root>]` interactive console)
+// adds no API — it drives this same namespace from stdin; `.help`/`.exit` are
+// host commands, not `efx` functions. F8b is provisional and will be added when
+// delivered.
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
 // gallery editor (Monaco `addExtraLib`) and type-checked by `tsc`.
@@ -343,6 +343,92 @@ interface LoadMeshDataOptions {
   mesh?: number | string;
 }
 
+// F11 — world-space billboards, batched 2D sprites, and CPU particle systems
+type EfxFacing = 'view' | 'y' | 'plane';
+type EfxBlendMode = 'alpha' | 'additive' | 'subtractive';
+
+interface SourceRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface DrawBillboardOptions {
+  texture: EfxSample;
+  size?: number | Vec2;
+  color?: Color;
+  sourceRect?: SourceRect;
+  rotation?: number;
+  /** `'view'` (default, full camera-facing) or `'y'` (world-up billboard). */
+  facing?: 'view' | 'y';
+  normal?: Vec3;
+  depthTest?: boolean;
+}
+
+interface SpriteOptions {
+  x: number;
+  y: number;
+  size?: Vec2;
+  color?: Color;
+  rotation?: number;
+  scale?: number;
+  sourceRect?: SourceRect;
+  origin?: Vec2;
+}
+
+interface EmissionShapeOptions {
+  shape: 'point' | 'box' | 'sphere' | 'sphereSurface' | 'disc';
+  size?: Vec3;
+}
+
+interface ParticleSystemOptions {
+  texture: EfxSample;
+  max: number;
+  space?: 'world' | 'screen';
+  /** Quad render mode for world space: `'plane'` draws fixed oriented planes. */
+  facing?: EfxFacing;
+  normal?: Vec3;
+  blend?: EfxBlendMode;
+  lifetime: number | [number, number];
+  emissionRate?: number;
+  emitterLifetime?: number;
+  position?: Vec2 | Vec3;
+  direction?: Vec2 | Vec3;
+  spread?: number;
+  speed?: number | [number, number];
+  gravity?: Vec2 | Vec3;
+  linearAcceleration?: Vec2 | Vec3;
+  radialAcceleration?: number | [number, number];
+  tangentialAcceleration?: number | [number, number];
+  linearDamping?: number | [number, number];
+  sizes?: number | number[];
+  sizeVariation?: number;
+  colors?: Color | Color[];
+  rotation?: number | [number, number];
+  spin?: number | [number, number];
+  spinVariation?: number;
+  relativeRotation?: boolean;
+  emissionShape?: EmissionShapeOptions;
+  quads?: SourceRect[];
+  insertMode?: 'top' | 'bottom' | 'random';
+  speedScale?: number;
+}
+
+type ParticleSystemSetOptions = Partial<ParticleSystemOptions>;
+
+interface EfxParticleSystem {
+  emit(n: number): void;
+  start(): void;
+  stop(): void;
+  pause(): void;
+  reset(): void;
+  set(opts: ParticleSystemSetOptions): void;
+  readonly count: number;
+  speedScale: number;
+  destroy(): void;
+}
+
 interface EfxMat4 {
   identity(): Mat4;
   perspective(fovY: number, aspect: number, near: number, far: number): Mat4;
@@ -436,6 +522,12 @@ interface Efx {
   keyboard: EfxKeyboard;
   mouse: EfxMouse;
   window: EfxWindow;
+
+  // F11 — world-space billboards, batched 2D sprites, CPU particles
+  drawBillboard(pos: Vec3, opts: DrawBillboardOptions): void;
+  drawSprites(texture: EfxSample, sprites: SpriteOptions[]): void;
+  createParticleSystem(opts: ParticleSystemOptions): EfxParticleSystem;
+  drawParticles(system: EfxParticleSystem): void;
 }
 
 declare const efx: Efx;
