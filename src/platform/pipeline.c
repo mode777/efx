@@ -16,9 +16,17 @@
 
 #include "sokol_gfx.h"
 
-/* interleaved quad vertex: pos(2f) uv(2f) color(ub4n) = 20 bytes */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+/* interleaved quad/billboard vertex: pos(3f) uv(2f) color(ub4n) = 24 bytes.
+ * z is the already-divided NDC depth: 0 for 2D quads (the `quad` pipeline
+ * ignores it), a real perspective depth for billboards/particles (the
+ * `billboard` pipeline depth-tests it). */
 typedef struct {
-    float x, y, u, v;
+    float x, y, z;
+    float u, v;
     uint8_t r, g, b, a;
 } pipe_vertex;
 
@@ -66,6 +74,7 @@ typedef struct {
 typedef struct {
     sg_shader quad_shd;
     sg_pipeline quad_pip[3];
+    sg_pipeline bill_pip[3]; /* F11: same shader/layout, depth test/no write */
     sg_shader mesh_shd;
     sg_pipeline mesh_pip[3];
     sg_pipeline mesh_pip_cw[3]; /* GL-family RT passes: projection y-flip
@@ -86,6 +95,9 @@ typedef struct {
     int scratch_cap;
     int *run_first, *run_verts; /* per-run first vertex / vertex count */
     int run_cap;
+    int *rec_boff;  /* F11: per-record first vertex (billboard/particles) */
+    int *rec_bcnt;  /* F11: per-record vertex count */
+    int rec_cap;
     int installed;
     int depth_remap; /* D3D11/Metal: fold 0..1 depth range into MVP */
     int rt_flip;     /* GL-family: flip y when rendering into RTs (F5a) */
@@ -389,6 +401,7 @@ static pipe_vertex emit_vert(const efx_quad_record *r, int i, int flip_y) {
         if (flip_y) {
             v.y = -v.y;
         }
+        v.z = 0.0f; /* 2D quads ignore depth (pipeline compare ALWAYS) */
         v.u = (r->sx + su[i] * r->sw) / r->tw;
         v.v = (r->sy + sv[i] * r->sh) / r->th;
         v.r = (uint8_t)(packed & 0xff);
@@ -459,13 +472,30 @@ void efx_pipeline_install(void) {
             .shader = P.quad_shd,
             .primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP,
             .layout = {.buffers[0].stride = (int)sizeof(pipe_vertex),
-                       .attrs = {[0] = {.format = SG_VERTEXFORMAT_FLOAT2},
-                                 [1] = {.format = SG_VERTEXFORMAT_FLOAT2, .offset = 8},
-                                 [2] = {.format = SG_VERTEXFORMAT_UBYTE4N, .offset = 16}}},
+                       .attrs = {[0] = {.format = SG_VERTEXFORMAT_FLOAT3},
+                                 [1] = {.format = SG_VERTEXFORMAT_FLOAT2, .offset = 12},
+                                 [2] = {.format = SG_VERTEXFORMAT_UBYTE4N, .offset = 20}}},
             /* color format: environment default (matches the swapchain
                and the capture attachments on every backend) */
             .colors[0] = {.blend = blends[i]},
             .depth = {.compare = SG_COMPAREFUNC_ALWAYS, .write_enabled = false},
+            .cull_mode = SG_CULLMODE_NONE,
+            .sample_count = 1,
+        });
+        /* F11 billboard/oriented-quad pipeline: the same shader and vertex
+           layout, but depth-tested against opaque geometry with no depth
+           write, so particles and sprites are occluded without occluding
+           one another (ADR 0039) */
+        P.bill_pip[i] = sg_make_pipeline(&(sg_pipeline_desc){
+            .shader = P.quad_shd,
+            .primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP,
+            .layout = {.buffers[0].stride = (int)sizeof(pipe_vertex),
+                       .attrs = {[0] = {.format = SG_VERTEXFORMAT_FLOAT3},
+                                 [1] = {.format = SG_VERTEXFORMAT_FLOAT2, .offset = 12},
+                                 [2] = {.format = SG_VERTEXFORMAT_UBYTE4N, .offset = 20}}},
+            .colors[0] = {.blend = blends[i]},
+            .depth = {.compare = SG_COMPAREFUNC_LESS_EQUAL,
+                      .write_enabled = false},
             .cull_mode = SG_CULLMODE_NONE,
             .sample_count = 1,
         });
@@ -955,6 +985,190 @@ static void run_post_chain(uint64_t scene, int sw, int sh) {
     }
 }
 
+/* ------------------------------------------------- F11 billboard playback */
+
+/* grow the shared scratch to hold at least `need` vertices */
+static int scratch_reserve(int need) {
+    if (need <= P.scratch_cap) {
+        return 1;
+    }
+    int cap = P.scratch_cap ? P.scratch_cap : 64;
+    while (cap < need) {
+        cap *= 2;
+    }
+    pipe_vertex *grown = realloc(P.scratch, (size_t)cap * sizeof(pipe_vertex));
+    if (!grown) {
+        return 0;
+    }
+    P.scratch = grown;
+    P.scratch_cap = cap;
+    return 1;
+}
+
+/* per-record aspect and RT flip (default surface = scene target when post
+ * is active; a render-target record uses the target's extent) */
+static float rec_aspect(const efx_record *r, int use_post, int scene_w,
+                        int scene_h, int vw, int vh) {
+    int w, h;
+    if (r->target) {
+        efx_render_target_size(r->target, &w, &h);
+    } else {
+        w = use_post ? scene_w : vw;
+        h = use_post ? scene_h : vh;
+    }
+    return (w > 0 && h > 0) ? (float)w / (float)h : 4.0f / 3.0f;
+}
+
+static int rec_flip(const efx_record *r, int use_post) {
+    return P.rt_flip && (use_post || r->target != 0);
+}
+
+static void bill_clip(const float mvp[16], const float w[3], float out[3]) {
+    float x = w[0], y = w[1], z = w[2];
+    float cx = mvp[0] * x + mvp[4] * y + mvp[8] * z + mvp[12];
+    float cy = mvp[1] * x + mvp[5] * y + mvp[9] * z + mvp[13];
+    float cz = mvp[2] * x + mvp[6] * y + mvp[10] * z + mvp[14];
+    float cw = mvp[3] * x + mvp[7] * y + mvp[11] * z + mvp[15];
+    if (cw != 0.0f) {
+        out[0] = cx / cw;
+        out[1] = cy / cw;
+        out[2] = cz / cw;
+    } else {
+        out[0] = cx;
+        out[1] = cy;
+        out[2] = cz;
+    }
+    if (P.depth_remap) {
+        out[2] = 0.5f * out[2] + 0.5f;
+    }
+}
+
+/* quad corners in strip order TL,TR,BL,BR */
+static const float BILL_LX[4] = {-0.5f, 0.5f, -0.5f, 0.5f};
+static const float BILL_LY[4] = {0.5f, 0.5f, -0.5f, -0.5f};
+static const float BILL_SU[4] = {0, 1, 0, 1};
+static const float BILL_SV[4] = {0, 0, 1, 1};
+
+/* build rotated in-plane axes for a facing mode */
+static void bill_axes(const efx_camera3d *cam, int facing, const float normal[3],
+                      float rotation, float rr[3], float uu[3]) {
+    float right[3], up[3];
+    efx_render_billboard_basis(cam, facing, normal, right, up);
+    float a = rotation * (float)(M_PI / 180.0);
+    float cs = cosf(a), sn = sinf(a);
+    for (int k = 0; k < 3; k++) {
+        rr[k] = right[k] * cs + up[k] * sn;
+        uu[k] = -right[k] * sn + up[k] * cs;
+    }
+}
+
+static pipe_vertex *emit_billboard(pipe_vertex *v,
+                                   const efx_billboard_record *b, float aspect,
+                                   int flip) {
+    const float *vp = view_projection(&b->camera, aspect, flip);
+    float mvp[16];
+    memcpy(mvp, vp, sizeof(mvp));
+    float rr[3], uu[3];
+    bill_axes(&b->camera, b->facing, b->normal, b->rotation, rr, uu);
+    uint32_t packed = pack_color(b->color);
+    for (int i = 0; i < 4; i++) {
+        float w[3];
+        for (int k = 0; k < 3; k++) {
+            w[k] = b->pos[k] + rr[k] * (BILL_LX[i] * b->w) +
+                   uu[k] * (BILL_LY[i] * b->h);
+        }
+        float ndc[3];
+        bill_clip(mvp, w, ndc);
+        v->x = ndc[0];
+        v->y = ndc[1];
+        v->z = ndc[2];
+        v->u = (b->sx + BILL_SU[i] * b->sw) / (b->tw > 0 ? b->tw : 1.0f);
+        v->v = (b->sy + BILL_SV[i] * b->sh) / (b->th > 0 ? b->th : 1.0f);
+        v->r = (uint8_t)(packed & 0xff);
+        v->g = (uint8_t)((packed >> 8) & 0xff);
+        v->b = (uint8_t)((packed >> 16) & 0xff);
+        v->a = (uint8_t)((packed >> 24) & 0xff);
+        v++;
+    }
+    return v;
+}
+
+static pipe_vertex *emit_particle_world(pipe_vertex *v,
+                                        const efx_particle_view *p,
+                                        const efx_camera3d *cam, int facing,
+                                        const float normal[3], float aspect,
+                                        int flip) {
+    const float *vp = view_projection(cam, aspect, flip);
+    float mvp[16];
+    memcpy(mvp, vp, sizeof(mvp));
+    float rr[3], uu[3];
+    bill_axes(cam, facing, normal, p->angle, rr, uu);
+    uint32_t packed = pack_color(p->color);
+    float u0 = p->uv[0], v0 = p->uv[1], u1 = p->uv[2], v1 = p->uv[3];
+    for (int i = 0; i < 4; i++) {
+        float w[3];
+        for (int k = 0; k < 3; k++) {
+            w[k] = p->pos[k] + rr[k] * (BILL_LX[i] * p->size) +
+                   uu[k] * (BILL_LY[i] * p->size);
+        }
+        float ndc[3];
+        bill_clip(mvp, w, ndc);
+        v->x = ndc[0];
+        v->y = ndc[1];
+        v->z = ndc[2];
+        v->u = u0 + BILL_SU[i] * (u1 - u0);
+        v->v = v0 + BILL_SV[i] * (v1 - v0);
+        v->r = (uint8_t)(packed & 0xff);
+        v->g = (uint8_t)((packed >> 8) & 0xff);
+        v->b = (uint8_t)((packed >> 16) & 0xff);
+        v->a = (uint8_t)((packed >> 24) & 0xff);
+        v++;
+    }
+    return v;
+}
+
+static pipe_vertex *emit_particle_screen(pipe_vertex *v,
+                                         const efx_particle_view *p,
+                                         const efx_particle_record *pr,
+                                         int flip) {
+    efx_affine m = efx_camera_matrix(&pr->camera2d, pr->frame_w, pr->frame_h);
+    uint32_t packed = pack_color(p->color);
+    float u0 = p->uv[0], v0 = p->uv[1], u1 = p->uv[2], v1 = p->uv[3];
+    for (int i = 0; i < 4; i++) {
+        float cx = p->pos[0] + BILL_LX[i] * p->size;
+        float cy = p->pos[1] + BILL_LY[i] * p->size;
+        float fx = m.a * cx + m.c * cy + m.tx;
+        float fy = m.b * cx + m.d * cy + m.ty;
+        v->x = 2.0f * fx / (pr->frame_w > 0 ? pr->frame_w : 1.0f) - 1.0f;
+        v->y = 1.0f - 2.0f * fy / (pr->frame_h > 0 ? pr->frame_h : 1.0f);
+        if (flip) {
+            v->y = -v->y;
+        }
+        v->z = 0.0f;
+        v->u = u0 + BILL_SU[i] * (u1 - u0);
+        v->v = v0 + BILL_SV[i] * (v1 - v0);
+        v->r = (uint8_t)(packed & 0xff);
+        v->g = (uint8_t)((packed >> 8) & 0xff);
+        v->b = (uint8_t)((packed >> 16) & 0xff);
+        v->a = (uint8_t)((packed >> 24) & 0xff);
+        v++;
+    }
+    return v;
+}
+
+/* world-space particle views sorted back-to-front (alpha batches only) */
+typedef struct {
+    const efx_particle_view *view;
+    float depth;
+} particle_sort;
+
+static int particle_cmp(const void *a, const void *b) {
+    const particle_sort *pa = a, *pb = b;
+    if (pa->depth < pb->depth) return 1; /* farther first */
+    if (pa->depth > pb->depth) return -1;
+    return 0;
+}
+
 void efx_pipeline_play(void) {
     if (!P.installed) {
         return;
@@ -1040,7 +1254,102 @@ void efx_pipeline_play(void) {
         }
         run_verts[ri] = (int)(v - P.scratch) - start;
     }
-    int vcount = (int)(v - P.scratch);
+    int quad_verts = (int)(v - P.scratch);
+    /* F11: emit billboard and particle vertices after the quad batch (same
+       vertex format; drawn with the depth-tested billboard pipeline) */
+    if (count > P.rec_cap) {
+        int cap = P.rec_cap ? P.rec_cap : 64;
+        while (cap < count) cap *= 2;
+        int *bo = realloc(P.rec_boff, (size_t)cap * sizeof(int));
+        int *bc = realloc(P.rec_bcnt, (size_t)cap * sizeof(int));
+        if (bo) P.rec_boff = bo;
+        if (bc) P.rec_bcnt = bc;
+        if (!bo || !bc) return;
+        P.rec_cap = cap;
+    }
+    int *boff = P.rec_boff;
+    int *bcnt = P.rec_bcnt;
+    for (int i = 0; i < count; i++) {
+        boff[i] = -1;
+        bcnt[i] = 0;
+    }
+    int total = quad_verts;
+    for (int i = 0; i < count; i++) {
+        const efx_record *r = &records[i];
+        if (r->type == EFX_RECORD_BILLBOARD) {
+            if (!scratch_reserve(total + 4)) return;
+            v = P.scratch + total;
+            v = emit_billboard(v, &r->u.billboard,
+                              rec_aspect(r, use_post, scene_w, scene_h, vw, vh),
+                              rec_flip(r, use_post));
+            boff[i] = total;
+            bcnt[i] = 4;
+            total += 4;
+        } else if (r->type == EFX_RECORD_PARTICLES) {
+            uint64_t sys = r->u.particles.system;
+            int pc = 0;
+            const efx_particle_view *views =
+                efx_render_particles_views(sys, &pc);
+            int space = efx_render_particles_space(sys);
+            if (pc <= 0 || !views) {
+                continue;
+            }
+            if (!scratch_reserve(total + pc * 4)) return;
+            v = P.scratch + total;
+            int start = total;
+            int blend = r->u.particles.blend;
+            if (space == EFX_SPACE_WORLD) {
+                int facing = efx_render_particles_facing(sys);
+                float normal[3];
+                efx_render_particles_normal(sys, normal);
+                float aspect = rec_aspect(r, use_post, scene_w, scene_h, vw, vh);
+                int flip = rec_flip(r, use_post);
+                if (blend == EFX_BLEND_ALPHA && pc > 1) {
+                    particle_sort *order =
+                        malloc((size_t)pc * sizeof(particle_sort));
+                    if (!order) return;
+                    const float *cp = r->u.particles.camera.pos;
+                    float fwd[3] = {r->u.particles.camera.target[0] - cp[0],
+                                    r->u.particles.camera.target[1] - cp[1],
+                                    r->u.particles.camera.target[2] - cp[2]};
+                    float fl = sqrtf(fwd[0] * fwd[0] + fwd[1] * fwd[1] +
+                                     fwd[2] * fwd[2]);
+                    if (fl > 0.0f) {
+                        fwd[0] /= fl; fwd[1] /= fl; fwd[2] /= fl;
+                    }
+                    for (int k = 0; k < pc; k++) {
+                        order[k].view = &views[k];
+                        order[k].depth =
+                            (views[k].pos[0] - cp[0]) * fwd[0] +
+                            (views[k].pos[1] - cp[1]) * fwd[1] +
+                            (views[k].pos[2] - cp[2]) * fwd[2];
+                    }
+                    qsort(order, (size_t)pc, sizeof(particle_sort), particle_cmp);
+                    for (int k = 0; k < pc; k++) {
+                        v = emit_particle_world(v, order[k].view,
+                                                &r->u.particles.camera, facing,
+                                                normal, aspect, flip);
+                    }
+                    free(order);
+                } else {
+                    for (int k = 0; k < pc; k++) {
+                        v = emit_particle_world(v, &views[k],
+                                                &r->u.particles.camera, facing,
+                                                normal, aspect, flip);
+                    }
+                }
+            } else {
+                int flip = rec_flip(r, use_post);
+                for (int k = 0; k < pc; k++) {
+                    v = emit_particle_screen(v, &views[k], &r->u.particles, flip);
+                }
+            }
+            boff[i] = start;
+            bcnt[i] = pc * 4;
+            total += pc * 4;
+        }
+    }
+    int vcount = total;
     if (vcount > 0) {
         size_t bytes = (size_t)vcount * sizeof(pipe_vertex);
         if (bytes > P.vbuf_size) {
@@ -1120,6 +1429,32 @@ void efx_pipeline_play(void) {
         } else if (r->type == EFX_RECORD_MESH) {
             play_mesh_record(&r->u.mesh, aspect,
                              P.rt_flip && (use_post || r->target != 0));
+        } else if (r->type == EFX_RECORD_BILLBOARD && bcnt[i] > 0) {
+            sg_apply_pipeline(P.bill_pip[r->u.billboard.blend]);
+            sg_bindings bnd = {0};
+            bnd.vertex_buffers[0] = P.vbuf;
+            sg_view view = view_for_handle(r->u.billboard.texture);
+            if (view.id != SG_INVALID_ID) {
+                bnd.views[0] = view;
+                bnd.samplers[0] = sampler_for_handle(r->u.billboard.texture);
+                sg_apply_bindings(&bnd);
+                sg_draw(boff[i], bcnt[i], 1);
+            }
+        } else if (r->type == EFX_RECORD_PARTICLES && bcnt[i] > 0) {
+            int space = efx_render_particles_space(r->u.particles.system);
+            int blend = r->u.particles.blend;
+            sg_apply_pipeline(space == EFX_SPACE_WORLD ? P.bill_pip[blend]
+                                                       : P.quad_pip[blend]);
+            uint64_t tex = efx_render_particles_texture(r->u.particles.system);
+            sg_bindings bnd = {0};
+            bnd.vertex_buffers[0] = P.vbuf;
+            sg_view view = view_for_handle(tex);
+            if (view.id != SG_INVALID_ID) {
+                bnd.views[0] = view;
+                bnd.samplers[0] = sampler_for_handle(tex);
+                sg_apply_bindings(&bnd);
+                sg_draw(boff[i], bcnt[i], 1);
+            }
         }
     }
     sg_end_pass();
@@ -1134,6 +1469,7 @@ void efx_pipeline_shutdown(void) {
     }
     for (int i = 0; i < 3; i++) {
         sg_destroy_pipeline(P.quad_pip[i]);
+        sg_destroy_pipeline(P.bill_pip[i]);
         sg_destroy_pipeline(P.mesh_pip[i]);
         sg_destroy_pipeline(P.mesh_pip_cw[i]);
     }
@@ -1159,5 +1495,7 @@ void efx_pipeline_shutdown(void) {
     free(P.scratch);
     free(P.run_first);
     free(P.run_verts);
+    free(P.rec_boff);
+    free(P.rec_bcnt);
     memset(&P, 0, sizeof(P));
 }

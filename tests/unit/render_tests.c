@@ -1951,6 +1951,230 @@ static int mesh_skin_lifecycle(void) {
     return 0;
 }
 
+/* ---------------------------------------------------- F11 particles/billboards */
+
+static uint64_t make_test_texture(void) {
+    static const uint8_t px[16] = {255, 0, 0, 255, 0, 255, 0, 255,
+                                   0, 0, 255, 255, 255, 255, 255, 255};
+    return efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_CLAMP,
+                                     EFX_FILTER_NEAREST, 0);
+}
+
+static void base_config(efx_particle_config *c, uint64_t tex) {
+    memset(c, 0, sizeof(*c));
+    c->texture = tex;
+    c->max = 64;
+    c->space = EFX_SPACE_WORLD;
+    c->facing = EFX_FACING_VIEW;
+    c->blend = EFX_BLEND_ALPHA;
+    c->normal[1] = 1.0f;
+    c->life_min = c->life_max = 1.0f;
+    c->emitter_lifetime = -1.0f;
+    c->direction[1] = 1.0f;
+    c->size_count = 1;
+    c->sizes[0] = 1.0f;
+    c->color_count = 1;
+    c->colors[0][0] = c->colors[0][1] = c->colors[0][2] = c->colors[0][3] = 1.0f;
+    c->insert_mode = EFX_INSERT_TOP;
+    c->speed_scale = 1.0f;
+    c->shape = EFX_SHAPE_POINT;
+}
+
+static int billboard_basis(void) {
+    efx_camera3d cam = {{0, 0, 5}, {0, 0, 0}, 60, 0.1f, 100};
+    float r[3], u[3];
+    efx_render_billboard_basis(&cam, EFX_FACING_VIEW, NULL, r, u);
+    if (!feq(r[0], 1) || !feq(r[1], 0) || !feq(r[2], 0)) return fail("view right");
+    if (!feq(u[0], 0) || !feq(u[1], 1) || !feq(u[2], 0)) return fail("view up");
+    efx_render_billboard_basis(&cam, EFX_FACING_Y, NULL, r, u);
+    if (!feq(u[0], 0) || !feq(u[1], 1) || !feq(u[2], 0)) return fail("y up");
+    if (fabsf(r[1]) > 0.001f) return fail("y right horizontal");
+    float n[3] = {0, 1, 0};
+    efx_render_billboard_basis(&cam, EFX_FACING_PLANE, n, r, u);
+    /* plane basis must span the plane: cross(right, up) == normal */
+    float cx = r[1] * u[2] - r[2] * u[1];
+    float cy = r[2] * u[0] - r[0] * u[2];
+    float cz = r[0] * u[1] - r[1] * u[0];
+    if (!feq(cx, 0) || !feq(cy, 1) || !feq(cz, 0)) return fail("plane normal");
+    return 0;
+}
+
+static int particle_config_validation(void) {
+    install_mock_sink();
+    uint64_t tex = make_test_texture();
+    efx_particle_config c;
+    int err = 0;
+    base_config(&c, tex);
+    uint64_t h = efx_render_particles_create(&c, &err);
+    if (!h || err != EFX_RENDER_OK) return fail("valid config rejected");
+    if (efx_render_particles_count(h) != 0) return fail("fresh count");
+    /* a live system retains its texture (ADR 0027 mechanism) */
+    if (efx_render_texture_ref_count(tex) != 1) return fail("texture not retained");
+    efx_render_particles_destroy(h);
+    efx_render_end_frame();
+    if (efx_render_texture_ref_count(tex) != 0) return fail("texture not released");
+
+    base_config(&c, 0);
+    if (efx_render_particles_create(&c, &err) != 0 || err == EFX_RENDER_OK)
+        return fail("missing texture accepted");
+    base_config(&c, tex);
+    c.max = 0;
+    if (efx_render_particles_create(&c, &err) != 0) return fail("max 0 accepted");
+    base_config(&c, tex);
+    c.space = EFX_SPACE_SCREEN;
+    c.facing = EFX_FACING_PLANE;
+    if (efx_render_particles_create(&c, &err) != 0)
+        return fail("screen+plane accepted");
+    base_config(&c, tex);
+    c.size_count = 9;
+    if (efx_render_particles_create(&c, &err) != 0) return fail("size count");
+    base_config(&c, tex);
+    c.size_variation = 2.0f;
+    if (efx_render_particles_create(&c, &err) != 0) return fail("size var");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int particle_emit_step(void) {
+    install_mock_sink();
+    uint64_t tex = make_test_texture();
+    efx_particle_config c;
+    base_config(&c, tex);
+    int err = 0;
+    uint64_t h = efx_render_particles_create(&c, &err);
+    if (!h) return fail("create");
+    if (efx_render_particles_emit(h, 10) != EFX_RENDER_OK) return fail("emit");
+    if (efx_render_particles_count(h) != 10) return fail("emit count");
+
+    /* deterministic: a twin system steps identically */
+    efx_particle_config c2;
+    base_config(&c2, tex);
+    uint64_t h2 = efx_render_particles_create(&c2, &err);
+    efx_render_particles_emit(h2, 10);
+    efx_render_particles_step(0.1f);
+    int n1 = 0, n2 = 0;
+    const efx_particle_view *v1 = efx_render_particles_views(h, &n1);
+    const efx_particle_view *v2 = efx_render_particles_views(h2, &n2);
+    if (n1 != n2) return fail("determinism count");
+    for (int i = 0; i < n1; i++) {
+        if (!feq(v1[i].pos[0], v2[i].pos[0]) ||
+            !feq(v1[i].pos[1], v2[i].pos[1])) {
+            return fail("determinism position");
+        }
+    }
+
+    /* gravity moves particles down */
+    efx_render_particles_reset(h);
+    base_config(&c, tex);
+    c.gravity[1] = -10.0f;
+    c.life_min = c.life_max = 10.0f;
+    if (efx_render_particles_set(h, &c) != EFX_RENDER_OK) return fail("set");
+    efx_render_particles_emit(h, 1);
+    efx_render_particles_step(0.5f);
+    const efx_particle_view *v = efx_render_particles_views(h, &n1);
+    if (n1 != 1 || !(v[0].pos[1] < -0.5f)) return fail("gravity");
+
+    /* lifetime retirement */
+    c.life_min = c.life_max = 0.1f;
+    c.gravity[1] = 0.0f;
+    efx_render_particles_set(h, &c);
+    efx_render_particles_reset(h);
+    efx_render_particles_emit(h, 5);
+    efx_render_particles_step(0.2f);
+    if (efx_render_particles_count(h) != 0) return fail("lifetime retire");
+
+    /* pause suspends aging; reset clears */
+    c.life_min = c.life_max = 5.0f;
+    efx_render_particles_set(h, &c);
+    /* an invalid set leaves the configuration unchanged (atomic) */
+    efx_particle_config bad;
+    base_config(&bad, tex);
+    bad.max = 0;
+    if (efx_render_particles_set(h, &bad) == EFX_RENDER_OK)
+        return fail("invalid set accepted");
+    if (!feq(efx_render_particles_speed_scale(h), 1.0f))
+        return fail("config changed after failed set");
+    efx_render_particles_emit(h, 3);
+    efx_render_particles_pause(h);
+    efx_render_particles_step(1.0f);
+    if (efx_render_particles_count(h) != 3) return fail("pause");
+    efx_render_particles_start(h);
+    efx_render_particles_reset(h);
+    if (efx_render_particles_count(h) != 0) return fail("reset");
+
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int particle_interpolation(void) {
+    install_mock_sink();
+    uint64_t tex = make_test_texture();
+    efx_particle_config c;
+    base_config(&c, tex);
+    c.life_min = c.life_max = 10.0f;
+    c.size_count = 2;
+    c.sizes[0] = 1.0f;
+    c.sizes[1] = 3.0f;
+    c.color_count = 2;
+    c.colors[0][0] = c.colors[0][1] = c.colors[0][2] = 1.0f;
+    c.colors[0][3] = 1.0f;
+    c.colors[1][0] = 1.0f;
+    c.colors[1][1] = c.colors[1][2] = 0.0f;
+    c.colors[1][3] = 0.0f;
+    int err = 0;
+    uint64_t h = efx_render_particles_create(&c, &err);
+    efx_render_particles_emit(h, 1);
+    int n = 0;
+    const efx_particle_view *v = efx_render_particles_views(h, &n);
+    if (n != 1 || !feq(v[0].size, 1.0f) || !feq(v[0].color[0], 1.0f))
+        return fail("t=0 interpolation");
+    efx_render_particles_step(5.0f);
+    v = efx_render_particles_views(h, &n);
+    if (n != 1 || !feq(v[0].size, 2.0f) || !feq(v[0].color[0], 1.0f) ||
+        !feq(v[0].color[1], 0.5f)) {
+        return fail("t=0.5 interpolation");
+    }
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int billboard_record_fields(void) {
+    install_mock_sink();
+    uint64_t tex = make_test_texture();
+    efx_camera3d cam = {{0, 2, 5}, {0, 0, 0}, 60, 0.1f, 100};
+    efx_render_set_camera3d(&cam);
+    efx_render_set_blend(EFX_BLEND_ADDITIVE);
+    float pos[3] = {1, 2, 3};
+    float color[4] = {0.5f, 0.25f, 0.1f, 0.8f};
+    float src[4] = {0, 0, 1, 1};
+    if (efx_render_billboard(tex, pos, 2.0f, 3.0f, color, 45.0f, EFX_FACING_Y,
+                             NULL, 1, src, 1) != EFX_RENDER_OK) {
+        return fail("billboard record");
+    }
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 1 || recs[0].type != EFX_RECORD_BILLBOARD)
+        return fail("billboard record type");
+    const efx_billboard_record *b = &recs[0].u.billboard;
+    if (!feq(b->pos[0], 1) || !feq(b->pos[2], 3)) return fail("billboard pos");
+    if (!feq(b->w, 2) || !feq(b->h, 3)) return fail("billboard size");
+    if (b->facing != EFX_FACING_Y || b->depth_test != 1 ||
+        b->blend != EFX_BLEND_ADDITIVE)
+        return fail("billboard flags");
+    if (!feq(b->color[1], 0.25f)) return fail("billboard color");
+    if (!feq(b->tw, 2) || !feq(b->sh, 1)) return fail("billboard src");
+    /* invalid size rejected */
+    if (efx_render_billboard(tex, pos, 0.0f, 1.0f, NULL, 0, EFX_FACING_VIEW,
+                             NULL, 1, NULL, 0) == EFX_RENDER_OK)
+        return fail("billboard zero size accepted");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_render_tests <case>\n");
@@ -1999,6 +2223,11 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "mesh_pose_repose")) return mesh_pose_repose();
     if (!strcmp(c, "mesh_skinned_flag")) return mesh_skinned_flag();
     if (!strcmp(c, "mesh_skin_lifecycle")) return mesh_skin_lifecycle();
+    if (!strcmp(c, "billboard_basis")) return billboard_basis();
+    if (!strcmp(c, "particle_config_validation")) return particle_config_validation();
+    if (!strcmp(c, "particle_emit_step")) return particle_emit_step();
+    if (!strcmp(c, "particle_interpolation")) return particle_interpolation();
+    if (!strcmp(c, "billboard_record_fields")) return billboard_record_fields();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

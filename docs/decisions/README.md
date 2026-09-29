@@ -50,6 +50,7 @@ directory holds only what stays true after a change is archived.
 | [0036](0036-input-c-owned-frame-staged.md) | Accepted | F9 input is C-owned and frame-staged: one pure-C core feeds both bindings, queries plus unsubscribe-returning event callbacks, surface-pixel coordinates, and a test-only injection seam |
 | [0037](0037-commonjs-module-format.md) | Accepted | F10 makes CommonJS the engine module format: synchronous `require` resolved through the dir/zip provider by one shared pure-JS runtime, with a restricted resolver; ESM is a source format compiled to CommonJS and npm/Node compatibility is a non-goal |
 | [0038](0038-native-font-typesetting.md) | Accepted | F8a text is mid-level C: `loadFontData`→`createFont` bakes a fixed RGBA8 glyph atlas (optional baked outline/shadow) and `drawText`/`measureText` record opaque 2D quads; vendored stb_truetype/stb_rect_pack, no rich text/3D text (supersedes ADR 0013's font clause) |
+| [0039](0039-cpu-particle-billboard-pipeline.md) | Accepted | F11 particles are CPU-simulated native-backed systems; one oriented-quad basis serves `drawBillboard` and particle `facing` (`view`/`y`/`plane`) over a new depth-test/no-write pipeline variant; `drawSprites` reuses quad records; particles sort within their batch; curated showcases accompany the golden |
 
 ## Adding a decision
 

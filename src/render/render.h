@@ -162,10 +162,39 @@ typedef struct efx_begin_target_record {
     float clear[4];
 } efx_begin_target_record;
 
+/* one world-space billboard (F11): the quad basis is derived at playback from
+ * the recorded camera and `facing`/`normal`, so only the placement is stored */
+typedef struct efx_billboard_record {
+    float pos[3];
+    float w, h;            /* world-unit destination size */
+    float sx, sy, sw, sh;  /* source rect in texels */
+    float tw, th;          /* sampled texture size in texels */
+    float color[4];
+    float rotation;        /* degrees in the quad plane */
+    float normal[3];       /* `plane` orientation */
+    uint64_t texture;
+    uint8_t facing;
+    uint8_t depth_test;
+    uint8_t blend;
+    efx_camera3d camera;   /* value snapshot at record time */
+} efx_billboard_record;
+
+/* one particle batch (F11): references a live system at playback, which
+ * resolves and depth-sorts its own particles */
+typedef struct efx_particle_record {
+    uint64_t system;
+    uint8_t blend;
+    efx_camera3d camera;    /* world-space systems */
+    efx_camera2d camera2d;  /* screen-space systems */
+    float frame_w, frame_h; /* screen-space frame */
+} efx_particle_record;
+
 #define EFX_RECORD_QUAD 0
 #define EFX_RECORD_MESH 1
 #define EFX_RECORD_BEGIN_TARGET 2
 #define EFX_RECORD_END_TARGET 3
+#define EFX_RECORD_BILLBOARD 4
+#define EFX_RECORD_PARTICLES 5
 
 /* one display-list record; sort key = record index (F2: playback order
  * equals record order, design D3). `target` is the rendering surface the
@@ -179,6 +208,8 @@ typedef struct efx_record {
         efx_quad_record quad;
         efx_mesh_record mesh;
         efx_begin_target_record begin_target;
+        efx_billboard_record billboard;
+        efx_particle_record particles;
     } u;
 } efx_record;
 
@@ -537,5 +568,124 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
                        const float world_pos[3], const float normal[3],
                        const float camera_pos[3], const float albedo[4],
                        const efx_map_samples *maps, float out[4]);
+
+/* ------------------------------------------------- F11 billboards + particles */
+
+/* billboard / particle quad facing modes */
+#define EFX_FACING_VIEW 0
+#define EFX_FACING_Y 1
+#define EFX_FACING_PLANE 2
+
+/* particle coordinate space */
+#define EFX_SPACE_WORLD 0
+#define EFX_SPACE_SCREEN 1
+
+/* particle emission shape (point, box, sphere volume, sphere surface, disc) */
+#define EFX_SHAPE_POINT 0
+#define EFX_SHAPE_BOX 1
+#define EFX_SHAPE_SPHERE 2
+#define EFX_SHAPE_SPHERE_SURFACE 3
+#define EFX_SHAPE_DISC 4
+
+/* particle insertion order for new particles */
+#define EFX_INSERT_TOP 0
+#define EFX_INSERT_BOTTOM 1
+#define EFX_INSERT_RANDOM 2
+
+/* documented per-system live-particle capacity (hard cap) */
+#define EFX_PARTICLES_MAX 65536
+
+/* particle creation/reconfiguration config: plain value state snapshotted by
+ * the engine. `sizes`/`colors` are lifetime-interpolated samples (<= 8);
+ * `quads` are atlas rects in texels ({x,y,w,h}) selected over the lifetime.
+ * `direction` need not be unit length (the engine normalizes it); `spread`
+ * is the random cone half-angle in degrees. Vectors are 3 components even for
+ * screen space (z ignored). */
+typedef struct efx_particle_config {
+    uint64_t texture;
+    int max;
+    int space;           /* EFX_SPACE_* */
+    int facing;          /* EFX_FACING_* (world only) */
+    int blend;           /* EFX_BLEND_* */
+    float normal[3];     /* world `plane` orientation */
+
+    float life_min, life_max;    /* particle lifetime seconds */
+    float emission_rate;         /* particles/second */
+    float emitter_lifetime;      /* seconds; -1 = infinite */
+    float position[3];
+    float direction[3];
+    float spread;
+    float speed_min, speed_max;
+
+    float gravity[3];
+    float lin_acc_min[3], lin_acc_max[3];
+    float radial_acc_min, radial_acc_max;
+    float tangential_acc_min, tangential_acc_max;
+    float damping_min, damping_max;
+
+    int size_count;              /* 1..8 */
+    float sizes[8];
+    float size_variation;        /* 0..1 */
+    int color_count;             /* 1..8 */
+    float colors[8][4];
+    float rotation_min, rotation_max; /* degrees */
+    float spin_start, spin_end;       /* degrees/second */
+    float spin_variation;             /* 0..1 */
+    int relative_rotation;
+    int shape;                   /* EFX_SHAPE_* */
+    float shape_size[3];         /* box half-extents / radii */
+    int quad_count;              /* 0 or 1..64 */
+    float quads[64][4];
+    int insert_mode;             /* EFX_INSERT_* */
+    float speed_scale;           /* > 0, simulated-time factor */
+} efx_particle_config;
+
+/* one resolved particle as handed to playback (computed at draw time) */
+typedef struct efx_particle_view {
+    float pos[3];
+    float size;
+    float angle;    /* degrees, quad plane roll */
+    float color[4];
+    float uv[4];    /* normalized atlas rect (0,0,1,1 when no quads) */
+} efx_particle_view;
+
+uint64_t efx_render_particles_create(const efx_particle_config *cfg, int *err);
+int efx_render_particles_destroy(uint64_t h);
+int efx_render_particles_alive(uint64_t h);
+int efx_render_particles_count(uint64_t h);
+int efx_render_particles_emit(uint64_t h, int n);
+void efx_render_particles_start(uint64_t h);
+void efx_render_particles_stop(uint64_t h);
+void efx_render_particles_pause(uint64_t h);
+void efx_render_particles_reset(uint64_t h);
+/* full reconfigure (the binding merges a partial opts over the current config
+ * via efx_render_particles_config first). Validates; unchanged on failure. */
+int efx_render_particles_set(uint64_t h, const efx_particle_config *cfg);
+void efx_render_particles_config(uint64_t h, efx_particle_config *out);
+float efx_render_particles_speed_scale(uint64_t h);
+void efx_render_particles_set_speed_scale(uint64_t h, float s);
+/* advance every live system by dt (engine frame step) */
+void efx_render_particles_step(float dt);
+/* resolved views of the live particles (valid until the next step); NULL/0
+ * for an unknown system. */
+const efx_particle_view *efx_render_particles_views(uint64_t h, int *count);
+int efx_render_particles_space(uint64_t h);
+int efx_render_particles_facing(uint64_t h);
+uint64_t efx_render_particles_texture(uint64_t h);
+void efx_render_particles_normal(uint64_t h, float out[3]);
+
+/* record one world-space billboard (F11) */
+int efx_render_billboard(uint64_t texture, const float pos[3], float w, float h,
+                         const float color[4], float rotation, int facing,
+                         const float normal[3], int depth_test,
+                         const float src_rect[4], int has_src);
+/* record one particle batch for a live system (F11) */
+int efx_render_particles_draw(uint64_t h);
+
+/* billboard/oriented-quad basis (exposed for unit tests): fills unit vectors
+ * right/up from the recorded camera and, for `plane`, the normal. */
+void efx_render_billboard_basis(const efx_camera3d *cam, int facing,
+                                const float normal[3], float right[3],
+                                float up[3]);
 
 #endif

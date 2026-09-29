@@ -178,7 +178,9 @@ foreach(CASE
     post_registry post_fast_path post_render_scale post_surface_size
     post_user_target_raw
     skin_bind_local skin_sampling skin_lbs skin_pose_blend
-    mesh_skin_buffers mesh_pose_repose mesh_skinned_flag mesh_skin_lifecycle)
+    mesh_skin_buffers mesh_pose_repose mesh_skinned_flag mesh_skin_lifecycle
+    billboard_basis particle_config_validation particle_emit_step
+    particle_interpolation billboard_record_fields)
     add_unit_test(efx_render_tests ${CASE})
 endforeach()
 if(NOT EMSCRIPTEN)
