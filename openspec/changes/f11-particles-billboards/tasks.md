@@ -52,5 +52,5 @@
 - [x] 9.1 Add a portable script smoke case exercising billboards, sprite batching, and a particle system (deterministic short animation), wired into ctest and the Emscripten suite with a cross-runtime compare entry; verify it passes on the desktop and web runtimes.
 - [x] 9.2 Author a golden scene covering the billboard and particle render paths and capture its baseline on the verification server (llvmpipe, per `docs/verification-server.md`); if the golden still fails after **5 capture/debug attempts, stop and report back** rather than continuing.
 - [x] 9.3 Run `python3 tools/verify_remote.py all <branch>` on the verification server and fix anything it finds before dispatching the gate.
-- [ ] 9.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate is green (native suites incl. the F11 golden on Linux/Windows/macOS, Emscripten ctest + web goldens + cross-runtime compare), and that the gallery smoke passes.
+- [x] 9.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate is green (native suites incl. the F11 golden on Linux/Windows/macOS, Emscripten ctest + web goldens + cross-runtime compare), and that the gallery smoke passes.
 
