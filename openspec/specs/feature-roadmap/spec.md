@@ -23,12 +23,13 @@ dual script bindings and the F6a dir/zip resource provider; F11 (particles
 + billboards — CPU particle systems, world-space billboards, batched 2D
 sprites), whose only predecessors are the F2 2D quad/display-list contract and
 the F3 3D camera/depth core (and F6a for particle textures loaded from files);
-and F12
-(collision + character + impulse dynamics — a bespoke pure-C collision world,
-a kinematic capsule character controller, linear impulse dynamics, and
+F12 (collision + character + impulse dynamics — a bespoke pure-C collision
+world, a kinematic capsule character controller, linear impulse dynamics, and
 spatial queries), whose only predecessors are the F3 3D camera/math/mesh core
 and the F6a/F6b resource + glTF import (for collision meshes loaded from
-files). F9, F10, F11, and F12 MAY be
+files); and F13 (gamepad input — a vendored poll backend plus a pure-C
+normalized semantic button/axis surface), whose only predecessor is F9 (the
+C-owned frame-staged input core it extends). F9, F10, F11, F12, and F13 MAY be
 implemented once their predecessors' gates have passed, independently of each
 other and of the remaining F3–F8 milestones; F10 is an explicit enabler of
 F8's pure-JS high-level layer. F6 asset import
@@ -36,7 +37,7 @@ SHALL cover glTF 2.0 payloads: meshes, images (textures), skins, and
 animation clips. Each milestone SHALL build only on
 capabilities delivered by its predecessors (for F9–F11, the F1–F2
 foundation, plus F6a for F10 and F11, plus F3 for F11; for F12, the F3 core
-plus F6a/F6b), and the milestone order MUST NOT be
+plus F6a/F6b; for F13, the F9 input core), and the milestone order MUST NOT be
 reordered without a change to this capability.
 
 #### Scenario: Locating a feature in the ladder
@@ -52,11 +53,12 @@ reordered without a change to this capability.
 
 #### Scenario: Orthogonal milestone proceeds early
 - **WHEN** a proposal implements F9 (input), F10 (script modules), F11
-  (particles + billboards), or F12 (collision + character + impulse dynamics)
-  after its predecessor gates have passed but before F7 or F8 complete
+  (particles + billboards), F12 (collision + character + impulse dynamics), or
+  F13 (gamepad input) after its predecessor gates have passed but before F7 or
+  F8 complete
 - **THEN** the proposal is in roadmap order, because those milestones' only
   predecessors are F1–F2 (and F6a for F10, plus F6a and F3 for F11, plus F3
-  and F6a/F6b for F12)
+  and F6a/F6b for F12, plus F9 for F13)
 
 ### Requirement: Verification gate per milestone
 
@@ -73,16 +75,20 @@ core driven through a deterministic simulation seam plus a script-level
 simulation harness, F10 (script modules) SHALL be verified by portable
 module smoke scripts run through both the desktop and web runtimes
 (ctest + the cross-runtime comparison), covering resolution, caching, cycles,
-interop, JSON modules, and error behavior, F11 (particles + billboards) SHALL
-be verified by headless unit tests over the deterministic CPU particle
-simulation (against a CPU reference) and the billboard math, a portable script
-smoke case on the desktop and web runtimes, and a golden-image scene for the
-billboard and particle render paths, and F12 (collision + character +
+interop, JSON modules, and error behavior, and F12 (collision + character +
 impulse dynamics) SHALL be verified by headless unit tests over the
 dependency-free C collision, dynamics, and character core (direct narrowphase
 cases, invariants, scenarios, determinism, and stress) plus a portable
 script-level simulation harness run through both the desktop and web runtimes,
-with no golden-image test required.
+with no golden-image test required. F11 (particles + billboards) is a
+rendering milestone: it SHALL be verified by headless unit tests over the
+deterministic CPU particle simulation (against a CPU reference) and the
+billboard math, a portable script smoke case on the desktop and web runtimes,
+and a golden-image scene for the billboard and particle render paths. F13
+(gamepad input) SHALL be verified by headless unit tests over the pure-C
+normalized gamepad model and the mapping evaluator using synthetic device
+descriptors, plus a portable script-level simulation harness run through both
+the desktop and web runtimes, with no golden-image test required.
 
 #### Scenario: F1 gate
 - **WHEN** F1 completes
@@ -116,6 +122,13 @@ with no golden-image test required.
 - **THEN** its headless unit tests over the dependency-free C core pass, its
   portable script-level simulation harness passes through both runtimes on all
   four targets with identical results, and no golden-image test is required
+
+#### Scenario: Gamepad milestone gate
+- **WHEN** F13 (gamepad input) completes
+- **THEN** its headless unit tests over the pure-C normalized model and mapping
+  evaluator pass on all four targets, its portable script-level simulation
+  harness passes through both runtimes with identical results, and no
+  golden-image test is required
 
 ### Requirement: Early risk retirement
 The roadmap SHALL order work so that the highest-risk foundations are delivered
