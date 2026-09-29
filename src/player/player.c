@@ -161,6 +161,10 @@ int efx_player_frame(void *ud, double dt) {
         return player_stop(rt);
     }
 
+    /* F11: advance engine-owned particle systems after the update hooks and
+       before the render hooks (auto-update, ADR 0039) */
+    efx_render_particles_step((float)(dt > 0.0 ? dt : 0.0));
+
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
         return player_stop(rt);
     }

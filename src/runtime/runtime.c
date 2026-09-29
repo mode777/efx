@@ -221,6 +221,10 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         JS_CFUNC_DEF("createFont", 2, efx_js_createFont),
         JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
         JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
+        JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
+        JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
+        JS_CFUNC_DEF("createParticleSystem", 1, efx_js_createParticleSystem),
+        JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
     };
     JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
                                (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));

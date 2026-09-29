@@ -8,13 +8,13 @@
 ## 2. Billboard render path
 
 - [x] 2.1 Add the billboard/oriented-quad basis builder (`view`/`y`/`plane`) in `src/render/` and expose it for unit tests; verify with `ctest -R` on a new basis-math test covering camera-facing, world-up, and fixed-normal cases.
-- [ ] 2.2 Add the billboard pipeline variant with `compare = LESS_EQUAL, write = false` (normal and RT-flipped winding) in `src/platform/pipeline.c`; verify the build links and a smoke frame with one billboard renders without errors.
+- [x] 2.2 Add the billboard pipeline variant with `compare = LESS_EQUAL, write = false` (normal and RT-flipped winding) in `src/platform/pipeline.c`; verify the build links and a smoke frame with one billboard renders without errors.
 - [x] 2.3 Add the billboard display-list record + `efx_render_billboard(...)` recording (camera snapshot, `facing`, `depthTest`, atlas rect, rotation, tint) in `src/render/render.{c,h}`; verify the record contents and validation via a unit test.
 - [ ] 2.4 Extend playback in `src/platform/pipeline.c` to draw billboard records with the recorded camera and depth flag; verify with a headless display-list test and a manual capture.
 
 ## 3. Batched 2D sprites
 
-- [ ] 3.1 Implement `drawSprites` as an atomic validate-then-record loop over `efx_quad_record` in `src/render/` + the binding layer; verify a unit test asserting entry-order, per-sprite options, and that a bad entry records nothing.
+- [x] 3.1 Implement `drawSprites` as an atomic validate-then-record loop over `efx_quad_record` in `src/render/` + the binding layer; verify a unit test asserting entry-order, per-sprite options, and that a bad entry records nothing.
 
 ## 4. Particle simulation core
 
@@ -33,7 +33,7 @@
 
 ## 6. Bindings and type document
 
-- [ ] 6.1 Register `drawBillboard`, `drawSprites`, `createParticleSystem`, `drawParticles`, and the `ParticleSystem` class (query `count`, `speedScale`, methods) in the desktop quickjs binding (`src/api/`); verify with headless script cases for happy path and each error type.
+- [x] 6.1 Register `drawBillboard`, `drawSprites`, `createParticleSystem`, `drawParticles`, and the `ParticleSystem` class (query `count`, `speedScale`, methods) in the desktop quickjs binding (`src/api/`); verify with headless script cases for happy path and each error type.
 - [ ] 6.2 Mirror the exact names, signatures, semantics, and errors in the web binding (`src/web/`); verify the cross-runtime comparison (`tools/run_web_compare.mjs`) matches for the F11 script case.
 - [ ] 6.3 Update `gallery/src/api/efx.d.ts` and its type test with `drawBillboard`, `drawSprites`, `ParticleSystem`, `createParticleSystem`, and `drawParticles`, including the `facing`/`normal` discriminated forms; verify the gallery type-check passes.
 

@@ -1658,6 +1658,124 @@ static int module_hooks_js(void) {
     return 0;
 }
 
+/* F11: drawBillboard records a world-space quad with the 3D camera */
+static int billboard_js(void) {
+    const char *code =
+        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
+        "efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });"
+        "efx.setBlendMode('additive');"
+        "efx.drawBillboard([1, 2, 3], { texture: t, size: [2, 3], facing: 'y',"
+        "  rotation: 45, color: [0.5, 0.25, 0.1, 0.8] });"
+        "try { efx.drawBillboard([0,0,0], { size: [1,1] }); throw new Error('no'); }"
+        "catch (e) { if (!(e instanceof TypeError)) throw e; }"
+        "try { efx.drawBillboard([0,0,0], { texture: t, size: [0,1] }); throw new Error('no'); }"
+        "catch (e) { if (!(e instanceof RangeError)) throw e; }";
+    if (ok_js(code)) {
+        end_js();
+        return fail("billboard js snippet");
+    }
+    if (rec_count() != 1) {
+        end_js();
+        return fail("billboard record count");
+    }
+    int n = 0;
+    const efx_record *r = efx_render_records(&n);
+    if (r[0].type != EFX_RECORD_BILLBOARD) {
+        end_js();
+        return fail("billboard record type");
+    }
+    const efx_billboard_record *b = &r[0].u.billboard;
+    if (!feq(b->pos[0], 1) || !feq(b->pos[2], 3) || !feq(b->w, 2) ||
+        b->facing != EFX_FACING_Y || b->blend != EFX_BLEND_ADDITIVE ||
+        !feq(b->camera.pos[2], 5)) {
+        end_js();
+        return fail("billboard record fields");
+    }
+    end_js();
+    return 0;
+}
+
+/* F11: createParticleSystem config, emit/count/speedScale/destroy lifecycle */
+static int particles_js(void) {
+    const char *code =
+        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
+        "const ps = efx.createParticleSystem({ texture: t, max: 32,"
+        "  lifetime: [1, 2], emissionRate: 10, position: [0, 0, 0],"
+        "  direction: [0, 1, 0], speed: [1, 2], gravity: [0, -1, 0],"
+        "  sizes: [1, 3], colors: [[1, 0, 0, 1], [1, 1, 0, 0]],"
+        "  facing: 'view', blend: 'additive', emissionShape: { shape: 'sphere', size: [1, 1, 1] } });"
+        "if (ps.count !== 0) throw new Error('fresh count ' + ps.count);"
+        "ps.emit(5);"
+        "if (ps.count !== 5) throw new Error('emit count ' + ps.count);"
+        "ps.speedScale = 2;"
+        "if (ps.speedScale !== 2) throw new Error('speedScale');"
+        "efx.drawParticles(ps);"
+        "ps.set({ emissionRate: 0, position: [1, 0, 0] });"
+        "ps.pause(); ps.start(); ps.reset();"
+        "if (ps.count !== 0) throw new Error('reset');"
+        "ps.destroy();"
+        "try { ps.emit(1); throw new Error('no'); } catch (e) {"
+        "  if (!(e instanceof TypeError)) throw e; }"
+        "try { efx.createParticleSystem({ max: 4 }); throw new Error('no'); }"
+        "catch (e) { if (!(e instanceof TypeError)) throw e; }"
+        "try { efx.createParticleSystem({ texture: t, max: 0 }); throw new Error('no'); }"
+        "catch (e) { if (!(e instanceof RangeError)) throw e; }";
+    if (ok_js(code)) {
+        end_js();
+        return fail("particles js snippet");
+    }
+    if (rec_count() != 1) {
+        end_js();
+        return fail("particle record count");
+    }
+    int n = 0;
+    const efx_record *r = efx_render_records(&n);
+    if (r[0].type != EFX_RECORD_PARTICLES) {
+        end_js();
+        return fail("particle record type");
+    }
+    end_js();
+    return 0;
+}
+
+/* F11: drawSprites is a 2D batch and records nothing when an entry is bad */
+static int sprites_js(void) {
+    const char *bad =
+        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
+        "efx.drawQuad(0, 0, t);"
+        "try { efx.drawSprites(t, [{ x: 0, y: 0 }, { x: 1, y: 1, size: [0, 5] }]);"
+        "  throw new Error('no'); } catch (e) {"
+        "  if (!(e instanceof RangeError)) throw e; }";
+    if (ok_js(bad)) {
+        end_js();
+        return fail("sprites bad entry snippet");
+    }
+    if (rec_count() != 1) {
+        end_js();
+        return fail("drawSprites recorded on a bad entry");
+    }
+    end_js();
+
+    const char *good =
+        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
+        "efx.drawSprites(t, [{ x: 0, y: 0, size: [4, 4] }, { x: 10, y: 0, rotation: 45 },"
+        "  { x: 20, y: 0, color: [1, 0, 0, 1] }]);";
+    if (ok_js(good)) {
+        end_js();
+        return fail("sprites batch snippet");
+    }
+    if (rec_count() != 3) {
+        end_js();
+        return fail("sprites record count");
+    }
+    end_js();
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_api_tests <case>\n");
@@ -1696,6 +1814,9 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "input_js")) return input_js();
     if (!strcmp(c, "module_js")) return module_js();
     if (!strcmp(c, "module_hooks_js")) return module_hooks_js();
+    if (!strcmp(c, "billboard_js")) return billboard_js();
+    if (!strcmp(c, "particles_js")) return particles_js();
+    if (!strcmp(c, "sprites_js")) return sprites_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

@@ -205,7 +205,8 @@ foreach(CASE
     blend_snapshot default_camera hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
     resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
-    module_js module_hooks_js font_js)
+    module_js module_hooks_js font_js
+    billboard_js particles_js sprites_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()

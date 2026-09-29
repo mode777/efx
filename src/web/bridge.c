@@ -1156,9 +1156,15 @@ static int web_frame(void *ud, double dt) {
         stop = 1;
     } else if (W.quit_requested || W.in_error) {
         stop = 1;
-    } else if (efx_web_call_hook_js(0, dt) != 0) {
+    } else {
+        /* F11: advance engine-owned particle systems after the update hooks
+           and before the render hooks (auto-update, ADR 0039) */
+        efx_render_particles_step((float)(dt > 0.0 ? dt : 0.0));
+    }
+    if (!stop && !(W.quit_requested || W.in_error) &&
+        efx_web_call_hook_js(0, dt) != 0) {
         stop = 1;
-    } else if (W.quit_requested || W.in_error) {
+    } else if (!stop && (W.quit_requested || W.in_error)) {
         stop = 1;
     }
     if (stop) {

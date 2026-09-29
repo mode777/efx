@@ -56,6 +56,12 @@ JSValue efx_js_createFont(JSContext *ctx, JSValueConst this_val, int argc, JSVal
 JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
+/* F11 — billboards + CPU particles */
+JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_drawSprites(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_createParticleSystem(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_drawParticles(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);
 
