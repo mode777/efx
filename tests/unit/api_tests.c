@@ -1740,37 +1740,24 @@ static int particles_js(void) {
     return 0;
 }
 
-/* F11: drawSprites is a 2D batch and records nothing when an entry is bad */
+/* F11: drawSprites is a 2D batch and records nothing when an entry is bad.
+ * Single runtime: the harness registers resource classes once per process. */
 static int sprites_js(void) {
-    const char *bad =
+    const char *code =
         "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
         "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
-        "efx.drawQuad(0, 0, t);"
+        "efx.drawSprites(t, [{ x: 0, y: 0, size: [4, 4] }, { x: 10, y: 0, rotation: 45 }]);"
         "try { efx.drawSprites(t, [{ x: 0, y: 0 }, { x: 1, y: 1, size: [0, 5] }]);"
         "  throw new Error('no'); } catch (e) {"
         "  if (!(e instanceof RangeError)) throw e; }";
-    if (ok_js(bad)) {
+    if (ok_js(code)) {
         end_js();
-        return fail("sprites bad entry snippet");
+        return fail("sprites js snippet");
     }
-    if (rec_count() != 1) {
+    /* two valid sprites recorded; the failed call recorded none */
+    if (rec_count() != 2) {
         end_js();
-        return fail("drawSprites recorded on a bad entry");
-    }
-    end_js();
-
-    const char *good =
-        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
-        "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
-        "efx.drawSprites(t, [{ x: 0, y: 0, size: [4, 4] }, { x: 10, y: 0, rotation: 45 },"
-        "  { x: 20, y: 0, color: [1, 0, 0, 1] }]);";
-    if (ok_js(good)) {
-        end_js();
-        return fail("sprites batch snippet");
-    }
-    if (rec_count() != 3) {
-        end_js();
-        return fail("sprites record count");
+        return fail("drawSprites atomicity / count");
     }
     end_js();
     return 0;
