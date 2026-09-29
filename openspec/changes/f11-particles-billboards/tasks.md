@@ -34,7 +34,7 @@
 ## 6. Bindings and type document
 
 - [x] 6.1 Register `drawBillboard`, `drawSprites`, `createParticleSystem`, `drawParticles`, and the `ParticleSystem` class (query `count`, `speedScale`, methods) in the desktop quickjs binding (`src/api/`); verify with headless script cases for happy path and each error type.
-- [ ] 6.2 Mirror the exact names, signatures, semantics, and errors in the web binding (`src/web/`); verify the cross-runtime comparison (`tools/run_web_compare.mjs`) matches for the F11 script case.
+- [x] 6.2 Mirror the exact names, signatures, semantics, and errors in the web binding (`src/web/`); verify the cross-runtime comparison (`tools/run_web_compare.mjs`) matches for the F11 script case.
 - [x] 6.3 Update `gallery/src/api/efx.d.ts` and its type test with `drawBillboard`, `drawSprites`, `ParticleSystem`, `createParticleSystem`, and `drawParticles`, including the `facing`/`normal` discriminated forms; verify the gallery type-check passes.
 
 ## 7. Developer reference
@@ -49,7 +49,7 @@
 
 ## 9. Verification
 
-- [ ] 9.1 Add a portable script smoke case exercising billboards, sprite batching, and a particle system (deterministic short animation), wired into ctest and the Emscripten suite with a cross-runtime compare entry; verify it passes on the desktop and web runtimes.
+- [x] 9.1 Add a portable script smoke case exercising billboards, sprite batching, and a particle system (deterministic short animation), wired into ctest and the Emscripten suite with a cross-runtime compare entry; verify it passes on the desktop and web runtimes.
 - [x] 9.2 Author a golden scene covering the billboard and particle render paths and capture its baseline on the verification server (llvmpipe, per `docs/verification-server.md`); if the golden still fails after **5 capture/debug attempts, stop and report back** rather than continuing.
 - [ ] 9.3 Run `python3 tools/verify_remote.py all <branch>` on the verification server and fix anything it finds before dispatching the gate.
 - [ ] 9.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the four-target gate is green (native suites incl. the F11 golden on Linux/Windows/macOS, Emscripten ctest + web goldens + cross-runtime compare), and that the gallery smoke passes.

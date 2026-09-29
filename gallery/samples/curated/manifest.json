@@ -73,5 +73,19 @@
     "category": "Text",
     "description": "A TrueType font baked into a fixed atlas with the F8a text API: loadFontData -> createFont (with baked outline/shadow) draws a title, a wrapped paragraph whose alignment cycles through left/center/right/justify (Tab), and a live typing area (type, Enter, Backspace). The font is a CC0 Kenney font from the sample's asset pack.",
     "assets": "text-showcase.zip"
+  },
+  {
+    "file": "particles-showcase.js",
+    "id": "curated:particles-showcase",
+    "title": "Particle Showcase",
+    "category": "Showcase",
+    "description": "The F11 particle system: an additive fire (view billboards, continuous emission), an alpha smoke plume, a y-axis-billboard ember burst (emit), lifetime-interpolated size/color, plus a 2D drawSprites row. All procedural textures, no asset pack."
+  },
+  {
+    "file": "particle-plane-showcase.js",
+    "id": "curated:particle-plane-showcase",
+    "title": "Water Plane",
+    "category": "Showcase",
+    "description": "F11 oriented-plane particles: a water surface built from fixed `facing: 'plane'` quads (normal +Y) that stay world-aligned as the camera orbits, with a camera-facing spray and a y-billboard above it."
   }
 ]
