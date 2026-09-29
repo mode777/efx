@@ -35,6 +35,14 @@
     "description": "An interactive tour of the F9 input API: mouse move/down/wheel callbacks paint a particle trail, keyboard events and held-state queries steer it, and surface-pixel pointer coordinates are mapped into the 2D frame. Self-plays until you interact."
   },
   {
+    "file": "gamepad-tester.js",
+    "id": "curated:gamepad-tester",
+    "title": "Gamepad Tester",
+    "category": "Showcase",
+    "description": "An interactive tour of the F13 gamepad API: plug in a controller and watch every semantic button, stick, trigger, and d-pad element light up live, with pad name, mapping status, and connect/disconnect events. Unmapped pads fall back to a raw axes/buttons panel. Keys 1-4 select a slot, Tab cycles.",
+    "assets": "gamepad-tester.zip"
+  },
+  {
     "file": "texture-showcase.js",
     "id": "curated:texture-showcase",
     "title": "Texture Showcase",

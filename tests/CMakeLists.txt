@@ -75,6 +75,7 @@ add_player_test(smoke_showcase_fox ARGS "--script;${GALLERY}/fox-walk.js;--root;
 add_player_test(smoke_showcase_modules ARGS "--script;${GALLERY}/modules-showcase.js;--root;${GALLERY}/modules-showcase.zip" EXPECT 0)
 add_player_test(smoke_showcase_text ARGS "--script;${GALLERY}/text-showcase.js;--root;${GALLERY}/text-showcase.zip" EXPECT 0)
 add_player_test(smoke_showcase_physics ARGS "--script;${GALLERY}/physics-showcase.js" EXPECT 0)
+add_player_test(smoke_showcase_gamepad ARGS "--script;${GALLERY}/gamepad-tester.js;--root;${GALLERY}/gamepad-tester.zip" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()

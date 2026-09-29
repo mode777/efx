@@ -11,6 +11,7 @@ attribution; this file exists for transparency.
 | `gltf-showcase.zip` | `Avocado.gltf`, `Avocado.bin`, `Avocado_baseColor.png` | Microsoft | Khronos glTF-Sample-Assets, `Models/Avocado`, https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Avocado | CC0 1.0 |
 | `fox-walk.zip` | `Fox.glb` | Quaternius (Tomás Laulhé) | Quaternius, "Ultimate Animated Animals" (https://quaternius.com/packs/ultimateanimatedanimals.html); glb mirror: https://github.com/trebeljahr/quaternius-showcase | CC0 1.0 |
 | `text-showcase.zip` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
+| `gamepad-tester.zip` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase.zip` | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
@@ -81,3 +82,9 @@ python3 gallery/scripts/pack-curated-modules.py --check   # drift check
 2. Zip it at the archive root as `font.ttf`, deterministically (fixed entry
    timestamp, no directory entries), e.g. with Python's `zipfile` using a
    fixed `ZipInfo.date_time`.
+
+### `gamepad-tester.zip`
+
+Reuses the exact `font.ttf` from `text-showcase.zip` (same CC0 provenance),
+re-zipped at the archive root with a fixed entry timestamp. It exists only so
+the sample mounts its own resource root; no new asset is introduced.
