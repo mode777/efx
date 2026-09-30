@@ -289,6 +289,68 @@ int t_step_dt(void) {
     return 0;
 }
 
+/* ---- physics-tunneling: a thin static mesh floor must not be skipped ---- */
+static int thin_plane_settle(efx_vec3 size, efx_vec3 start, efx_vec3 vel,
+                             float rest_y, const char *what) {
+    efx_physics_world *w = test_world();
+    test_mesh_quad(w, 0.0f, 5.0f);
+    efx_phys_body b = test_dynamic_box(w, start, size, 1.0f);
+    efx_physics_body_set_velocity(w, b, vel);
+    test_step_n(w, 0.1f, 60); /* the engine's maximum accepted dt */
+    efx_vec3 p;
+    efx_physics_body_position(w, b, &p);
+    if (!isfinite(p.y)) {
+        fprintf(stderr, "FAIL thin floor %s: non-finite y\n", what);
+        efx_physics_world_free(w);
+        return 1;
+    }
+    if (p.y < rest_y - 0.05f || p.y > rest_y + 0.05f) {
+        fprintf(stderr, "FAIL thin floor %s: rest y=%.5f expected ~%.3f\n", what,
+                (double)p.y, rest_y);
+        efx_physics_world_free(w);
+        return 1;
+    }
+    if (efx_physics_body_contact_count(w, b) == 0) {
+        fprintf(stderr, "FAIL thin floor %s: no contact reported at rest\n",
+                what);
+        efx_physics_world_free(w);
+        return 1;
+    }
+    efx_physics_world_free(w);
+    return 0;
+}
+
+int t_thin_floor_large_dt(void) {
+    /* a body dropped from 4 m onto a zero-thickness plane at dt = 0.1 s must
+     * settle on it (pre-change this tunneled at dt >= 0.08 s) */
+    return thin_plane_settle(efx_v3(0.8f, 0.8f, 0.8f), efx_v3(0, 4, 0),
+                             efx_v3(0, 0, 0), 0.4f, "drop");
+}
+
+int t_fast_body_thin_floor(void) {
+    /* a large script-set speed whose per-substep travel stays under the body
+     * extent is still caught at the maximum dt (the bounded-speed guarantee) */
+    return thin_plane_settle(efx_v3(1, 1, 1), efx_v3(0, 2, 0),
+                             efx_v3(0, -20, 0), 0.5f, "fast");
+}
+
+/* ---- physics-tunneling: a force acts over the whole (sub-divided) step ---- */
+int t_force_substep(void) {
+    efx_physics_world *w = test_world();
+    efx_physics_set_gravity(w, efx_v3(0, 0, 0));
+    efx_phys_body b = test_dynamic_sphere(w, efx_v3(0, 10, 0), 0.5f, 2.0f);
+    efx_physics_body_apply_force(w, b, efx_v3(0, 20, 0));
+    efx_physics_step(w, 0.1f); /* six substeps */
+    efx_vec3 v;
+    efx_physics_body_velocity(w, b, &v);
+    CHECK(nearf(v.y, 20.0f / 2.0f * 0.1f, 1e-4f)); /* force over the whole dt */
+    efx_physics_step(w, 0.1f);
+    efx_physics_body_velocity(w, b, &v);
+    CHECK(nearf(v.y, 20.0f / 2.0f * 0.1f, 1e-4f)); /* force consumed once */
+    efx_physics_world_free(w);
+    return 0;
+}
+
 /* ---- 4.6 stress / fuzz ---- */
 int t_stress(void) {
     efx_physics_world *w = test_world();

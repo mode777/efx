@@ -131,5 +131,23 @@ try {
 }
 check(threw, 'unknown shape field throws TypeError');
 
+/* physics-tunneling: a thin static mesh floor is not skipped at a large dt */
+efx.physics.clear();
+efx.physics.gravity = [0, -9.81, 0];
+var planeMesh = efx.createMesh(efx.makePlane({ size: 10 }));
+/* the Body wrapper owns the native collider: keep it referenced or the GC
+ * finalizer removes the floor */
+var floorBody = efx.physics.createStaticMesh(planeMesh, { friction: 0.5 });
+var faller = efx.physics.createBody({
+    dynamic: true, mass: 1, friction: 0.5, restitution: 0,
+    shape: { type: 'box', size: [0.8, 0.8, 0.8] },
+    position: [0, 4, 0],
+});
+for (var q = 0; q < 60; q++) {
+    efx.physics.step(0.1); /* the maximum accepted dt */
+}
+check(near(faller.position[1], 0.4, 0.05),
+      'thin mesh floor rest y=' + faller.position[1]);
+
 efx.physics.clear();
 efx.log('s-12-physics-ok');

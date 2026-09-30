@@ -24,6 +24,13 @@
 #define EFX_PHYS_MAX_DT 0.1f
 #define EFX_PHYS_BROAD_MARGIN 0.02f
 
+/* Maximum collision sample size (design `physics-tunneling` D1/D2): a larger
+ * step(dt) is simulated as equal substeps no larger than this, so a dynamic
+ * body can never skip thin static geometry because of a low frame rate. Equal
+ * to the documented recommended cadence, so a step(1/60) is exactly one
+ * substep and reproduces the un-subdivided arithmetic. */
+#define EFX_PHYS_MAX_SUBSTEP (1.0f / 60.0f)
+
 typedef struct efx_contact_record {
     efx_phys_body other;          /* 0 when a static mesh */
     efx_phys_character character; /* nonzero when the other is a character */

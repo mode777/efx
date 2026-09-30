@@ -1757,6 +1757,11 @@ interface EfxPhysics {
   /**
    * Advance the world.
    *
+   * A `dt` larger than the engine's maximum substep (1/60 s) is internally
+   * simulated as several equal substeps, so a low frame rate cannot make a
+   * body skip thin static geometry; the default 1/60 cadence is unchanged.
+   * An accumulated `applyForce` acts over the whole `dt`.
+   *
    * @param dt - Time step in seconds.
    */
   step(dt: number): void;

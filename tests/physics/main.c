@@ -22,6 +22,9 @@ int t_contact_manifold(void);
 int t_restitution_friction(void);
 int t_settle(void);
 int t_step_dt(void);
+int t_thin_floor_large_dt(void);
+int t_fast_body_thin_floor(void);
+int t_force_substep(void);
 int t_stress(void);
 int t_sensors(void);
 int t_contact_report(void);
@@ -46,7 +49,9 @@ static const struct {
     CASE(t_broadphase_filter),  CASE(t_determinism),
     CASE(t_integrate),          CASE(t_contact_manifold),
     CASE(t_restitution_friction), CASE(t_settle),
-    CASE(t_step_dt),            CASE(t_stress),
+    CASE(t_step_dt),            CASE(t_thin_floor_large_dt),
+    CASE(t_fast_body_thin_floor), CASE(t_force_substep),
+    CASE(t_stress),
     CASE(t_sensors),            CASE(t_contact_report),
     CASE(t_raycast_query),      CASE(t_overlap_query),
     CASE(t_shapecast_query),    CASE(t_character_create),
