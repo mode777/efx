@@ -72,6 +72,16 @@ int efx_api_register_input(JSContext *ctx, JSValueConst efx);
 /* F12: attach the efx.physics sub-namespace to the single efx object */
 int efx_api_register_physics(JSContext *ctx, JSValueConst efx);
 
+/* F14 — audio playback */
+JSValue efx_js_audio_loadSoundData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_playBackgroundMusic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_stopBackgroundMusic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
+/* F14: attach the efx.audio sub-namespace to the single efx object */
+int efx_api_register_audio(JSContext *ctx, JSValueConst efx);
+
 void efx_log(const char *msg);
 
 #endif

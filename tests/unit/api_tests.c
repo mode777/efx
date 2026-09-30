@@ -23,6 +23,9 @@
 #ifndef EFX_MOD_ERROR_FIXTURES
 #define EFX_MOD_ERROR_FIXTURES "tests/fixtures/modules_error"
 #endif
+#ifndef EFX_AUDIO_FIXTURES
+#define EFX_AUDIO_FIXTURES "tests/fixtures/audio"
+#endif
 
 static int fail(const char *what) {
     fprintf(stderr, "FAIL: %s\n", what);
@@ -968,6 +971,58 @@ static int resource_js(void) {
     efx_render_shutdown();
     efx_resource_close(res);
     if (rc != 0) return fail("resource js snippet raised");
+    return 0;
+}
+
+/* F14: audio namespace — load/play/handles/music/validation through the
+   real binding + shared prelude sugar (headless core is device-free) */
+static int audio_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) return fail("runtime");
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_AUDIO_FIXTURES, &err);
+    if (!res) {
+        end_js();
+        return fail("open audio fixtures");
+    }
+    efx_runtime_set_resource(g_rt, res);
+    int rc = efx_runtime_eval_string(g_rt, "test",
+        "var sd = efx.audio.loadSoundData('tone.wav');"
+        "if (!sd || typeof sd.destroy !== 'function') throw new Error('loadSoundData');"
+        "var s = efx.audio.playAudioEffect('tone.wav', { volume: 0.5, pan: -1 });"
+        "if (!s) throw new Error('playAudioEffect null');"
+        "if (s.playing !== true) throw new Error('sound not playing');"
+        "if (Math.abs(s.volume - 0.5) > 1e-6) throw new Error('volume getter');"
+        "s.volume = 0.2; if (Math.abs(s.volume - 0.2) > 1e-6) throw new Error('volume setter');"
+        "s.pan = 0.5; s.pitch = 1.5;"
+        "s.stop(); if (s.playing !== false) throw new Error('stop');"
+        "s.destroy(); s.destroy();"
+        "var s2 = efx.audio.playSound(sd, { loop: true });"
+        "if (!s2 || s2.playing !== true) throw new Error('playSound');"
+        "s2.destroy();"
+        "var m = efx.audio.playBackgroundMusic('tone.mp3', { loop: true });"
+        "if (!m || typeof m.setVolume !== 'function') throw new Error('music handle');"
+        "if (typeof m.playing !== 'boolean') throw new Error('music playing type');"
+        "m.pause(); m.resume(); m.setVolume(0.3); m.stop(); m.destroy();"
+        "var t1 = 0; try { efx.audio.loadSoundData(5); } catch (e) { t1 = (e instanceof TypeError) ? 1 : 2; }"
+        "if (t1 !== 1) throw new Error('path type ('+t1+')');"
+        "var t2 = 0; try { efx.audio.playSound(sd, { bogus: 1 }); } catch (e) { t2 = (e instanceof TypeError) ? 1 : 2; }"
+        "if (t2 !== 1) throw new Error('unknown option ('+t2+')');"
+        "var t3 = 0; try { efx.audio.loadSoundData('nope.wav'); } catch (e) { t3 = (e instanceof Error) ? 1 : 2; }"
+        "if (t3 !== 1) throw new Error('missing audio ('+t3+')');"
+        "sd.destroy();"
+        "var t4 = 0; try { efx.audio.playSound(sd); } catch (e) { t4 = (e instanceof Error) ? 1 : 2; }"
+        "if (t4 !== 1) throw new Error('destroyed SoundData ('+t4+')');");
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_resource_close(res);
+    if (rc != 0) return fail("audio js snippet raised");
     return 0;
 }
 
@@ -1958,6 +2013,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "particles_js")) return particles_js();
     if (!strcmp(c, "sprites_js")) return sprites_js();
     if (!strcmp(c, "physics_js")) return physics_js();
+    if (!strcmp(c, "audio_js")) return audio_js();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

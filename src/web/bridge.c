@@ -6,6 +6,8 @@
 #include <string.h>
 
 #include "platform/platform.h"
+#include "platform/audio_backend.h"
+#include "audio/audio.h"
 #include "physics/physics.h"
 #include "physics/broadphase.h"
 #include "render/render.h"
@@ -1428,6 +1430,213 @@ EMSCRIPTEN_KEEPALIVE void efx_web_set_golden_mode(void) {
     W.golden_mode = 1;
 }
 
+/* ================================================= F14 audio bridge */
+
+typedef struct {
+    efx_sound_data *sd;
+    int alive;
+} web_sd_slot;
+
+typedef struct {
+    int voice;
+    long long serial;
+    int alive;
+} web_sound_slot;
+
+typedef struct {
+    int alive;
+} web_music_slot;
+
+static struct {
+    web_sd_slot *slots;
+    int count;
+    int cap;
+} WSDS;
+
+static struct {
+    web_sound_slot *slots;
+    int count;
+    int cap;
+} WSOUNDS;
+
+static struct {
+    web_music_slot *slots;
+    int count;
+    int cap;
+} WMUSIC;
+
+static web_sd_slot *web_sd_get(int id) {
+    if (id <= 0 || id > WSDS.count) return NULL;
+    return &WSDS.slots[id - 1];
+}
+
+static web_sound_slot *web_sound_get(int id) {
+    if (id <= 0 || id > WSOUNDS.count) return NULL;
+    return &WSOUNDS.slots[id - 1];
+}
+
+static web_music_slot *web_music_get(int id) {
+    if (id <= 0 || id > WMUSIC.count) return NULL;
+    return &WMUSIC.slots[id - 1];
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_load_sound_data(const char *path) {
+    if (!W.resource || !path) return 0;
+    size_t n = 0;
+    int e = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
+    if (!bytes) return 0;
+    int de = 0;
+    efx_sound_data *sd = efx_audio_sound_data_load(bytes, n, &de);
+    efx_resource_free(bytes);
+    if (!sd) return 0;
+    if (WSDS.count == WSDS.cap) {
+        int ncap = WSDS.cap ? WSDS.cap * 2 : 8;
+        web_sd_slot *ns = realloc(WSDS.slots, (size_t)ncap * sizeof(*ns));
+        if (!ns) {
+            efx_audio_sound_data_release(sd);
+            return 0;
+        }
+        WSDS.slots = ns;
+        WSDS.cap = ncap;
+    }
+    WSDS.slots[WSDS.count].sd = sd;
+    WSDS.slots[WSDS.count].alive = 1;
+    return ++WSDS.count;
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_sound_data_destroy(int id) {
+    web_sd_slot *s = web_sd_get(id);
+    if (!s || !s->alive) return;
+    s->alive = 0;
+    if (s->sd) {
+        efx_audio_sound_data_release(s->sd);
+        s->sd = NULL;
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_play_sound(int sd_id, float volume,
+                                                    float pan, float pitch,
+                                                    int loop) {
+    web_sd_slot *d = web_sd_get(sd_id);
+    if (!d || !d->alive || !d->sd) return 0;
+    int voice = efx_audio_play_effect(d->sd, volume, pan, pitch, loop);
+    if (voice < 0) return 0;
+    if (WSOUNDS.count == WSOUNDS.cap) {
+        int ncap = WSOUNDS.cap ? WSOUNDS.cap * 2 : 8;
+        web_sound_slot *ns =
+            realloc(WSOUNDS.slots, (size_t)ncap * sizeof(*ns));
+        if (!ns) {
+            efx_audio_stop_voice(voice);
+            return 0;
+        }
+        WSOUNDS.slots = ns;
+        WSOUNDS.cap = ncap;
+    }
+    WSOUNDS.slots[WSOUNDS.count].voice = voice;
+    WSOUNDS.slots[WSOUNDS.count].serial = efx_audio_voice_serial(voice);
+    WSOUNDS.slots[WSOUNDS.count].alive = 1;
+    return ++WSOUNDS.count;
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_sound_playing(int id) {
+    web_sound_slot *s = web_sound_get(id);
+    if (!s || !s->alive || s->voice < 0) return 0;
+    return efx_audio_voice_serial(s->voice) == s->serial ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_sound_stop(int id) {
+    web_sound_slot *s = web_sound_get(id);
+    if (!s || !s->alive) return;
+    if (s->voice >= 0 && efx_audio_voice_serial(s->voice) == s->serial) {
+        efx_audio_stop_voice(s->voice);
+    }
+    s->voice = -1;
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_sound_destroy(int id) {
+    web_sound_slot *s = web_sound_get(id);
+    if (!s || !s->alive) return;
+    s->alive = 0;
+    if (s->voice >= 0 && efx_audio_voice_serial(s->voice) == s->serial) {
+        efx_audio_stop_voice(s->voice);
+    }
+    s->voice = -1;
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_sound_set_volume(int id, float v) {
+    web_sound_slot *s = web_sound_get(id);
+    if (s && s->alive && s->voice >= 0 &&
+        efx_audio_voice_serial(s->voice) == s->serial) {
+        efx_audio_set_voice_volume(s->voice, v);
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_sound_set_pan(int id, float v) {
+    web_sound_slot *s = web_sound_get(id);
+    if (s && s->alive && s->voice >= 0 &&
+        efx_audio_voice_serial(s->voice) == s->serial) {
+        efx_audio_set_voice_pan(s->voice, v);
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_sound_set_pitch(int id, float v) {
+    web_sound_slot *s = web_sound_get(id);
+    if (s && s->alive && s->voice >= 0 &&
+        efx_audio_voice_serial(s->voice) == s->serial) {
+        efx_audio_set_voice_pitch(s->voice, v);
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_play_music(const char *path,
+                                                     float volume, int loop) {
+    if (!W.resource || !path) return 0;
+    size_t n = 0;
+    int e = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
+    if (!bytes) return 0;
+    int de = 0;
+    int rc = efx_audio_play_music(bytes, n, volume, loop, &de);
+    efx_resource_free(bytes);
+    if (rc != 0) return 0;
+    if (WMUSIC.count == WMUSIC.cap) {
+        int ncap = WMUSIC.cap ? WMUSIC.cap * 2 : 8;
+        web_music_slot *ns = realloc(WMUSIC.slots, (size_t)ncap * sizeof(*ns));
+        if (!ns) return 0;
+        WMUSIC.slots = ns;
+        WMUSIC.cap = ncap;
+    }
+    WMUSIC.slots[WMUSIC.count].alive = 1;
+    return ++WMUSIC.count;
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_stop_music(void) {
+    efx_audio_stop_music();
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_pause_music(int paused) {
+    efx_audio_pause_music(paused);
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_set_music_volume(float v) {
+    efx_audio_set_music_volume(v);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_music_playing(void) {
+    return efx_audio_music_playing();
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_resume(void) {
+    efx_audio_request_resume();
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_music_destroy(int id) {
+    web_music_slot *m = web_music_get(id);
+    if (!m || !m->alive) return;
+    m->alive = 0;
+    efx_audio_stop_music();
+}
+
 int efx_web_main(int argc, char *const *argv) {
     int golden = W.golden_mode;
     memset(&W, 0, sizeof(W));
@@ -1476,6 +1685,13 @@ int efx_web_main(int argc, char *const *argv) {
         }
     }
     W.dom = efx_web_has_dom_js();
+    /* F14: with a DOM (real browser) initialize audio before the script runs,
+       so load-time music uses the real device rate; under the Node harness
+       (no DOM) the core lazy-inits device-free, matching the desktop --script
+       runtime for the cross-runtime comparison */
+    if (W.dom) {
+        efx_audio_backend_init();
+    }
     web_open_root();
     return 0;
 }

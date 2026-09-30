@@ -19,6 +19,7 @@ Here are some properties I want in unspecified order:
 - Support for alpha masks
 - Support for 2d drawing via quads
 - Keyboard and mouse input with both a query API for polling current state and an event API with callbacks (Löve-style), owned by the engine core and identical across all platforms
+- Audio playback: one streaming background-music track plus engine-mixed sound effects loaded from WAV/MP3, with no channel or voice management in scripts (decoded PCM only — no sequenced/modular formats)
 - Core written in C or C++
 - Consumer API written in ECMA Script 6
 - Cross platform compatibility for Win, Linux, MacOS, and EMscripten

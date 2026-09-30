@@ -53,6 +53,7 @@ directory holds only what stays true after a change is archived.
 | [0039](0039-cpu-particle-billboard-pipeline.md) | Accepted | F11 particles are CPU-simulated native-backed systems; one oriented-quad basis serves `drawBillboard` and particle `facing` (`view`/`y`/`plane`) over a new depth-test/no-write pipeline variant; `drawSprites` reuses quad records; particles sort within their batch; curated showcases accompany the golden |
 | [0040](0040-physics-core.md) | Accepted | F12 collision/dynamics is a bespoke, dependency-free C11 core (its own math, no GLM) with one engine-owned world stepped by the script, a linear-only sequential-impulse solver, closest-feature narrowphase + conservative-advancement sweeps, one-way kinematic character push, sensors as a flag, and rounded cross-runtime determinism |
 | [0041](0041-gamepad-input.md) | Accepted | F13 gamepad input is a vendored poll backend behind a pure-C fixed pad bank + SDL-mapping evaluator, sampled at frame begin, with canonical ranges/threshold, raw fallback, and no Asyncify |
+| [0042](0042-audio-mixing-and-vendoring.md) | Accepted | F14 audio is push-mode mixing (no threads/atomics) over a vendored sokol_audio + dr_libs stack, with a fixed 32-voice bank, one streamed music source, decoded-PCM-only, and no-device soft-fail |
 | [0042](0042-api-reference-generated-from-type-doc.md) | Accepted | The API reference is generated from `gallery/src/api/efx.d.ts` into committed Markdown (`docs/api/`) and published HTML (`/api`); `docs/js-api.md` is design guidelines, not a catalog |
 
 ## Adding a decision

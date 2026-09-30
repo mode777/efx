@@ -171,6 +171,22 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   (ci run 36597602782: native suites incl. all goldens + the gamepad cases on
   Linux/Windows/macOS, Emscripten ctest incl. `web_13_gamepad` + web goldens +
   cross-runtime compare `13_gamepad`, and the no-Asyncify web build).
+- F14 (audio playback) is **implemented** as an orthogonal milestone
+  (predecessors F1–F2 + F6a; independent of F3–F13) — a pinned vendored
+  `sokol_audio` (push mode) + `dr_libs` (`dr_wav`/`dr_mp3`) stack confined to
+  `efx_platform` (`src/platform/audio_backend.c`), a dependency-free pure-C
+  mixer/voice-bank/stream core in `src/audio/` (float32 stereo, one streamed
+  background-music source with a ~1 s ring, a fixed 32-voice SFX bank with a
+  deterministic steal policy, linear-interpolation resampling that doubles as
+  pitch, WAV/MP3, decoded-PCM only), and the `efx.audio` namespace
+  (`playBackgroundMusic`/`stopBackgroundMusic`/`playAudioEffect`/
+  `loadSoundData`/`playSound`/`resume`, the native-backed
+  `SoundData`/`Sound`/`Music` classes) mirrored by both bindings, with
+  no-device soft-fail and web autoplay unlock. Its gate is the headless
+  `efx_audio_tests` over the pure-C core (embedded WAV/MP3 fixtures) +
+  `efx_api_tests audio_js`, the portable `smoke_14_audio`/`web_14_audio`
+  script case through both runtimes, and the cross-runtime compare — no golden
+  image (change `f14-audio`, ADR 0042).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
@@ -285,6 +301,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `onConnect`/`onDisconnect` returning unsubscribe functions; the pad view's
   `connected`/`name`/`mapped`, `isDown`/`isPressed`/`isReleased`, `axis`, and
   the `rawButton`/`rawAxis` fallback; no resource type) —
+  plus F14's audio sub-namespace — `efx.audio` (`playBackgroundMusic`/
+  `stopBackgroundMusic`/`playAudioEffect`/`loadSoundData`/`playSound`/`resume`
+  and the native-backed `SoundData`/`Sound`/`Music` classes; WAV/MP3,
+  decoded-PCM only, engine-owned mixing) —
   documented in the generated reference `docs/api/` (with the script-facing
   API design guidelines in `docs/js-api.md`;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
@@ -402,11 +422,12 @@ spec is `openspec/specs/feature-roadmap`. The order is fixed: a milestone
 must not start before its predecessor's verification gate passes on all
 four targets, and every feature proposal must name the milestone it
 implements. F9 (input), F10 (script modules — CommonJS), F11 (particles +
-billboards), F12 (collision + character + impulse dynamics), and F13 (gamepad
-input) are the **orthogonal** milestones: F9's only predecessor is F2, F10's
-are F1–F2 plus the F6a dir/zip resource provider, F11's are F2 + F3 (+ F6a for
-file textures), F12's are F3 + F6a/F6b, and F13's only predecessor is F9, so
-they may land independently of the remaining F3–F8 milestones.
+billboards), F12 (collision + character + impulse dynamics), F13 (gamepad
+input), and F14 (audio playback) are the **orthogonal** milestones: F9's only
+predecessor is F2, F10's are F1–F2 plus the F6a dir/zip resource provider,
+F11's are F2 + F3 (+ F6a for file textures), F12's are F3 + F6a/F6b, F13's
+only predecessor is F9, and F14's are F1–F2 plus F6a, so they may land
+independently of the remaining F3–F8 milestones.
 
 | # | Milestone | Scope (one line) | Verification gate | Status |
 |---|-----------|------------------|-------------------|--------|
@@ -423,6 +444,7 @@ they may land independently of the remaining F3–F8 milestones.
 | F11 | Particles + billboards | **Orthogonal** (predecessors F2 + F3, F6a for file textures; independent of F4/F5/F7/F8): CPU-simulated engine-owned particle systems (`createParticleSystem`/`emit`/`drawParticles`, 3D world or 2D screen, `facing` `view`/`y`/`plane`), world-space `drawBillboard`, batched 2D `drawSprites`, a depth-test/no-write billboard pipeline, and curated gallery showcases | Golden image + headless simulation/billboard unit tests + portable script case + curated showcases, all four targets | implemented — change `f11-particles-billboards`, ADR 0039; four-target gate green (run 36563480277) |
 | F12 | Collision + character + impulse dynamics | **Orthogonal** (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8): a bespoke dependency-free C11 core (`src/physics/`) — sphere/box/capsule/triangle-mesh colliders, one script-stepped world, linear-only sequential-impulse dynamics, sensors, `Body`/`Character` native-backed classes, the `moveAndSlide` capsule controller, and the `raycast`/`overlap`/`shapeCast` queries — plus a curated gallery showcase | Headless `efx_physics_tests` (narrowphase, invariants, scenarios, determinism, stress) + portable script case through both runtimes + cross-runtime compare (no golden image) | implemented — change `f12-collision-physics`, ADR 0040 |
 | F13 | Gamepad input | **Orthogonal** (predecessor F9; independent of F3–F8 and F10–F12): a vendored pinned minigamepad poll backend confined to the platform layer, a pure-C fixed pad bank (`src/input/efx_gamepad.c`) with frame-begin polling and F9-style one-frame edges, a portable SDL-mapping evaluator (GUID selection, half-axis/inversion/hat handling), canonical ranges + trigger threshold, a raw fallback for unmapped pads, and the `efx.gamepad` namespace (no new resource type) | Headless `efx_input_tests` gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator with synthetic descriptors, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `gamepad-input`, ADR 0041; four-target gate green (run 36597602782) |
+| F14 | Audio playback | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F13): a vendored `sokol_audio` (push mode) + `dr_libs` decoder stack confined to the platform layer, a dependency-free pure-C mixer in `src/audio/` (one streamed background-music source with a ~1 s ring, a fixed 32-voice SFX bank with a deterministic steal policy, WAV/MP3, linear-interpolation resampling/pitch, decoded-PCM only), and the `efx.audio` namespace with native-backed `SoundData`/`Sound`/`Music` (no-device soft-fail, web autoplay unlock) | Headless `efx_audio_tests` over the pure-C core (embedded WAV/MP3 fixtures) + `efx_api_tests audio_js`, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `f14-audio`, ADR 0042 |
 
 Deferred cross-cutting decisions settle inside specific milestones, not
 before: golden-image tolerance + CI determinism (incl. emsdk pinning) in

@@ -248,6 +248,13 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         efx_runtime_destroy(rt);
         return NULL;
     }
+    if (efx_api_register_audio(rt->ctx, efx) < 0) {
+        fprintf(stderr, "player: audio api init failed\n");
+        JS_FreeValue(rt->ctx, efx);
+        JS_FreeValue(rt->ctx, glob);
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
     JS_SetPropertyStr(rt->ctx, glob, "efx", efx);
     JS_FreeValue(rt->ctx, glob);
     if (efx_api_init(rt->ctx) < 0) {

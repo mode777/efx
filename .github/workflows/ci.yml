@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev xvfb
+          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev libasound2-dev xvfb
 
       - name: Generated prelude header is current
         if: runner.os == 'Linux'
@@ -115,7 +115,7 @@ jobs:
       - name: Install Linux window dependencies (native comparison baseline)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev
+          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev libasound2-dev
 
       - name: Build native player (desktop quickjs baseline)
         run: |
@@ -167,7 +167,7 @@ jobs:
       - name: Configure native tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev
+          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev libasound2-dev
           cmake -B build-golden-tools -DEFX_BUILD_GOLDEN_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Build comparator
@@ -205,7 +205,7 @@ jobs:
       - name: Install Linux window dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev xvfb
+          sudo apt-get install -y libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev libasound2-dev xvfb
 
       - name: Configure + build (golden capture)
         run: |

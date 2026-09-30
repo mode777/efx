@@ -2185,6 +2185,118 @@ interface Efx {
 
   /** The single physics world. */
   physics: EfxPhysics;
+
+  // Audio playback (engine-owned mixing; no channels or voices in scripts)
+
+  /** Streamed background music and sound effects. */
+  audio: EfxAudio;
+}
+
+// ---------------------------------------------------------------------------
+// Audio playback (F14)
+// ---------------------------------------------------------------------------
+
+/** Options for `audio.playSound` and `audio.playAudioEffect`. */
+interface PlaySoundOptions {
+  /** Linear gain (default `1`); negative values are clamped to `0`. */
+  volume?: number;
+  /** Stereo pan in `[-1, 1]` (default `0` = center). */
+  pan?: number;
+  /** Playback-rate multiplier (default `1`); values `<= 0` are treated as `1`. */
+  pitch?: number;
+  /** Loop until stopped (default `false`). */
+  loop?: boolean;
+}
+
+/** Options for `audio.playBackgroundMusic`. */
+interface PlayMusicOptions {
+  /** Linear gain (default `1`); negative values are clamped to `0`. */
+  volume?: number;
+  /** Loop the track (default `false`). */
+  loop?: boolean;
+}
+
+/** Decoded PCM sound data loaded from the resource root (opaque native-backed class). */
+interface EfxSoundData {
+  /** Release the native storage deterministically and idempotently. */
+  destroy(): void;
+}
+
+/** One playing sound-effect voice (opaque native-backed class). */
+interface EfxSound {
+  /** Whether this voice is still playing (false once it ends or is stolen). */
+  readonly playing: boolean;
+  /** Linear gain. Setting a negative value throws `RangeError`. */
+  volume: number;
+  /** Stereo pan in `[-1, 1]`; out-of-range values are clamped by the mixer. */
+  pan: number;
+  /** Playback-rate multiplier; setting a non-positive value throws `RangeError`. */
+  pitch: number;
+  /** Stop this voice immediately. */
+  stop(): void;
+  /** Stop and release the handle deterministically and idempotently. */
+  destroy(): void;
+}
+
+/** The streamed background-music source (opaque native-backed class). */
+interface EfxMusic {
+  /** Whether the background music is currently playing. */
+  readonly playing: boolean;
+  /** Stop the background music. */
+  stop(): void;
+  /** Pause the background music. */
+  pause(): void;
+  /** Resume paused background music. */
+  resume(): void;
+  /** Set the linear gain; a negative value throws `RangeError`. */
+  setVolume(volume: number): void;
+  /** Stop and release the handle deterministically and idempotently. */
+  destroy(): void;
+}
+
+/**
+ * Audio playback. The engine owns all mixing: scripts never see channels,
+ * buses, or buffers. WAV and MP3 resources are supported; only decoded PCM is
+ * played (no sequenced/modular formats). One background-music stream is active
+ * at a time; a fixed bank of 32 sound-effect voices is mixed, with a
+ * deterministic steal policy when all are busy.
+ */
+interface EfxAudio {
+  /**
+   * Decode a WAV or MP3 resource into sound data.
+   *
+   * @param path - Root-relative resource path.
+   * @returns The decoded sound data; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
+   */
+  loadSoundData(path: string): EfxSoundData;
+  /**
+   * Start a decoded sound as a sound-effect voice.
+   *
+   * @param sound - Sound data from `loadSoundData`.
+   * @param opts - Volume, pan, pitch, and loop options.
+   * @returns The playing handle, or `null` when no voice is available (all busy and looping, or no audio device).
+   */
+  playSound(sound: EfxSoundData, opts?: PlaySoundOptions): EfxSound | null;
+  /**
+   * Load (with path caching) and start a sound effect.
+   *
+   * @param path - Root-relative resource path.
+   * @param opts - Volume, pan, pitch, and loop options.
+   * @returns The playing handle, or `null` when no voice is available.
+   */
+  playAudioEffect(path: string, opts?: PlaySoundOptions): EfxSound | null;
+  /**
+   * Start streamed background music, replacing any current track.
+   *
+   * @param path - Root-relative resource path.
+   * @param opts - Volume and loop options.
+   * @returns The music handle; throws `Error` when it cannot be read or decoded.
+   */
+  playBackgroundMusic(path: string, opts?: PlayMusicOptions): EfxMusic;
+  /** Stop the active background music. */
+  stopBackgroundMusic(): void;
+  /** Unlock/resume audio after a user gesture (web autoplay); a no-op on desktop. */
+  resume(): void;
 }
 
 declare const efx: Efx;

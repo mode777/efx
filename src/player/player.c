@@ -2,6 +2,7 @@
 #include "player/repl.h"
 #include "runtime/runtime.h"
 #include "platform/platform.h"
+#include "platform/audio_backend.h"
 #include "render/render.h"
 #include "resource/resource.h"
 
@@ -211,6 +212,9 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
         return 1;
     }
     efx_runtime_set_resource(rt, res);
+    /* F14: set up the audio device before the script runs, so load-time audio
+       calls (e.g. background music at boot) use the real device sample rate */
+    efx_audio_backend_init();
     int rc = efx_runtime_run_entry(rt, "main.js", code);
     efx_resource_free(code);
     if (rc == -1) {

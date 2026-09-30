@@ -63,6 +63,7 @@ add_player_test(smoke_10_nohost ARGS "--script;${S}/s_10_nohost.js" EXPECT 0 EXP
 add_player_test(smoke_11_particles ARGS "--script;${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-11-particles-ok")
 add_player_test(smoke_12_physics ARGS "--script;${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
 add_player_test(smoke_13_gamepad ARGS "--script;${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
+add_player_test(smoke_14_audio ARGS "--script;${S}/s_14_audio.js;--root;${F}/audio" EXPECT 0 EXPECT_OUT "s-14-audio-ok")
 add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
@@ -146,6 +147,7 @@ if(EMSCRIPTEN)
     add_web_test(web_11_particles ${S}/s_11_particles.js EXPECT 0 EXPECT_OUT "s-11-particles-ok")
     add_web_test(web_12_physics ${S}/physics_smoke.js EXPECT 0 EXPECT_OUT "s-12-physics-ok")
     add_web_test(web_13_gamepad ${S}/s_13_gamepad.js EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
+    add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
     add_web_test(web_8a_text ${F}/web/text_root EXPECT 0 EXPECT_OUT "s-8a-text-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
@@ -184,6 +186,12 @@ foreach(CASE
     t_overlap_query t_shapecast_query t_character_create t_move_slide
     t_floor_classify t_floor_snap t_step_up t_character_push)
     add_unit_test(efx_physics_tests ${CASE})
+endforeach()
+
+# F14 audio core (pure C, display-free, device-free; embedded fixtures)
+foreach(CASE decode_wav decode_mp3 mix_matches resample_pitch mix_determinism
+              errors voices_steal music_stream music_controls unavailable)
+    add_unit_test(efx_audio_tests ${CASE})
 endforeach()
 
 foreach(CASE
@@ -227,7 +235,7 @@ foreach(CASE
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
     resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
     gamepad_js module_js module_hooks_js font_js
-    billboard_js particles_js sprites_js physics_js)
+    billboard_js particles_js sprites_js physics_js audio_js)
     add_unit_test(efx_api_tests ${CASE})
 endforeach()
 endif()

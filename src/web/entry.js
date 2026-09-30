@@ -3412,6 +3412,196 @@ function __efxEnsureApi() {
         },
     });
 
+    /* --------------------------------------------- F14 audio */
+    function __efxAudioOpts(opts, known, where) {
+        if (opts === undefined || opts === null) {
+            return {};
+        }
+        if (typeof opts !== 'object') {
+            throw new TypeError(where + ' options must be an object');
+        }
+        var out = {};
+        for (var k in opts) {
+            if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                if (known.indexOf(k) < 0) {
+                    throw new TypeError("unknown " + where + " option '" + k + "'");
+                }
+                out[k] = opts[k];
+            }
+        }
+        return out;
+    }
+    function __efxAudioNum(v, name) {
+        if (typeof v !== 'number' || !isFinite(v)) {
+            throw new TypeError(name + ' must be a finite number');
+        }
+        return v;
+    }
+
+    function EfxSoundData(id) {
+        this.__id = id;
+        this.__alive = true;
+    }
+    EfxSoundData.prototype.destroy = function () {
+        if (!(this instanceof EfxSoundData)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_audio_sound_data_destroy'](this.__id);
+    };
+
+    function EfxSound(id, volume, pan, pitch) {
+        this.__id = id;
+        this.__alive = true;
+        this.__volume = volume;
+        this.__pan = pan;
+        this.__pitch = pitch;
+    }
+    Object.defineProperty(EfxSound.prototype, 'playing', {
+        get: function () {
+            return this.__alive &&
+                !!bridge['_efx_bridge_audio_sound_playing'](this.__id);
+        },
+    });
+    Object.defineProperty(EfxSound.prototype, 'volume', {
+        get: function () { return this.__volume; },
+        set: function (v) {
+            var n = __efxAudioNum(v, 'volume');
+            if (n < 0) throw new RangeError('volume must be a non-negative number');
+            this.__volume = n;
+            bridge['_efx_bridge_audio_sound_set_volume'](this.__id, n);
+        },
+    });
+    Object.defineProperty(EfxSound.prototype, 'pan', {
+        get: function () { return this.__pan; },
+        set: function (v) {
+            var n = __efxAudioNum(v, 'pan');
+            this.__pan = n;
+            bridge['_efx_bridge_audio_sound_set_pan'](this.__id, n);
+        },
+    });
+    Object.defineProperty(EfxSound.prototype, 'pitch', {
+        get: function () { return this.__pitch; },
+        set: function (v) {
+            var n = __efxAudioNum(v, 'pitch');
+            if (n <= 0) throw new RangeError('pitch must be a positive number');
+            this.__pitch = n;
+            bridge['_efx_bridge_audio_sound_set_pitch'](this.__id, n);
+        },
+    });
+    EfxSound.prototype.stop = function () {
+        if (this.__alive) {
+            bridge['_efx_bridge_audio_sound_stop'](this.__id);
+        }
+    };
+    EfxSound.prototype.destroy = function () {
+        if (!(this instanceof EfxSound)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_audio_sound_destroy'](this.__id);
+    };
+
+    function EfxMusic(id) {
+        this.__id = id;
+        this.__alive = true;
+    }
+    Object.defineProperty(EfxMusic.prototype, 'playing', {
+        get: function () {
+            return this.__alive &&
+                !!bridge['_efx_bridge_audio_music_playing']();
+        },
+    });
+    EfxMusic.prototype.stop = function () {
+        bridge['_efx_bridge_audio_stop_music']();
+    };
+    EfxMusic.prototype.pause = function () {
+        bridge['_efx_bridge_audio_pause_music'](1);
+    };
+    EfxMusic.prototype.resume = function () {
+        bridge['_efx_bridge_audio_pause_music'](0);
+    };
+    EfxMusic.prototype.setVolume = function (v) {
+        var n = __efxAudioNum(v, 'volume');
+        if (n < 0) throw new RangeError('volume must be a non-negative number');
+        bridge['_efx_bridge_audio_set_music_volume'](n);
+    };
+    EfxMusic.prototype.destroy = function () {
+        if (!(this instanceof EfxMusic)) {
+            throw new TypeError('not a resource object');
+        }
+        if (!this.__alive) {
+            return;
+        }
+        this.__alive = false;
+        bridge['_efx_bridge_audio_music_destroy'](this.__id);
+    };
+
+    api.audio = {
+        loadSoundData: function (path) {
+            if (typeof path !== 'string') {
+                throw new TypeError('loadSoundData requires a path string');
+            }
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_audio_load_sound_data'](p);
+            bridge['_efx_bridge_mem_free'](p);
+            if (!id) {
+                throw new Error('cannot decode audio: ' + path);
+            }
+            return new EfxSoundData(id);
+        },
+        playSound: function (sd, opts) {
+            if (!(sd instanceof EfxSoundData)) {
+                throw new TypeError('playSound requires a SoundData');
+            }
+            if (!sd.__alive) {
+                throw new Error('SoundData was destroyed');
+            }
+            var o = __efxAudioOpts(opts, ['volume', 'pan', 'pitch', 'loop'],
+                                   'playSound');
+            var volume = (o.volume === undefined) ? 1
+                : __efxAudioNum(o.volume, 'volume');
+            var pan = (o.pan === undefined) ? 0 : __efxAudioNum(o.pan, 'pan');
+            var pitch = (o.pitch === undefined) ? 1
+                : __efxAudioNum(o.pitch, 'pitch');
+            if (pitch <= 0) pitch = 1;
+            var id = bridge['_efx_bridge_audio_play_sound'](
+                sd.__id, volume, pan, pitch, o.loop ? 1 : 0);
+            if (!id) return null;
+            return new EfxSound(id, volume, pan, pitch);
+        },
+        playBackgroundMusic: function (path, opts) {
+            if (typeof path !== 'string') {
+                throw new TypeError(
+                    'playBackgroundMusic requires a path string');
+            }
+            var o = __efxAudioOpts(opts, ['volume', 'loop'],
+                                   'playBackgroundMusic');
+            var volume = (o.volume === undefined) ? 1
+                : __efxAudioNum(o.volume, 'volume');
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_audio_play_music'](
+                p, volume, o.loop ? 1 : 0);
+            bridge['_efx_bridge_mem_free'](p);
+            if (!id) {
+                throw new Error('cannot decode audio: ' + path);
+            }
+            return new EfxMusic(id);
+        },
+        stopBackgroundMusic: function () {
+            bridge['_efx_bridge_audio_stop_music']();
+        },
+        resume: function () {
+            bridge['_efx_bridge_audio_resume']();
+        },
+    };
+
     var whiteTex = null;
     Object.defineProperty(api, 'whiteTexture', {
         get: function () {

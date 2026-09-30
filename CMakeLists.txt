@@ -52,6 +52,18 @@ else()
     target_compile_options(efx_cgltf PRIVATE -w)
 endif()
 
+# F14 audio decoders: dr_libs (dr_wav + dr_mp3) is a single-header pair with
+# its implementation compiled in a dedicated TU with warnings relaxed (same
+# treatment as the miniz/cgltf/stb TUs).
+add_library(efx_drlibs STATIC src/audio/dr_impl.c)
+target_include_directories(efx_drlibs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/dr_libs)
+if(MSVC)
+    target_compile_options(efx_drlibs PRIVATE /W3)
+    target_compile_definitions(efx_drlibs PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(efx_drlibs PRIVATE -w)
+endif()
+
 if(EMSCRIPTEN)
     add_library(efx_core STATIC
         src/render/render.c
@@ -65,6 +77,8 @@ if(EMSCRIPTEN)
         src/physics/solver.c
         src/physics/character.c
         src/physics/world.c
+        src/audio/audio.c
+        src/audio/decode.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -88,6 +102,8 @@ else()
         src/physics/solver.c
         src/physics/character.c
         src/physics/world.c
+        src/audio/audio.c
+        src/audio/decode.c
         src/resource/image.c
         src/resource/resource.c
         src/resource/gltf.c
@@ -98,7 +114,7 @@ else()
 endif()
 target_include_directories(efx_core PUBLIC src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf)
+target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf efx_drlibs)
 if(NOT EMSCRIPTEN)
     target_link_libraries(efx_core PUBLIC qjs)
 endif()
@@ -137,14 +153,20 @@ add_library(efx_platform STATIC
     src/platform/pipeline.c
     src/platform/capture.c
     src/platform/gamepad_backend.c
+    src/platform/audio_backend.c
 )
 target_include_directories(efx_platform PUBLIC src ${CMAKE_CURRENT_SOURCE_DIR}/vendor/sokol
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/vendor/minigamepad)
 target_link_libraries(efx_platform PUBLIC efx_math)
 if(APPLE)
-    # minigamepad's macOS backend talks to the IOKit HID manager
-    target_link_libraries(efx_platform PRIVATE "-framework IOKit" "-framework CoreFoundation")
+    # minigamepad's macOS backend talks to the IOKit HID manager;
+    # sokol_audio's CoreAudio backend needs AudioToolbox
+    target_link_libraries(efx_platform PRIVATE "-framework IOKit" "-framework CoreFoundation" "-framework AudioToolbox")
+endif()
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+    # sokol_audio's Linux backend is ALSA (design D1)
+    target_link_libraries(efx_platform PRIVATE asound pthread dl)
 endif()
 if(MSVC)
     target_compile_options(efx_platform PRIVATE /W4)
@@ -353,6 +375,40 @@ else()
     target_compile_options(efx_physics_tests PRIVATE -Wall -Wextra -Werror)
 endif()
 
+# headless audio-core tests (F14): pure-C mixer/decoder/voice bank with no
+# device. The WAV and MP3 fixtures are embedded at configure time so the suite
+# is portable (no filesystem) and runs on Emscripten too.
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/audio/tone.wav EFX_AUDIO_WAV_HEX HEX)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/audio/tone.mp3 EFX_AUDIO_MP3_HEX HEX)
+string(LENGTH "${EFX_AUDIO_WAV_HEX}" EFX_AUDIO_WAV_HEXLEN)
+math(EXPR EFX_AUDIO_WAV_SIZE "${EFX_AUDIO_WAV_HEXLEN} / 2")
+string(LENGTH "${EFX_AUDIO_MP3_HEX}" EFX_AUDIO_MP3_HEXLEN)
+math(EXPR EFX_AUDIO_MP3_SIZE "${EFX_AUDIO_MP3_HEXLEN} / 2")
+string(REGEX REPLACE "(..)" "0x\\1," EFX_AUDIO_WAV_BYTES "${EFX_AUDIO_WAV_HEX}")
+string(REGEX REPLACE "(..)" "0x\\1," EFX_AUDIO_MP3_BYTES "${EFX_AUDIO_MP3_HEX}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/efx_audio_fixtures.h
+"#ifndef EFX_AUDIO_FIXTURES_H\n#define EFX_AUDIO_FIXTURES_H\nstatic const unsigned char EFX_TEST_WAV[] = {${EFX_AUDIO_WAV_BYTES}};\nstatic const unsigned int EFX_TEST_WAV_SIZE = ${EFX_AUDIO_WAV_SIZE};\nstatic const unsigned char EFX_TEST_MP3[] = {${EFX_AUDIO_MP3_BYTES}};\nstatic const unsigned int EFX_TEST_MP3_SIZE = ${EFX_AUDIO_MP3_SIZE};\n#endif\n")
+
+add_executable(efx_audio_tests
+    src/audio/audio.c
+    src/audio/decode.c
+    tests/unit/audio_tests.c
+)
+target_include_directories(efx_audio_tests PRIVATE src ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(efx_audio_tests PRIVATE efx_drlibs)
+if(UNIX)
+    target_link_libraries(efx_audio_tests PRIVATE m)
+endif()
+if(EMSCRIPTEN)
+    target_link_options(efx_audio_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
+endif()
+if(MSVC)
+    target_compile_options(efx_audio_tests PRIVATE /W4 /WX)
+    target_compile_definitions(efx_audio_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(efx_audio_tests PRIVATE -Wall -Wextra -Werror)
+endif()
+
 # headless resource provider tests (F6a directory backend + path safety);
 # desktop-only: they read the filesystem
 if(NOT EMSCRIPTEN)
@@ -422,6 +478,8 @@ add_executable(efx_api_tests
     src/render/text.c
     src/render/stb_truetype_impl.c
     src/render/stb_rect_pack_impl.c
+    src/audio/audio.c
+    src/audio/decode.c
     src/input/efx_input.c
     src/input/efx_gamepad.c
         src/physics/shape.c
@@ -442,13 +500,15 @@ target_include_directories(efx_api_tests PRIVATE
 target_compile_definitions(efx_api_tests PRIVATE
     EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
     EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
-    EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error")
+    EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error"
+    EFX_AUDIO_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/audio")
 if(UNIX)
     target_link_libraries(efx_api_tests PRIVATE m)
 endif()
 target_link_libraries(efx_api_tests PRIVATE qjs)
 target_link_libraries(efx_api_tests PRIVATE efx_miniz)
 target_link_libraries(efx_api_tests PRIVATE efx_cgltf)
+target_link_libraries(efx_api_tests PRIVATE efx_drlibs)
 if(MSVC)
     target_compile_options(efx_api_tests PRIVATE /W4 /WX)
     target_compile_definitions(efx_api_tests PRIVATE _CRT_SECURE_NO_WARNINGS)

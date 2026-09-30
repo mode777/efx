@@ -22,6 +22,7 @@
 #include "platform/pipeline.h"
 #include "platform/capture.h"
 #include "platform/gamepad_backend.h"
+#include "platform/audio_backend.h"
 #include "render/render.h"
 #include "input/efx_input.h"
 
@@ -228,6 +229,9 @@ static void efx_init_cb(void) {
     efx_pipeline_install();
     /* F13: initialize the gamepad poll backend once, before the frame loop */
     efx_gamepad_backend_init();
+    /* F14: initialize the audio device (push model); idempotent, soft-fails
+       when no device is available */
+    efx_audio_backend_init();
 #ifdef SOKOL_METAL
     if (g_capture.frame > 0) {
         efx_capture_setup();
@@ -267,6 +271,8 @@ static void efx_frame_cb(void) {
     sg_commit();
     efx_render_end_frame();
     efx_input_end_frame();
+    /* F14: pump the music decoder and push mixed audio for this frame */
+    efx_audio_backend_frame();
 
 #if defined(__EMSCRIPTEN__)
     if (g_capture.frame > 0 && g_frame >= g_capture.frame) {
@@ -303,6 +309,7 @@ static void efx_frame_cb(void) {
 
 static void efx_cleanup_cb(void) {
     efx_gamepad_backend_shutdown();
+    efx_audio_backend_shutdown();
 #ifdef SOKOL_METAL
     if (g_cap_mtl) {
         id<MTLTexture> tex = (__bridge id<MTLTexture>)g_cap_mtl;

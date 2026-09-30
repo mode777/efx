@@ -59,6 +59,7 @@ const CASES = [
     { name: '11_particles', script: 'tests/scripts/s_11_particles.js', args: [] },
     { name: '12_physics', script: 'tests/scripts/physics_smoke.js', args: [] },
     { name: '13_gamepad', script: 'tests/scripts/s_13_gamepad.js', args: [] },
+    { name: '14_audio', root: 'tests/fixtures/audio' },
 ];
 
 function run(cmd, args) {

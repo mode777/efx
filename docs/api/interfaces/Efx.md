@@ -35,6 +35,14 @@ function render() {
 
 ## Properties
 
+### audio
+
+> **audio**: [`EfxAudio`](EfxAudio.md)
+
+Streamed background music and sound effects.
+
+***
+
 ### gamepad
 
 > **gamepad**: [`EfxGamepad`](EfxGamepad.md)
