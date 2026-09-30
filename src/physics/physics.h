@@ -146,9 +146,6 @@ int efx_physics_body_apply_impulse(efx_physics_world *w, efx_phys_body b,
                                    efx_vec3 impulse);
 int efx_physics_body_apply_force(efx_physics_world *w, efx_phys_body b,
                                  efx_vec3 force);
-int efx_physics_body_is_dynamic(const efx_physics_world *w, efx_phys_body b);
-int efx_physics_body_is_sensor(const efx_physics_world *w, efx_phys_body b);
-int efx_physics_body_is_mesh(const efx_physics_world *w, efx_phys_body b);
 int efx_physics_body_contact_count(efx_physics_world *w, efx_phys_body b);
 int efx_physics_body_contact(efx_physics_world *w, efx_phys_body b, int index,
                              efx_contact_info *out);
@@ -189,8 +186,5 @@ int efx_physics_overlap(efx_physics_world *w, const efx_shape *shape,
 int efx_physics_shape_cast(efx_physics_world *w, const efx_shape *shape,
                            efx_vec3 from, efx_vec3 motion, uint32_t mask,
                            int sensors, efx_shape_hit *out);
-
-/* shape mesh helper: tells whether a script mesh value may be used here */
-int efx_physics_shape_is_mesh(const efx_shape *s);
 
 #endif /* EFX_PHYSICS_H */

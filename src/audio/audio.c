@@ -170,13 +170,6 @@ void efx_audio_init(int sample_rate) {
     g.initialized = 1;
 }
 
-int efx_audio_sample_rate(void) {
-    if (!g.initialized) {
-        efx_audio_init(EFX_AUDIO_DEFAULT_RATE);
-    }
-    return g.rate;
-}
-
 /* Headless/`--script` builds never run the platform backend, so any public
  * entry point lazily initializes a device-free core (available = 1) to keep
  * the API usable in script tests. */
@@ -189,11 +182,6 @@ static void ensure_init(void) {
 void efx_audio_set_available(int available) {
     ensure_init();
     g.available = available ? 1 : 0;
-}
-
-int efx_audio_available(void) {
-    ensure_init();
-    return g.available;
 }
 
 void efx_audio_set_resume_callback(efx_audio_resume_fn fn, void *ud) {
@@ -522,13 +510,6 @@ int efx_audio_voice_paused(int voice) {
         return 0;
     }
     return (g.voices[voice].active && g.voices[voice].paused) ? 1 : 0;
-}
-
-int efx_audio_voice_looping(int voice) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return 0;
-    }
-    return (g.voices[voice].active && g.voices[voice].loop) ? 1 : 0;
 }
 
 long long efx_audio_voice_serial(int voice) {

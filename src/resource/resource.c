@@ -140,10 +140,6 @@ void efx_resource_close(efx_resource *r) {
     free(r);
 }
 
-const char *efx_resource_root(const efx_resource *r) {
-    return r ? r->root : NULL;
-}
-
 int efx_resource_is_zip(const efx_resource *r) {
     return r ? r->is_zip : 0;
 }

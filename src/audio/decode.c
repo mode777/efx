@@ -88,10 +88,6 @@ uint32_t efx_decoder_rate(const efx_decoder *d) {
     return d ? d->rate : 0;
 }
 
-uint32_t efx_decoder_channels(const efx_decoder *d) {
-    return d ? d->channels : 0;
-}
-
 uint64_t efx_decoder_frames(const efx_decoder *d) {
     return d ? d->frames : 0;
 }

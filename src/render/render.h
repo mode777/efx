@@ -660,7 +660,6 @@ typedef struct efx_particle_view {
 
 uint64_t efx_render_particles_create(const efx_particle_config *cfg, int *err);
 int efx_render_particles_destroy(uint64_t h);
-int efx_render_particles_alive(uint64_t h);
 int efx_render_particles_count(uint64_t h);
 int efx_render_particles_emit(uint64_t h, int n);
 void efx_render_particles_start(uint64_t h);

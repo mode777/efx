@@ -297,21 +297,6 @@ int efx_physics_body_apply_force(efx_physics_world *w, efx_phys_body id,
     return 1;
 }
 
-int efx_physics_body_is_dynamic(const efx_physics_world *w, efx_phys_body id) {
-    int s = efx_world_body_slot(w, id);
-    return s >= 0 && w->bodies[s].kind == EFX_PBODY_DYNAMIC;
-}
-
-int efx_physics_body_is_sensor(const efx_physics_world *w, efx_phys_body id) {
-    int s = efx_world_body_slot(w, id);
-    return s >= 0 && w->bodies[s].sensor;
-}
-
-int efx_physics_body_is_mesh(const efx_physics_world *w, efx_phys_body id) {
-    int s = efx_world_body_slot(w, id);
-    return s >= 0 && w->bodies[s].shape.type == EFX_PHYS_SHAPE_MESH;
-}
-
 int efx_physics_body_contact_count(efx_physics_world *w, efx_phys_body id) {
     int s = efx_world_body_slot(w, id);
     return s < 0 ? 0 : w->bodies[s].contact_count;
@@ -945,8 +930,4 @@ int efx_physics_shape_cast(efx_physics_world *w, const efx_shape *shape,
         }
     }
     return ctx.found;
-}
-
-int efx_physics_shape_is_mesh(const efx_shape *s) {
-    return s && s->type == EFX_PHYS_SHAPE_MESH;
 }

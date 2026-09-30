@@ -2,12 +2,24 @@
 
 Status: **proposal — no code changed yet.** Snapshot taken 2026-09-30 against
 `main` after F14 (all milestones F1–F14 implemented, four-target gate green).
+Re-verified 2026-09-30 against `main` at `9435f8c` (after `curated-sample-dirs`,
+`web-keyboard-focus`, `physics-tunneling`, the physics-GC fix and
+`audio-source-model`); line numbers below reflect that revision.
 
 This plan is **behavior-preserving only**. No script-facing API change, no
 `js-api` spec delta, no `efx.d.ts` change, no golden re-baseline. Anything that
 would change observable behavior (including error *messages*) is out of scope
 and is listed under [Deferred: behavior changes](#deferred-behavior-changes)
 so it can go through its own OpenSpec change.
+
+**Progress.** Phase A–B (P0, P0b, P1, P2) is implemented by the OpenSpec change
+`refactor-safety-net` — **Checkpoint 1 reached**. The error catalog
+(`tests/scripts/s_error_catalog.js` + `.expected.txt`) and the dead-export
+guard (`tools/check_exports.mjs`) landed, and every dead symbol in §1.2 was
+removed (`tools/check_exports.mjs` now reports zero). Phases C–I remain
+proposed. The catalog also found that desktop/web error messages drift more
+widely than §4.1 assumed: `s_error_catalog.js`'s `DIVERGENT` map lists the 18
+known divergences, recorded (not fixed) per §4.1.
 
 ---
 
@@ -19,10 +31,10 @@ Non-blank line counts (vendored code and generated headers excluded).
 
 | File | Lines | Problem |
 |------|------:|---------|
-| [src/api/api.c](../src/api/api.c) | ~5 900 | Whole quickjs binding in one TU; feature sections are **split and interleaved** (F11 at L1297 *and* L4406, F12 at L535 *and* L5778, F14 at L237 *and* L2518), held together by forward declarations (L85, L89, L621). |
-| [src/web/entry.js](../src/web/entry.js) | ~3 800 | Whole web binding in one `--post-js`; only three section markers (L927, L2843, L3415). |
-| [src/render/render.c](../src/render/render.c) | ~2 800 | Textures, targets, meshes, materials, post chain, records, particles and frame-end in one TU sharing the global `R`. |
-| [src/web/bridge.c](../src/web/bridge.c) | ~1 860 | 177 `EMSCRIPTEN_KEEPALIVE` exports for every domain in one file. |
+| [src/api/api.c](../src/api/api.c) | ~5 970 | Whole quickjs binding in one TU; feature sections are **split and interleaved** (F11 at L1351 *and* L4466, F12 at L543 *and* L5838, F14 at L237 *and* L2572), held together by forward declarations (L85, L90, L671). |
+| [src/web/entry.js](../src/web/entry.js) | ~3 790 | Whole web binding in one `--post-js`; only three section markers (L927, L2843, L3415). |
+| [src/render/render.c](../src/render/render.c) | ~2 820 | Textures, targets, meshes, materials, post chain, records, particles and frame-end in one TU sharing the global `R`. |
+| [src/web/bridge.c](../src/web/bridge.c) | ~1 900 | 179 `EMSCRIPTEN_KEEPALIVE` exports for every domain in one file. |
 | [src/platform/pipeline.c](../src/platform/pipeline.c) | ~1 440 | `efx_pipeline_play` alone is 299 lines (L1181–L1479). |
 
 Long functions (≥ 120 lines, heuristic scan):
@@ -32,20 +44,26 @@ Long functions (≥ 120 lines, heuristic scan):
 | `efx_pipeline_play` | pipeline.c L1181 | 299 |
 | `efx_text_font_create` | text.c L282 | 281 |
 | `build_surface` | gltf.c L510 | 197 |
-| `efx_js_drawQuad` | api.c L3506 | 188 |
-| `efx_js_createFont` | api.c L2242 | 183 |
-| `efx_js_drawBillboard` | api.c L4499 | 177 |
+| `efx_js_drawQuad` | api.c L3566 | 188 |
+| `efx_js_createFont` | api.c L2296 | 183 |
+| `efx_js_drawBillboard` | api.c L4559 | 177 |
 | `efx_gltf_load_meshdata` | gltf.c L942 | 168 |
-| `read_particle_config` | api.c L1592 | 164 |
+| `read_particle_config` | api.c L1646 | 164 |
 | `efx_pipeline_install` | pipeline.c L438 | 151 |
-| `parse_sprite` | api.c L4689 | 147 |
+| `parse_sprite` | api.c L4749 | 147 |
 | `efx_runtime_new` | runtime.c L171 | 143 |
 | `efx_render_mesh_create` | render.c L1468 | 141 |
-| `efx_js_createMeshData` | api.c L4117 | 140 |
+| `efx_js_createMeshData` | api.c L4177 | 140 |
 | `efx_skin_evaluate` | skin.c L384 | 134 |
-| `efx_js_createImageData` | api.c L3140 | 129 |
+| `efx_js_createImageData` | api.c L3200 | 129 |
 
 ### 1.2 Dead code (verified by cross-reference scan)
+
+> **Resolved by `refactor-safety-net` (P1 + P2).** Every symbol listed below
+> was removed, with its header declaration; `tools/check_exports.mjs` now
+> reports zero dead exports. The two gamepad seam symbols were kept and are
+> now exercised by the `gp_seams` input test (design D6). The list is kept
+> here as the historical record of what P1/P2 removed.
 
 No `#if 0`, `TODO`, `FIXME` or references to removed APIs (`loadTexture`,
 `drawModel`, global `setMaterial`) were found anywhere in `src/`.
@@ -56,41 +74,45 @@ No `#if 0`, `TODO`, `FIXME` or references to removed APIs (`loadTexture`,
 - `efx_bridge_texture_alive` (L214), `efx_bridge_fontdata_alive` (L386),
   `efx_bridge_font_alive` (L442), `efx_bridge_target_alive` (L533),
   `efx_bridge_particles_alive` (L658), `efx_bridge_mesh_alive` (L1018),
-  `efx_bridge_physics_body_alive` (L1834),
-  `efx_bridge_physics_character_alive` (L1919).
+  `efx_bridge_physics_body_alive` (L1883),
+  `efx_bridge_physics_character_alive` (L1968).
 
 **Unused C exports** — defined + declared in a header, never referenced from
 `src/` or `tests/`:
 
 | Symbol | Definition |
 |--------|-----------|
-| `efx_log` | api.c L24 / api.h L85 |
-| `efx_audio_sample_rate`, `efx_audio_available` | audio.c L166, L188 |
+| `efx_log` | api.c L24 / api.h L88 |
+| `efx_audio_sample_rate`, `efx_audio_available` | audio.c L173, L194 |
+| `efx_audio_voice_looping` (added by `audio-source-model`) | audio.c L527 / audio.h L93 |
 | `efx_decoder_channels` | decode.c L91 |
 | `efx_input_gamepad_load_mappings` (plural) | efx_gamepad.c L358 |
 | `efx_input_gamepad_inject_clear` | efx_gamepad.c L841 |
 | `efx_physics_body_is_dynamic` / `_is_sensor` / `_is_mesh` | world.c L300–L310 |
-| `efx_physics_shape_is_mesh` | world.c L931 |
+| `efx_physics_shape_is_mesh` | world.c L950 |
 | `efx_resource_root` | resource.c L143 |
 | `efx_text_font_alive` | text.c L571 |
+
+Also dangling: `efx_character_move` is declared in `world.h` L157 but has no
+definition and no caller (pre-existing; caught on re-verification).
 
 ### 1.3 Duplicated paths
 
 **Desktop binding (`api.c`)**
 
 - *Two optional-field reader families with identical shape:* `phys_opt_number`
-  / `_bool` / `_vec3` / `_mask` (L684–L745) and `pcfg_num` / `pcfg_vec` /
-  `pcfg_range` (L1339–L1395). They differ only in error message and
+  / `_bool` / `_vec3` / `_mask` (L734–L790) and `pcfg_num` / `pcfg_vec` /
+  `pcfg_range` (L1393–L1450). They differ only in error message and
   `double` vs `float`.
 - *Four array readers:* `get_float_array` (fixed n, accepts `Uint8Array`,
-  L151), `read_number_array` (variable n, malloc, L3725), `read_index_array`
-  (L3775), `read_vec3` (malloc for three floats, L3864), `vec_from_value`
-  (L1315). Their element loops are copies of each other, but their
+  L151), `read_number_array` (variable n, malloc, L3785), `read_index_array`
+  (L3835), `read_vec3` (malloc for three floats, L3924), `vec_from_value`
+  (L1367). Their element loops are copies of each other, but their
   TypeError/RangeError rules are **different on purpose**.
 - *`get_live_*` resolvers:* seven copies of "`JS_GetOpaque2` → 'expected a X' →
-  'using a destroyed …'" (`get_live_body` L631, `get_live_character` L644,
-  `get_live_ps` L1299, `get_live_imagedata`, `get_live_render_target`,
-  `get_live_meshdata`, `get_live_mesh`).
+  'using a destroyed …'" (`get_live_body` L681, `get_live_character` L694,
+  `get_live_ps` L1353, `get_live_imagedata` L3330, `get_live_render_target`
+  L3343, `get_live_meshdata` L4318, `get_live_mesh` L671).
 - *Read-only property getters:* about 12 near-identical getters
   (Texture/ImageData/RenderTarget width/height, surfaceCount, Font metrics).
 - *Class plumbing:* 13 finalizers with the same shape and 13
@@ -144,11 +166,14 @@ No `#if 0`, `TODO`, `FIXME` or references to removed APIs (`loadTexture`,
   stdout, but those scripts don't print messages. So today a message drift in
   one binding goes unnoticed, and so would a drift made during refactoring.
 - Forward declarations are used to reach helpers defined thousands of lines
-  later (api.c L85, L89, L621). This is a symptom of the ordering by milestone.
+  later (api.c L85, L90, L671). This is a symptom of the ordering by milestone.
 - File naming is inconsistent: `src/input/efx_input.c` and `efx_gamepad.c`
   have an `efx_` prefix, but every other module does not.
 - ADR number collision: `0042-audio-mixing-and-vendoring.md` and
-  `0042-api-reference-generated-from-type-doc.md`.
+  `0042-api-reference-generated-from-type-doc.md`. The next free number is now
+  **0048** (0043–0047 landed after this snapshot: `web-pointer-focus-default`,
+  `curated-sample-dirs`, `physics-substepping`,
+  `physics-world-holds-live-bodies`, `audio-source-model`).
 - The "Current state" section of `AGENTS.md` repeats the roadmap table and
   specs (CI run IDs, per-milestone API lists). This goes against its own rule
   that the file "points rather than restates".
@@ -310,7 +335,7 @@ diffs rather than moves.
 
 #### P7. Split `api.c` by domain
 
-- **Current behavior:** one 5 900-line TU. Sections for F11, F12 and F14 are
+- **Current behavior:** one ~5 970-line TU. Sections for F11, F12 and F14 are
   each split in two, and forward declarations bridge the gaps.
 - **Structural improvement:** add `src/api/api_internal.h`, holding the
   class IDs, wrapper structs, error helpers and the P3–P5 readers. Split
@@ -483,15 +508,16 @@ diffs rather than moves.
 - **Current behavior:** two ADRs are numbered 0042. `AGENTS.md` cites 0042
   for audio.
 - **Structural improvement:** renumber
-  `0042-api-reference-generated-from-type-doc.md` to **0043**, and update
+  `0042-api-reference-generated-from-type-doc.md` to **0048** (0043–0047 are
+  now taken), and update
   `docs/decisions/README.md` and any citations (`grep -r "0042"`).
 - **Validation:** every link in `docs/decisions/README.md` resolves, and a
   grep finds no stale "0042 — The API reference" citations.
 
 #### P21. Slim `AGENTS.md` "Current state" (needs owner sign-off)
 
-- **Current behavior:** about 250 lines restating per-milestone API
-  surfaces, CI run IDs, and the roadmap table.
+- **Current behavior:** about 430 lines (lines 8–441) restating per-milestone
+  API surfaces, CI run IDs, and the roadmap table.
 - **Structural improvement:** replace it with a short status list per
   milestone that links to the roadmap spec, the archived change, and the
   ADR. Keep the operational rules (verification order, server pre-check,
@@ -508,10 +534,15 @@ These came up during the analysis but change observable behavior. Each needs
 its own OpenSpec change (and a `js-api` delta where script-visible). They
 must **not** be folded into the passes above.
 
-1. **Suspected numeric-coercion divergence.** On desktop, `phys_opt_number` and
-   `pcfg_num` call `JS_ToFloat64`, which coerces `"2"` → 2 and `true` → 1. On
-   web, `__physNumber` requires `typeof v === 'number'`. P0 confirms or
-   refutes this; if it is confirmed, pick one rule in a spec delta.
+1. **Numeric-coercion divergence — confirmed.** On desktop, `phys_opt_number`
+   and `pcfg_num` call `JS_ToFloat64`, which coerces `'0.5'` → 0.5 (and
+   `true` → 1); on web, `__physNumber` requires `typeof v === 'number'`. The
+   P0 catalog's `coercion.phys-number-string` case records it (desktop accepts,
+   web throws `TypeError`). Fixing it means picking one rule in a spec delta.
+   The catalog also found **17 further message-text divergences** across 2D/3D,
+   lighting, resources, particles, billboards, physics and audio; they are
+   listed in the `DIVERGENT` map in `tests/scripts/s_error_catalog.js`. All are
+   recorded (canonical `KNOWN-DIVERGENCE` lines), not fixed.
 2. **Single source of truth for validation.** Today's three-way validation
    (C binding, entry.js, core) could collapse by moving option-bag validation
    into the shared C core behind a binding-neutral "option reader" interface,

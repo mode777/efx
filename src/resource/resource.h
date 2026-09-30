@@ -54,7 +54,4 @@ void efx_resource_free(void *bytes);
 /* 1 when the root is a zip archive, 0 for a directory. */
 int efx_resource_is_zip(const efx_resource *r);
 
-/* Root path as opened (borrowed; do not free). */
-const char *efx_resource_root(const efx_resource *r);
-
 #endif
