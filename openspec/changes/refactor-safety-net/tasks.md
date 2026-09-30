@@ -74,6 +74,6 @@
   server (native ctest incl. goldens, Emscripten ctest, web goldens,
   `run_web_compare.mjs` incl. `error_catalog`); verify green before dispatching
   CI
-- [ ] 5.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
+- [x] 5.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
   Linux → Windows → macOS gate is green; then merge to `main` and push per
   `AGENTS.md`
