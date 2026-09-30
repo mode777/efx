@@ -460,15 +460,20 @@ settled — see `docs/decisions/`.
 
 ## Documentation
 
+> **`docs/api/` is auto-generated — never edit its files by hand.** It is
+> rendered from `gallery/src/api/efx.d.ts` by
+> `npm --prefix gallery run docs:markdown`. To change the reference, edit the
+> declaration and regenerate; `docs:check` fails the build on drift.
+
 - `vision.md` — product goals; the source of truth for intent.
 - `docs/js-api.md` — the script-facing API **design guidelines** (conventions,
   layering, resource model, limits, and the process for adding API); the
   per-symbol reference is generated, not hand-written here.
 - `docs/api/` — the committed Markdown rendering of the per-symbol API
-  reference, generated from `gallery/src/api/efx.d.ts` by
-  `npm --prefix gallery run docs:markdown` (never hand-edited; `docs:check`
-  fails on drift). The same source is built to HTML and published at `/api`
-  on the gallery site.
+  reference. **Auto-generated; do not edit by hand.** Generated from
+  `gallery/src/api/efx.d.ts` by `npm --prefix gallery run docs:markdown`
+  (`docs:check` fails on drift). The same source is built to HTML and
+  published at `/api` on the gallery site.
 - `gallery/src/api/efx.d.ts` — the living TypeScript declaration of the
   public `efx` API, loaded into the gallery editor and the single source of
   truth for the generated reference `docs/api/`; it grows with the API and is

@@ -17,6 +17,7 @@
 - [x] 3.1 Rewrite `docs/js-api.md`: remove the per-function catalog sections, retain and expand the design rules (namespace, two-layer structure, naming and option-bag conventions, units/colors, error model, resource and memory model, fixed limits, lifecycle, module model, gamepad model), add an "adding to the API" process, and add a pointer to the generated reference; verify the document contains no per-function signature catalog and still contains the resource-classification and fixed-limits tables
 - [x] 3.2 Update `AGENTS.md`: change the script-facing API rule to require regenerating `docs/api/` from the declaration, and update the Documentation section (`docs/js-api.md` = guidelines; `docs/api/` = generated reference published at `/api`); verify the rule and the Documentation section read consistently with `docs/js-api.md`
 - [x] 3.3 Update the `proposal`/`tasks` rules in `openspec/config.yaml` that name `docs/js-api.md` to also require `docs/api/` regeneration; verify `npx openspec validate --strict` still passes
+- [x] 3.4 Add an explicit, unmissable `AGENTS.md` note that `docs/api/` is auto-generated and must not be manually edited; verify the note appears in the Documentation section and the docs/api bullet says "do not edit by hand"
 
 ## 4. Pipeline and site integration
 
