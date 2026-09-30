@@ -12,14 +12,14 @@
 
 - [x] 2.1 Replace the audio classes in `src/api/api.c` with native-backed `AudioData`, `AudioStream`, and `Audio` (read-only `playing`/`paused`; read-write `volume`/`pan`/`pitch`/`loop`; `stop`/`pause`/`resume`/`destroy`) and register `efx.audio` = `loadAudioData`, `loadAudioStream`, `playAudio`, the `volume` accessor, and `resume`; remove `SoundData`/`Sound`/`Music` and the old functions. Verify `efx_api_tests audio_js` covers the class/method/property matrix, source-kind errors, `RangeError` on negative volume/master gain, and `destroy()` idempotence.
 - [x] 2.2 Update `src/prelude/prelude.js` (remove the obsolete `playAudioEffect` path-cache sugar and any `Music`/`Sound` references), regenerate `src/prelude/prelude.h`, and pass `tools/gen_prelude.py --check`. Verify a headless smoke run exercises the prelude.
-- [ ] 2.3 Mirror the namespace and classes in `src/web/bridge.c` (and `src/web/entry.js` if it references audio) with identical names, semantics, and errors. Verify `tools/run_web_compare.mjs` diffs desktop vs web at zero for the audio script.
+- [x] 2.3 Mirror the namespace and classes in `src/web/bridge.c` (and `src/web/entry.js` if it references audio) with identical names, semantics, and errors. Verify `tools/run_web_compare.mjs` diffs desktop vs web at zero for the audio script.
 
 ## 3. Tests, fixtures, samples
 
 - [x] 3.1 Rework the audio cases in `tests/unit/api_tests.c` and `tests/scripts/s_14_audio.js` to the new API. Verify `EFX_HEADLESS=ON` ctest passes.
-- [ ] 3.2 Migrate the audio script fixture (`tests/fixtures/audio/`) and confirm the portable `smoke_14_audio` and `web_14_audio` cases pass on desktop and Emscripten.
-- [ ] 3.3 Update `gallery/samples/curated/audio-showcase/main.js` to a fade/crossfade demo built on the handle API (and refresh its mountable pack if resources change). Verify `npm --prefix gallery run check` and that the sample runs.
-- [ ] 3.4 Update the cross-runtime compare case `14_audio` and verify desktop and web outputs are identical.
+- [x] 3.2 Migrate the audio script fixture (`tests/fixtures/audio/`) and confirm the portable `smoke_14_audio` and `web_14_audio` cases pass on desktop and Emscripten.
+- [x] 3.3 Update `gallery/samples/curated/audio-showcase/main.js` to a fade/crossfade demo built on the handle API (and refresh its mountable pack if resources change). Verify `npm --prefix gallery run check` and that the sample runs.
+- [x] 3.4 Update the cross-runtime compare case `14_audio` and verify desktop and web outputs are identical.
 
 ## 4. Docs, type document, and ADR
 
@@ -31,5 +31,5 @@
 
 ## 5. Verification gate
 
-- [ ] 5.1 Run the SSH-server pre-filter `python3 tools/verify_remote.py all <branch>` (native ctest incl. the audio cases + Emscripten ctest incl. `web_14_audio`/web goldens + cross-runtime compare) and fix anything it finds before dispatching CI.
-- [ ] 5.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm Linux, then Windows, then macOS green; no golden-image gate — the gate is the headless pure-C audio unit tests, the portable script harness through both runtimes, and the cross-runtime compare.
+- [x] 5.1 Run the SSH-server pre-filter `python3 tools/verify_remote.py all <branch>` (native ctest incl. the audio cases + Emscripten ctest incl. `web_14_audio`/web goldens + cross-runtime compare) and fix anything it finds before dispatching CI.
+- [x] 5.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm Linux, then Windows, then macOS green; no golden-image gate — the gate is the headless pure-C audio unit tests, the portable script harness through both runtimes, and the cross-runtime compare.

@@ -209,7 +209,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   image. The original F14 four-target gate was **green**
   (ci run 36698288071: native suites incl. all goldens + the audio cases on
   Linux/Windows/macOS, Emscripten ctest incl. `web_14_audio` + web goldens +
-  cross-runtime compare `14_audio`).
+  cross-runtime compare `14_audio`). The `audio-source-model` revision's
+  four-target gate is **green** (ci run 36739154522: Linux/Windows/macOS +
+  Emscripten build+test and the Emscripten golden suite all passed).
 - F5 (render targets + post FX) is **done** — the four-target gate is
   green (ci run 36313950553: native suites incl. all forty goldens on
   Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
