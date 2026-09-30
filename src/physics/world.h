@@ -153,8 +153,4 @@ void efx_solver_solve(efx_physics_world *w, float dt);
 void efx_world_generate_contacts(efx_physics_world *w);
 void efx_world_report_contacts(efx_physics_world *w);
 
-/* character controller entry point (declared here to avoid a cycle) */
-int efx_character_move(efx_physics_world *w, efx_pcharacter *ch,
-                       efx_vec3 motion, efx_move_result *out);
-
 #endif /* EFX_PHYS_WORLD_H */

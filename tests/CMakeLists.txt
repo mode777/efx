@@ -5,7 +5,7 @@ set(F ${CMAKE_CURRENT_SOURCE_DIR}/fixtures)
 # headless unit-test cases at the bottom of this file
 if(NOT EFX_HEADLESS)
 function(add_player_test NAME)
-    cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_ERR;INPUT_FILE" "ARGS" ${ARGN})
+    cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_OUT_FILE;EXPECT_ERR;INPUT_FILE" "ARGS" ${ARGN})
     set(ARG_LINE "${ARG_ARGS}")
     string(REPLACE ";" "\\;" ARG_LINE_ESC "${ARG_LINE}")
     string(REPLACE ";" "\\;" EXPECT_OUT_ESC "${ARG_EXPECT_OUT}")
@@ -22,6 +22,7 @@ function(add_player_test NAME)
             -DARG_LINE=${ARG_LINE_ESC}
             -DEXPECT=${ARG_EXPECT}
             -DEXPECT_OUT=${EXPECT_OUT_ESC}
+            -DEXPECT_OUT_FILE=${ARG_EXPECT_OUT_FILE}
             -DEXPECT_ERR=${EXPECT_ERR_ESC}
             ${INPUT_ARG}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
@@ -64,6 +65,7 @@ add_player_test(smoke_11_particles ARGS "--script;${S}/s_11_particles.js" EXPECT
 add_player_test(smoke_12_physics ARGS "--script;${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
 add_player_test(smoke_13_gamepad ARGS "--script;${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
 add_player_test(smoke_14_audio ARGS "--script;${S}/s_14_audio.js;--root;${F}/audio" EXPECT 0 EXPECT_OUT "s-14-audio-ok")
+add_player_test(smoke_error_catalog ARGS "--script;${S}/s_error_catalog.js" EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt)
 add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
@@ -88,11 +90,12 @@ endif()
 # asserting the same observable effects as the desktop --script suite
 if(EMSCRIPTEN)
     function(add_web_test NAME STAGE_SCRIPT)
-        cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_ERR;ROOT" "ARGS" ${ARGN})
+        cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_OUT_FILE;EXPECT_ERR;ROOT" "ARGS;ASSETS" ${ARGN})
         set(ARG_LINE "${ARG_ARGS}")
         string(REPLACE ";" "\\;" ARG_LINE_ESC "${ARG_LINE}")
         string(REPLACE ";" "\\;" EXPECT_OUT_ESC "${ARG_EXPECT_OUT}")
         string(REPLACE ";" "\\;" EXPECT_ERR_ESC "${ARG_EXPECT_ERR}")
+        string(REPLACE ";" "\\;" STAGE_ASSETS_ESC "${ARG_ASSETS}")
         set(EXTRA_ARGS "")
         if(ARG_ROOT)
             list(APPEND EXTRA_ARGS "-DROOT_PATH=${ARG_ROOT}")
@@ -107,9 +110,11 @@ if(EMSCRIPTEN)
                 -DPLAYER_COMMAND=$<TARGET_FILE:player>
                 -DPLAYER_UNDER_NODE=ON
                 ${EXTRA_ARGS}
+                -DSTAGE_ASSETS=${STAGE_ASSETS_ESC}
                 -DARG_LINE=${ARG_LINE_ESC}
                 -DEXPECT=${ARG_EXPECT}
                 -DEXPECT_OUT=${EXPECT_OUT_ESC}
+                -DEXPECT_OUT_FILE=${ARG_EXPECT_OUT_FILE}
                 -DEXPECT_ERR=${EXPECT_ERR_ESC}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
     endfunction()
@@ -150,6 +155,7 @@ if(EMSCRIPTEN)
     add_web_test(web_12_physics ${S}/physics_smoke.js EXPECT 0 EXPECT_OUT "s-12-physics-ok")
     add_web_test(web_13_gamepad ${S}/s_13_gamepad.js EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
     add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
+    add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin)
     add_web_test(web_8a_text ${F}/web/text_root EXPECT 0 EXPECT_OUT "s-8a-text-ok")
     add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
@@ -175,7 +181,7 @@ endforeach()
 
 foreach(CASE names level_edge repeat ordering deltas mouse focus chars window mods
               gp_names gp_edges gp_hotplug gp_mapping gp_half_invert gp_hat
-              gp_dpad_buttons gp_ranges gp_raw gp_guid_fallback gp_full)
+              gp_dpad_buttons gp_ranges gp_raw gp_guid_fallback gp_full gp_seams)
     add_unit_test(efx_input_tests ${CASE})
 endforeach()
 

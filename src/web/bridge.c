@@ -211,10 +211,6 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_texture_destroy(double handle) {
     efx_render_texture_destroy((uint64_t)handle);
 }
 
-EMSCRIPTEN_KEEPALIVE int efx_bridge_texture_alive(double handle) {
-    return efx_render_texture_alive((uint64_t)handle);
-}
-
 EMSCRIPTEN_KEEPALIVE int efx_bridge_texture_width(double handle) {
     int w = 0, h = 0;
     efx_render_texture_size((uint64_t)handle, &w, &h);
@@ -383,11 +379,6 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_fontdata_destroy(int id) {
     }
 }
 
-EMSCRIPTEN_KEEPALIVE int efx_bridge_fontdata_alive(int id) {
-    fd_slot *s = fd_get(id);
-    return s && s->alive;
-}
-
 EMSCRIPTEN_KEEPALIVE int efx_bridge_create_font(
     int fd_id, float size, const char *glyphs, int padding, int filter,
     int has_outline, float outline_width, int has_shadow, float shadow_blur,
@@ -437,11 +428,6 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_font_destroy(int id) {
         efx_text_font_destroy(s->font);
         s->font = NULL;
     }
-}
-
-EMSCRIPTEN_KEEPALIVE int efx_bridge_font_alive(int id) {
-    font_slot *s = font_get(id);
-    return s && s->alive;
 }
 
 EMSCRIPTEN_KEEPALIVE float efx_bridge_font_size(int id) {
@@ -528,10 +514,6 @@ EMSCRIPTEN_KEEPALIVE double efx_bridge_target_create(int w, int h) {
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_target_destroy(double handle) {
     efx_render_target_destroy((uint64_t)handle);
-}
-
-EMSCRIPTEN_KEEPALIVE int efx_bridge_target_alive(double handle) {
-    return efx_render_target_alive((uint64_t)handle);
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_target_width(double handle) {
@@ -653,10 +635,6 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_particles_set(double handle,
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_particles_destroy(double handle) {
     efx_render_particles_destroy((uint64_t)handle);
-}
-
-EMSCRIPTEN_KEEPALIVE int efx_bridge_particles_alive(double handle) {
-    return efx_render_particles_alive((uint64_t)handle);
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_particles_count(double handle) {
@@ -1013,10 +991,6 @@ EMSCRIPTEN_KEEPALIVE double efx_bridge_mesh_create(int id) {
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_mesh_destroy(double handle) {
     efx_render_mesh_destroy((uint64_t)handle);
-}
-
-EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_alive(double handle) {
-    return efx_render_mesh_alive((uint64_t)handle);
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_surface_count(double handle) {
@@ -1880,10 +1854,6 @@ EMSCRIPTEN_KEEPALIVE double efx_bridge_physics_create_static_mesh(
     return (double)b;
 }
 
-EMSCRIPTEN_KEEPALIVE int efx_bridge_physics_body_alive(double h) {
-    return efx_physics_body_alive(web_physics(), (efx_phys_body)h);
-}
-
 EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_body_position(double h,
                                                            float *out) {
     efx_physics_body_position(web_physics(), (efx_phys_body)h,
@@ -1963,10 +1933,6 @@ EMSCRIPTEN_KEEPALIVE double efx_bridge_physics_create_character(
     d.layer = (uint32_t)layer;
     d.mask = (uint32_t)mask;
     return (double)efx_physics_create_character(web_physics(), &d);
-}
-
-EMSCRIPTEN_KEEPALIVE int efx_bridge_physics_character_alive(double h) {
-    return efx_physics_character_alive(web_physics(), (efx_phys_character)h);
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_character_position(double h,

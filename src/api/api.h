@@ -85,6 +85,4 @@ JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc, JSV
 /* F14: attach the efx.audio sub-namespace to the single efx object */
 int efx_api_register_audio(JSContext *ctx, JSValueConst efx);
 
-void efx_log(const char *msg);
-
 #endif

@@ -92,7 +92,6 @@ int efx_text_fontdata_alive(const efx_text_fontdata *fd);
 efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
                                     const efx_font_opts *opts, int *err);
 void efx_text_font_destroy(efx_text_font *f); /* NULL safe, idempotent */
-int efx_text_font_alive(const efx_text_font *f);
 
 /* read-only metrics (px, at the baked size; 0 for a dead font) */
 float efx_text_font_size(const efx_text_font *f);

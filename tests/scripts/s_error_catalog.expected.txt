@@ -1,0 +1,208 @@
+2d.clearColor-wrongtype: TypeError: expected an array
+2d.clearColor-short: RangeError: wrong array length
+2d.camera-noargs: TypeError: setCamera2D requires an options object
+2d.camera-zoom: RangeError: zoom must be > 0
+2d.camera-frame2: RangeError: frame must be positive
+2d.camera-frame3: RangeError: wrong array length
+2d.blend-unknown: TypeError: unknown blend mode
+2d.blend-missing: TypeError: setBlendMode requires a mode string
+2d.imagedata-short: RangeError: pixel bytes must be integers 0..255
+2d.imagedata-format: RangeError: unsupported image format (only 'rgba8')
+2d.imagedata-unknown: TypeError: unknown option 'pixles'
+2d.imagedata-size: RangeError: width and height must be positive
+2d.quad-few: TypeError: drawQuad requires (x, y, texture, opts?)
+2d.quad-nontexture: TypeError: expected a Texture or RenderTarget
+2d.quad-size-zero: RangeError: size entries must be > 0
+2d.quad-size-short: RangeError: wrong array length
+2d.quad-size-type: TypeError: expected an array
+2d.quad-size-nan: RangeError: array elements must be finite numbers
+2d.quad-origin-nan: RangeError: array elements must be finite numbers
+2d.quad-origin-type: TypeError: expected an array
+2d.quad-src-zero: RangeError: sourceRect extent must be > 0
+2d.quad-src-oob: RangeError: sourceRect outside texture bounds
+2d.quad-unknown-opt: TypeError: unknown drawQuad option
+2d.quad-destroyed-texture: TypeError: using a destroyed resource
+2d.texture-width-destroyed: TypeError: using a destroyed resource
+2d.texture-height-destroyed: TypeError: using a destroyed resource
+2d.texture-from-destroyed-image: TypeError: using a destroyed resource
+2d.texture-nonimage: TypeError: expected an ImageData
+2d.texture-unknown-opt: TypeError: unknown createTexture option 'frob'
+2d.texture-wrap-type: TypeError: unknown wrap mode
+2d.texture-filter-type: TypeError: unknown filter
+2d.texture-mipmaps-type: TypeError: mipmaps must be a boolean
+3d.cam-noargs: TypeError: setCamera3D requires an options object
+3d.cam-no-pos: TypeError: setCamera3D requires pos and target
+3d.cam-fov-type: TypeError: fov must be a number
+3d.cam-fov-inf: RangeError: fov must be finite
+3d.cam-unknown: TypeError: unknown setCamera3D option 'frobnicate'
+3d.cam-pos-short: RangeError: pos and target must hold 3 numbers
+3d.md-none: TypeError: createMeshData requires surfaces
+3d.md-both: TypeError: pass either surfaces or single-surface fields
+3d.md-empty: RangeError: surfaces must hold 1..16 entries
+3d.md-trunc: RangeError: invalid mesh data
+3d.md-mult: RangeError: invalid mesh data
+3d.md-idx-oob: RangeError: invalid mesh data
+3d.md-idx-partial: RangeError: invalid mesh data
+3d.md-idx-frac: RangeError: invalid mesh data
+3d.md-nonidx-div: RangeError: invalid mesh data
+3d.md-norm-short: RangeError: invalid mesh data
+3d.md-unknown: TypeError: unknown createMeshData option 'pixles'
+3d.md-materials-mismatch: RangeError: materials must have one entry per surface
+3d.md-elem-type: TypeError: array elements must be numbers
+3d.md-elem-nan: RangeError: array elements must be finite numbers
+3d.drawmesh-none: TypeError: drawMesh requires a mesh
+3d.drawmesh-nonmesh: TypeError: expected a Mesh
+3d.drawmesh-null: TypeError: expected a Mesh
+3d.drawmesh-bag-nonobject: TypeError: drawMesh options must be an object
+3d.drawmesh-mesh-in-bag: TypeError: unknown drawMesh option 'mesh'
+3d.drawmesh-transform-short: RangeError: transform must hold 16 numbers
+3d.drawmesh-transform-type: TypeError: array elements must be numbers
+3d.drawmesh-color-short: RangeError: color must hold 4 numbers
+3d.drawmesh-unknown: TypeError: unknown drawMesh option 'frobnicate'
+3d.createMesh-nonmeshdata: TypeError: expected a MeshData
+3d.drawmesh-destroyed: TypeError: using a destroyed resource
+3d.mesh-surfacecount-destroyed: TypeError: using a destroyed resource
+3d.md-surfacecount-destroyed: TypeError: using a destroyed resource
+4a.light-slot: KNOWN-DIVERGENCE
+4a.light-slot-neg: KNOWN-DIVERGENCE
+4a.light-no-pos: TypeError: setLight requires pos
+4a.light-no-color: TypeError: setLight requires color
+4a.light-pos-short: KNOWN-DIVERGENCE
+4a.light-range-type: TypeError: range must be a number
+4a.light-range-neg: RangeError: range must be a finite number >= 0
+4a.light-unknown: TypeError: unknown setLight option 'frob'
+4a.dir-no-dir: TypeError: setDirectionalLight requires dir
+4a.dir-zero: TypeError: dir must be non-zero
+4a.dir-unknown: TypeError: unknown setDirectionalLight option 'foo'
+4a.md-mat-length: RangeError: materials must have one entry per surface
+4a.md-mat-not-array: TypeError: materials must be an array
+4a.md-mat-bad-entry: TypeError: material must be an object
+4a.mat-short-color: RangeError: wrong array length
+4a.mat-no-color: TypeError: diffuse channel requires color
+4a.mat-unknown: TypeError: unknown material option 'albedo'
+4a.smsm-nonmesh: TypeError: expected a Mesh
+4a.smsm-index: RangeError: surfaceIndex out of range
+4a.smsm-index-neg: RangeError: surfaceIndex out of range
+4a.smsm-bad-mat: TypeError: material must be an object
+4a.smsm-shininess0: RangeError: shininess must be Finite and > 0
+4a.smsm-destroyed: TypeError: using a destroyed resource
+4b.map-number: TypeError: expected a Texture or RenderTarget
+4b.map-object: TypeError: expected a Texture or RenderTarget
+4b.alphamask-number: TypeError: expected a Texture or RenderTarget
+4b.channel-unknown: TypeError: unknown diffuse option 'frob'
+4b.material-unknown: TypeError: unknown material option 'albedo'
+4b.md-map-length: RangeError: materials must have one entry per surface
+5a.rt-missing-object: TypeError: createRenderTarget requires an options object
+5a.rt-missing-width: TypeError: createRenderTarget requires width and height
+5a.rt-zero-size: RangeError: width and height must be integers in 1..4096
+5a.rt-negative-size: RangeError: width and height must be integers in 1..4096
+5a.rt-fraction-size: RangeError: width and height must be integers in 1..4096
+5a.rt-oversize: RangeError: width and height must be integers in 1..4096
+5a.rt-unknown-field: TypeError: unknown createRenderTarget option 'depth'
+5a.rt-getter-after-destroy: TypeError: using a destroyed resource
+5a.rt-begin-after-destroy: TypeError: using a destroyed resource
+5a.rt-nested-begin: TypeError: a render target is already active
+5a.rt-self-sample: TypeError: cannot sample the render target being drawn into
+5a.rt-unbalanced-end: TypeError: no render target is active
+5a.rt-src-oob: RangeError: sourceRect outside texture bounds
+5a.rt-destroyed-as-texture: TypeError: using a destroyed resource
+5a.rt-mesh-map-destroyed: TypeError: using a destroyed resource
+5a.rt-map-number: TypeError: expected a Texture or RenderTarget
+5a.rt-mesh-feedback: none: 
+5b.post-string: TypeError: setPostEffects requires an array or null
+5b.post-entry-number: TypeError: post-effect entry must be an object
+5b.post-unknown-effect: TypeError: unknown post effect
+5b.post-missing-effect: TypeError: post-effect entry requires an effect name
+5b.post-unknown-field: TypeError: unknown post effect option 'frob'
+5b.post-radius-type: TypeError: radius must be a number
+5b.post-radius-zero: RangeError: post-effect option out of range
+5b.post-radius-big: RangeError: post-effect option out of range
+5b.post-strength-big: RangeError: post-effect option out of range
+5b.post-tint-short: RangeError: wrong array length
+5b.post-mix-big: RangeError: post-effect option out of range
+5b.post-too-many: RangeError: post-effect chain is limited to 8 entries
+5b.scale-string: TypeError: scale must be a number
+5b.scale-zero: RangeError: scale must be in (0, 2]
+5b.scale-negative: RangeError: scale must be in (0, 2]
+5b.scale-big: RangeError: scale must be in (0, 2]
+5b.scale-filter-bad: TypeError: unknown filter
+5b.scale-unknown-field: TypeError: unknown setRenderScale option 'frob'
+6a.loadtext-type: TypeError: loadText requires a path string
+6a.loadtext-missing: Error: resource not found
+6a.loadimage-type: TypeError: loadImage requires a path string
+6a.loadimage-missing: KNOWN-DIVERGENCE
+6b.loadmesh-type: TypeError: loadMeshData requires a path string
+6b.loadmesh-missing: KNOWN-DIVERGENCE
+6b.loadmesh-unknown-opt: TypeError: unknown loadMeshData option 'nope'
+6b.loadmesh-corrupt: KNOWN-DIVERGENCE
+6c.md-joints-unpaired: RangeError: invalid mesh data
+8a.loadfont-type: TypeError: loadFontData requires a path string
+8a.loadfont-missing: Error: font could not be loaded
+8a.createfont-nofontdata: TypeError: createFont requires a FontData
+8a.createfont-noopts: TypeError: loadFontData requires a path string
+8a.drawtext-nofont: TypeError: drawText requires a live Font
+8a.measuretext-nofont: TypeError: measureText requires a live Font
+7.pose-unknown-clip: Error: unknown clip name
+7.pose-clip-index: RangeError: clip index out of range
+7.pose-negative-weight: RangeError: weight must be finite and >= 0
+7.pose-unknown-sample-field: TypeError: unknown pose sample option 'bogus'
+7.pose-bad-clip-type: TypeError: clip must be a name or index
+7.pose-rigless: TypeError: poseMesh requires a Mesh with a rig
+7.drawmesh-skinned-rigless: TypeError: mesh has no rig to draw skinned
+9.keyboard-isdown-unknown: TypeError: unknown key
+9.keyboard-isdown-nonstring: TypeError: keyboard query requires a key name
+9.keyboard-ispressed-unknown: TypeError: unknown key
+9.keyboard-isreleased-unknown: TypeError: unknown key
+9.keyboard-ondown-nonfn: TypeError: hook must be a function
+9.keyboard-onup-nonfn: TypeError: hook must be a function
+9.keyboard-onchar-nonfn: TypeError: hook must be a function
+9.mouse-isdown-unknown: TypeError: unknown mouse button
+9.mouse-isdown-nonstring: TypeError: mouse query requires a button name
+9.mouse-ondown-nonfn: TypeError: hook must be a function
+9.mouse-onup-nonfn: TypeError: hook must be a function
+9.mouse-onmove-nonfn: TypeError: hook must be a function
+9.mouse-onwheel-nonfn: TypeError: hook must be a function
+11.ps-missing-texture: TypeError: createParticleSystem requires a texture
+11.ps-missing-max: TypeError: createParticleSystem requires max
+11.ps-max-range: KNOWN-DIVERGENCE
+11.ps-missing-lifetime: TypeError: createParticleSystem requires lifetime
+11.ps-lifetime-order: RangeError: invalid particle configuration
+11.ps-unknown-field: TypeError: unknown createParticleSystem option 'bogus'
+11.ps-bad-facing: KNOWN-DIVERGENCE
+11.ps-plane-screen: TypeError: facing must be 'view' for screen space
+11.ps-set-max: KNOWN-DIVERGENCE
+11.ps-destroyed-emit: TypeError: using a destroyed resource
+11.billboard-no-texture: TypeError: drawBillboard requires a texture
+11.billboard-pos: KNOWN-DIVERGENCE
+11.billboard-size: RangeError: size entries must be > 0
+11.sprites-array: TypeError: sprites must be an array
+11.sprite-xy: TypeError: sprite x and y must be finite numbers
+12.createbody-noopts: TypeError: createBody requires an options object
+12.createbody-noshape: KNOWN-DIVERGENCE
+12.createcharacter-noopts: TypeError: createCharacter requires an options object
+12.createcharacter-noradius: TypeError: createCharacter requires radius and height
+12.createstaticmesh-noopts: KNOWN-DIVERGENCE
+12.createstaticmesh-nomesh: TypeError: expected a Mesh
+12.applyimpulse-static: TypeError: applyImpulse requires a dynamic body
+12.raycast-noopts: KNOWN-DIVERGENCE
+12.raycast-nomax: TypeError: raycast requires a positive maxDistance
+12.overlap-noopts: KNOWN-DIVERGENCE
+12.shapecast-noopts: KNOWN-DIVERGENCE
+12.step-nodt: KNOWN-DIVERGENCE
+12.dt-nonfinite: TypeError: dt must be a finite number
+coercion.phys-number-string: KNOWN-DIVERGENCE
+12.createbody-bad-radius: RangeError: radius must be positive
+12.createbody-shape-unknown: TypeError: unknown shape option 'nope'
+12.body-destroyed: TypeError: using a destroyed Body
+12.character-destroyed: TypeError: using a destroyed Character
+13.gamepad-get-nonnumber: TypeError: gamepad.get requires an index
+13.gamepad-onconnect-nonfn: TypeError: hook must be a function
+13.gamepad-ondisconnect-nonfn: TypeError: hook must be a function
+14.loadaudiodata-type: TypeError: loadAudioData requires a path string
+14.loadaudiodata-missing: KNOWN-DIVERGENCE
+14.loadaudiostream-type: TypeError: loadAudioStream requires a path string
+14.loadaudiostream-missing: KNOWN-DIVERGENCE
+14.playaudio-bad-source: TypeError: playAudio requires an AudioData or AudioStream
+14.playaudio-null: TypeError: playAudio requires an AudioData or AudioStream
+14.volume-negative: RangeError: volume must be a non-negative number
+s-error-catalog-ok

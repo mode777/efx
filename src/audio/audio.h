@@ -43,12 +43,10 @@ typedef struct efx_audio_stream efx_audio_stream;
 /* ---- lifecycle (device sample rate; resets all state) ---- */
 void efx_audio_init(int sample_rate);
 void efx_audio_shutdown(void);
-int efx_audio_sample_rate(void);
 /* Device readiness. The platform backend clears this when no device is
  * available (headless CI) or, on web, until the autoplay unlock; defaults to
  * ready so headless tests can mix. */
 void efx_audio_set_available(int available);
-int efx_audio_available(void);
 
 /* Web autoplay unlock: the binding calls efx_audio_request_resume(), which
  * invokes the platform-registered callback (if any). Desktop registers none. */
@@ -90,7 +88,6 @@ void efx_audio_set_voice_paused(int voice, int paused);
 /* 1 when the voice is active, not paused, and the device is available. */
 int efx_audio_voice_playing(int voice);
 int efx_audio_voice_paused(int voice);
-int efx_audio_voice_looping(int voice);
 /* Unique per voice start (0,1,2,...); -1 when the voice is not active. Lets a
  * script handle detect that its voice was stolen and reused. */
 long long efx_audio_voice_serial(int voice);

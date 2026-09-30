@@ -23,7 +23,6 @@ int efx_decoder_open(const uint8_t *data, size_t size, efx_decoder **out);
 void efx_decoder_close(efx_decoder *d);
 
 uint32_t efx_decoder_rate(const efx_decoder *d);
-uint32_t efx_decoder_channels(const efx_decoder *d);
 /* Total frame count; 0 when unknown. */
 uint64_t efx_decoder_frames(const efx_decoder *d);
 

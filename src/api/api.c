@@ -21,11 +21,6 @@ static struct efx_host_state *host_state(JSContext *ctx) {
     return (struct efx_host_state *)JS_GetContextOpaque(ctx);
 }
 
-void efx_log(const char *msg) {
-    fprintf(stdout, "%s\n", msg ? msg : "");
-    fflush(stdout);
-}
-
 JSValue efx_js_log(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     (void)this_val;
     const char *s = NULL;

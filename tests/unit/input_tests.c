@@ -611,6 +611,38 @@ static int gp_full(void) {
     return 0;
 }
 
+/* the bulk mapping loader and the injection reset seam (kept for tests) */
+static int gp_seams(void) {
+    efx_input_reset();
+    efx_input_gamepad_clear_mappings();
+    const char *lines[1] = {
+        "33330000000000000000000000000000,Seam,a:b0,"
+    };
+    if (efx_input_gamepad_load_mappings(lines, 1) != 1) {
+        return fail("gamepad bulk mapping load");
+    }
+    /* inject_clear cancels a staged descriptor before the poll sees it */
+    efx_input_gamepad_inject_connect(0, "Seam",
+                                     "33330000000000000000000000000000", 0);
+    efx_input_gamepad_inject_clear();
+    efx_input_begin_frame();
+    if (efx_input_gamepad_count() != 0 || efx_input_gamepad_connected(0)) {
+        return fail("inject_clear cancels staged connect");
+    }
+    efx_input_end_frame();
+    /* the bulk-loaded mapping still drives the semantic surface */
+    unsigned char btns[1] = {1};
+    efx_input_gamepad_inject_connect(0, "Seam",
+                                     "33330000000000000000000000000000", 0);
+    efx_input_gamepad_inject_state(0, 1, btns, 0, NULL);
+    efx_input_begin_frame();
+    if (!efx_input_gamepad_mapped(0) ||
+        !efx_input_gamepad_button_is_down(0, EFX_GPB_SOUTH)) {
+        return fail("bulk mapping drives surface");
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: efx_input_tests <case>\n");
@@ -638,6 +670,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "gp_raw")) return gp_raw();
     if (!strcmp(c, "gp_guid_fallback")) return gp_guid_fallback();
     if (!strcmp(c, "gp_full")) return gp_full();
+    if (!strcmp(c, "gp_seams")) return gp_seams();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;
 }

@@ -568,10 +568,6 @@ void efx_text_font_destroy(efx_text_font *f) {
     free_font(f);
 }
 
-int efx_text_font_alive(const efx_text_font *f) {
-    return f && f->alive;
-}
-
 float efx_text_font_size(const efx_text_font *f) {
     return (f && f->alive) ? f->size : 0.0f;
 }

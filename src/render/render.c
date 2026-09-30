@@ -2434,11 +2434,6 @@ int efx_render_particles_destroy(uint64_t h) {
     return EFX_RENDER_OK;
 }
 
-int efx_render_particles_alive(uint64_t h) {
-    ps_slot *p = ps_get(h);
-    return p && p->alive;
-}
-
 int efx_render_particles_count(uint64_t h) {
     ps_slot *p = ps_get(h);
     return (p && p->alive) ? p->count : -1;
