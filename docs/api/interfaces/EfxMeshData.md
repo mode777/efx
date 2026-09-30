@@ -1,0 +1,29 @@
+[**EmotionFX API**](../README.md)
+
+***
+
+[EmotionFX API](../README.md) / EfxMeshData
+
+# Interface: EfxMeshData
+
+CPU mesh data holding 1..16 surfaces (opaque native-backed class).
+
+## Properties
+
+### surfaceCount
+
+> `readonly` **surfaceCount**: `number`
+
+Number of surfaces (1..16).
+
+## Methods
+
+### destroy()
+
+> **destroy**(): `void`
+
+Release the native storage deterministically and idempotently.
+
+#### Returns
+
+`void`

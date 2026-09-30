@@ -1,0 +1,8 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "EmotionFX API",
+  "entryPoints": ["src/api/efx.d.ts"],
+  "exclude": ["src/api/efx.type-test.ts"],
+  "readme": "none",
+  "disableSources": true
+}

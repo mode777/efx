@@ -45,16 +45,22 @@ jobs:
       - name: Install gallery deps
         run: npm ci --prefix gallery
 
+      - name: Check committed API reference is current
+        run: npm --prefix gallery run docs:check
+
       - name: Bundle player into the gallery
         run: EFX_WEB_BUILD=build-web npm --prefix gallery run prepare:player
 
       - name: Build gallery
         run: npm --prefix gallery run build
 
+      - name: Build API reference
+        run: npm --prefix gallery run docs:html
+
       - name: Check gallery outputs
         run: |
           set -euo pipefail
-          for f in index.html runner.html \
+          for f in index.html runner.html api/index.html \
                    player/player_web.js player/player_web.wasm player/player_web.data; do
             test -f "gallery/dist/$f" || { echo "missing gallery/dist/$f" >&2; exit 1; }
           done

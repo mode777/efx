@@ -21,7 +21,8 @@ context: |
   (Node is a test launcher only, ADR 0008).
 
   Doc map: vision.md (product goals), docs/js-api.md (script-facing API
-  catalog — update in the same change as any API delta),
+  design guidelines), docs/api/ (generated per-symbol reference — regenerate
+  from gallery/src/api/efx.d.ts via `npm --prefix gallery run docs:markdown`),
   docs/decisions/ (ADRs — the durable why behind cross-cutting
   invariants). openspec/specs/ pin required behavior; docs hold
   invariants and rationale; AGENTS.md points rather than restates.
@@ -38,16 +39,17 @@ context: |
 rules:
   proposal:
     - Name the milestone (F1–F8) this change implements
-    - Name the affected docs (js-api.md, decisions) and state explicitly whether
-      an ADR is needed ("No ADR — reason" vs "new ADR docs/decisions/NNNN")
+    - Name the affected docs (js-api.md guidelines, docs/api reference,
+      decisions) and state explicitly whether an ADR is needed ("No ADR —
+      reason" vs "new ADR docs/decisions/NNNN")
     - State explicitly what is out of scope (Non-goals)
   tasks:
     - When the change settles a durable architecture decision, include an
       explicit task to write the ADR (docs/decisions/NNNN per TEMPLATE.md) and
       add it to the docs/decisions/README.md index
     - Include a docs update task whenever invariants, the script-facing API
-      (docs/js-api.md), or the roadmap/current-state sections of AGENTS.md
-      change
+      (docs/js-api.md and the generated docs/api reference), or the
+      roadmap/current-state sections of AGENTS.md change
     - Include a verification task naming the harness (ctest smoke suite;
       golden-image harness once F2 lands it) per the milestone's verification
       gate

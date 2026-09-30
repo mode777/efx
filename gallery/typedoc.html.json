@@ -1,0 +1,9 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "extends": ["./typedoc.json"],
+  "out": "dist/api",
+  "customCss": "./typedoc-ps2.css",
+  "navigationLinks": {
+    "Gallery": ".."
+  }
+}

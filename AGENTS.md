@@ -285,8 +285,8 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `onConnect`/`onDisconnect` returning unsubscribe functions; the pad view's
   `connected`/`name`/`mapped`, `isDown`/`isPressed`/`isReleased`, `axis`, and
   the `rawButton`/`rawAxis` fallback; no resource type) —
-  cataloged in `docs/js-api.md` (F1/F2/F3/F4/F6/F7/F8/F9/F10/F11/F12/F13
-  entries are current behavior;
+  documented in the generated reference `docs/api/` (with the script-facing
+  API design guidelines in `docs/js-api.md`;
   materials bind per surface — ADR 0024 — there is no global setMaterial).
   The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
   batch and shorthand forms as an exclusive union (the batch form does not
@@ -452,19 +452,28 @@ settled — see `docs/decisions/`.
   resources are exposed as GC-finalized opaque classes with explicit
   `destroy()` (textures, meshes, … — ADR 0011, discipline ADR 0012) or as
   fixed pre-allocated banks (lights), to avoid leaks in a GC'd language.
-- Script-facing API changes require a `js-api` spec delta and a matching
-  `docs/js-api.md` update in the same change (see `docs/js-api.md`), plus a
-  matching update to the type document `gallery/src/api/efx.d.ts`.
+- Script-facing API changes require a `js-api` spec delta, a matching update
+  to the type document `gallery/src/api/efx.d.ts`, and regenerating the
+  committed reference `docs/api/` from it (`npm --prefix gallery run
+  docs:markdown`); `docs/js-api.md` holds the API design guidelines and is
+  updated when a design rule changes.
 
 ## Documentation
 
 - `vision.md` — product goals; the source of truth for intent.
-- `docs/js-api.md` — the script-facing API catalog; updated in the same
-  change as any API delta.
+- `docs/js-api.md` — the script-facing API **design guidelines** (conventions,
+  layering, resource model, limits, and the process for adding API); the
+  per-symbol reference is generated, not hand-written here.
+- `docs/api/` — the committed Markdown rendering of the per-symbol API
+  reference, generated from `gallery/src/api/efx.d.ts` by
+  `npm --prefix gallery run docs:markdown` (never hand-edited; `docs:check`
+  fails on drift). The same source is built to HTML and published at `/api`
+  on the gallery site.
 - `gallery/src/api/efx.d.ts` — the living TypeScript declaration of the
-  public `efx` API, loaded into the gallery editor; it grows with the API
-  and is updated in the same change as any API delta (like
-  `docs/js-api.md`).
+  public `efx` API, loaded into the gallery editor and the single source of
+  truth for the generated reference `docs/api/`; it grows with the API and is
+  updated in the same change as any API delta, then `docs/api/` is
+  regenerated from it.
 - `docs/decisions/` — architecture decision records (ADRs): the durable
   *why* behind cross-cutting invariants (language, runtime, module
   walls, binding pattern, vendoring, run modes, CI).

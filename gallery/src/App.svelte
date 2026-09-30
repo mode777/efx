@@ -50,7 +50,7 @@
         <span class="title">{selected?.title ?? 'No sample'}</span>
         {#if selected}<span class="badge">{selected.category}</span>{/if}
         <span class="spacer"></span>
-        <span class="hint">F5 · render targets + post FX</span>
+        <a class="hint link" href="./api/">API Reference</a>
       </header>
       <div class="screen">
         {#if selectedId}
@@ -150,6 +150,15 @@
     color: var(--efx-text-dim);
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .hint.link {
+    color: var(--efx-accent);
+    text-decoration: none;
+  }
+
+  .hint.link:hover {
+    text-decoration: underline;
   }
 
   .screen {

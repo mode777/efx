@@ -1,0 +1,62 @@
+/*
+ * PlayStation-2-era palette for the generated API reference.
+ *
+ * TypeDoc's default theme maps light/dark `--*-color-*` variables onto generic
+ * `--color-*` variables inside `@layer typedoc`. Unlayered rules win over
+ * layered ones, so overriding the generic variables here applies the palette
+ * regardless of the visitor's light/dark preference.
+ */
+:root {
+  --color-scheme: dark;
+
+  --color-background: #05070e;
+  --color-background-secondary: #0a1224;
+  --color-background-active: #122a4d;
+  --color-background-warning: #2a2410;
+  --color-warning-text: #f2d98a;
+
+  --color-accent: #2b6fd6;
+  --color-active-menu-item: #122a4d;
+  --color-text: #c9dcf2;
+  --color-contrast-text: #ffffff;
+  --color-text-aside: #8aa3c4;
+
+  --color-icon-background: #0a1224;
+  --color-icon-text: #8fd0ff;
+
+  --color-comment-tag-text: #c9dcf2;
+  --color-comment-tag: #0a1224;
+
+  --color-link: #4fa3ff;
+  --color-focus-outline: #4fa3ff;
+
+  --color-ts-keyword: #4fa3ff;
+  --color-ts-project: #7fb0ff;
+  --color-ts-module: #7fb0ff;
+  --color-ts-namespace: #7fb0ff;
+  --color-ts-enum: #f2d98a;
+  --color-ts-enum-member: #f2d98a;
+  --color-ts-variable: #8fd0ff;
+  --color-ts-function: #6fe0ff;
+  --color-ts-class: #8fd0ff;
+  --color-ts-interface: #5fd0ff;
+  --color-ts-constructor: #8fd0ff;
+  --color-ts-property: #9fc8ff;
+  --color-ts-method: #6fe0ff;
+  --color-ts-reference: #7fb0ff;
+  --color-ts-call-signature: #6fe0ff;
+  --color-ts-index-signature: #9fc8ff;
+  --color-ts-constructor-signature: #8fd0ff;
+  --color-ts-parameter: #8fd0ff;
+  --color-ts-type-parameter: #f2b46a;
+  --color-ts-accessor: #ff7a7a;
+  --color-ts-get-signature: #ff7a7a;
+  --color-ts-set-signature: #ff7a7a;
+  --color-ts-type-alias: #7fd0ff;
+  --color-document: #eaf3ff;
+}
+
+/* A faint PS2 boot-screen glow behind the toolbar title. */
+.tsd-page-toolbar .title {
+  text-shadow: 0 0 8px rgba(79, 163, 255, 0.55);
+}

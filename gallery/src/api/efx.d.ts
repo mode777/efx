@@ -2,7 +2,8 @@
 //
 // This is a LIVING DOCUMENT: it describes the current public `efx` surface
 // and grows with it. Update this file in the same change as any script-facing
-// API change, alongside docs/js-api.md (see AGENTS.md).
+// API change, then regenerate the committed reference docs/api/ from it
+// (see AGENTS.md).
 //
 // It covers the whole current surface: environment and lifecycle hooks, 2D
 // drawing, the 3D core and procedural primitives, lights and Phong materials,
@@ -66,7 +67,7 @@ type Quat = [number, number, number, number];
 // Input: keyboard, mouse & window
 // ---------------------------------------------------------------------------
 
-/** The engine-owned lowercase keyboard identifier set (see `docs/js-api.md`). */
+/** The engine-owned lowercase keyboard identifier set. */
 type EfxKey =
   | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l'
   | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x'
