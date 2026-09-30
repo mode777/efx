@@ -1186,11 +1186,11 @@ efx.drawParticles(sys)
   call time. `opts`:
   - `texture` (required) — a live Texture or RenderTarget.
   - `size` — a world-unit number or `[w, h]` (default `1`, `[1, 1]`).
-  - `facing` — `'view'` (default, full camera-facing) or `'y'` (up pinned to
-    world `+Y`, yaw toward the camera).
+  - `facing` — `'view'` (default, full camera-facing), `'y'` (up pinned to
+    world `+Y`, yaw toward the camera), or `'plane'` (fixed oriented plane).
   - `rotation` — in-plane degrees (default `0`); `color` — `[r,g,b,a]` tint
     (default opaque white); `sourceRect` — atlas region; `normal` — orientation
-    for `'plane'`; `depthTest` — boolean (default `true`).
+    for `'plane'` (default `[0, 1, 0]`); `depthTest` — boolean (default `true`).
   - Billboards are depth-tested against opaque 3D geometry and **do not write
     depth**, so meshes occlude them but they do not occlude one another.
 - **`drawSprites(texture, sprites)`** records one 2D quad per entry, each

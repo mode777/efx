@@ -125,6 +125,11 @@ efx.drawBillboard([0, 1, 0], {
   color: [1, 1, 1, 1],
   depthTest: true,
 });
+efx.drawBillboard([0, 1, 0], {
+  texture: f11tex,
+  facing: 'plane',
+  normal: [0, 1, 0],
+});
 efx.drawSprites(f11tex, [{ x: 0, y: 0, size: [4, 4] }, { x: 8, y: 0, rotation: 45 }]);
 const ps: EfxParticleSystem = efx.createParticleSystem({
   texture: f11tex,
@@ -168,3 +173,10 @@ const dir: string = __dirname;
 require(42);
 // @ts-expect-error — the module facilities are not part of the efx namespace
 efx.require('./lib/math.js');
+
+// Numeric tuples are fixed-length: colors are exactly RGBA and transforms are
+// exactly 16 numbers, so arity mistakes are caught at compile time.
+// @ts-expect-error — a color is exactly four components
+efx.setClearColor([0, 0, 0]);
+// @ts-expect-error — a transform is a fixed-length 16-number matrix
+efx.drawMesh(cube, { transform: [1, 0, 0] });
