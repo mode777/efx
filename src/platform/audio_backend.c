@@ -84,7 +84,8 @@ void efx_audio_backend_frame(void) {
     }
 }
 
-void efx_audio_backend_resume(void) {
+void efx_audio_backend_resume(void *ud) {
+    (void)ud;
 #if defined(__EMSCRIPTEN__)
     EM_ASM({
         try {
