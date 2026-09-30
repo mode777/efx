@@ -70,7 +70,7 @@
   (`cmake -B build-h -DEFX_HEADLESS=ON && ctest --test-dir build-h`) and the
   generated-file checks (`python tools/gen_prelude.py --check`,
   `npm --prefix gallery run docs:check`); verify all green
-- [ ] 5.3 Run `python3 tools/verify_remote.py all <branch>` on the verification
+- [x] 5.3 Run `python3 tools/verify_remote.py all <branch>` on the verification
   server (native ctest incl. goldens, Emscripten ctest, web goldens,
   `run_web_compare.mjs` incl. `error_catalog`); verify green before dispatching
   CI
