@@ -73,7 +73,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   script-level harness on all four targets (change `f9-input`, ADR 0036).
   Its four-target gate is **green** (ci run 36448429521: native suites incl.
   all goldens + the new input cases on Linux/Windows/macOS, Emscripten ctest
-  incl. `web_9_input` + web goldens + cross-runtime compare `9_input`).
+  incl. `web_9_input` + web goldens + cross-runtime compare `9_input`). A
+  follow-up fix makes keyboard input work in an iframe embed: the web
+  platform layer bubbles mouse events so a click can focus the player's
+  document (Sokol's key listeners live on the embedding window), with the
+  gallery smoke asserting click-to-focus-to-key delivery (change
+  `web-keyboard-focus`, ADR 0043).
 - F10 (script modules — CommonJS) is **implemented** as the second orthogonal
   milestone (predecessors: the F1–F2 dual script bindings and the F6a dir/zip
   resource provider) — one shared pure-JS `require` runtime in
