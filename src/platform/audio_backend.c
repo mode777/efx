@@ -17,6 +17,7 @@
 
 #include "platform/audio_backend.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "audio/audio.h"
@@ -24,6 +25,22 @@
 #if defined(__EMSCRIPTEN__)
 #include <emscripten/emscripten.h>
 #endif
+
+/* sokol_audio aborts on a PANIC-level log when no logger is set, so a missing
+ * device would kill the player instead of soft-failing. Install a logger that
+ * forwards panics/errors/warnings to stderr and continues. */
+static void efx_audio_log(const char *tag, uint32_t level, uint32_t item_id,
+                          const char *message, uint32_t line_nr,
+                          const char *filename, void *ud) {
+    (void)item_id;
+    (void)ud;
+    if (level <= 2) {
+        fprintf(stderr, "sokol[%s] %s:%u: %s\n", tag,
+                filename ? filename : "?", line_nr,
+                message ? message : "<no message>");
+        fflush(stderr);
+    }
+}
 
 /* device push block; sokol_audio's own queue is ~buffer_frames */
 #define EFX_AUDIO_BACKEND_MIX_FRAMES 4096
@@ -47,6 +64,7 @@ void efx_audio_backend_init(void) {
         .sample_rate = 0,       /* backend default */
         .num_channels = 2,
         .buffer_frames = 4096,  /* ~93ms of slack against frame hitches */
+        .logger = {.func = efx_audio_log},
     });
     int rate = EFX_AUDIO_DEFAULT_RATE;
     if (saudio_isvalid() && saudio_sample_rate() > 0) {
