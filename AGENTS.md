@@ -139,7 +139,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   — a bespoke, dependency-free C11 core (`src/physics/`: its own
   `vec3`/`quat`/`mat3`, no GLM, no renderer/platform/script deps) owns one
   world of colliders (`efx.physics.clear`), stepped by the script
-  (`efx.physics.step(dt)`; the engine never steps). Shapes are plain option
+  (`efx.physics.step(dt)`; the engine never steps — a `dt` larger than 1/60 s
+  is internally sub-divided into bounded substeps so a low frame rate cannot
+  skip thin static geometry). Shapes are plain option
   bags (sphere, box, vertical capsule, static triangle mesh). Dynamic bodies
   are linear-only (no rotation) with `mass`/`velocity`/`friction`/
   `restitution`, `applyImpulse`/`applyForce`, per-body `layer`/`mask`, sensors
@@ -157,7 +159,12 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   the headless `efx_physics_tests` suite (narrowphase, invariants, scenarios,
   determinism, stress), the portable `smoke_12_physics`/`web_12_physics` script
   case through both runtimes, and the cross-runtime compare — no golden image
-  (change `f12-collision-physics`, ADR 0040, recorded in AGENTS.md).
+  (change `f12-collision-physics`, ADR 0040, recorded in AGENTS.md). The
+  frame-rate tunneling hardening landed as change `physics-tunneling`
+  (`step(dt)` sub-divides into <= 1/60 s substeps; ADR 0045); its four-target
+  gate is **green** (ci run 36721212393: native suites incl. the new
+  thin-floor/large-`dt` cases on Linux/Windows/macOS, Emscripten ctest incl.
+  `web_12_physics` + web goldens + cross-runtime compare `12_physics`).
 - F13 (gamepad input) is **implemented** as an orthogonal milestone
   (predecessor F9; independent of F3–F8 and F10–F12) — a pinned vendored
   minigamepad poll backend confined to `efx_platform`
@@ -461,7 +468,7 @@ independently of the remaining F3–F8 milestones.
 | F9 | Input (keyboard + mouse) | **Orthogonal** (predecessor F2; independent of F3–F8): pure-C frame-staged input core, `efx.keyboard`/`efx.mouse`/`efx.window` query + event API, surface-pixel coordinates, test-only injection seam | Non-visual: headless unit tests over the C core + a script-level simulation harness, all four targets (no golden image) | implemented — change `f9-input`, ADR 0036; four-target gate green (run 36448429521) |
 | F10 | Script modules (CommonJS) | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F9): synchronous provider-backed `require` in the shared pure-JS prelude, restricted resolver, module caching/cycles, `__esModule` interop, JSON modules, `main.js` as a module, TypeScript `import`→CommonJS authoring | Script-level module tests on all four targets (ctest + Emscripten ctest + cross-runtime compare; no golden image) | implemented — change `f10-commonjs-modules`, ADR 0037; four-target gate green (run 36463101573) |
 | F11 | Particles + billboards | **Orthogonal** (predecessors F2 + F3, F6a for file textures; independent of F4/F5/F7/F8): CPU-simulated engine-owned particle systems (`createParticleSystem`/`emit`/`drawParticles`, 3D world or 2D screen, `facing` `view`/`y`/`plane`), world-space `drawBillboard`, batched 2D `drawSprites`, a depth-test/no-write billboard pipeline, and curated gallery showcases | Golden image + headless simulation/billboard unit tests + portable script case + curated showcases, all four targets | implemented — change `f11-particles-billboards`, ADR 0039; four-target gate green (run 36563480277) |
-| F12 | Collision + character + impulse dynamics | **Orthogonal** (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8): a bespoke dependency-free C11 core (`src/physics/`) — sphere/box/capsule/triangle-mesh colliders, one script-stepped world, linear-only sequential-impulse dynamics, sensors, `Body`/`Character` native-backed classes, the `moveAndSlide` capsule controller, and the `raycast`/`overlap`/`shapeCast` queries — plus a curated gallery showcase | Headless `efx_physics_tests` (narrowphase, invariants, scenarios, determinism, stress) + portable script case through both runtimes + cross-runtime compare (no golden image) | implemented — change `f12-collision-physics`, ADR 0040 |
+| F12 | Collision + character + impulse dynamics | **Orthogonal** (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8): a bespoke dependency-free C11 core (`src/physics/`) — sphere/box/capsule/triangle-mesh colliders, one script-stepped world, linear-only sequential-impulse dynamics, sensors, `Body`/`Character` native-backed classes, the `moveAndSlide` capsule controller, and the `raycast`/`overlap`/`shapeCast` queries — plus a curated gallery showcase | Headless `efx_physics_tests` (narrowphase, invariants, scenarios, determinism, stress) + portable script case through both runtimes + cross-runtime compare (no golden image) | implemented — change `f12-collision-physics`, ADR 0040; `step(dt)` sub-stepping hardening in `physics-tunneling`, ADR 0045 |
 | F13 | Gamepad input | **Orthogonal** (predecessor F9; independent of F3–F8 and F10–F12): a vendored pinned minigamepad poll backend confined to the platform layer, a pure-C fixed pad bank (`src/input/efx_gamepad.c`) with frame-begin polling and F9-style one-frame edges, a portable SDL-mapping evaluator (GUID selection, half-axis/inversion/hat handling), canonical ranges + trigger threshold, a raw fallback for unmapped pads, and the `efx.gamepad` namespace (no new resource type) | Headless `efx_input_tests` gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator with synthetic descriptors, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `gamepad-input`, ADR 0041; four-target gate green (run 36597602782) |
 | F14 | Audio playback | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F13): a vendored `sokol_audio` (push mode) + `dr_libs` decoder stack confined to the platform layer, a dependency-free pure-C mixer in `src/audio/` (one streamed background-music source with a ~1 s ring, a fixed 32-voice SFX bank with a deterministic steal policy, WAV/MP3, linear-interpolation resampling/pitch, decoded-PCM only), and the `efx.audio` namespace with native-backed `SoundData`/`Sound`/`Music` (no-device soft-fail, web autoplay unlock) | Headless `efx_audio_tests` over the pure-C core (embedded WAV/MP3 fixtures) + `efx_api_tests audio_js`, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `f14-audio`, ADR 0042; four-target gate green (run 36698288071) |
 

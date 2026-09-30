@@ -522,19 +522,38 @@ void efx_physics_step(efx_physics_world *w, float dt) {
     if (!w || !isfinite(dt) || dt <= 0) return;
     if (dt > EFX_PHYS_MAX_DT) dt = EFX_PHYS_MAX_DT;
 
+    /* Frame-rate robustness (design physics-tunneling D1/D3): never advance a
+     * body by more than a bounded translation per collision sample, so a large
+     * frame dt cannot skip a thin static collider. Equal substeps derived only
+     * from dt keep a call sequence deterministic; a dt at or below the bound is
+     * a single substep and reproduces the un-subdivided arithmetic exactly. */
+    int substeps = (int)ceilf(dt / EFX_PHYS_MAX_SUBSTEP);
+    if (substeps < 1) substeps = 1;
+    const float h = dt / (float)substeps;
+
+    for (int s = 0; s < substeps; s++) {
+        for (int i = 0; i < w->body_count; i++) {
+            efx_pbody *b = &w->bodies[i];
+            if (!b->alive || b->kind != EFX_PBODY_DYNAMIC) continue;
+            b->velocity = efx_v3_add(b->velocity, efx_v3_scale(w->gravity, h));
+            b->velocity = efx_v3_add(
+                b->velocity, efx_v3_scale(b->force, b->inv_mass * h));
+            b->position = efx_v3_add(b->position, efx_v3_scale(b->velocity, h));
+            update_body_aabb(w, b);
+        }
+
+        efx_world_generate_contacts(w);
+        efx_solver_solve(w, h);
+    }
+
+    /* the accumulated force acted over the whole step; consume it exactly once
+     * (clearing per substep would silently scale it by 1/substeps) */
     for (int i = 0; i < w->body_count; i++) {
         efx_pbody *b = &w->bodies[i];
         if (!b->alive || b->kind != EFX_PBODY_DYNAMIC) continue;
-        b->velocity = efx_v3_add(b->velocity, efx_v3_scale(w->gravity, dt));
-        b->velocity = efx_v3_add(
-            b->velocity, efx_v3_scale(b->force, b->inv_mass * dt));
         b->force = efx_v3(0, 0, 0);
-        b->position = efx_v3_add(b->position, efx_v3_scale(b->velocity, dt));
-        update_body_aabb(w, b);
     }
 
-    efx_world_generate_contacts(w);
-    efx_solver_solve(w, dt);
     efx_world_report_contacts(w);
 }
 
