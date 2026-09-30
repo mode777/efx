@@ -2,8 +2,9 @@
 
 ## Purpose
 The engine's audio layer: a vendored cross-target playback stack and a
-dependency-free pure-C mixer that streams one background-music source and
-mixes a fixed bank of overlapping sound effects, so scripts can play audio
+dependency-free pure-C core that plays static (fully-decoded) and streamed
+audio sources through one fixed bank of overlapping playback voices with a
+single master output gain, so scripts can load, play, and control audio
 without ever touching channels, buses, or buffers.
 
 ## Requirements
