@@ -107,12 +107,35 @@ and capsules remain vertical. A non-positive `mass` on a dynamic body SHALL
 throw `RangeError`. Nothing SHALL move until `step` is called (the engine SHALL
 NOT advance the world itself).
 
+To keep the simulation frame-rate robust, `step(dt)` SHALL NOT advance a
+dynamic body by more than a bounded maximum translation in a single collision
+sample: a `dt` larger than a fixed maximum substep SHALL be simulated as a
+sequence of equal substeps no larger than that bound, each running the full
+integrate/detect/resolve cycle. A `dt` at or below the bound SHALL be simulated
+as a single substep, so the default recommended cadence is unchanged. The
+per-body `contacts` list after `step` SHALL describe the final substep, and an
+accumulated `applyForce` SHALL act over the whole `step` and be cleared exactly
+once per `step`.
+
 #### Scenario: Gravity makes a body fall and rest
 
 - **WHEN** a dynamic sphere is created above a static plane and `step` is
   called repeatedly
 - **THEN** it falls and comes to rest with its surface on the plane, without
   sinking through it or jittering beyond tolerance
+
+#### Scenario: Thin static geometry is not skipped at a large step
+
+- **WHEN** a dynamic body is dropped onto a zero-thickness static mesh plane
+  and `step` is called with the maximum accepted `dt`
+- **THEN** the body settles on the plane instead of passing through it
+
+#### Scenario: A force acts across the whole step
+
+- **WHEN** `applyForce` accumulates a force and a `step` with a `dt` larger
+  than the maximum substep is taken
+- **THEN** the resulting velocity change reflects the force acting over the
+  entire `dt`, and the force is consumed exactly once
 
 #### Scenario: Impulse changes velocity
 
