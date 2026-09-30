@@ -75,7 +75,7 @@ RenderTarget's `width` and `height` delivered by F5a, Font's `size`,
 (a fixed pre-allocated bank of indexed resources).
 The native-backed classes SHALL be exactly: MeshData, ImageData, Mesh,
 Texture, RenderTarget, FontData, Font, ParticleSystem, Body, Character,
-SoundData, Sound, and Music;
+AudioData, AudioStream, and Audio;
 skins, skeletons,
 and animation
 clips are
@@ -99,13 +99,13 @@ snapshotted at `setPostEffects` call time, holding no native handle and no
 `destroy()`. A `ParticleSystem` SHALL be a native-backed class (F11) whose
 configuration is plain value state snapshotted by the engine; it SHALL retain
 the `Texture` or `RenderTarget` it draws with until the system is destroyed.
-The audio classes SHALL be native-backed (F14): `SoundData` holds decoded PCM
-and exposes no query properties, `Sound` is one playing sound-effect voice with
-a read-only `playing` and read-write `volume`, `pan`, and `pitch`, and `Music`
-is the streaming background source with a read-only `playing`, `pause()`,
-`resume()`, and `setVolume()`. The engine's fixed sound-effect voice pool is
-engine-owned and SHALL NOT be a script-visible slot bank; scripts hold
-per-voice handles, not indices.
+The audio classes SHALL be native-backed (F14): `AudioData` holds fully-decoded
+PCM and exposes no query properties; `AudioStream` holds a compressed resource
+plus an incremental decoder and exposes no query properties; `Audio` is one
+playback handle with a read-only `playing` and `paused` and read-write
+`volume`, `pan`, `pitch`, and `loop`, plus `stop`, `pause`, `resume`, and
+`destroy()`. The engine's fixed playback bank is engine-owned and SHALL NOT be
+a script-visible slot bank; scripts hold per-playback handles, not indices.
 Every resource requiring
 native storage MUST be a
 native-backed class — released deterministically by its `destroy()`,
@@ -119,14 +119,14 @@ display list MUST stay alive until playback completes, and a `Texture` or
 binding is released. The reference SHALL
 document the engine's fixed limits: 4 point lights, 1 directional light,
 1 camera, 16 surfaces per mesh (F3), a post-effect chain of at most
-8 entries (F5b), at most 65536 particles per particle system (F11), one
-streamed background-music source and 32 sound-effect voices (F14);
+8 entries (F5b), at most 65536 particles per particle system (F11), a cap of
+4 concurrent streamed sources and 32 playback voices (F14);
 lights are the only slot bank.
 
 #### Scenario: Fixed limits stated
 
 - **WHEN** the reference document's limits section is read
-- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, the 8-entry post-effect chain cap, the 65536-particle system cap, one background-music stream, and 32 sound-effect voices, matching vision.md and the 3d-core, post-fx, particles, and audio capabilities
+- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, the 8-entry post-effect chain cap, the 65536-particle system cap, the concurrent streamed-source cap, and 32 playback voices, matching vision.md and the 3d-core, post-fx, particles, and audio capabilities
 
 #### Scenario: Unreleased native resource is reclaimed
 
@@ -141,7 +141,7 @@ lights are the only slot bank.
 #### Scenario: Query properties are documented per class
 
 - **WHEN** the reference document's native-backed class entries are read
-- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the ParticleSystem entry lists the read-only `count`, the Body entry lists `position`, `velocity`, `contacts`, and `transform`, the Character entry lists `position`, `velocity`, and `onFloor`, the Sound and Music entries list the read-only `playing` (with `Sound` also documenting read-write `volume`, `pan`, and `pitch`, and `Music` documenting `setVolume`), the SoundData and FontData entries list none, and every other entry states that it has none
+- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the ParticleSystem entry lists the read-only `count`, the Body entry lists `position`, `velocity`, `contacts`, and `transform`, the Character entry lists `position`, `velocity`, and `onFloor`, the Audio entry lists the read-only `playing` and `paused` and the read-write `volume`, `pan`, `pitch`, and `loop`, the AudioData, AudioStream, and FontData entries list none, and every other entry states that it has none
 
 #### Scenario: Render targets are accepted wherever textures are
 
@@ -171,7 +171,7 @@ lights are the only slot bank.
 #### Scenario: Audio classes are classified native-backed
 
 - **WHEN** the reference document's audio entries are read
-- **THEN** `SoundData`, `Sound`, and `Music` are stated to be native-backed classes with an idempotent `destroy()` and a GC-finalizer backstop, the fixed voice pool is stated to be engine-owned (not a script slot bank), and the fixed-limits table lists one music stream and 32 sound-effect voices
+- **THEN** `AudioData`, `AudioStream`, and `Audio` are stated to be native-backed classes with an idempotent `destroy()` and a GC-finalizer backstop, the fixed playback bank is stated to be engine-owned (not a script slot bank), and the fixed-limits table lists the concurrent streamed-source cap and 32 playback voices
 
 #### Scenario: Resource without a classification
 
@@ -256,24 +256,28 @@ the gamepad namespace (F13): the pad bank and `count`/`get`, the pad view and
 its query methods and read-only properties, the semantic button/axis name
 sets, the canonical axis range and trigger threshold, the raw fallback, and
 the error behavior. It SHALL document the audio namespace (F14): the
-`efx.audio` entry points, the `SoundData`/`Sound`/`Music` classes and their
-properties, the decoded-PCM-only rule (no sequenced/modular formats), the
-no-device and web-unlock behavior, and the fixed limits. Any change that
+`efx.audio` entry points, the `AudioData`/`AudioStream`/`Audio` classes and
+their properties, the static-versus-streamed source model, the decoded-PCM-only
+rule (no sequenced/modular formats), the no-device and web-unlock behavior, and
+the fixed limits. Any change that
 adds, modifies, or removes a public API function
 MUST update the document in the same change.
 
 #### Scenario: Callable-today vs planned is distinguishable
+
 - **WHEN** a reader opens the reference
 - **THEN** the F1 functions (`efx.log`, `efx.quit`, `efx.args`,
   `efx.registerUpdateHook`, `efx.registerRenderHook`) are presented as current
   behavior, and later-milestone entries are marked provisional
 
 #### Scenario: Milestone change updates the reference
+
 - **WHEN** a feature change adds or changes an API function
 - **THEN** the same change contains the matching `docs/js-api.md` update with
   the function's signature, layer, and milestone tags
 
 #### Scenario: Input namespaces are documented
+
 - **WHEN** the reference is read after this change
 - **THEN** it catalogs `efx.keyboard`, `efx.mouse`, and `efx.window` with
   their query functions, event registrations, read-only properties, the
@@ -281,6 +285,7 @@ MUST update the document in the same change.
   tag
 
 #### Scenario: Module model is documented
+
 - **WHEN** the reference is read after this change
 - **THEN** it documents the CommonJS module format, the synchronous resolver
   and its supported/unsupported specifier forms, module caching and cycles,
@@ -288,6 +293,7 @@ MUST update the document in the same change.
   states that Node/npm compatibility is not provided
 
 #### Scenario: Particle, billboard, and sprite API is documented
+
 - **WHEN** the reference is read after this change
 - **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
   and `drawParticles` with their options, error behavior, the `ParticleSystem`
@@ -295,6 +301,7 @@ MUST update the document in the same change.
   tag
 
 #### Scenario: Gamepad namespace is documented
+
 - **WHEN** the reference is read after this change
 - **THEN** it catalogs `efx.gamepad` with its `count`/`get`, the pad view's
   query methods and read-only properties, the semantic button/axis name sets,
@@ -302,14 +309,16 @@ MUST update the document in the same change.
   milestone tag
 
 #### Scenario: Audio namespace is documented
+
 - **WHEN** the reference is read after this change
-- **THEN** it catalogs `efx.audio` with `playBackgroundMusic`, `stopBackgroundMusic`,
-  `resume`, `loadSoundData`, `playSound`, and `playAudioEffect`, the
-  `SoundData`/`Sound`/`Music` classes and their properties, the decoded-PCM-only
-  rule, the no-device and web-unlock behavior, the fixed limits, and the F14
-  milestone tag
+- **THEN** it catalogs `efx.audio` with `loadAudioData`, `loadAudioStream`,
+  `playAudio`, the master output gain, and `resume`, the
+  `AudioData`/`AudioStream`/`Audio` classes and their properties, the
+  static-versus-streamed source model, the decoded-PCM-only rule, the no-device
+  and web-unlock behavior, the fixed limits, and the F14 milestone tag
 
 #### Scenario: Catalog derived from vision
+
 - **WHEN** the document's function catalog is checked against vision.md
 - **THEN** every capability vision.md names for the consumer API (2D quads,
   meshes, vertex colors, cameras, lights, Phong materials with maps, alpha
@@ -781,55 +790,65 @@ updated in the same change.
 ### Requirement: Audio namespace API
 
 The script API SHALL expose audio playback as the sub-namespace `efx.audio` of
-the single `efx` object, with no new free globals. The author-facing entry
-points SHALL let a script start streamed background music and start a sound
-effect by resource path, with no channel, bus, buffer, or voice-allocation
-argument, and SHALL be implemented in pure JS on top of the C mid-level API
-where practical. Every entry SHALL have identical names, signatures,
-semantics, and error behavior across the desktop and web bindings.
+the single `efx` object, with no new free globals. Loading SHALL be separate
+from playback (load first, then play). The author-facing entry points SHALL let
+a script load a static or streamed source, start it through one playback verb,
+and control the running playback through a handle — with no channel, bus,
+buffer, or voice-allocation argument. Every entry SHALL have identical names,
+signatures, semantics, and error behavior across the desktop and web bindings.
 
 `efx.audio` SHALL provide:
-- `playBackgroundMusic(path, opts?)` — start streamed background music and
-  return a `Music` handle; `opts` MAY include `volume`, `loop`, and `fadeIn`.
-- `stopBackgroundMusic(opts?)` — stop the active background music; `opts` MAY
-  include `fadeOut`.
+- `loadAudioData(path)` — decode a WAV or MP3 resource into a fully-decoded
+  `AudioData`.
+- `loadAudioStream(path)` — open a WAV or MP3 resource as a streamed
+  `AudioStream` that decodes incrementally.
+- `playAudio(source, opts?)` — start an `AudioData` or `AudioStream` and
+  return an `Audio` handle; `opts` MAY include `volume`, `pan`, `pitch`, and
+  `loop` as initial values only.
+- `volume` — a read-write master output gain scaling all playback.
 - `resume()` — unlock/resume audio after a user gesture on web; a no-op on
   desktop.
-- `loadSoundData(path)` — decode a WAV or MP3 resource into a `SoundData`.
-- `playSound(soundData, opts?)` — start a decoded sound and return a `Sound`
-  handle; `opts` MAY include `volume`, `pan`, `pitch`, and `loop`.
-- `playAudioEffect(path, opts?)` — convenience that loads (with path caching)
-  and starts a sound effect, returning a `Sound` handle.
 
-A `SoundData` SHALL be a native-backed class holding decoded PCM with an
-explicit `destroy()` and a GC-finalizer backstop, and no query properties. A
-`Sound` SHALL be a native-backed handle for one playing sound-effect voice with
-`destroy()`/`stop()`, a read-only `playing`, and read-write `volume`, `pan`,
-and `pitch`. A `Music` SHALL be a native-backed handle for the streaming
-background source with `destroy()`/`stop()`, `pause()`, `resume()`,
-`setVolume(v)`, and a read-only `playing`. `Sound` and `Music` SHALL be
-accepted only from the calls that create them; passing a destroyed handle SHALL
-throw. A load of a malformed or unsupported resource SHALL throw `Error`; a
-bad argument type SHALL throw `TypeError`. The namespace SHALL be documented in
-`docs/js-api.md` and typed in the gallery type document, both updated in the
-same change.
+An `AudioData` SHALL be a native-backed class holding decoded PCM with an
+explicit `destroy()` and a GC-finalizer backstop, and no query properties. An
+`AudioStream` SHALL be a native-backed class holding a compressed resource and
+an incremental decoder with an explicit `destroy()` and no query properties;
+starting it SHALL create a playhead independent of other playheads of the same
+stream. An `Audio` SHALL be a native-backed playback handle with a read-only
+`playing` and `paused`, read-write `volume`, `pan`, `pitch`, and `loop`, and
+`stop()`, `pause()`, `resume()`, and `destroy()`. `playAudio` SHALL accept only
+an `AudioData` or `AudioStream`; passing anything else SHALL throw `TypeError`.
+A load of a malformed or unsupported resource SHALL throw `Error`; a bad
+argument type SHALL throw `TypeError`; a negative `volume` or master gain SHALL
+throw `RangeError`. The namespace SHALL be documented in `docs/js-api.md` and
+typed in the gallery type document, both updated in the same change.
 
 #### Scenario: Author plays music and effects
 
-- **WHEN** a script calls `efx.audio.playBackgroundMusic('theme.mp3', { loop: true })` and `efx.audio.playAudioEffect('hit.wav')`
-- **THEN** the music streams and the effect plays, with no channel or voice argument from the script
+- **WHEN** a script calls `efx.audio.playAudio(efx.audio.loadAudioData('hit.wav'))` and `efx.audio.playAudio(efx.audio.loadAudioStream('theme.mp3'), { loop: true })`
+- **THEN** the static sound and the streamed track play together, with no channel, bus, or voice argument from the script
 
 #### Scenario: Handles control playback
 
-- **WHEN** a script calls `stop()` on a `Sound` handle, or `pause()`/`resume()`/`setVolume()` on a `Music` handle
-- **THEN** the corresponding playback changes and each handle's read-only `playing` reflects reality
+- **WHEN** a script changes `volume`, `pitch`, `pan`, or `loop` on an `Audio` handle, or calls `pause()`/`resume()`/`stop()`
+- **THEN** the change takes effect on that playback and the handle's read-only `playing`/`paused` reflect reality
+
+#### Scenario: Same static source plays overlapping handles
+
+- **WHEN** a script calls `playAudio` twice with the same `AudioData`
+- **THEN** two independent `Audio` handles play simultaneously
+
+#### Scenario: Master gain controls all playback
+
+- **WHEN** a script sets `efx.audio.volume`
+- **THEN** all playing sources scale to that gain
 
 #### Scenario: Bad arguments are rejected
 
-- **WHEN** a script passes a non-string path, or a non-function/non-number option of the wrong type
-- **THEN** the call throws `TypeError`, and loading a malformed resource throws `Error`
+- **WHEN** a script passes a non-string path, a non-source to `playAudio`, or an invalid option type
+- **THEN** the call throws `TypeError`, loading a malformed resource throws `Error`, and a negative volume or master gain throws `RangeError`
 
 #### Scenario: Audio resource classes are native-backed
 
 - **WHEN** the API reference's resource classes are read after this change
-- **THEN** `SoundData`, `Sound`, and `Music` are listed as native-backed classes with `destroy()`, and their documented read-only and read-write properties match the implementation
+- **THEN** `AudioData`, `AudioStream`, and `Audio` are listed as native-backed classes with `destroy()`, and their documented read-only and read-write properties match the implementation

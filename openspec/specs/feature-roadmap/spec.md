@@ -30,8 +30,9 @@ and the F6a/F6b resource + glTF import (for collision meshes loaded from
 files); F13 (gamepad input — a vendored poll backend plus a pure-C
 normalized semantic button/axis surface), whose only predecessor is F9 (the
 C-owned frame-staged input core it extends); and F14 (audio playback — a
-vendored playback backend plus a dependency-free pure-C mixer that streams one
-background-music source and mixes a fixed sound-effect voice bank), whose only
+vendored playback backend plus a dependency-free pure-C mixer that plays static
+and streamed audio sources through one fixed playback bank with an engine-owned
+master gain), whose only
 predecessors are the F1–F2 window/frame loop and dual script bindings plus the
 F6a dir/zip resource provider. F9, F10, F11, F12, F13, and F14 MAY be
 implemented once their predecessors' gates have passed, independently of each
@@ -95,8 +96,8 @@ normalized gamepad model and the mapping evaluator using synthetic device
 descriptors, plus a portable script-level simulation harness run through both
 the desktop and web runtimes, with no golden-image test required. F14 (audio
 playback) SHALL be verified by headless unit tests over the dependency-free
-pure-C mixing, voice-bank, and decoding core driven through a deterministic
-seam (using small committed WAV and MP3 fixtures) plus a portable
+pure-C mixing, playback-bank, source, and decoding core driven through a
+deterministic seam (using small committed WAV and MP3 fixtures) plus a portable
 script-level harness run through both the desktop and web runtimes, with no
 golden-image test required.
 
@@ -142,10 +143,10 @@ golden-image test required.
 
 #### Scenario: Audio milestone gate
 - **WHEN** F14 (audio playback) completes
-- **THEN** its headless unit tests over the dependency-free pure-C mixer, voice
-  bank, and decoders pass on all four targets, its portable script-level
-  harness passes through both runtimes with identical results, and no
-  golden-image test is required
+- **THEN** its headless unit tests over the dependency-free pure-C mixer,
+  playback bank, source kinds, and decoders pass on all four targets, its
+  portable script-level harness passes through both runtimes with identical
+  results, and no golden-image test is required
 
 ### Requirement: Early risk retirement
 The roadmap SHALL order work so that the highest-risk foundations are delivered
