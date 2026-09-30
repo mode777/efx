@@ -41,3 +41,5 @@ if (e3 !== 1) throw new Error('unknown option');
 sd.destroy();
 
 efx.log('s-14-audio-ok');
+
+efx.quit(0);
