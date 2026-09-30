@@ -20,4 +20,4 @@
 ## 4. Verification
 
 - [x] 4.1 Run the gallery suite on the verification server (`python3 tools/verify_remote.py gallery <branch>`) and confirm the new keyboard check passes.
-- [ ] 4.2 Run the existing suites to confirm no regression — native `ctest` smoke + headless unit tests and the Emscripten `ctest` + cross-runtime compare — then dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) per ADR 0020/0023 and confirm all four targets are green.
+- [x] 4.2 Run the existing suites to confirm no regression — native `ctest` smoke + headless unit tests and the Emscripten `ctest` + cross-runtime compare — then dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) per ADR 0020/0023 and confirm all four targets are green.
