@@ -1598,7 +1598,11 @@ interface PhysicsContact {
   readonly impulse: number;
 }
 
-/** A native-backed collider in the single physics world. */
+/**
+ * A native-backed collider in the single physics world. The world holds it
+ * until `destroy()` or `physics.clear()`: dropping the last script reference
+ * does not remove it from the simulation.
+ */
 interface EfxBody {
   /** Read-only world position (mutate `velocity` to move a dynamic body). */
   readonly position: Vec3;
@@ -1650,7 +1654,11 @@ interface PhysicsMoveResult {
   readonly collisions: PhysicsMoveCollision[];
 }
 
-/** A native-backed kinematic capsule character controller. */
+/**
+ * A native-backed kinematic capsule character controller. The world holds it
+ * until `destroy()` or `physics.clear()`: dropping the last script reference
+ * does not remove it from the simulation.
+ */
 interface EfxCharacter {
   /** Read-only world position. */
   readonly position: Vec3;
@@ -1765,7 +1773,7 @@ interface EfxPhysics {
    * @param dt - Time step in seconds.
    */
   step(dt: number): void;
-  /** Remove every collider from the world. */
+  /** Remove every collider and character from the world (existing handles become destroyed). */
   clear(): void;
   /**
    * Create a static, dynamic, or sensor body.

@@ -135,8 +135,6 @@ check(threw, 'unknown shape field throws TypeError');
 efx.physics.clear();
 efx.physics.gravity = [0, -9.81, 0];
 var planeMesh = efx.createMesh(efx.makePlane({ size: 10 }));
-/* the Body wrapper owns the native collider: keep it referenced or the GC
- * finalizer removes the floor */
 var floorBody = efx.physics.createStaticMesh(planeMesh, { friction: 0.5 });
 var faller = efx.physics.createBody({
     dynamic: true, mass: 1, friction: 0.5, restitution: 0,
@@ -148,6 +146,31 @@ for (var q = 0; q < 60; q++) {
 }
 check(near(faller.position[1], 0.4, 0.05),
       'thin mesh floor rest y=' + faller.position[1]);
+
+/* a collider stays in the world after its wrapper becomes unreachable */
+efx.physics.clear();
+(function () {
+    efx.physics.createBody({
+        shape: { type: 'box', size: [4, 1, 4] }, position: [20, -0.5, 0],
+    });
+    efx.physics.createStaticMesh(planeMesh);
+})();
+function dropBox(x) {
+    return efx.physics.createBody({
+        dynamic: true, mass: 1, restitution: 0,
+        shape: { type: 'box', size: [0.8, 0.8, 0.8] },
+        position: [x, 2, 0],
+    });
+}
+var onBox = dropBox(20);
+var onMesh = dropBox(0);
+for (var k = 0; k < 120; k++) {
+    efx.physics.step(1 / 60);
+}
+check(near(onBox.position[1], 0.4, 0.05),
+      'unreferenced static box still supports y=' + onBox.position[1]);
+check(near(onMesh.position[1], 0.4, 0.05),
+      'unreferenced static mesh still supports y=' + onMesh.position[1]);
 
 efx.physics.clear();
 efx.log('s-12-physics-ok');

@@ -2,6 +2,10 @@
 
 Status: Accepted (2026-09, change `physics-tunneling`)
 
+> Note: the gallery-sample failure described below was actually caused by
+> the `Body` GC finalizer, not tunneling; see ADR 0046. The substep bound
+> stands on its own for thin static geometry.
+
 Supports: ADR 0001 (C11 core with a C ABI); ADR 0040 (the F12 physics core —
 this ADR amends its "no fixed-step accumulator" clause); ADR 0015 (fixed-function
 consumer API — no script-visible change); ADR 0022 (web bridge shares one core);

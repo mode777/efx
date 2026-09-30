@@ -185,7 +185,9 @@ fixed light bank is slot-based.
   throws.
 - Native byte cost counts toward GC pressure and the player collects at frame
   end — unreferenced native resources are reclaimed within roughly a frame
-  even if the script never calls `destroy()`.
+  even if the script never calls `destroy()`. Exception: a live `Body` or
+  `Character` is held by the physics world, so it keeps simulating while
+  unreferenced and is released only by `destroy()` or `efx.physics.clear()`.
 - Resources recorded into the display list stay alive until playback
   finishes; `destroy()` during a frame defers the native release to frame
   end.

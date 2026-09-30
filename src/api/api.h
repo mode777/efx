@@ -72,6 +72,10 @@ int efx_api_register_input(JSContext *ctx, JSValueConst efx);
 /* F12: attach the efx.physics sub-namespace to the single efx object */
 int efx_api_register_physics(JSContext *ctx, JSValueConst efx);
 
+/* F12: live Body/Character wrappers are held by the world; release them
+ * before the context is freed */
+void efx_api_physics_release(JSContext *ctx);
+
 /* F14 — audio playback */
 JSValue efx_js_audio_loadSoundData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);

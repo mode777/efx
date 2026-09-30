@@ -48,7 +48,7 @@ Solver iteration count (read-write positive integer; default 8).
 
 > **clear**(): `void`
 
-Remove every collider from the world.
+Remove every collider and character from the world (existing handles become destroyed).
 
 #### Returns
 

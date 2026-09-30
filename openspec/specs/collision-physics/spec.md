@@ -54,8 +54,11 @@ remove **bodies** of exactly three kinds through `efx.physics`: static
 (immovable level geometry or triggers), dynamic (impulse-simulated), and
 sensor (see the Sensors requirement); sensor is a flag orthogonal to the
 static/dynamic kind. Bodies SHALL be native-backed classes: each exposes a
-`destroy()` that is idempotent, is reclaimed by a GC finalizer if never
-destroyed, and throws when used after destruction. `efx.physics.clear()` SHALL
+`destroy()` that is idempotent and throws when used after destruction. A live
+body SHALL be held by the world: dropping every script reference to it SHALL
+NOT remove it from the simulation; only `destroy()`, `efx.physics.clear()`,
+or runtime teardown release it (its wrapper is then reclaimed by the GC
+finalizer). `efx.physics.clear()` SHALL
 remove every body and reset the world to empty. Storage SHALL be dynamically
 allocated (no hard body cap); the reference SHALL document recommended soft
 limits rather than a fixed maximum. Every body SHALL carry a `layer` bitmask
@@ -83,6 +86,14 @@ produces the same result.
 - **WHEN** `efx.physics.clear()` is called after bodies were added
 - **THEN** subsequent queries and steps observe an empty world, and using a
   previously returned body handle throws
+
+#### Scenario: Unreferenced body stays in the world
+
+- **WHEN** a static body is created without keeping any script reference to it
+  (e.g. a module-local that no closure captures) and a dynamic body later
+  falls onto it
+- **THEN** the dynamic body comes to rest on it on both runtimes, however
+  soon the garbage collector runs
 
 #### Scenario: Destroyed body is safe
 

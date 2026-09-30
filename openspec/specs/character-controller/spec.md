@@ -22,7 +22,9 @@ vector), `floorMaxAngle` (degrees, default `45`), `floorSnapLength` (default
 `safeMargin` SHALL throw `RangeError`; unknown fields or wrong types SHALL
 throw `TypeError`. The `Character` SHALL expose read-only `position` and
 mutable `velocity`, a read-only `onFloor` reflecting the last move, and an
-idempotent `destroy()` with GC-finalizer backstop and destroyed-use throwing.
+idempotent `destroy()` with destroyed-use throwing. Like a `Body`, a live
+`Character` SHALL be held by the world until `destroy()`, `efx.physics.clear()`,
+or runtime teardown; dropping every script reference SHALL NOT remove it.
 
 #### Scenario: Valid character is created
 

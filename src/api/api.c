@@ -534,11 +534,15 @@ static JSClassDef music_class_def = {
 
 /* ------------------------------------------------ F12 physics classes */
 
+/* `self` is an owned reference while `pinned` (the collider is in the world,
+ * so the world keeps its wrapper alive), otherwise borrowed (valid while this
+ * struct is linked) */
 typedef struct efxjs_body {
     efx_physics_world *w;
     efx_phys_body handle;
     int alive;
-    JSValue self; /* borrowed wrapper (valid while this struct is linked) */
+    int pinned;
+    JSValue self;
     struct efxjs_body *next;
     struct efx_host_state *host;
 } efxjs_body;
@@ -547,6 +551,7 @@ typedef struct efxjs_character {
     efx_physics_world *w;
     efx_phys_character handle;
     int alive;
+    int pinned;
     JSValue self;
     struct efxjs_character *next;
     struct efx_host_state *host;
@@ -613,6 +618,43 @@ static JSClassDef character_class_def = {
     "Character",
     .finalizer = character_finalizer,
 };
+
+/* drop the world's reference; this may finalize and free `b` */
+static void body_unpin(JSContext *ctx, efxjs_body *b) {
+    if (!b->pinned) return;
+    b->pinned = 0;
+    JS_FreeValue(ctx, b->self);
+}
+
+static void character_unpin(JSContext *ctx, efxjs_character *c) {
+    if (!c->pinned) return;
+    c->pinned = 0;
+    JS_FreeValue(ctx, c->self);
+}
+
+/* marks every wrapper destroyed and releases the world's references (after
+ * efx_physics_clear, and at runtime teardown before the context is freed) */
+static void physics_release_wrappers(JSContext *ctx) {
+    struct efx_host_state *h = host_state(ctx);
+    efxjs_body *b = (efxjs_body *)h->physics_bodies;
+    while (b) {
+        efxjs_body *next = b->next;
+        b->alive = 0;
+        body_unpin(ctx, b);
+        b = next;
+    }
+    efxjs_character *c = (efxjs_character *)h->physics_characters;
+    while (c) {
+        efxjs_character *next = c->next;
+        c->alive = 0;
+        character_unpin(ctx, c);
+        c = next;
+    }
+}
+
+void efx_api_physics_release(JSContext *ctx) {
+    physics_release_wrappers(ctx);
+}
 
 /* ---- F12 binding helpers ---- */
 
@@ -881,7 +923,8 @@ static JSValue wrap_body(JSContext *ctx, efx_physics_world *w,
         return obj;
     }
     JS_SetOpaque(obj, b);
-    b->self = obj;
+    b->self = JS_DupValue(ctx, obj);
+    b->pinned = 1;
     b->next = (efxjs_body *)b->host->physics_bodies;
     b->host->physics_bodies = b;
     return obj;
@@ -905,7 +948,8 @@ static JSValue wrap_character(JSContext *ctx, efx_physics_world *w,
         return obj;
     }
     JS_SetOpaque(obj, c);
-    c->self = obj;
+    c->self = JS_DupValue(ctx, obj);
+    c->pinned = 1;
     c->next = (efxjs_character *)c->host->physics_characters;
     c->host->physics_characters = c;
     return obj;
@@ -923,6 +967,7 @@ static JSValue body_destroy(JSContext *ctx, JSValueConst this_val, int argc,
         b->alive = 0;
         if (b->w) efx_physics_destroy_body(b->w, b->handle);
     }
+    body_unpin(ctx, b);
     return JS_UNDEFINED;
 }
 
@@ -1036,6 +1081,7 @@ static JSValue character_destroy(JSContext *ctx, JSValueConst this_val,
         c->alive = 0;
         if (c->w) efx_physics_destroy_character(c->w, c->handle);
     }
+    character_unpin(ctx, c);
     return JS_UNDEFINED;
 }
 
@@ -5826,6 +5872,7 @@ static JSValue physics_clear(JSContext *ctx, JSValueConst this_val, int argc,
     (void)argc;
     (void)argv;
     efx_physics_clear(physics_world(ctx));
+    physics_release_wrappers(ctx);
     return JS_UNDEFINED;
 }
 

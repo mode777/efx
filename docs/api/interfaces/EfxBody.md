@@ -6,7 +6,9 @@
 
 # Interface: EfxBody
 
-A native-backed collider in the single physics world.
+A native-backed collider in the single physics world. The world holds it
+until `destroy()` or `physics.clear()`: dropping the last script reference
+does not remove it from the simulation.
 
 ## Properties
 

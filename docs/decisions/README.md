@@ -58,6 +58,7 @@ directory holds only what stays true after a change is archived.
 | [0043](0043-web-pointer-focus-default.md) | Accepted | On the web, pointer input must not suppress the focus default keyboard delivery depends on: the platform bubbles mouse events so a click focuses an iframe embed, while key/wheel default suppression stays |
 | [0044](0044-curated-sample-dirs.md) | Accepted | A curated gallery sample is a self-contained resource-root directory; its gallery mount pack and the release `samples.zip` are derived from it by one deterministic pure-Node packer, with generated assets committed loose and drift-checked |
 | [0045](0045-physics-substepping.md) | Accepted | `efx.physics.step` sub-divides the clamped `dt` into equal substeps no larger than `EFX_PHYS_MAX_SUBSTEP` (1/60 s) so a large frame delta cannot skip thin static geometry; per-call and bounded, the 1/60 path stays bit-identical, force acts over the whole step (amends ADR 0040's "no fixed-step accumulator" clause) |
+| [0046](0046-physics-world-holds-live-bodies.md) | Accepted | The physics world holds every live `Body`/`Character` wrapper until `destroy()`, `physics.clear()`, or teardown, so GC never removes a collider from the simulation (amends ADR 0011/0012 for F12; the actual cause of the desktop fall-through bug misattributed in ADR 0045) |
 
 ## Adding a decision
 

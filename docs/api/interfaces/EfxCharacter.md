@@ -6,7 +6,9 @@
 
 # Interface: EfxCharacter
 
-A native-backed kinematic capsule character controller.
+A native-backed kinematic capsule character controller. The world holds it
+until `destroy()` or `physics.clear()`: dropping the last script reference
+does not remove it from the simulation.
 
 ## Properties
 

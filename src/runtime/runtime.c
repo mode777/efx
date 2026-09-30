@@ -327,6 +327,7 @@ void efx_runtime_destroy(efx_runtime *rt) {
     efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_wheel);
     efx_hooks_free_all(rt->ctx, &rt->host.gamepad_connect);
     efx_hooks_free_all(rt->ctx, &rt->host.gamepad_disconnect);
+    efx_api_physics_release(rt->ctx);
     JS_FreeValue(rt->ctx, rt->host.quit_sentinel);
     JS_FreeValue(rt->ctx, rt->module_runtime);
     JS_FreeValue(rt->ctx, rt->module_run_entry);

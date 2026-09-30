@@ -181,7 +181,7 @@ lights are the only slot bank.
 #### Scenario: Physics classes are classified native-backed
 
 - **WHEN** the reference document's physics entries are read
-- **THEN** `Body` and `Character` are stated to be native-backed classes with an idempotent `destroy()` and a GC-finalizer backstop, and the fixed-limits table is unchanged (physics uses dynamic allocation with a documented soft guidance, not a fixed cap)
+- **THEN** `Body` and `Character` are stated to be native-backed classes with an idempotent `destroy()` that the world holds while live (an unreferenced one keeps simulating until `destroy()` or `efx.physics.clear()`), and the fixed-limits table is unchanged (physics uses dynamic allocation with a documented soft guidance, not a fixed cap)
 
 ### Requirement: Explicit lifecycle hook registration
 The engine SHALL expose `efx.registerUpdateHook(fn)` and

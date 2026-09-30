@@ -154,7 +154,8 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   `safeMargin`) and the queries `raycast`/`overlap`/`shapeCast`. Characters
   push dynamic bodies one-way (immovable during `step`; never blocked by
   dynamics/sensors in `moveAndSlide`). `Body` and `Character` are native-backed
-  classes with idempotent `destroy()` and a GC-finalizer backstop, registered
+  classes with idempotent `destroy()`, held by the world while live (never
+  GC-removed; released by `destroy()`/`clear()`/teardown — ADR 0046), registered
   identically by both bindings. Storage is dynamic (no fixed cap). Its gate is
   the headless `efx_physics_tests` suite (narrowphase, invariants, scenarios,
   determinism, stress), the portable `smoke_12_physics`/`web_12_physics` script
@@ -164,7 +165,9 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   (`step(dt)` sub-divides into <= 1/60 s substeps; ADR 0045); its four-target
   gate is **green** (ci run 36721212393: native suites incl. the new
   thin-floor/large-`dt` cases on Linux/Windows/macOS, Emscripten ctest incl.
-  `web_12_physics` + web goldens + cross-runtime compare `12_physics`).
+  `web_12_physics` + web goldens + cross-runtime compare `12_physics`). The
+  desktop "bodies fall through the floor" bug was the `Body` GC finalizer
+  destroying unreferenced module-local colliders, not tunneling (ADR 0046).
 - F13 (gamepad input) is **implemented** as an orthogonal milestone
   (predecessor F9; independent of F3–F8 and F10–F12) — a pinned vendored
   minigamepad poll backend confined to `efx_platform`
