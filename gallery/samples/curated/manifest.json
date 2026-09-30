@@ -43,6 +43,14 @@
     "assets": "gamepad-tester.zip"
   },
   {
+    "file": "audio-showcase.js",
+    "id": "curated:audio-showcase",
+    "title": "Audio Showcase",
+    "category": "Showcase",
+    "description": "An interactive tour of the F14 audio API: a looping streamed track plus a 32-voice effect bank. Click a pad (or press 1/2/3) to fire a blip/chime/thud with pan from the click x and pitch from the click y, Space pauses/resumes the music, M mutes, and [ / ] change volume. On the web, audio unlocks on the first input.",
+    "assets": "audio-showcase.zip"
+  },
+  {
     "file": "texture-showcase.js",
     "id": "curated:texture-showcase",
     "title": "Texture Showcase",

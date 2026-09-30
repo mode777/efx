@@ -327,9 +327,11 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   mouse/keyboard events + queries, self-playing until interacted with) and a
   `modules-showcase` demo (F10: a scene split across files composed with
   synchronous `require` — relative/extension-less specifiers and a JSON
-  module — from the sample's authored pack), and a `text-showcase` demo (F8a:
+  module — from the sample's authored pack), a `text-showcase` demo (F8a:
   a typing playground exercising the baked atlas, wrapping, alignment, and
-  baked outline/shadow from the sample's CC0 font pack).
+  baked outline/shadow from the sample's CC0 font pack), and an
+  `audio-showcase` demo (F14: a looping streamed track plus a 32-voice effect
+  sound board with pan/pitch, from the sample's authored audio pack).
   Build
   with `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
   (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).

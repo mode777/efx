@@ -12,6 +12,7 @@ attribution; this file exists for transparency.
 | `fox-walk.zip` | `Fox.glb` | Quaternius (Tomás Laulhé) | Quaternius, "Ultimate Animated Animals" (https://quaternius.com/packs/ultimateanimatedanimals.html); glb mirror: https://github.com/trebeljahr/quaternius-showcase | CC0 1.0 |
 | `text-showcase.zip` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
 | `gamepad-tester.zip` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase.zip` | CC0 1.0 |
+| `audio-showcase.zip` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase.zip` | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
@@ -88,3 +89,21 @@ python3 gallery/scripts/pack-curated-modules.py --check   # drift check
 Reuses the exact `font.ttf` from `text-showcase.zip` (same CC0 provenance),
 re-zipped at the archive root with a fixed entry timestamp. It exists only so
 the sample mounts its own resource root; no new asset is introduced.
+
+### `audio-showcase.zip`
+
+Mostly **authored in-repo** (no third-party audio): the three effect WAVs are
+synthesized deterministically by the pack script, and `music.mp3` is a
+committed ~6 s looping arpeggio encoded once with a pinned ffmpeg
+(`libmp3lame`, 64 kbps, 22.05 kHz mono) — MP3 is not byte-reproducible across
+encoders, so it is a source, not generated. The only third-party asset is the
+CC0 `font.ttf` (same Kenney font as `text-showcase.zip`). Regenerate the pack
+deterministically with:
+
+```sh
+python3 gallery/scripts/pack-curated-audio.py
+python3 gallery/scripts/pack-curated-audio.py --check   # drift check
+```
+
+The committed pack sources live under `gallery/samples/curated/audio/`
+(`music.mp3`, `font.ttf`).
