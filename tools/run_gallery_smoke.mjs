@@ -189,6 +189,43 @@ try {
         check(false, `runner screenshot failed: ${e.message}`);
     }
 
+    // Keyboard must reach the running sample through the embed once the
+    // application area is focused: Sokol's key listeners live on the runner
+    // document's window, so the click must move focus into the iframe
+    // (ADR 0043). The sample records both the onDown callback and the held
+    // query into globals the smoke reads back.
+    await setEditor(
+        "globalThis.__kb_event = false;\n" +
+            "globalThis.__kb_down = false;\n" +
+            "efx.keyboard.onDown(function (e) { if (e.key === 'a') globalThis.__kb_event = true; });\n" +
+            "function update() { if (efx.keyboard.isDown('a')) globalThis.__kb_down = true; }\n" +
+            "function render() {}\n"
+    );
+    await clickRun();
+    const kbFrame = await waitBoot();
+    check(!!kbFrame, 'keyboard sample boots');
+    if (kbFrame) {
+        const fbox = await page.evaluate(() => {
+            const r = document.querySelector('iframe.frame').getBoundingClientRect();
+            return { x: r.x, y: r.y, w: r.width, h: r.height };
+        });
+        await page.mouse.click(fbox.x + fbox.w / 2, fbox.y + fbox.h / 2);
+        await new Promise((r) => setTimeout(r, 200));
+        const focused = await kbFrame.evaluate(() => document.hasFocus()).catch(() => false);
+        check(focused, 'clicking the application area focuses the runner document');
+
+        await page.keyboard.down('KeyA');
+        await new Promise((r) => setTimeout(r, 200));
+        const seen = await kbFrame
+            .evaluate(() => ({ ev: globalThis.__kb_event, down: globalThis.__kb_down }))
+            .catch(() => ({}));
+        await page.keyboard.up('KeyA');
+        check(
+            seen.ev === true || seen.down === true,
+            `keyboard reaches the running sample (${JSON.stringify(seen)})`
+        );
+    }
+
     check(consoleErrors.length === 0, `no console errors (${consoleErrors.length})`);
     check(pageErrors.length === 0, `no page errors (${pageErrors.length})`);
 

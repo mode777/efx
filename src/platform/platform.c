@@ -359,6 +359,13 @@ int efx_platform_run(const efx_platform_desc *desc, efx_frame_hooks hooks) {
     if (g_capture.frame > 0) {
         d.html5.preserve_drawing_buffer = true; /* canvas readback after commit */
     }
+    /* Keyboard listeners live on the embedding document's window (Sokol's web
+       backend), so keys only arrive once that document has focus. Consuming
+       mouse events (the Sokol default) calls preventDefault() on mousedown,
+       which cancels the browser's focus transfer and leaves an iframe embed
+       unfocused. Let pointer events bubble so native focus-on-click works
+       (ADR 0043); key/char default suppression is independent and stays on. */
+    d.html5.bubble_mouse_events = true;
 #endif
     sapp_run(&d);
     return 0;

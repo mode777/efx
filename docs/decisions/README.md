@@ -55,6 +55,7 @@ directory holds only what stays true after a change is archived.
 | [0041](0041-gamepad-input.md) | Accepted | F13 gamepad input is a vendored poll backend behind a pure-C fixed pad bank + SDL-mapping evaluator, sampled at frame begin, with canonical ranges/threshold, raw fallback, and no Asyncify |
 | [0042](0042-audio-mixing-and-vendoring.md) | Accepted | F14 audio is push-mode mixing (no threads/atomics) over a vendored sokol_audio + dr_libs stack, with a fixed 32-voice bank, one streamed music source, decoded-PCM-only, and no-device soft-fail |
 | [0042](0042-api-reference-generated-from-type-doc.md) | Accepted | The API reference is generated from `gallery/src/api/efx.d.ts` into committed Markdown (`docs/api/`) and published HTML (`/api`); `docs/js-api.md` is design guidelines, not a catalog |
+| [0043](0043-web-pointer-focus-default.md) | Accepted | On the web, pointer input must not suppress the focus default keyboard delivery depends on: the platform bubbles mouse events so a click focuses an iframe embed, while key/wheel default suppression stays |
 
 ## Adding a decision
 
