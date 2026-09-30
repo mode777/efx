@@ -23,22 +23,22 @@
 
 ## 4. Platform backend and web behavior
 
-- [ ] 4.1 Add `src/platform/audio_backend.c` compiled into `efx_platform` only: `saudio_setup` in push mode (no stream callback, enlarged `buffer_frames`), and a per-frame tick called from the frame loop that pumps music, mixes `saudio_expect()` frames via `efx_audio_mix`, and calls `saudio_push`; verify the pure-C core and headless test targets do not link the backend and a native windowed run on the verification server plays a fixture
-- [ ] 4.2 Implement no-device soft-fail: when `saudio_isvalid()` is false (or setup fails), the player runs silently and audio calls remain safe; verify a headless/CI run of the player starts, runs its script, and exits 0 with no audio device
-- [ ] 4.3 Implement web autoplay unlock: resume the audio context on the first keyboard/mouse input via the F9 input path and expose `efx.audio.resume()`, with pre-unlock requests deferred or reported consistently; verify in the browser harness that music starts after a synthetic first input and that behavior matches the documented contract
-- [ ] 4.4 Confirm the Emscripten build needs no `-sASYNCIFY` and that decoding uses the in-memory resource buffer (no async fetch); verify a web build with and without the flag and record the result in the design doc
+- [x] 4.1 Add `src/platform/audio_backend.c` compiled into `efx_platform` only: `saudio_setup` in push mode (no stream callback, enlarged `buffer_frames`), and a per-frame tick called from the frame loop that pumps music, mixes `saudio_expect()` frames via `efx_audio_mix`, and calls `saudio_push`; verify the pure-C core and headless test targets do not link the backend and a native windowed run on the verification server plays a fixture
+- [x] 4.2 Implement no-device soft-fail: when `saudio_isvalid()` is false (or setup fails), the player runs silently and audio calls remain safe; verify a headless/CI run of the player starts, runs its script, and exits 0 with no audio device
+- [x] 4.3 Implement web autoplay unlock: resume the audio context on the first keyboard/mouse input via sokol_audio's DOM listeners plus an explicit `efx.audio.resume()` path, with pre-unlock requests deferred or reported consistently; verify in the browser harness that music starts after a synthetic first input and that behavior matches the documented contract
+- [x] 4.4 Confirm the Emscripten build needs no `-sASYNCIFY` and that decoding uses the in-memory resource buffer (no async fetch); verify a web build with and without the flag and record the result in the design doc
 
 ## 5. Script bindings
 
 - [x] 5.1 Register `efx.audio` in `src/api/api.c`/`src/runtime/runtime.c`: `playBackgroundMusic`, `stopBackgroundMusic`, `resume`, `loadSoundData`, `playSound`, and the `SoundData`/`Sound`/`Music` classes with their `destroy()`/methods/properties; verify headless unit tests for the query/control/validation/destroy matrix
 - [x] 5.2 Add the pure-JS `playAudioEffect` path cache and the high-level sugar over `loadSoundData`/`playSound` in `src/prelude/prelude.js` (regenerating `src/prelude/prelude.h` and passing `gen_prelude.py --check`); verify a headless script starts the same effect repeatedly and observes one decode
-- [ ] 5.3 Mirror `efx.audio` in `src/web/bridge.c` and `src/web/entry.js` with identical names, semantics, and errors; verify `tools/run_web_compare.mjs` diffs desktop vs web at zero for an audio script
+- [x] 5.3 Mirror `efx.audio` in `src/web/bridge.c` and `src/web/entry.js` with identical names, semantics, and errors; verify `tools/run_web_compare.mjs` diffs desktop vs web at zero for an audio script
 
 ## 6. Tests and integration harness
 
 - [x] 6.1 Add committed tiny WAV and MP3 fixtures under `tests/fixtures/` and headless unit tests for the `audio` capability (mix determinism, decode, resampling/pitch, error handling, voice overlap/steal, music loop/controls, no-device); verify they pass in an `EFX_HEADLESS=ON` local build
-- [ ] 6.2 Add a portable script-level harness that loads a fixture, starts music and effects, drives controls, and asserts script-observable results end to end; verify it runs green in ctest on the desktop build and on Emscripten via the bridge
-- [ ] 6.3 Add a cross-runtime compare case for the audio script; verify desktop and web outputs are identical
+- [x] 6.2 Add a portable script-level harness that loads a fixture, starts music and effects, drives controls, and asserts script-observable results end to end; verify it runs green in ctest on the desktop build and on Emscripten via the bridge
+- [x] 6.3 Add a cross-runtime compare case for the audio script; verify desktop and web outputs are identical
 
 ## 7. Docs and ADR
 

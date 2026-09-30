@@ -106,7 +106,9 @@ Alternatives:
   `saudio_isvalid()` is false.
 
 This mirrors input/physics and keeps the vendored library out of the test
-core.
+core. The Emscripten build needs no `-sASYNCIFY`: `sokol_audio`'s WebAudio
+path and the in-memory decode are synchronous (confirmed by the server
+Emscripten build).
 
 ### D4 — Resource and API shape
 
