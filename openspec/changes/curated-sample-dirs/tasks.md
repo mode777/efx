@@ -42,4 +42,4 @@
 
 - [ ] 7.1 Run `npx openspec validate curated-sample-dirs --strict` and confirm the change validates.
 - [x] 7.2 Verify on the SSH verification server (`python3 tools/verify_remote.py all <branch>`) that the gallery build and smoke remain green; fix and re-verify on failure.
-- [ ] 7.3 Dispatch the gate (`gh workflow run ci.yml --ref <branch>`) and confirm the `samples` artifact exists; confirm a tag run attaches `emotion-fx-<EFX_VERSION>-samples.zip` to the release alongside the four platform archives.
+- [x] 7.3 Dispatch the gate (`gh workflow run ci.yml --ref <branch>`) and confirm the `samples` artifact exists; confirm a tag run attaches `emotion-fx-<EFX_VERSION>-samples.zip` to the release alongside the four platform archives. (Gate run 36715204558 green with the `samples` artifact; tag `v0.3.0` run 36715675745 attached `emotion-fx-v0.3.0-samples.zip` to release https://github.com/mode777/emotion-fx/releases/tag/v0.3.0 alongside the four platform archives.)
