@@ -324,10 +324,17 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   host, and a Monaco (CDN) editor with the API type document
   (`gallery/src/api/efx.d.ts`). Samples are the committed golden scenes
   plus a curated showcase set; the catalog is generated from
-  `tests/goldens/` by `gallery/scripts/gen-catalog.mjs`. A curated
-  sample may ship a committed CC0 asset pack (a zip beside its manifest,
-  copied into the site by `gen-catalog.mjs` and mounted as the resource
-  root); see `gallery/samples/curated/CREDITS.md` for provenance. The
+  `tests/goldens/` and `gallery/samples/curated/` by
+  `gallery/scripts/gen-catalog.mjs`. Each curated sample is a
+  self-contained directory under `gallery/samples/curated/<name>/` holding
+  its `main.js` plus its resources — the directory is the player's resource
+  root (`player <name>`) — and the build derives that sample's mountable
+  pack from the directory (only when it has resources besides `main.js`);
+  see `gallery/samples/curated/CREDITS.md` for provenance.
+  `gallery/scripts/pack-samples.mjs` derives the release
+  `emotion-fx-<version>-samples.zip` from the same directories (each
+  `<name>/` folder plus a root `CREDITS.md`), attached to a tag's GitHub
+  Release by the CI `samples` job. The
   curated set includes an interactive `input-playground` demo (F9:
   mouse/keyboard events + queries, self-playing until interacted with) and a
   `modules-showcase` demo (F10: a scene split across files composed with
@@ -340,7 +347,8 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   Build
   with `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
   (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).
-  See ADR 0030 for the host↔engine embedding contract.
+  See ADR 0030 for the host↔engine embedding contract and ADR 0044 for the
+  sample-directory/derived-pack contract.
 - Verification: ctest runs smoke + headless display-list/JS-API unit tests
   everywhere (on Emscripten the smoke suite runs the same portable scripts
   through the native bridge with the host JS engine as the runtime, plus
@@ -356,9 +364,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 - **CI runs on tags and manually, never per push (ADR 0023).**
   `.github/workflows/ci.yml` triggers only on `v*` tags and
   `workflow_dispatch` (`gh workflow run ci.yml`); ordinary branch pushes
-  and pull requests do not start it. Every run publishes four downloadable
-  archives (native player for Linux/Windows/macOS, Emscripten web bundle)
-  as workflow artifacts, and a tag run attaches the same archives to that
+  and pull requests do not start it. Every run publishes downloadable
+  archives (native player for Linux/Windows/macOS, Emscripten web bundle,
+  and the curated-samples pack `emotion-fx-<version>-samples.zip`) as
+  workflow artifacts, and a tag run attaches the same archives to that
   tag's GitHub Release. Use a manual run to prove the gate.
 - **Pages deploys separately.** The public sample gallery is built and
   deployed by `.github/workflows/pages.yml` on pushes to `main` and on

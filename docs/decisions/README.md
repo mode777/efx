@@ -56,6 +56,7 @@ directory holds only what stays true after a change is archived.
 | [0042](0042-audio-mixing-and-vendoring.md) | Accepted | F14 audio is push-mode mixing (no threads/atomics) over a vendored sokol_audio + dr_libs stack, with a fixed 32-voice bank, one streamed music source, decoded-PCM-only, and no-device soft-fail |
 | [0042](0042-api-reference-generated-from-type-doc.md) | Accepted | The API reference is generated from `gallery/src/api/efx.d.ts` into committed Markdown (`docs/api/`) and published HTML (`/api`); `docs/js-api.md` is design guidelines, not a catalog |
 | [0043](0043-web-pointer-focus-default.md) | Accepted | On the web, pointer input must not suppress the focus default keyboard delivery depends on: the platform bubbles mouse events so a click focuses an iframe embed, while key/wheel default suppression stays |
+| [0044](0044-curated-sample-dirs.md) | Accepted | A curated gallery sample is a self-contained resource-root directory; its gallery mount pack and the release `samples.zip` are derived from it by one deterministic pure-Node packer, with generated assets committed loose and drift-checked |
 
 ## Adding a decision
 

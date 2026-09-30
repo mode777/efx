@@ -1,33 +1,28 @@
 #!/usr/bin/env python3
-"""Pack the authored F14 audio showcase into a deterministic zip.
+"""Regenerate the synthesized F14 audio-showcase effect WAVs.
 
-The gallery mounts at most one zip as a sample's resource root (F6a, ADR 0030),
-so the music, effects, and font the `audio-showcase` sample uses must live
-inside `audio-showcase.zip`. The WAV effects are synthesized here (stdlib
-`wave`, no RNG) so there is one source of truth for them; `music.mp3` and
-`font.ttf` are committed sources under `samples/curated/audio/` (MP3 is not
-byte-reproducible across encoders, so it is not generated). The zip uses fixed
-entry timestamps, stored (uncompressed) entries and no directory records, so
-the committed archive is a pure function of this script and the sources.
+The audio showcase's three effect sounds are synthesized deterministically
+here (stdlib `wave`, no RNG) so there is one source of truth for them. They
+are committed loose in the sample directory
+(`gallery/samples/curated/audio-showcase/`), which is also the player's
+resource root; `music.mp3` and `font.ttf` are committed sources beside them.
+The sample directory is packed as-is (no separate packer).
 
 Regenerate after editing:
-    python3 gallery/scripts/pack-curated-audio.py
-Verify the committed pack is current (CI/humans):
-    python3 gallery/scripts/pack-curated-audio.py --check
+    python3 gallery/scripts/gen-audio-assets.py
+Verify the committed WAVs are current (CI/humans):
+    python3 gallery/scripts/gen-audio-assets.py --check
 """
 import io
 import math
 import struct
 import sys
 import wave
-import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "samples" / "curated" / "audio"
-OUT = ROOT / "samples" / "curated" / "audio-showcase.zip"
+OUT_DIR = ROOT / "samples" / "curated" / "audio-showcase"
 
-FIXED_DATE = (1980, 1, 1, 0, 0, 0)
 RATE = 22050
 
 
@@ -87,37 +82,34 @@ def synth_thud():
 
 
 def build():
-    files = {
+    return {
         "blip.wav": synth_blip(),
         "chime.wav": synth_chime(),
         "thud.wav": synth_thud(),
-        "music.mp3": (SRC / "music.mp3").read_bytes(),
-        "font.ttf": (SRC / "font.ttf").read_bytes(),
     }
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
-        for name in sorted(files):
-            info = zipfile.ZipInfo(name, date_time=FIXED_DATE)
-            info.compress_type = zipfile.ZIP_STORED
-            info.external_attr = 0o644 << 16
-            z.writestr(info, files[name])
-    return buf.getvalue()
 
 
 def main():
-    data = build()
+    files = build()
     if "--check" in sys.argv[1:]:
-        current = OUT.read_bytes() if OUT.exists() else b""
-        if current != data:
+        stale = []
+        for name, data in files.items():
+            path = OUT_DIR / name
+            if not path.exists() or path.read_bytes() != data:
+                stale.append(name)
+        if stale:
             print(
-                f"{OUT} is stale: run python3 gallery/scripts/pack-curated-audio.py",
+                f"{OUT_DIR} is stale ({', '.join(stale)}): "
+                "run python3 gallery/scripts/gen-audio-assets.py",
                 file=sys.stderr,
             )
             return 1
-        print(f"{OUT} is current")
+        print(f"{OUT_DIR} WAVs are current")
         return 0
-    OUT.write_bytes(data)
-    print(f"wrote {OUT} ({len(data)} bytes)")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    for name, data in files.items():
+        (OUT_DIR / name).write_bytes(data)
+    print(f"wrote {len(files)} WAVs to {OUT_DIR}")
     return 0
 
 

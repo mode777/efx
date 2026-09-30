@@ -67,17 +67,18 @@ add_player_test(smoke_14_audio ARGS "--script;${S}/s_14_audio.js;--root;${F}/aud
 add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
-# gallery showcase samples run against their committed asset packs: a failed
-# load throws and exits non-zero, so exit 0 proves the pack loads on the player
+# gallery showcase samples run against their sample directories: a failed
+# load throws and exits non-zero, so exit 0 proves the resources load on the
+# player from the directory resource root (the directory is the pack)
 set(GALLERY ${CMAKE_SOURCE_DIR}/gallery/samples/curated)
-add_player_test(smoke_showcase_texture ARGS "--script;${GALLERY}/texture-showcase.js;--root;${GALLERY}/texture-showcase.zip" EXPECT 0)
-add_player_test(smoke_showcase_gltf ARGS "--script;${GALLERY}/gltf-showcase.js;--root;${GALLERY}/gltf-showcase.zip" EXPECT 0)
-add_player_test(smoke_showcase_fox ARGS "--script;${GALLERY}/fox-walk.js;--root;${GALLERY}/fox-walk.zip" EXPECT 0)
-add_player_test(smoke_showcase_modules ARGS "--script;${GALLERY}/modules-showcase.js;--root;${GALLERY}/modules-showcase.zip" EXPECT 0)
-add_player_test(smoke_showcase_text ARGS "--script;${GALLERY}/text-showcase.js;--root;${GALLERY}/text-showcase.zip" EXPECT 0)
-add_player_test(smoke_showcase_physics ARGS "--script;${GALLERY}/physics-showcase.js" EXPECT 0)
-add_player_test(smoke_showcase_gamepad ARGS "--script;${GALLERY}/gamepad-tester.js;--root;${GALLERY}/gamepad-tester.zip" EXPECT 0)
-add_player_test(smoke_showcase_audio ARGS "--script;${GALLERY}/audio-showcase.js;--root;${GALLERY}/audio-showcase.zip" EXPECT 0)
+add_player_test(smoke_showcase_texture ARGS "--script;${GALLERY}/texture-showcase/main.js;--root;${GALLERY}/texture-showcase" EXPECT 0)
+add_player_test(smoke_showcase_gltf ARGS "--script;${GALLERY}/gltf-showcase/main.js;--root;${GALLERY}/gltf-showcase" EXPECT 0)
+add_player_test(smoke_showcase_fox ARGS "--script;${GALLERY}/fox-walk/main.js;--root;${GALLERY}/fox-walk" EXPECT 0)
+add_player_test(smoke_showcase_modules ARGS "--script;${GALLERY}/modules-showcase/main.js;--root;${GALLERY}/modules-showcase" EXPECT 0)
+add_player_test(smoke_showcase_text ARGS "--script;${GALLERY}/text-showcase/main.js;--root;${GALLERY}/text-showcase" EXPECT 0)
+add_player_test(smoke_showcase_physics ARGS "--script;${GALLERY}/physics-showcase/main.js" EXPECT 0)
+add_player_test(smoke_showcase_gamepad ARGS "--script;${GALLERY}/gamepad-tester/main.js;--root;${GALLERY}/gamepad-tester" EXPECT 0)
+add_player_test(smoke_showcase_audio ARGS "--script;${GALLERY}/audio-showcase/main.js;--root;${GALLERY}/audio-showcase" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()

@@ -146,6 +146,22 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  samples:
+    name: package curated samples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build curated-samples archive
+        run: node gallery/scripts/pack-samples.mjs --out "dist/emotion-fx-${EFX_VERSION}-samples.zip"
+
+      - name: Upload curated-samples artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: samples
+          path: dist/*.zip
+          if-no-files-found: error
+
   golden-web:
     name: golden tests (emscripten / headless chrome)
     runs-on: ubuntu-latest
@@ -228,7 +244,7 @@ jobs:
 
   release:
     name: attach release assets
-    needs: [native, emscripten]
+    needs: [native, emscripten, samples]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -244,6 +260,12 @@ jobs:
           path: dist
           pattern: player-*
           merge-multiple: true
+
+      - name: Download curated-samples archive
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          name: samples
 
       - name: Create or update release and attach archives
         env:

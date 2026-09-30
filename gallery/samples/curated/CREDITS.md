@@ -2,36 +2,41 @@
 
 Every asset shipped by a curated showcase sample is **CC0 1.0 Universal**
 (public domain dedication) and is reproduced here with provenance and the
-optimization recipe, so each pack can be regenerated. CC0 requires no
-attribution; this file exists for transparency.
+optimization recipe, so each sample's resources can be regenerated. CC0
+requires no attribution; this file exists for transparency.
 
-| Pack | File | Author | Source | License |
+Each curated sample is a self-contained directory under
+`gallery/samples/curated/<name>/` that is also the player's resource root
+(`player <name>`); the gallery build derives that sample's mountable pack
+from the directory.
+
+| Sample directory | File | Author | Source | License |
 |---|---|---|---|---|
-| `texture-showcase.zip` | `paving_color.jpg` | ambientCG (Lennart Demes) | `PavingStones070`, https://ambientcg.com/view?id=PavingStones070 | CC0 1.0 |
-| `gltf-showcase.zip` | `Avocado.gltf`, `Avocado.bin`, `Avocado_baseColor.png` | Microsoft | Khronos glTF-Sample-Assets, `Models/Avocado`, https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Avocado | CC0 1.0 |
-| `fox-walk.zip` | `Fox.glb` | Quaternius (Tomás Laulhé) | Quaternius, "Ultimate Animated Animals" (https://quaternius.com/packs/ultimateanimatedanimals.html); glb mirror: https://github.com/trebeljahr/quaternius-showcase | CC0 1.0 |
-| `text-showcase.zip` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
-| `gamepad-tester.zip` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase.zip` | CC0 1.0 |
-| `audio-showcase.zip` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase.zip` | CC0 1.0 |
+| `texture-showcase/` | `paving_color.jpg` | ambientCG (Lennart Demes) | `PavingStones070`, https://ambientcg.com/view?id=PavingStones070 | CC0 1.0 |
+| `gltf-showcase/` | `Avocado.gltf`, `Avocado.bin`, `Avocado_baseColor.png` | Microsoft | Khronos glTF-Sample-Assets, `Models/Avocado`, https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Avocado | CC0 1.0 |
+| `fox-walk/` | `Fox.glb` | Quaternius (Tomás Laulhé) | Quaternius, "Ultimate Animated Animals" (https://quaternius.com/packs/ultimateanimatedanimals.html); glb mirror: https://github.com/trebeljahr/quaternius-showcase | CC0 1.0 |
+| `text-showcase/` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
+| `gamepad-tester/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `audio-showcase/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
 ## Recipes
 
-Both packs were built with Python 3 + Pillow. The zips are deterministic
-(fixed entry timestamps, no directory entries) and contain the files at
-their root, so the sample scripts address them root-relative.
+Both the texture and glTF assets were built with Python 3 + Pillow; the
+files sit at the sample directory root, so the sample scripts address them
+root-relative. The derived zips are deterministic (fixed entry timestamps,
+stored entries, no directory records).
 
-### `texture-showcase.zip`
+### `texture-showcase/`
 
 1. Download `PavingStones070_1K-JPG.zip` from
    `https://ambientcg.com/get?file=PavingStones070_1K-JPG.zip`.
 2. Extract `PavingStones070_1K-JPG_Color.jpg` (1024x1024).
 3. Downscale to 512x512 (LANCZOS) and re-encode JPEG quality 88, optimized
-   -> `paving_color.jpg`.
-4. Zip `paving_color.jpg` at the archive root.
+   -> `gallery/samples/curated/texture-showcase/paving_color.jpg`.
 
-### `gltf-showcase.zip`
+### `gltf-showcase/`
 
 1. Download `Avocado.gltf`, `Avocado.bin`, and `Avocado_baseColor.png`
    from
@@ -47,11 +52,10 @@ their root, so the sample scripts address them root-relative.
    (specular color from metallic, shininess from roughness) that reads well
    under the fixed-function lighting.
 4. Downscale `Avocado_baseColor.png` from 2048x2048 to 512x512 PNG
-   (optimized) -> `Avocado_baseColor.png`.
-5. Zip `Avocado.gltf`, `Avocado.bin`, and `Avocado_baseColor.png` at the
-   archive root.
+   (optimized); commit all three files under
+   `gallery/samples/curated/gltf-showcase/`.
 
-### `fox-walk.zip`
+### `fox-walk/`
 
 1. Download `Fox.glb` from Quaternius' "Ultimate Animated Animals" pack
    (CC0 1.0); the committed copy came from the
@@ -62,48 +66,43 @@ their root, so the sample scripts address them root-relative.
    `0.0` and `roughnessFactor` to `0.6` in each
    `pbrMetallicRoughness`. (The importer binds only base-color and emissive;
    this pack has no textures.)
-3. Zip `Fox.glb` at the archive root.
-### `modules-showcase.zip`
+3. Commit `Fox.glb` under `gallery/samples/curated/fox-walk/`.
 
-This pack is **authored in-repo** (no third-party assets), so it is not CC0
-material and has no credit line. The readable CommonJS sources live under
-`gallery/samples/curated/modules/`; the pack is regenerated deterministically
-(fixed entry timestamps, stored entries) with:
+### `modules-showcase/`
 
-```sh
-python3 gallery/scripts/pack-curated-modules.py
-python3 gallery/scripts/pack-curated-modules.py --check   # drift check
-```
+This sample is **authored in-repo** (no third-party assets), so it is not
+CC0 material and has no credit line. The readable CommonJS sources live
+directly under `gallery/samples/curated/modules-showcase/`
+(`lib/palette.js`, `lib/orbit.js`, `data/scene.json`) beside `main.js`; the
+sample directory is packed as-is (no separate packer).
 
-### `text-showcase.zip`
+### `text-showcase/`
 
 1. Download `Kenney Future.ttf` from the Kenney Fonts CC0 pack; the committed
    copy came from the `ereborstudios/kenney-fonts` mirror at the archive root
    (`https://raw.githubusercontent.com/ereborstudios/kenney-fonts/main/Kenney%20Future.ttf`).
-2. Zip it at the archive root as `font.ttf`, deterministically (fixed entry
-   timestamp, no directory entries), e.g. with Python's `zipfile` using a
-   fixed `ZipInfo.date_time`.
+2. Commit it under `gallery/samples/curated/text-showcase/` as `font.ttf`.
 
-### `gamepad-tester.zip`
+### `gamepad-tester/`
 
-Reuses the exact `font.ttf` from `text-showcase.zip` (same CC0 provenance),
-re-zipped at the archive root with a fixed entry timestamp. It exists only so
-the sample mounts its own resource root; no new asset is introduced.
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance),
+committed under `gallery/samples/curated/gamepad-tester/`. No new asset is
+introduced.
 
-### `audio-showcase.zip`
+### `audio-showcase/`
 
-Mostly **authored in-repo** (no third-party audio): the three effect WAVs are
-synthesized deterministically by the pack script, and `music.mp3` is a
+Mostly **authored in-repo** (no third-party audio): the three effect WAVs
+are synthesized deterministically by the generator, and `music.mp3` is a
 committed ~6 s looping arpeggio encoded once with a pinned ffmpeg
 (`libmp3lame`, 64 kbps, 22.05 kHz mono) — MP3 is not byte-reproducible across
 encoders, so it is a source, not generated. The only third-party asset is the
-CC0 `font.ttf` (same Kenney font as `text-showcase.zip`). Regenerate the pack
-deterministically with:
+CC0 `font.ttf` (same Kenney font as `text-showcase/`). Regenerate the loose
+WAVs in the sample directory deterministically with:
 
 ```sh
-python3 gallery/scripts/pack-curated-audio.py
-python3 gallery/scripts/pack-curated-audio.py --check   # drift check
+python3 gallery/scripts/gen-audio-assets.py
+python3 gallery/scripts/gen-audio-assets.py --check   # drift check
 ```
 
-The committed pack sources live under `gallery/samples/curated/audio/`
+The committed sources live under `gallery/samples/curated/audio-showcase/`
 (`music.mp3`, `font.ttf`).

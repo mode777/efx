@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
+import { readCurated, packSample, hasResources } from './lib/samples.mjs';
 
 const here = path.dirname(url.fileURLToPath(import.meta.url));
 const galleryDir = path.resolve(here, '..');
@@ -78,34 +79,32 @@ function goldenSamples() {
 }
 
 function curatedSamples() {
-    const manifestPath = path.join(curatedDir, 'manifest.json');
-    if (!fs.existsSync(manifestPath)) return [];
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const entries = readCurated();
     const samplesDir = path.join(galleryDir, 'public', 'samples');
-    return manifest.map((entry) => {
-        const source = fs.readFileSync(path.join(curatedDir, entry.file), 'utf8');
+    return entries.map((entry) => {
+        // The sample directory is the resource root and the single source of
+        // truth: its `main.js` is the catalog source and, when it holds
+        // resources besides `main.js`, the build derives a mountable pack from
+        // the directory's contents at the archive root (design D1/D2/D3).
+        const source = fs.readFileSync(
+            path.join(curatedDir, entry.dir, 'main.js'),
+            'utf8'
+        );
         const sample = {
-            id: entry.id || `curated:${entry.file.replace(/\.js$/, '')}`,
+            id: entry.id,
             origin: 'curated',
             title: entry.title,
-            category: entry.category || 'Showcase',
-            description: entry.description || '',
+            category: entry.category,
+            description: entry.description,
             source,
         };
-        // A curated sample may ship a committed asset pack (a zip beside its
-        // manifest). Copy it into the site and point the runner's host asset
-        // channel at it, exactly as golden scenes do.
-        if (entry.assets) {
-            const pack = path.join(curatedDir, entry.assets);
-            if (!fs.existsSync(pack)) {
-                throw new Error(
-                    `curated asset pack not found for '${sample.id}': ${entry.assets}`
-                );
-            }
+        if (hasResources(entry.dir)) {
             fs.mkdirSync(samplesDir, { recursive: true });
-            const zipName = path.basename(entry.assets);
-            fs.copyFileSync(pack, path.join(samplesDir, zipName));
-            sample.assets = `samples/${zipName}`;
+            fs.writeFileSync(
+                path.join(samplesDir, `${entry.dir}.zip`),
+                packSample(entry.dir)
+            );
+            sample.assets = `samples/${entry.dir}.zip`;
         }
         return sample;
     });

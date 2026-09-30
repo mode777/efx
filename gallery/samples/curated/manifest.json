@@ -1,112 +1,90 @@
 [
   {
-    "file": "hello-cube.js",
-    "id": "curated:hello-cube",
+    "dir": "hello-cube",
     "title": "Hello Cube",
     "category": "Showcase",
     "description": "A lit, spinning cube — the smallest complete 3D scene."
   },
   {
-    "file": "bouncing-sprites.js",
-    "id": "curated:bouncing-sprites",
+    "dir": "bouncing-sprites",
     "title": "Bouncing Sprites",
     "category": "Showcase",
     "description": "Eight textured quads bouncing inside a 640x480 virtual frame."
   },
   {
-    "file": "light-show.js",
-    "id": "curated:light-show",
+    "dir": "light-show",
     "title": "Light Show",
     "category": "Showcase",
     "description": "Four colored point lights orbiting a Phong sphere in real time."
   },
   {
-    "file": "post-bloom-tv.js",
-    "id": "curated:post-bloom-tv",
+    "dir": "post-bloom-tv",
     "title": "CRT Bloom",
     "category": "Showcase",
     "description": "A declarative post-effect chain: bloom plus a color filter."
   },
   {
-    "file": "input-playground.js",
-    "id": "curated:input-playground",
+    "dir": "input-playground",
     "title": "Input Playground",
     "category": "Showcase",
     "description": "An interactive tour of the F9 input API: mouse move/down/wheel callbacks paint a particle trail, keyboard events and held-state queries steer it, and surface-pixel pointer coordinates are mapped into the 2D frame. Self-plays until you interact."
   },
   {
-    "file": "gamepad-tester.js",
-    "id": "curated:gamepad-tester",
+    "dir": "gamepad-tester",
     "title": "Gamepad Tester",
     "category": "Showcase",
-    "description": "An interactive tour of the F13 gamepad API: plug in a controller and watch every semantic button, stick, trigger, and d-pad element light up live, with pad name, mapping status, and connect/disconnect events. Unmapped pads fall back to a raw axes/buttons panel. Keys 1-4 select a slot, Tab cycles.",
-    "assets": "gamepad-tester.zip"
+    "description": "An interactive tour of the F13 gamepad API: plug in a controller and watch every semantic button, stick, trigger, and d-pad element light up live, with pad name, mapping status, and connect/disconnect events. Unmapped pads fall back to a raw axes/buttons panel. Keys 1-4 select a slot, Tab cycles."
   },
   {
-    "file": "audio-showcase.js",
-    "id": "curated:audio-showcase",
+    "dir": "audio-showcase",
     "title": "Audio Showcase",
     "category": "Showcase",
-    "description": "An interactive tour of the F14 audio API: a looping streamed track plus a 32-voice effect bank. Click a pad (or press 1/2/3) to fire a blip/chime/thud with pan from the click x and pitch from the click y, Space pauses/resumes the music, M mutes, and [ / ] change volume. On the web, audio unlocks on the first input.",
-    "assets": "audio-showcase.zip"
+    "description": "An interactive tour of the F14 audio API: a looping streamed track plus a 32-voice effect bank. Click a pad (or press 1/2/3) to fire a blip/chime/thud with pan from the click x and pitch from the click y, Space pauses/resumes the music, M mutes, and [ / ] change volume. On the web, audio unlocks on the first input."
   },
   {
-    "file": "texture-showcase.js",
-    "id": "curated:texture-showcase",
+    "dir": "texture-showcase",
     "title": "Texture Showcase",
     "category": "Textures",
-    "description": "A real CC0 paving-stone texture (ambientCG) loaded from the sample's asset pack: shown full and cropped with sourceRect, and tiled across a 3D ground plane and spinning cube.",
-    "assets": "texture-showcase.zip"
+    "description": "A real CC0 paving-stone texture (ambientCG) loaded from the sample's asset pack: shown full and cropped with sourceRect, and tiled across a 3D ground plane and spinning cube."
   },
   {
-    "file": "gltf-showcase.js",
-    "id": "curated:gltf-showcase",
+    "dir": "gltf-showcase",
     "title": "glTF Model",
     "category": "Assets",
-    "description": "A real CC0 glTF model (Avocado by Microsoft, Khronos glTF-Sample-Assets) imported with loadMeshData, base-color mapped and lit under the engine's Phong model.",
-    "assets": "gltf-showcase.zip"
+    "description": "A real CC0 glTF model (Avocado by Microsoft, Khronos glTF-Sample-Assets) imported with loadMeshData, base-color mapped and lit under the engine's Phong model."
   },
   {
-    "file": "fox-walk.js",
-    "id": "curated:fox-walk",
+    "dir": "fox-walk",
     "title": "Fox Walk",
     "category": "Assets",
-    "description": "A real CC0 rigged model (Fox, Quaternius' Ultimate Animated Animals) imported with loadMeshData and CPU-posed with poseMesh from a script-owned clock, drawn with skinned: true.",
-    "assets": "fox-walk.zip"
+    "description": "A real CC0 rigged model (Fox, Quaternius' Ultimate Animated Animals) imported with loadMeshData and CPU-posed with poseMesh from a script-owned clock, drawn with skinned: true."
   },
   {
-    "file": "modules-showcase.js",
-    "id": "curated:modules-showcase",
+    "dir": "modules-showcase",
     "title": "Script Modules",
     "category": "Scripting",
-    "description": "A lit 3D scene split across files with the F10 CommonJS module system: synchronous require loads a relative module (palette.js), an extension-less specifier with the deterministic .js fallback (orbit), and a JSON module (data/scene.json) from the sample's asset pack, then registers update/render hooks from the composed data.",
-    "assets": "modules-showcase.zip"
+    "description": "A lit 3D scene split across files with the F10 CommonJS module system: synchronous require loads a relative module (palette.js), an extension-less specifier with the deterministic .js fallback (orbit), and a JSON module (data/scene.json) from the sample's asset pack, then registers update/render hooks from the composed data."
   },
   {
-    "file": "text-showcase.js",
-    "id": "curated:text-showcase",
+    "dir": "text-showcase",
     "title": "Text Showcase",
     "category": "Text",
-    "description": "A TrueType font baked into a fixed atlas with the F8a text API: loadFontData -> createFont (with baked outline/shadow) draws a title, a wrapped paragraph whose alignment cycles through left/center/right/justify (Tab), and a live typing area (type, Enter, Backspace). The font is a CC0 Kenney font from the sample's asset pack.",
-    "assets": "text-showcase.zip"
+    "description": "A TrueType font baked into a fixed atlas with the F8a text API: loadFontData -> createFont (with baked outline/shadow) draws a title, a wrapped paragraph whose alignment cycles through left/center/right/justify (Tab), and a live typing area (type, Enter, Backspace). The font is a CC0 Kenney font from the sample's asset pack."
   },
   {
-    "file": "particles-showcase.js",
-    "id": "curated:particles-showcase",
+    "dir": "particles-showcase",
     "title": "Particle Showcase",
     "category": "Showcase",
     "description": "The F11 particle system: an additive fire (view billboards, continuous emission), an alpha smoke plume, a y-axis-billboard ember burst (emit), lifetime-interpolated size/color, plus a 2D drawSprites row. All procedural textures, no asset pack."
   },
   {
-    "file": "particle-plane-showcase.js",
-    "id": "curated:particle-plane-showcase",
+    "dir": "particle-plane-showcase",
     "title": "Water Plane",
     "category": "Showcase",
     "description": "F11 oriented-plane particles: a water surface built from fixed `facing: 'plane'` quads (normal +Y) that stay world-aligned as the camera orbits, with a camera-facing spray and a y-billboard above it."
   },
   {
-    "file": "physics-showcase.js",
-    "id": "curated:physics-showcase",
+    "dir": "physics-showcase",
     "title": "Physics Playground",
     "category": "Showcase",
     "description": "F12 collision + character + dynamics: a capsule character walks a static course with moveAndSlide (floor/wall classification, a ramp, and a step), triggers a sensor volume, pushes falling and pushable crates, and casts a raycast for line of sight. Procedural geometry, no asset pack."
