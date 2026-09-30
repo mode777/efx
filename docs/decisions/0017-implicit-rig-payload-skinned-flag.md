@@ -1,6 +1,8 @@
 # 0017 — Skins and skeletons are implicit Mesh payload; `skinned` is a drawMesh flag
 
-Status: Accepted (2026-09, change `js-api-reference`)
+Status: Accepted (2026-09, change `js-api-reference`; amended 2026-09:
+`drawModel`/F8b retired as obsolete — superseded by multi-surface meshes,
+ADR 0024)
 Amends: 0014 (resource-exposure aspect only — the glTF data mapping stands)
 Amended by 0018: the playback APIs (`playAnimation`/`pauseAnimation`/
 `blendAnimations`) are replaced by script-driven `poseMesh`; implicit rig
@@ -58,7 +60,9 @@ vertices — a `skinned` flag on `drawMesh`, or a separate
 - Procedural (non-imported) skeletons have no construction path in F7
   (`createMeshData` carries `joints`/`weights`, but rig/clips come from
   assets); deferred as an open question.
-- `drawModel` (F8, high-level JS) forwards the `skinned` option.
+- The F8b `drawModel` convenience was to forward the `skinned` option; it is
+  retired as obsolete (superseded by multi-surface meshes, ADR 0024), so
+  `drawMesh(mesh, { skinned })` is the direct consumer.
 - One-Mesh-one-pose (0014) is refined: bind pose is always retained; the
   posed buffer holds the single current pose.
 

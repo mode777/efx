@@ -1,6 +1,8 @@
 # 0038 — Native font typesetting: fixed atlas baked in C, drawn as quads
 
-Status: Accepted (2026-09, change `f8a-font-typesetting`)
+Status: Accepted (2026-09, change `f8a-font-typesetting`; amended 2026-09: the
+F8b `drawModel`/demo-pack slice is retired as obsolete — superseded by
+multi-surface meshes, ADR 0024)
 
 ## Context
 
@@ -53,9 +55,10 @@ clause; the rest of 0013's taxonomy model stands.
 - `stb_truetype` does no hinting and no shaping; small text is soft and
   ligatures/Arabic/Indic are out of scope. FreeType/HarfBuzz remain the
   heavier alternatives if that ever changes.
-- Future text work (MSDF/SDF, `drawModel`, rich text) builds on the
+- Future text work (MSDF/SDF, rich text) builds on the
   `loadFontData → createFont → drawText/measureText` contract without
-  reshaping it.
+  reshaping it. (The F8b `drawModel`/demo-pack slice is retired as obsolete;
+  see the Status amendment.)
 
 ## Rejected alternatives
 

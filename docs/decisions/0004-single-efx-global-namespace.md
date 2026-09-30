@@ -1,6 +1,8 @@
 # 0004 — Every engine function hangs off one global `efx` namespace
 
-Status: Accepted (F1; change `2026-09-19-f1-player-skeleton`)
+Status: Accepted (F1; change `2026-09-19-f1-player-skeleton`; amended 2026-09:
+the `drawModel`/F8b high-level slice is retired as obsolete — superseded by
+multi-surface meshes, ADR 0024)
 
 ## Context
 
@@ -13,10 +15,14 @@ meet.
 
 All engine-provided functions are registered as C callbacks on a single
 global object `efx` (`efx.log`, `efx.quit`, `efx.args` in F1). Every
-future low/mid-level function (`drawQuad`, `setMaterial`, …) follows the
-same pattern; high-level conveniences (`drawModel`, `drawText`) are
-engine-provided pure JS built on the public `[C]` surface, also exposed
-via `efx`. The catalog is `docs/js-api.md`; script-facing changes
+future low/mid-level function (`drawQuad`, `setMeshSurfaceMaterial`, …)
+follows the same pattern; high-level conveniences (the bundled pure-JS
+prelude — `efx.mat4`/`efx.vec3`/`efx.quat`, `makeCube`/`makePlane`/
+`makeSphere`) are engine-provided pure JS built on the public `[C]` surface,
+also exposed via `efx`. (The earlier `drawModel` example is retired as
+obsolete — superseded by multi-surface meshes, ADR 0024 — and `drawText` is
+now a native C facility, ADR 0038.) The catalog is `docs/js-api.md`;
+script-facing changes
 require a `js-api` spec delta plus a `docs/js-api.md` update in the same
 change.
 
