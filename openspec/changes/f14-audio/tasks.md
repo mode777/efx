@@ -49,4 +49,4 @@
 
 ## 8. Verification gate
 
-- [ ] 8.1 Run the four-target gate in order per AGENTS.md: `python3 tools/verify_remote.py all <branch>` on the SSH verification server, then `gh workflow run ci.yml --ref <branch>`, confirming Linux, then Windows, then macOS green; note F14 has no golden-image gate — the gate is the headless pure-C audio unit tests plus the portable script harness on all four targets, the cross-runtime compare, and the no-device soft-fail check
+- [x] 8.1 Run the four-target gate in order per AGENTS.md: `python3 tools/verify_remote.py all <branch>` on the SSH verification server, then `gh workflow run ci.yml --ref <branch>`, confirming Linux, then Windows, then macOS green; note F14 has no golden-image gate — the gate is the headless pure-C audio unit tests plus the portable script harness on all four targets, the cross-runtime compare, and the no-device soft-fail check
