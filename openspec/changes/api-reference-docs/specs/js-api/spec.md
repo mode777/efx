@@ -87,14 +87,21 @@ entries SHALL NOT be marked provisional.
   query methods and read-only properties, the semantic button/axis name sets,
   the canonical range and trigger threshold, and the raw fallback
 
+#### Scenario: Audio namespace is documented
+- **WHEN** the reference is read
+- **THEN** it documents `efx.audio` with its entry points, the
+  `SoundData`/`Sound`/`Music` classes and their properties, the
+  decoded-PCM-only rule, the no-device and web-unlock behavior, and the fixed
+  limits
+
 #### Scenario: Catalog derived from vision
 - **WHEN** the guidelines' vision traceability is checked against vision.md
 - **THEN** every capability vision.md names for the consumer API (2D quads,
   meshes, vertex colors, cameras, lights, Phong materials with maps, alpha
   masks, blending modes, render targets, post FX, resource loading,
-  keyboard/mouse input query and events, gamepad input, script modules,
-  skinning/animation, high-level text drawing) has a corresponding documented
-  symbol or an explicitly noted open question
+  keyboard/mouse input query and events, gamepad input, audio playback,
+  script modules, skinning/animation, high-level text drawing) has a
+  corresponding documented symbol or an explicitly noted open question
 
 #### Scenario: Reference is generated, not hand-written
 - **WHEN** a reader consults the per-symbol API reference
