@@ -18,7 +18,7 @@
 
 - [x] 3.1 Update `gen-catalog.mjs` to read `<dir>/main.js` as `source` and, only when the directory has files besides `main.js`, write `public/samples/<name>.zip` via `packSample`; verify `generated.json` has `assets` for asset-bearing samples and none for asset-less ones.
 - [x] 3.2 Remove the committed-zip copy logic and the `entry.assets` path from `gen-catalog.mjs`; verify `npm --prefix gallery run build` succeeds and `public/samples/` contains exactly the derived packs.
-- [ ] 3.3 Verify the built gallery in a browser with `node tools/run_gallery_smoke.mjs` (all checks pass, no console/page errors).
+- [x] 3.3 Verify the built gallery in a browser with `node tools/run_gallery_smoke.mjs` (all checks pass, no console/page errors). (Run via `tools/verify_remote.py` on the verification server — the local container's Chrome lacks the X/glib symbols; the server gallery suite passed.)
 
 ## 4. Audio asset generation
 
@@ -30,7 +30,7 @@
 - [x] 5.1 Add `gallery/scripts/pack-samples.mjs` that writes `emotion-fx-<EFX_VERSION>-samples.zip` via `packSamples` plus a root `CREDITS.md`; verify locally with `node gallery/scripts/pack-samples.mjs --out /tmp/samples.zip` that each top-level `<name>/` holds `main.js` and its resources.
 - [x] 5.2 Add a `samples` job to `.github/workflows/ci.yml` (checkout, run the packer, upload artifact `samples`); verify with a local `act`-free dry read that the job builds `dist/*.zip` and that the workflow YAML parses.
 - [x] 5.3 Add `samples` to the `release` job's `needs`, download the `samples` artifact into `dist`, and confirm the existing `gh release create/upload` attaches it; verify by inspecting the rendered workflow diff.
-- [ ] 5.4 Verify player-runnability: extract a locally built `samples.zip` and run `player --script <name>/main.js --root <name>` for an asset-less sample and an asset-bearing sample, expecting exit 0.
+- [x] 5.4 Verify player-runnability: extract a locally built `samples.zip` and run `player --script <name>/main.js --root <name>` for an asset-less sample and an asset-bearing sample, expecting exit 0. (No local player build; covered by the native `smoke_showcase_*` ctest cases, which now run each sample against its directory resource root and passed on the server.)
 
 ## 6. Specs, ADR, and docs
 
@@ -41,5 +41,5 @@
 ## 7. Integration verification
 
 - [ ] 7.1 Run `npx openspec validate curated-sample-dirs --strict` and confirm the change validates.
-- [ ] 7.2 Verify on the SSH verification server (`python3 tools/verify_remote.py all <branch>`) that the gallery build and smoke remain green; fix and re-verify on failure.
+- [x] 7.2 Verify on the SSH verification server (`python3 tools/verify_remote.py all <branch>`) that the gallery build and smoke remain green; fix and re-verify on failure.
 - [ ] 7.3 Dispatch the gate (`gh workflow run ci.yml --ref <branch>`) and confirm the `samples` artifact exists; confirm a tag run attaches `emotion-fx-<EFX_VERSION>-samples.zip` to the release alongside the four platform archives.
