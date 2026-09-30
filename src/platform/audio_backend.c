@@ -84,7 +84,7 @@ void efx_audio_backend_frame(void) {
     if (!saudio_isvalid()) {
         return;
     }
-    efx_audio_music_pump();
+    efx_audio_pump();
     int budget = 8; /* bounded; the queue is at most buffer_frames deep */
     while (budget-- > 0) {
         int want = saudio_expect();

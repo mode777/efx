@@ -1,8 +1,9 @@
 /*
  * Headless unit tests for the F14 audio core (no device, no script runtime):
- * WAV/MP3 decoding, mixing determinism, resampling/pitch, error handling,
- * the fixed voice bank + steal policy, streaming music and its controls, and
- * the no-device soft-fail path.
+ * WAV/MP3 decoding, mixing determinism, resampling/pitch, error handling, the
+ * fixed voice bank + steal policy, static and streamed source kinds, the
+ * concurrent-stream cap, the master gain, source lifetime, and the no-device
+ * soft-fail path.
  *
  * Usage: efx_audio_tests <case> ; exit 0 = pass.
  * The WAV/MP3 fixtures are embedded at configure time (efx_audio_fixtures.h)
@@ -57,23 +58,26 @@ static int all_zero(const float *b, int frames) {
     return 1;
 }
 
+static efx_audio_data *load_wav(int *err) {
+    return efx_audio_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, err);
+}
+
 /* --------------------------------------------------------------- decoding */
 
 static int decode_wav(void) {
     efx_audio_init(8000);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s || err != EFX_AUDIO_OK) {
+    efx_audio_data *d = load_wav(&err);
+    if (!d || err != EFX_AUDIO_OK) {
         return fail("wav load");
     }
-    if (efx_audio_sound_data_frames(s) != 800) {
+    if (efx_audio_data_frames(d) != 800) {
         return fail("wav frame count");
     }
-    if (efx_audio_sound_data_rate(s) != 8000) {
+    if (efx_audio_data_rate(d) != 8000) {
         return fail("wav sample rate");
     }
-    efx_audio_sound_data_release(s);
+    efx_audio_data_release(d);
     efx_audio_shutdown();
     return 0;
 }
@@ -81,18 +85,18 @@ static int decode_wav(void) {
 static int decode_mp3(void) {
     efx_audio_init(8000);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_MP3, EFX_TEST_MP3_SIZE, &err);
-    if (!s || err != EFX_AUDIO_OK) {
+    efx_audio_data *d =
+        efx_audio_data_load(EFX_TEST_MP3, EFX_TEST_MP3_SIZE, &err);
+    if (!d || err != EFX_AUDIO_OK) {
         return fail("mp3 load");
     }
-    if (efx_audio_sound_data_frames(s) == 0) {
+    if (efx_audio_data_frames(d) == 0) {
         return fail("mp3 frame count");
     }
-    if (efx_audio_sound_data_rate(s) != 8000) {
+    if (efx_audio_data_rate(d) != 8000) {
         return fail("mp3 sample rate");
     }
-    int v = efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 0);
+    int v = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
     if (v < 0) {
         return fail("mp3 play");
     }
@@ -105,7 +109,7 @@ static int decode_mp3(void) {
             return fail("mp3 non-finite sample");
         }
     }
-    efx_audio_sound_data_release(s);
+    efx_audio_data_release(d);
     efx_audio_shutdown();
     return 0;
 }
@@ -115,12 +119,11 @@ static int decode_mp3(void) {
 static int mix_matches(void) {
     efx_audio_init(8000);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s) {
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
         return fail("load");
     }
-    int v = efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 0);
+    int v = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
     if (v < 0) {
         return fail("play");
     }
@@ -140,7 +143,7 @@ static int mix_matches(void) {
     if (efx_audio_voice_playing(v)) {
         return fail("voice should have ended");
     }
-    efx_audio_sound_data_release(s);
+    efx_audio_data_release(d);
     efx_audio_shutdown();
     return 0;
 }
@@ -149,12 +152,11 @@ static int resample_pitch(void) {
     /* half rate: 8 kHz source on a 16 kHz device => 0.5 source frames/out */
     efx_audio_init(16000);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s) {
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
         return fail("load");
     }
-    int v = efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 0);
+    int v = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
     if (v < 0) {
         return fail("play");
     }
@@ -169,12 +171,11 @@ static int resample_pitch(void) {
     }
     /* pitch 2: two source frames per output frame */
     efx_audio_init(8000);
-    efx_sound_data *s2 =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s2) {
+    efx_audio_data *d2 = load_wav(&err);
+    if (!d2) {
         return fail("load2");
     }
-    int v2 = efx_audio_play_effect(s2, 1.0f, 0.0f, 2.0f, 0);
+    int v2 = efx_audio_play_data(d2, 1.0f, 0.0f, 2.0f, 0);
     if (v2 < 0) {
         return fail("play2");
     }
@@ -187,8 +188,8 @@ static int resample_pitch(void) {
             return 1;
         }
     }
-    efx_audio_sound_data_release(s);
-    efx_audio_sound_data_release(s2);
+    efx_audio_data_release(d);
+    efx_audio_data_release(d2);
     efx_audio_shutdown();
     return 0;
 }
@@ -196,33 +197,31 @@ static int resample_pitch(void) {
 static int mix_determinism(void) {
     efx_audio_init(8000);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s) {
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
         return fail("load");
     }
-    if (efx_audio_play_effect(s, 0.8f, 0.25f, 1.3f, 0) < 0) {
+    if (efx_audio_play_data(d, 0.8f, 0.25f, 1.3f, 0) < 0) {
         return fail("play");
     }
     efx_audio_mix(g_buf, 300);
     float first[300 * 2];
     memcpy(first, g_buf, sizeof(first));
-    efx_audio_sound_data_release(s);
+    efx_audio_data_release(d);
 
     efx_audio_init(8000);
-    efx_sound_data *s2 =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s2) {
+    efx_audio_data *d2 = load_wav(&err);
+    if (!d2) {
         return fail("load2");
     }
-    if (efx_audio_play_effect(s2, 0.8f, 0.25f, 1.3f, 0) < 0) {
+    if (efx_audio_play_data(d2, 0.8f, 0.25f, 1.3f, 0) < 0) {
         return fail("play2");
     }
     efx_audio_mix(g_buf, 300);
     if (memcmp(first, g_buf, sizeof(first)) != 0) {
         return fail("mix not deterministic");
     }
-    efx_audio_sound_data_release(s2);
+    efx_audio_data_release(d2);
     efx_audio_shutdown();
     return 0;
 }
@@ -232,20 +231,28 @@ static int mix_determinism(void) {
 static int errors(void) {
     efx_audio_init(8000);
     int err = 0;
-    if (efx_audio_sound_data_load(NULL, 0, &err) != NULL ||
+    if (efx_audio_data_load(NULL, 0, &err) != NULL ||
         err != EFX_AUDIO_ERR_ARG) {
         return fail("null load");
     }
-    if (efx_audio_sound_data_load(EFX_TEST_WAV, 16, &err) != NULL ||
+    if (efx_audio_data_load(EFX_TEST_WAV, 16, &err) != NULL ||
         err != EFX_AUDIO_ERR_FORMAT) {
         return fail("truncated wav");
     }
     static const unsigned char garbage[16] = {
         0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22, 0x33,
         0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb};
-    if (efx_audio_sound_data_load(garbage, sizeof(garbage), &err) != NULL ||
+    if (efx_audio_data_load(garbage, sizeof(garbage), &err) != NULL ||
         err != EFX_AUDIO_ERR_FORMAT) {
-        return fail("garbage load");
+        return fail("garbage data load");
+    }
+    if (efx_audio_stream_load(garbage, sizeof(garbage), &err) != NULL ||
+        err != EFX_AUDIO_ERR_FORMAT) {
+        return fail("garbage stream load");
+    }
+    if (efx_audio_stream_load(NULL, 0, &err) != NULL ||
+        err != EFX_AUDIO_ERR_ARG) {
+        return fail("null stream load");
     }
     efx_audio_shutdown();
     return 0;
@@ -256,14 +263,13 @@ static int errors(void) {
 static int voices_steal(void) {
     efx_audio_init(8000);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s) {
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
         return fail("load");
     }
     int ids[EFX_AUDIO_MAX_VOICES];
     for (int i = 0; i < EFX_AUDIO_MAX_VOICES; i++) {
-        ids[i] = efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 0);
+        ids[i] = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
         if (ids[i] != i) {
             return fail("voice allocation order");
         }
@@ -273,7 +279,7 @@ static int voices_steal(void) {
     }
     /* quietest non-looping voice is stolen */
     efx_audio_set_voice_volume(5, 0.01f);
-    int stolen = efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 0);
+    int stolen = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
     if (stolen != 5) {
         fprintf(stderr, "FAIL: expected steal of voice 5, got %d\n", stolen);
         return 1;
@@ -283,93 +289,224 @@ static int voices_steal(void) {
     }
     /* all looping => reject */
     for (int i = 0; i < EFX_AUDIO_MAX_VOICES; i++) {
-        if (efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 1) < 0) {
+        if (efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 1) < 0) {
             return fail("looping allocation");
         }
     }
-    if (efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 1) != -1) {
+    if (efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 1) != -1) {
         return fail("all-looping must reject");
     }
-    efx_audio_sound_data_release(s);
+    efx_audio_data_release(d);
     efx_audio_shutdown();
     return 0;
 }
 
-/* ----------------------------------------------------------- music */
+/* --------------------------------------------------------------- streams */
 
-static int music_stream(void) {
+static int stream_plays(void) {
     efx_audio_init(8000);
     int err = -1;
-    if (efx_audio_play_music(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, 1.0f, 0, &err) !=
-        0) {
-        return fail("play_music");
+    efx_audio_stream *s =
+        efx_audio_stream_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
+    if (!s) {
+        return fail("stream load");
     }
-    if (!efx_audio_music_playing()) {
-        return fail("music should be playing");
+    int v = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 0);
+    if (v < 0) {
+        return fail("stream play");
     }
-    efx_audio_music_pump();
+    if (!efx_audio_voice_playing(v)) {
+        return fail("stream should be playing");
+    }
+    efx_audio_pump();
     efx_audio_mix(g_buf, 200);
     if (!any_nonzero(g_buf, 200)) {
-        return fail("music silence");
+        return fail("stream silence");
     }
     /* drain past the end without looping */
-    efx_audio_mix(g_buf, 2000);
-    if (efx_audio_music_playing()) {
-        return fail("music should have ended");
+    for (int k = 0; k < 20; k++) {
+        efx_audio_pump();
+        efx_audio_mix(g_buf, 200);
     }
-    /* looped music keeps playing across the wrap */
-    if (efx_audio_play_music(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, 1.0f, 1, &err) !=
-        0) {
-        return fail("play_music loop");
+    if (efx_audio_voice_playing(v)) {
+        return fail("stream should have ended");
+    }
+    /* looped stream keeps playing across the wrap */
+    efx_audio_stop_voice(v);
+    int v2 = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 1);
+    if (v2 < 0) {
+        return fail("stream loop play");
     }
     for (int k = 0; k < 12; k++) {
-        efx_audio_music_pump();
+        efx_audio_pump();
         efx_audio_mix(g_buf, 200);
-        if (!efx_audio_music_playing()) {
-            return fail("looped music stopped");
+        if (!efx_audio_voice_playing(v2)) {
+            return fail("looped stream stopped");
         }
         if (!any_nonzero(g_buf, 200)) {
-            return fail("looped music silence");
+            return fail("looped stream silence");
         }
     }
+    efx_audio_stream_release(s);
     efx_audio_shutdown();
     return 0;
 }
 
-static int music_controls(void) {
+static int stream_controls(void) {
     efx_audio_init(8000);
     int err = -1;
-    if (efx_audio_play_music(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, 1.0f, 1, &err) !=
-        0) {
-        return fail("play_music");
+    efx_audio_stream *s =
+        efx_audio_stream_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
+    if (!s) {
+        return fail("stream load");
     }
-    efx_audio_music_pump();
+    int v = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 1);
+    if (v < 0) {
+        return fail("stream play");
+    }
+    efx_audio_pump();
     efx_audio_mix(g_buf, 100);
     if (!any_nonzero(g_buf, 100)) {
-        return fail("music should be audible");
+        return fail("stream should be audible");
     }
-    efx_audio_pause_music(1);
-    if (efx_audio_music_playing() || !efx_audio_music_paused()) {
+    efx_audio_set_voice_paused(v, 1);
+    if (efx_audio_voice_playing(v) || !efx_audio_voice_paused(v)) {
         return fail("pause state");
     }
     efx_audio_mix(g_buf, 100);
     if (!all_zero(g_buf, 100)) {
-        return fail("paused music must be silent");
+        return fail("paused stream must be silent");
     }
-    efx_audio_pause_music(0);
-    if (!efx_audio_music_playing()) {
+    efx_audio_set_voice_paused(v, 0);
+    if (!efx_audio_voice_playing(v)) {
         return fail("resume state");
     }
-    efx_audio_set_music_volume(0.0f);
-    efx_audio_music_pump();
+    efx_audio_set_voice_volume(v, 0.0f);
+    efx_audio_pump();
     efx_audio_mix(g_buf, 100);
     if (!all_zero(g_buf, 100)) {
         return fail("zero volume must be silent");
     }
-    efx_audio_stop_music();
-    if (efx_audio_music_playing()) {
+    efx_audio_stop_voice(v);
+    if (efx_audio_voice_playing(v)) {
         return fail("stop state");
     }
+    efx_audio_stream_release(s);
+    efx_audio_shutdown();
+    return 0;
+}
+
+static int stream_cap(void) {
+    efx_audio_init(8000);
+    int err = -1;
+    efx_audio_stream *s =
+        efx_audio_stream_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
+    if (!s) {
+        return fail("stream load");
+    }
+    int ids[EFX_AUDIO_MAX_STREAMS];
+    for (int i = 0; i < EFX_AUDIO_MAX_STREAMS; i++) {
+        ids[i] = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 0);
+        if (ids[i] < 0) {
+            return fail("stream allocation");
+        }
+    }
+    if (efx_audio_stream_voice_count() != EFX_AUDIO_MAX_STREAMS) {
+        return fail("stream count");
+    }
+    /* a further (non-looping) stream steals a stream voice, staying at cap */
+    int extra = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 0);
+    if (extra < 0) {
+        return fail("stream steal");
+    }
+    if (efx_audio_stream_voice_count() != EFX_AUDIO_MAX_STREAMS) {
+        return fail("stream cap exceeded");
+    }
+    /* with every stream looping, a new stream is rejected deterministically */
+    for (int i = 0; i < EFX_AUDIO_MAX_VOICES; i++) {
+        efx_audio_stop_voice(i);
+    }
+    for (int i = 0; i < EFX_AUDIO_MAX_STREAMS; i++) {
+        if (efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 1) < 0) {
+            return fail("looping stream allocation");
+        }
+    }
+    if (efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 1) != -1) {
+        return fail("all-looping streams must reject");
+    }
+    efx_audio_stream_release(s);
+    efx_audio_shutdown();
+    return 0;
+}
+
+/* --------------------------------------------------------------- lifetime */
+
+static int source_lifetime(void) {
+    efx_audio_init(8000);
+    int err = -1;
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
+        return fail("load");
+    }
+    int v = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
+    if (v < 0) {
+        return fail("play");
+    }
+    efx_audio_data_release(d); /* the voice retains the source */
+    efx_audio_mix(g_buf, 200);
+    if (!any_nonzero(g_buf, 200)) {
+        return fail("released source went silent");
+    }
+    efx_audio_stop_voice(v);
+    efx_audio_shutdown();
+
+    efx_audio_init(8000);
+    efx_audio_stream *s =
+        efx_audio_stream_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
+    if (!s) {
+        return fail("stream load");
+    }
+    int sv = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 0);
+    if (sv < 0) {
+        return fail("stream play");
+    }
+    efx_audio_stream_release(s); /* the playhead retains the source */
+    efx_audio_pump();
+    efx_audio_mix(g_buf, 200);
+    if (!any_nonzero(g_buf, 200)) {
+        return fail("released stream went silent");
+    }
+    efx_audio_stop_voice(sv);
+    efx_audio_shutdown();
+    return 0;
+}
+
+/* --------------------------------------------------------------- master */
+
+static int master_gain(void) {
+    efx_audio_init(8000);
+    int err = -1;
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
+        return fail("load");
+    }
+    efx_audio_set_master_volume(0.0f);
+    if (efx_audio_master_volume() != 0.0f) {
+        return fail("master getter");
+    }
+    if (efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0) < 0) {
+        return fail("play");
+    }
+    efx_audio_mix(g_buf, 100);
+    if (!all_zero(g_buf, 100)) {
+        return fail("zero master must be silent");
+    }
+    efx_audio_set_master_volume(1.0f);
+    efx_audio_mix(g_buf, 100);
+    if (!any_nonzero(g_buf, 100)) {
+        return fail("master restore");
+    }
+    efx_audio_data_release(d);
     efx_audio_shutdown();
     return 0;
 }
@@ -378,37 +515,45 @@ static int unavailable(void) {
     efx_audio_init(8000);
     efx_audio_set_available(0);
     int err = -1;
-    efx_sound_data *s =
-        efx_audio_sound_data_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
-    if (!s) {
+    efx_audio_data *d = load_wav(&err);
+    if (!d) {
         return fail("load");
     }
-    if (efx_audio_play_effect(s, 1.0f, 0.0f, 1.0f, 0) != -1) {
-        return fail("effect must be rejected with no device");
+    int v = efx_audio_play_data(d, 1.0f, 0.0f, 1.0f, 0);
+    if (v < 0) {
+        return fail("play must still allocate with no device");
     }
-    /* music may be requested before unlock, but reports not playing */
-    if (efx_audio_play_music(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, 1.0f, 0, &err) !=
-        0) {
-        return fail("play_music pre-unlock");
+    if (efx_audio_voice_playing(v)) {
+        return fail("must report not playing with no device");
     }
-    if (efx_audio_music_playing()) {
-        return fail("music must report not playing pre-unlock");
+    efx_audio_stream *s =
+        efx_audio_stream_load(EFX_TEST_WAV, EFX_TEST_WAV_SIZE, &err);
+    if (!s) {
+        return fail("stream load");
     }
-    efx_audio_music_pump();
+    int sv = efx_audio_play_stream(s, 1.0f, 0.0f, 1.0f, 0);
+    if (sv < 0) {
+        return fail("stream play pre-unlock");
+    }
+    if (efx_audio_voice_playing(sv)) {
+        return fail("stream must report not playing pre-unlock");
+    }
+    efx_audio_pump();
     efx_audio_mix(g_buf, 100);
     if (!all_zero(g_buf, 100)) {
         return fail("no-device mix must be silent");
     }
     efx_audio_set_available(1);
-    efx_audio_music_pump();
-    if (!efx_audio_music_playing()) {
-        return fail("music must play after unlock");
+    efx_audio_pump();
+    if (!efx_audio_voice_playing(v)) {
+        return fail("static must play after unlock");
     }
     efx_audio_mix(g_buf, 100);
     if (!any_nonzero(g_buf, 100)) {
-        return fail("music must be audible after unlock");
+        return fail("audio must be audible after unlock");
     }
-    efx_audio_sound_data_release(s);
+    efx_audio_data_release(d);
+    efx_audio_stream_release(s);
     efx_audio_shutdown();
     return 0;
 }
@@ -426,8 +571,11 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "mix_determinism")) return mix_determinism();
     if (!strcmp(c, "errors")) return errors();
     if (!strcmp(c, "voices_steal")) return voices_steal();
-    if (!strcmp(c, "music_stream")) return music_stream();
-    if (!strcmp(c, "music_controls")) return music_controls();
+    if (!strcmp(c, "stream_plays")) return stream_plays();
+    if (!strcmp(c, "stream_controls")) return stream_controls();
+    if (!strcmp(c, "stream_cap")) return stream_cap();
+    if (!strcmp(c, "source_lifetime")) return source_lifetime();
+    if (!strcmp(c, "master_gain")) return master_gain();
     if (!strcmp(c, "unavailable")) return unavailable();
     fprintf(stderr, "unknown case: %s\n", c);
     return 2;

@@ -192,7 +192,8 @@ endforeach()
 
 # F14 audio core (pure C, display-free, device-free; embedded fixtures)
 foreach(CASE decode_wav decode_mp3 mix_matches resample_pitch mix_determinism
-              errors voices_steal music_stream music_controls unavailable)
+              errors voices_steal stream_plays stream_controls stream_cap
+              source_lifetime master_gain unavailable)
     add_unit_test(efx_audio_tests ${CASE})
 endforeach()
 

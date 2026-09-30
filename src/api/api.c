@@ -237,20 +237,22 @@ typedef struct {
 /* ------------------------------------------------ F14 audio classes */
 
 typedef struct {
-    efx_sound_data *sd;
+    efx_audio_data *data;
     int alive;
-} efxjs_sounddata;
+} efxjs_audiodata;
+
+typedef struct {
+    efx_audio_stream *stream;
+    int alive;
+} efxjs_audiostream;
 
 typedef struct {
     int voice;        /* core voice id, -1 once stopped */
     long long serial; /* core voice serial at start (steal detection) */
     int alive;
+    int loop;
     float volume, pan, pitch;
-} efxjs_sound;
-
-typedef struct {
-    int alive;
-} efxjs_music;
+} efxjs_audio;
 
 static JSClassID texture_class_id;
 static JSClassID imagedata_class_id;
@@ -260,9 +262,9 @@ static JSClassID rendertarget_class_id;
 static JSClassID fontdata_class_id;
 static JSClassID font_class_id;
 static JSClassID particlesystem_class_id;
-static JSClassID sounddata_class_id;
-static JSClassID sound_class_id;
-static JSClassID music_class_id;
+static JSClassID audiodata_class_id;
+static JSClassID audiostream_class_id;
+static JSClassID audio_class_id;
 
 static void texture_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
@@ -412,38 +414,41 @@ static JSValue js_destroy_resource(JSContext *ctx, JSValueConst this_val,
         efx_render_particles_destroy(ps->handle);
         return JS_UNDEFINED;
     }
-    efxjs_sounddata *sd = JS_GetOpaque2(ctx, this_val, sounddata_class_id);
-    if (sd) {
-        if (!sd->alive) {
+    efxjs_audiodata *ad = JS_GetOpaque2(ctx, this_val, audiodata_class_id);
+    if (ad) {
+        if (!ad->alive) {
             return JS_UNDEFINED;
         }
-        sd->alive = 0;
-        if (sd->sd) {
-            efx_audio_sound_data_release(sd->sd);
-            sd->sd = NULL;
+        ad->alive = 0;
+        if (ad->data) {
+            efx_audio_data_release(ad->data);
+            ad->data = NULL;
         }
         return JS_UNDEFINED;
     }
-    efxjs_sound *snd = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    if (snd) {
-        if (!snd->alive) {
+    efxjs_audiostream *as = JS_GetOpaque2(ctx, this_val, audiostream_class_id);
+    if (as) {
+        if (!as->alive) {
             return JS_UNDEFINED;
         }
-        snd->alive = 0;
-        if (snd->voice >= 0 &&
-            efx_audio_voice_serial(snd->voice) == snd->serial) {
-            efx_audio_stop_voice(snd->voice);
+        as->alive = 0;
+        if (as->stream) {
+            efx_audio_stream_release(as->stream);
+            as->stream = NULL;
         }
-        snd->voice = -1;
         return JS_UNDEFINED;
     }
-    efxjs_music *mus = JS_GetOpaque2(ctx, this_val, music_class_id);
-    if (mus) {
-        if (!mus->alive) {
+    efxjs_audio *aud = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    if (aud) {
+        if (!aud->alive) {
             return JS_UNDEFINED;
         }
-        mus->alive = 0;
-        efx_audio_stop_music();
+        aud->alive = 0;
+        if (aud->voice >= 0 &&
+            efx_audio_voice_serial(aud->voice) == aud->serial) {
+            efx_audio_stop_voice(aud->voice);
+        }
+        aud->voice = -1;
         return JS_UNDEFINED;
     }
     return type_error(ctx, "not a resource object");
@@ -460,30 +465,33 @@ static void particlesystem_finalizer(JSRuntime *rt, JSValue val) {
     }
 }
 
-static void sounddata_finalizer(JSRuntime *rt, JSValue val) {
+static void audiodata_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_sounddata *d = JS_GetOpaque(val, sounddata_class_id);
+    efxjs_audiodata *d = JS_GetOpaque(val, audiodata_class_id);
     if (d) {
-        if (d->sd) {
-            efx_audio_sound_data_release(d->sd);
+        if (d->data) {
+            efx_audio_data_release(d->data);
         }
         free(d);
     }
 }
 
-static void sound_finalizer(JSRuntime *rt, JSValue val) {
+static void audiostream_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_sound *s = JS_GetOpaque(val, sound_class_id);
+    efxjs_audiostream *s = JS_GetOpaque(val, audiostream_class_id);
     if (s) {
-        free(s); /* dropping the handle never cuts off a fire-and-forget effect */
+        if (s->stream) {
+            efx_audio_stream_release(s->stream);
+        }
+        free(s);
     }
 }
 
-static void music_finalizer(JSRuntime *rt, JSValue val) {
+static void audio_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_music *m = JS_GetOpaque(val, music_class_id);
-    if (m) {
-        free(m); /* the engine owns the stream; dropping the handle keeps it */
+    efxjs_audio *a = JS_GetOpaque(val, audio_class_id);
+    if (a) {
+        free(a); /* dropping the handle never cuts off a fire-and-forget sound */
     }
 }
 
@@ -519,17 +527,17 @@ static JSClassDef particlesystem_class_def = {
     "ParticleSystem",
     .finalizer = particlesystem_finalizer,
 };
-static JSClassDef sounddata_class_def = {
-    "SoundData",
-    .finalizer = sounddata_finalizer,
+static JSClassDef audiodata_class_def = {
+    "AudioData",
+    .finalizer = audiodata_finalizer,
 };
-static JSClassDef sound_class_def = {
-    "Sound",
-    .finalizer = sound_finalizer,
+static JSClassDef audiostream_class_def = {
+    "AudioStream",
+    .finalizer = audiostream_finalizer,
 };
-static JSClassDef music_class_def = {
-    "Music",
-    .finalizer = music_finalizer,
+static JSClassDef audio_class_def = {
+    "Audio",
+    .finalizer = audio_finalizer,
 };
 
 /* ------------------------------------------------ F12 physics classes */
@@ -2598,220 +2606,277 @@ static int audio_opt_bool(JSContext *ctx, JSValueConst opts, const char *key,
     return 1;
 }
 
-static JSValue audio_sound_stop(JSContext *ctx, JSValueConst this_val, int argc,
-                                JSValueConst *argv) {
-    (void)argc;
-    (void)argv;
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    if (!s) {
-        return type_error(ctx, "not a Sound");
+/* reads a resource for a loader; on failure throws and returns NULL */
+static uint8_t *audio_read_resource(JSContext *ctx, JSValueConst pathv,
+                                    const char *fn, size_t *out_size) {
+    if (!JS_IsString(pathv)) {
+        JS_ThrowTypeError(ctx, "%s requires a path string", fn);
+        return NULL;
     }
-    if (s->alive && s->voice >= 0 &&
-        efx_audio_voice_serial(s->voice) == s->serial) {
-        efx_audio_stop_voice(s->voice);
-    }
-    s->voice = -1;
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_sound_get_playing(JSContext *ctx, JSValueConst this_val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    if (!s || !s->alive || s->voice < 0) {
-        return JS_FALSE;
-    }
-    return JS_NewBool(ctx, efx_audio_voice_serial(s->voice) == s->serial);
-}
-
-static JSValue audio_sound_get_volume(JSContext *ctx, JSValueConst this_val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    return JS_NewFloat64(ctx, s ? (double)s->volume : 0.0);
-}
-
-static JSValue audio_sound_set_volume(JSContext *ctx, JSValueConst this_val,
-                                      JSValueConst val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    if (!s) {
-        return type_error(ctx, "not a Sound");
-    }
-    double d = 0.0;
-    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d) || d < 0.0) {
-        return range_error(ctx, "volume must be a non-negative number");
-    }
-    s->volume = (float)d;
-    if (s->alive && s->voice >= 0 &&
-        efx_audio_voice_serial(s->voice) == s->serial) {
-        efx_audio_set_voice_volume(s->voice, (float)d);
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_sound_get_pan(JSContext *ctx, JSValueConst this_val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    return JS_NewFloat64(ctx, s ? (double)s->pan : 0.0);
-}
-
-static JSValue audio_sound_set_pan(JSContext *ctx, JSValueConst this_val,
-                                   JSValueConst val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    if (!s) {
-        return type_error(ctx, "not a Sound");
-    }
-    double d = 0.0;
-    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d)) {
-        return range_error(ctx, "pan must be a finite number");
-    }
-    s->pan = (float)d;
-    if (s->alive && s->voice >= 0 &&
-        efx_audio_voice_serial(s->voice) == s->serial) {
-        efx_audio_set_voice_pan(s->voice, (float)d);
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_sound_get_pitch(JSContext *ctx, JSValueConst this_val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    return JS_NewFloat64(ctx, s ? (double)s->pitch : 1.0);
-}
-
-static JSValue audio_sound_set_pitch(JSContext *ctx, JSValueConst this_val,
-                                     JSValueConst val) {
-    efxjs_sound *s = JS_GetOpaque2(ctx, this_val, sound_class_id);
-    if (!s) {
-        return type_error(ctx, "not a Sound");
-    }
-    double d = 0.0;
-    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d) || d <= 0.0) {
-        return range_error(ctx, "pitch must be a positive number");
-    }
-    s->pitch = (float)d;
-    if (s->alive && s->voice >= 0 &&
-        efx_audio_voice_serial(s->voice) == s->serial) {
-        efx_audio_set_voice_pitch(s->voice, (float)d);
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_music_stop(JSContext *ctx, JSValueConst this_val, int argc,
-                                JSValueConst *argv) {
-    (void)ctx;
-    (void)this_val;
-    (void)argc;
-    (void)argv;
-    efx_audio_stop_music();
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_music_pause(JSContext *ctx, JSValueConst this_val,
-                                 int argc, JSValueConst *argv) {
-    (void)ctx;
-    (void)this_val;
-    (void)argc;
-    (void)argv;
-    efx_audio_pause_music(1);
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_music_resume(JSContext *ctx, JSValueConst this_val,
-                                  int argc, JSValueConst *argv) {
-    (void)ctx;
-    (void)this_val;
-    (void)argc;
-    (void)argv;
-    efx_audio_pause_music(0);
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_music_set_volume(JSContext *ctx, JSValueConst this_val,
-                                      int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 1) {
-        return type_error(ctx, "setVolume requires a number");
-    }
-    double d = 0.0;
-    if (JS_ToFloat64(ctx, &d, argv[0]) < 0 || !isfinite(d) || d < 0.0) {
-        return range_error(ctx, "volume must be a non-negative number");
-    }
-    efx_audio_set_music_volume((float)d);
-    return JS_UNDEFINED;
-}
-
-static JSValue audio_music_get_playing(JSContext *ctx, JSValueConst this_val) {
-    (void)this_val;
-    return JS_NewBool(ctx, efx_audio_music_playing());
-}
-
-static const JSCFunctionListEntry sound_proto_funcs[] = {
-    JS_CFUNC_DEF("stop", 0, audio_sound_stop),
-    JS_CGETSET_DEF("playing", audio_sound_get_playing, NULL),
-    JS_CGETSET_DEF("volume", audio_sound_get_volume, audio_sound_set_volume),
-    JS_CGETSET_DEF("pan", audio_sound_get_pan, audio_sound_set_pan),
-    JS_CGETSET_DEF("pitch", audio_sound_get_pitch, audio_sound_set_pitch),
-};
-
-static const JSCFunctionListEntry music_proto_funcs[] = {
-    JS_CFUNC_DEF("stop", 0, audio_music_stop),
-    JS_CFUNC_DEF("pause", 0, audio_music_pause),
-    JS_CFUNC_DEF("resume", 0, audio_music_resume),
-    JS_CFUNC_DEF("setVolume", 1, audio_music_set_volume),
-    JS_CGETSET_DEF("playing", audio_music_get_playing, NULL),
-};
-
-JSValue efx_js_audio_loadSoundData(JSContext *ctx, JSValueConst this_val,
-                                   int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 1 || !JS_IsString(argv[0])) {
-        return type_error(ctx, "loadSoundData requires a path string");
-    }
-    const char *path = JS_ToCString(ctx, argv[0]);
+    const char *path = JS_ToCString(ctx, pathv);
     if (!path) {
-        return JS_EXCEPTION;
+        return NULL;
     }
     struct efx_host_state *h = host_state(ctx);
     if (!h->resource) {
         JS_FreeCString(ctx, path);
-        return generic_error(ctx, "loadSoundData requires a resource root");
+        JS_ThrowInternalError(ctx, "%s requires a resource root", fn);
+        return NULL;
     }
     size_t size = 0;
     int rerr = EFX_RESOURCE_OK;
     uint8_t *bytes = efx_resource_read(h->resource, path, &size, &rerr);
     if (!bytes) {
-        JSValue e = JS_ThrowInternalError(ctx, "cannot read audio: %s", path);
-        JS_FreeCString(ctx, path);
-        return e;
-    }
-    int derr = 0;
-    efx_sound_data *sd = efx_audio_sound_data_load(bytes, size, &derr);
-    efx_resource_free(bytes);
-    if (!sd) {
-        JSValue e = JS_ThrowInternalError(ctx, "cannot decode audio: %s", path);
-        JS_FreeCString(ctx, path);
-        return e;
+        JS_ThrowInternalError(ctx, "cannot read audio: %s", path);
     }
     JS_FreeCString(ctx, path);
-    efxjs_sounddata *o = calloc(1, sizeof(*o));
+    *out_size = size;
+    return bytes;
+}
+
+/* ---- playback handle ---- */
+
+static efxjs_audio *audio_handle(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    if (!a || !a->alive) {
+        return NULL;
+    }
+    return a;
+}
+
+static int audio_handle_live(const efxjs_audio *a) {
+    return a->voice >= 0 && efx_audio_voice_serial(a->voice) == a->serial;
+}
+
+static JSValue audio_handle_stop(JSContext *ctx, JSValueConst this_val,
+                                 int argc, JSValueConst *argv) {
+    (void)argc;
+    (void)argv;
+    efxjs_audio *a = audio_handle(ctx, this_val);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    if (audio_handle_live(a)) {
+        efx_audio_stop_voice(a->voice);
+    }
+    a->voice = -1;
+    return JS_UNDEFINED;
+}
+
+static JSValue audio_handle_pause(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv) {
+    (void)argc;
+    (void)argv;
+    efxjs_audio *a = audio_handle(ctx, this_val);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    if (audio_handle_live(a)) {
+        efx_audio_set_voice_paused(a->voice, 1);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue audio_handle_resume(JSContext *ctx, JSValueConst this_val,
+                                   int argc, JSValueConst *argv) {
+    (void)argc;
+    (void)argv;
+    efxjs_audio *a = audio_handle(ctx, this_val);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    if (audio_handle_live(a)) {
+        efx_audio_set_voice_paused(a->voice, 0);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue audio_handle_get_playing(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = audio_handle(ctx, this_val);
+    if (!a) {
+        return JS_FALSE;
+    }
+    return JS_NewBool(ctx, audio_handle_live(a) &&
+                               efx_audio_voice_playing(a->voice));
+}
+
+static JSValue audio_handle_get_paused(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = audio_handle(ctx, this_val);
+    if (!a) {
+        return JS_FALSE;
+    }
+    return JS_NewBool(ctx, audio_handle_live(a) &&
+                               efx_audio_voice_paused(a->voice));
+}
+
+static JSValue audio_handle_get_volume(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    return JS_NewFloat64(ctx, a ? (double)a->volume : 0.0);
+}
+
+static JSValue audio_handle_set_volume(JSContext *ctx, JSValueConst this_val,
+                                       JSValueConst val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    double d = 0.0;
+    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d) || d < 0.0) {
+        return range_error(ctx, "volume must be a non-negative number");
+    }
+    a->volume = (float)d;
+    if (audio_handle_live(a)) {
+        efx_audio_set_voice_volume(a->voice, (float)d);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue audio_handle_get_pan(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    return JS_NewFloat64(ctx, a ? (double)a->pan : 0.0);
+}
+
+static JSValue audio_handle_set_pan(JSContext *ctx, JSValueConst this_val,
+                                    JSValueConst val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    double d = 0.0;
+    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d)) {
+        return range_error(ctx, "pan must be a finite number");
+    }
+    a->pan = (float)d;
+    if (audio_handle_live(a)) {
+        efx_audio_set_voice_pan(a->voice, (float)d);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue audio_handle_get_pitch(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    return JS_NewFloat64(ctx, a ? (double)a->pitch : 1.0);
+}
+
+static JSValue audio_handle_set_pitch(JSContext *ctx, JSValueConst this_val,
+                                      JSValueConst val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    double d = 0.0;
+    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d) || d <= 0.0) {
+        return range_error(ctx, "pitch must be a positive number");
+    }
+    a->pitch = (float)d;
+    if (audio_handle_live(a)) {
+        efx_audio_set_voice_pitch(a->voice, (float)d);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue audio_handle_get_loop(JSContext *ctx, JSValueConst this_val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    return JS_NewBool(ctx, a ? a->loop : 0);
+}
+
+static JSValue audio_handle_set_loop(JSContext *ctx, JSValueConst this_val,
+                                     JSValueConst val) {
+    efxjs_audio *a = JS_GetOpaque2(ctx, this_val, audio_class_id);
+    if (!a) {
+        return type_error(ctx, "not an Audio handle");
+    }
+    int loop = JS_ToBool(ctx, val) ? 1 : 0;
+    a->loop = loop;
+    if (audio_handle_live(a)) {
+        efx_audio_set_voice_loop(a->voice, loop);
+    }
+    return JS_UNDEFINED;
+}
+
+static const JSCFunctionListEntry audio_proto_funcs[] = {
+    JS_CFUNC_DEF("stop", 0, audio_handle_stop),
+    JS_CFUNC_DEF("pause", 0, audio_handle_pause),
+    JS_CFUNC_DEF("resume", 0, audio_handle_resume),
+    JS_CGETSET_DEF("playing", audio_handle_get_playing, NULL),
+    JS_CGETSET_DEF("paused", audio_handle_get_paused, NULL),
+    JS_CGETSET_DEF("volume", audio_handle_get_volume, audio_handle_set_volume),
+    JS_CGETSET_DEF("pan", audio_handle_get_pan, audio_handle_set_pan),
+    JS_CGETSET_DEF("pitch", audio_handle_get_pitch, audio_handle_set_pitch),
+    JS_CGETSET_DEF("loop", audio_handle_get_loop, audio_handle_set_loop),
+};
+
+/* ---- namespace entry points ---- */
+
+JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
+                                   int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx, "loadAudioData requires a path string");
+    }
+    size_t size = 0;
+    uint8_t *bytes = audio_read_resource(ctx, argv[0], "loadAudioData", &size);
+    if (!bytes) {
+        return JS_EXCEPTION;
+    }
+    int derr = 0;
+    efx_audio_data *data = efx_audio_data_load(bytes, size, &derr);
+    efx_resource_free(bytes);
+    if (!data) {
+        return generic_error(ctx, "cannot decode audio");
+    }
+    efxjs_audiodata *o = calloc(1, sizeof(*o));
     if (!o) {
-        efx_audio_sound_data_release(sd);
+        efx_audio_data_release(data);
         return generic_error(ctx, "out of memory");
     }
-    o->sd = sd;
+    o->data = data;
     o->alive = 1;
-    JSValue obj = JS_NewObjectClass(ctx, sounddata_class_id);
+    JSValue obj = JS_NewObjectClass(ctx, audiodata_class_id);
     JS_SetOpaque(obj, o);
     return obj;
 }
 
-JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc,
+JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val,
+                                     int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1) {
+        return type_error(ctx, "loadAudioStream requires a path string");
+    }
+    size_t size = 0;
+    uint8_t *bytes =
+        audio_read_resource(ctx, argv[0], "loadAudioStream", &size);
+    if (!bytes) {
+        return JS_EXCEPTION;
+    }
+    int derr = 0;
+    efx_audio_stream *stream = efx_audio_stream_load(bytes, size, &derr);
+    efx_resource_free(bytes);
+    if (!stream) {
+        return generic_error(ctx, "cannot decode audio");
+    }
+    efxjs_audiostream *o = calloc(1, sizeof(*o));
+    if (!o) {
+        efx_audio_stream_release(stream);
+        return generic_error(ctx, "out of memory");
+    }
+    o->stream = stream;
+    o->alive = 1;
+    JSValue obj = JS_NewObjectClass(ctx, audiostream_class_id);
+    JS_SetOpaque(obj, o);
+    return obj;
+}
+
+JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int argc,
                                JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
-        return type_error(ctx, "playSound requires a SoundData");
+        return type_error(ctx, "playAudio requires an AudioData or AudioStream");
     }
-    efxjs_sounddata *d = JS_GetOpaque2(ctx, argv[0], sounddata_class_id);
-    if (!d) {
-        return type_error(ctx, "playSound requires a SoundData");
-    }
-    if (!d->alive || !d->sd) {
-        return generic_error(ctx, "SoundData was destroyed");
+    efxjs_audiodata *ad = JS_GetOpaque(argv[0], audiodata_class_id);
+    efxjs_audiostream *as = JS_GetOpaque(argv[0], audiostream_class_id);
+    if (!ad && !as) {
+        return type_error(ctx, "playAudio requires an AudioData or AudioStream");
     }
     float volume = 1.0f;
     float pan = 0.0f;
@@ -2819,10 +2884,10 @@ JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc,
     int loop = 0;
     if (argc >= 2 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
         if (!JS_IsObject(argv[1])) {
-            return type_error(ctx, "playSound options must be an object");
+            return type_error(ctx, "playAudio options must be an object");
         }
         static const char *known[] = {"volume", "pan", "pitch", "loop"};
-        if (check_known_fields(ctx, argv[1], known, 4, "playSound") != 0) {
+        if (check_known_fields(ctx, argv[1], known, 4, "playAudio") != 0) {
             return JS_EXCEPTION;
         }
         double n = 0.0;
@@ -2831,6 +2896,9 @@ JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc,
             return JS_EXCEPTION;
         }
         if (r) {
+            if (n < 0.0) {
+                return range_error(ctx, "volume must be a non-negative number");
+            }
             volume = (float)n;
         }
         if ((r = audio_opt_number(ctx, argv[1], "pan", &n)) < 0) {
@@ -2843,108 +2911,57 @@ JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc,
             return JS_EXCEPTION;
         }
         if (r) {
-            pitch = (float)n;
+            pitch = (n > 0.0) ? (float)n : 1.0f;
         }
         if ((r = audio_opt_bool(ctx, argv[1], "loop", &loop)) < 0) {
             return JS_EXCEPTION;
         }
     }
-    if (pitch <= 0.0f) {
-        pitch = 1.0f;
+    int voice;
+    if (ad) {
+        if (!ad->alive || !ad->data) {
+            return generic_error(ctx, "AudioData was destroyed");
+        }
+        voice = efx_audio_play_data(ad->data, volume, pan, pitch, loop);
+    } else {
+        if (!as->alive || !as->stream) {
+            return generic_error(ctx, "AudioStream was destroyed");
+        }
+        voice = efx_audio_play_stream(as->stream, volume, pan, pitch, loop);
     }
-    int voice = efx_audio_play_effect(d->sd, volume, pan, pitch, loop);
     if (voice < 0) {
         return JS_NULL;
     }
-    efxjs_sound *s = calloc(1, sizeof(*s));
-    if (!s) {
+    efxjs_audio *a = calloc(1, sizeof(*a));
+    if (!a) {
+        efx_audio_stop_voice(voice);
         return generic_error(ctx, "out of memory");
     }
-    s->voice = voice;
-    s->serial = efx_audio_voice_serial(voice);
-    s->alive = 1;
-    s->volume = volume;
-    s->pan = pan;
-    s->pitch = pitch;
-    JSValue obj = JS_NewObjectClass(ctx, sound_class_id);
-    JS_SetOpaque(obj, s);
+    a->voice = voice;
+    a->serial = efx_audio_voice_serial(voice);
+    a->alive = 1;
+    a->volume = volume;
+    a->pan = pan;
+    a->pitch = pitch;
+    a->loop = loop;
+    JSValue obj = JS_NewObjectClass(ctx, audio_class_id);
+    JS_SetOpaque(obj, a);
     return obj;
 }
 
-JSValue efx_js_audio_playBackgroundMusic(JSContext *ctx, JSValueConst this_val,
-                                         int argc, JSValueConst *argv) {
+static JSValue efx_js_audio_get_master(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;
-    if (argc < 1 || !JS_IsString(argv[0])) {
-        return type_error(ctx, "playBackgroundMusic requires a path string");
-    }
-    float volume = 1.0f;
-    int loop = 0;
-    if (argc >= 2 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
-        if (!JS_IsObject(argv[1])) {
-            return type_error(ctx,
-                              "playBackgroundMusic options must be an object");
-        }
-        static const char *known[] = {"volume", "loop"};
-        if (check_known_fields(ctx, argv[1], known, 2,
-                               "playBackgroundMusic") != 0) {
-            return JS_EXCEPTION;
-        }
-        double n = 0.0;
-        int r;
-        if ((r = audio_opt_number(ctx, argv[1], "volume", &n)) < 0) {
-            return JS_EXCEPTION;
-        }
-        if (r) {
-            volume = (float)n;
-        }
-        if ((r = audio_opt_bool(ctx, argv[1], "loop", &loop)) < 0) {
-            return JS_EXCEPTION;
-        }
-    }
-    const char *path = JS_ToCString(ctx, argv[0]);
-    if (!path) {
-        return JS_EXCEPTION;
-    }
-    struct efx_host_state *h = host_state(ctx);
-    if (!h->resource) {
-        JS_FreeCString(ctx, path);
-        return generic_error(ctx,
-                             "playBackgroundMusic requires a resource root");
-    }
-    size_t size = 0;
-    int rerr = EFX_RESOURCE_OK;
-    uint8_t *bytes = efx_resource_read(h->resource, path, &size, &rerr);
-    if (!bytes) {
-        JSValue e = JS_ThrowInternalError(ctx, "cannot read audio: %s", path);
-        JS_FreeCString(ctx, path);
-        return e;
-    }
-    int derr = 0;
-    int rc = efx_audio_play_music(bytes, size, volume, loop, &derr);
-    efx_resource_free(bytes);
-    if (rc != 0) {
-        JSValue e = JS_ThrowInternalError(ctx, "cannot decode audio: %s", path);
-        JS_FreeCString(ctx, path);
-        return e;
-    }
-    JS_FreeCString(ctx, path);
-    efxjs_music *m = calloc(1, sizeof(*m));
-    if (!m) {
-        return generic_error(ctx, "out of memory");
-    }
-    m->alive = 1;
-    JSValue obj = JS_NewObjectClass(ctx, music_class_id);
-    JS_SetOpaque(obj, m);
-    return obj;
+    return JS_NewFloat64(ctx, (double)efx_audio_master_volume());
 }
 
-JSValue efx_js_audio_stopBackgroundMusic(JSContext *ctx, JSValueConst this_val,
-                                         int argc, JSValueConst *argv) {
-    (void)ctx;
+static JSValue efx_js_audio_set_master(JSContext *ctx, JSValueConst this_val,
+                                       JSValueConst val) {
     (void)this_val;
-    (void)argc;
-    (void)argv;
-    efx_audio_stop_music();
+    double d = 0.0;
+    if (JS_ToFloat64(ctx, &d, val) < 0 || !isfinite(d) || d < 0.0) {
+        return range_error(ctx, "volume must be a non-negative number");
+    }
+    efx_audio_set_master_volume((float)d);
     return JS_UNDEFINED;
 }
 
@@ -2960,12 +2977,11 @@ JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc,
 
 int efx_api_register_audio(JSContext *ctx, JSValueConst efx) {
     static const JSCFunctionListEntry audio_funcs[] = {
-        JS_CFUNC_DEF("loadSoundData", 1, efx_js_audio_loadSoundData),
-        JS_CFUNC_DEF("playSound", 2, efx_js_audio_playSound),
-        JS_CFUNC_DEF("playBackgroundMusic", 2,
-                     efx_js_audio_playBackgroundMusic),
-        JS_CFUNC_DEF("stopBackgroundMusic", 1,
-                     efx_js_audio_stopBackgroundMusic),
+        JS_CFUNC_DEF("loadAudioData", 1, efx_js_audio_loadAudioData),
+        JS_CFUNC_DEF("loadAudioStream", 1, efx_js_audio_loadAudioStream),
+        JS_CFUNC_DEF("playAudio", 2, efx_js_audio_playAudio),
+        JS_CGETSET_DEF("volume", efx_js_audio_get_master,
+                       efx_js_audio_set_master),
         JS_CFUNC_DEF("resume", 0, efx_js_audio_resume),
     };
     JSValue audio = JS_NewObject(ctx);
@@ -2976,6 +2992,7 @@ int efx_api_register_audio(JSContext *ctx, JSValueConst efx) {
     JS_SetPropertyStr(ctx, efx, "audio", audio);
     return 0;
 }
+
 
 int efx_api_init(JSContext *ctx) {
     static int registered;
@@ -2993,9 +3010,9 @@ int efx_api_init(JSContext *ctx) {
         JS_NewClassID(rt, &particlesystem_class_id) != particlesystem_class_id ||
         JS_NewClassID(rt, &body_class_id) != body_class_id ||
         JS_NewClassID(rt, &character_class_id) != character_class_id ||
-        JS_NewClassID(rt, &sounddata_class_id) != sounddata_class_id ||
-        JS_NewClassID(rt, &sound_class_id) != sound_class_id ||
-        JS_NewClassID(rt, &music_class_id) != music_class_id) {
+        JS_NewClassID(rt, &audiodata_class_id) != audiodata_class_id ||
+        JS_NewClassID(rt, &audiostream_class_id) != audiostream_class_id ||
+        JS_NewClassID(rt, &audio_class_id) != audio_class_id) {
         return -1;
     }
     if (JS_NewClass(rt, texture_class_id, &texture_class_def) < 0 ||
@@ -3009,9 +3026,9 @@ int efx_api_init(JSContext *ctx) {
                     &particlesystem_class_def) < 0 ||
         JS_NewClass(rt, body_class_id, &body_class_def) < 0 ||
         JS_NewClass(rt, character_class_id, &character_class_def) < 0 ||
-        JS_NewClass(rt, sounddata_class_id, &sounddata_class_def) < 0 ||
-        JS_NewClass(rt, sound_class_id, &sound_class_def) < 0 ||
-        JS_NewClass(rt, music_class_id, &music_class_def) < 0) {
+        JS_NewClass(rt, audiodata_class_id, &audiodata_class_def) < 0 ||
+        JS_NewClass(rt, audiostream_class_id, &audiostream_class_def) < 0 ||
+        JS_NewClass(rt, audio_class_id, &audio_class_def) < 0) {
         return -1;
     }
     JSValue tex_proto = JS_NewObject(ctx);
@@ -3024,9 +3041,9 @@ int efx_api_init(JSContext *ctx) {
     JSValue ps_proto = JS_NewObject(ctx);
     JSValue body_proto = JS_NewObject(ctx);
     JSValue character_proto = JS_NewObject(ctx);
-    JSValue sd_proto = JS_NewObject(ctx);
-    JSValue sound_proto = JS_NewObject(ctx);
-    JSValue music_proto = JS_NewObject(ctx);
+    JSValue ad_proto = JS_NewObject(ctx);
+    JSValue as_proto = JS_NewObject(ctx);
+    JSValue audio_proto = JS_NewObject(ctx);
     JSValue m = JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0);
     JS_SetPropertyStr(ctx, tex_proto, "destroy", JS_DupValue(ctx, m));
     JS_SetPropertyStr(ctx, img_proto, "destroy", JS_DupValue(ctx, m));
@@ -3036,11 +3053,11 @@ int efx_api_init(JSContext *ctx) {
     JS_SetPropertyStr(ctx, fd_proto, "destroy", JS_DupValue(ctx, m));
     JS_SetPropertyStr(ctx, font_proto, "destroy", JS_DupValue(ctx, m));
     JS_SetPropertyStr(ctx, ps_proto, "destroy", m);
-    JS_SetPropertyStr(ctx, sd_proto, "destroy",
+    JS_SetPropertyStr(ctx, ad_proto, "destroy",
                       JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0));
-    JS_SetPropertyStr(ctx, sound_proto, "destroy",
+    JS_SetPropertyStr(ctx, as_proto, "destroy",
                       JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0));
-    JS_SetPropertyStr(ctx, music_proto, "destroy",
+    JS_SetPropertyStr(ctx, audio_proto, "destroy",
                       JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0));
     JS_SetPropertyFunctionList(ctx, tex_proto, texture_proto_funcs,
                                (int)(sizeof(texture_proto_funcs) /
@@ -3069,12 +3086,9 @@ int efx_api_init(JSContext *ctx) {
     JS_SetPropertyFunctionList(ctx, character_proto, character_proto_funcs,
                                (int)(sizeof(character_proto_funcs) /
                                      sizeof(character_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, sound_proto, sound_proto_funcs,
-                               (int)(sizeof(sound_proto_funcs) /
-                                     sizeof(sound_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, music_proto, music_proto_funcs,
-                               (int)(sizeof(music_proto_funcs) /
-                                     sizeof(music_proto_funcs[0])));
+    JS_SetPropertyFunctionList(ctx, audio_proto, audio_proto_funcs,
+                               (int)(sizeof(audio_proto_funcs) /
+                                     sizeof(audio_proto_funcs[0])));
     JS_SetClassProto(ctx, texture_class_id, tex_proto);
     JS_SetClassProto(ctx, imagedata_class_id, img_proto);
     JS_SetClassProto(ctx, meshdata_class_id, md_proto);
@@ -3085,9 +3099,9 @@ int efx_api_init(JSContext *ctx) {
     JS_SetClassProto(ctx, particlesystem_class_id, ps_proto);
     JS_SetClassProto(ctx, body_class_id, body_proto);
     JS_SetClassProto(ctx, character_class_id, character_proto);
-    JS_SetClassProto(ctx, sounddata_class_id, sd_proto);
-    JS_SetClassProto(ctx, sound_class_id, sound_proto);
-    JS_SetClassProto(ctx, music_class_id, music_proto);
+    JS_SetClassProto(ctx, audiodata_class_id, ad_proto);
+    JS_SetClassProto(ctx, audiostream_class_id, as_proto);
+    JS_SetClassProto(ctx, audio_class_id, audio_proto);
     registered = 1;
     return 0;
 }

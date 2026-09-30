@@ -2209,105 +2209,88 @@ interface Efx {
 // Audio playback (F14)
 // ---------------------------------------------------------------------------
 
-/** Options for `audio.playSound` and `audio.playAudioEffect`. */
-interface PlaySoundOptions {
-  /** Linear gain (default `1`); negative values are clamped to `0`. */
+/** Options for `audio.playAudio`; these set initial values only. */
+interface PlayAudioOptions {
+  /** Initial linear gain (default `1`); a negative value throws `RangeError`. */
   volume?: number;
-  /** Stereo pan in `[-1, 1]` (default `0` = center). */
+  /** Initial stereo pan in `[-1, 1]` (default `0` = center). */
   pan?: number;
-  /** Playback-rate multiplier (default `1`); values `<= 0` are treated as `1`. */
+  /** Initial playback-rate multiplier (default `1`); values `<= 0` are treated as `1`. */
   pitch?: number;
   /** Loop until stopped (default `false`). */
   loop?: boolean;
 }
 
-/** Options for `audio.playBackgroundMusic`. */
-interface PlayMusicOptions {
-  /** Linear gain (default `1`); negative values are clamped to `0`. */
-  volume?: number;
-  /** Loop the track (default `false`). */
-  loop?: boolean;
-}
-
-/** Decoded PCM sound data loaded from the resource root (opaque native-backed class). */
-interface EfxSoundData {
+/** Fully-decoded PCM loaded from the resource root (opaque native-backed class). */
+interface EfxAudioData {
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** One playing sound-effect voice (opaque native-backed class). */
-interface EfxSound {
-  /** Whether this voice is still playing (false once it ends or is stolen). */
+/** A streamed audio resource; each `playAudio` opens an independent decoder (opaque native-backed class). */
+interface EfxAudioStream {
+  /** Release the native storage deterministically and idempotently. */
+  destroy(): void;
+}
+
+/** One playing audio handle (opaque native-backed class). */
+interface EfxAudioHandle {
+  /** Whether this handle is currently audible (false when paused, ended, stolen, or before web unlock). */
   readonly playing: boolean;
+  /** Whether this handle has been explicitly paused. */
+  readonly paused: boolean;
   /** Linear gain. Setting a negative value throws `RangeError`. */
   volume: number;
   /** Stereo pan in `[-1, 1]`; out-of-range values are clamped by the mixer. */
   pan: number;
   /** Playback-rate multiplier; setting a non-positive value throws `RangeError`. */
   pitch: number;
-  /** Stop this voice immediately. */
+  /** Loop the source until stopped. */
+  loop: boolean;
+  /** Stop this playback immediately (it cannot be resumed afterwards). */
   stop(): void;
-  /** Stop and release the handle deterministically and idempotently. */
-  destroy(): void;
-}
-
-/** The streamed background-music source (opaque native-backed class). */
-interface EfxMusic {
-  /** Whether the background music is currently playing. */
-  readonly playing: boolean;
-  /** Stop the background music. */
-  stop(): void;
-  /** Pause the background music. */
+  /** Pause this playback; `playing` becomes `false` and it can be resumed. */
   pause(): void;
-  /** Resume paused background music. */
+  /** Resume a paused playback. */
   resume(): void;
-  /** Set the linear gain; a negative value throws `RangeError`. */
-  setVolume(volume: number): void;
   /** Stop and release the handle deterministically and idempotently. */
   destroy(): void;
 }
 
 /**
  * Audio playback. The engine owns all mixing: scripts never see channels,
- * buses, or buffers. WAV and MP3 resources are supported; only decoded PCM is
- * played (no sequenced/modular formats). One background-music stream is active
- * at a time; a fixed bank of 32 sound-effect voices is mixed, with a
- * deterministic steal policy when all are busy.
+ * buses, or buffers. Two source kinds are loaded separately from playback:
+ * `AudioData` holds fully-decoded PCM and can back many overlapping playheads;
+ * `AudioStream` decodes a long resource incrementally. WAV and MP3 resources
+ * are supported; only decoded PCM is played (no sequenced/modular formats).
+ * All volume control is per-handle plus the single master `volume`; fades are
+ * plain handle writes.
  */
 interface EfxAudio {
   /**
-   * Decode a WAV or MP3 resource into sound data.
+   * Decode a WAV or MP3 resource into fully-decoded PCM.
    *
    * @param path - Root-relative resource path.
-   * @returns The decoded sound data; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
+   * @returns The decoded data; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
    */
-  loadSoundData(path: string): EfxSoundData;
+  loadAudioData(path: string): EfxAudioData;
   /**
-   * Start a decoded sound as a sound-effect voice.
-   *
-   * @param sound - Sound data from `loadSoundData`.
-   * @param opts - Volume, pan, pitch, and loop options.
-   * @returns The playing handle, or `null` when no voice is available (all busy and looping, or no audio device).
-   */
-  playSound(sound: EfxSoundData, opts?: PlaySoundOptions): EfxSound | null;
-  /**
-   * Load (with path caching) and start a sound effect.
+   * Open a WAV or MP3 resource as a streamed source.
    *
    * @param path - Root-relative resource path.
-   * @param opts - Volume, pan, pitch, and loop options.
-   * @returns The playing handle, or `null` when no voice is available.
+   * @returns The streamed source; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
    */
-  playAudioEffect(path: string, opts?: PlaySoundOptions): EfxSound | null;
+  loadAudioStream(path: string): EfxAudioStream;
   /**
-   * Start streamed background music, replacing any current track.
+   * Start an `AudioData` or `AudioStream` playback.
    *
-   * @param path - Root-relative resource path.
-   * @param opts - Volume and loop options.
-   * @returns The music handle; throws `Error` when it cannot be read or decoded.
+   * @param source - Data from `loadAudioData` or a stream from `loadAudioStream`.
+   * @param opts - Initial volume, pan, pitch, and loop values.
+   * @returns The playing handle, or `null` when no voice is available (the playback bank and streaming cap are full, or no device).
    */
-  playBackgroundMusic(path: string, opts?: PlayMusicOptions): EfxMusic;
-  /** Stop the active background music. */
-  stopBackgroundMusic(): void;
+  playAudio(source: EfxAudioData | EfxAudioStream, opts?: PlayAudioOptions): EfxAudioHandle | null;
+  /** Master output gain applied to all playback. Setting a negative value throws `RangeError`. */
+  volume: number;
   /** Unlock/resume audio after a user gesture (web autoplay); a no-op on desktop. */
   resume(): void;
 }

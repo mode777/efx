@@ -174,9 +174,9 @@ fixed light bank is slot-based.
 | ParticleSystem | CPU-simulated pool + emitter configuration (engine-owned) | Native class | CPU | `createParticleSystem(opts)`; read-only `count`; read-write `speedScale`; retains its texture until destroyed |
 | Body | One collision collider in the single physics world | Native class | CPU | `efx.physics.createBody` / `createStaticMesh`; read-only `position`/`transform`/`contacts`; read-write `velocity` |
 | Character | Kinematic vertical-capsule character controller | Native class | CPU | `efx.physics.createCharacter`; read-only `position`/`onFloor`; read-write `velocity` |
-| SoundData | Decoded PCM (WAV/MP3) for a sound effect | Native class | CPU | `loadSoundData(path)`; no query properties |
-| Sound | One playing sound-effect voice | Native class | CPU | `playSound` / `playAudioEffect`; read-only `playing`; read-write `volume`/`pan`/`pitch`; dropping the handle does not stop the sound |
-| Music | The streamed background-music source | Native class | CPU | `playBackgroundMusic`; read-only `playing`; `pause`/`resume`/`setVolume` |
+| AudioData | Fully-decoded PCM (WAV/MP3) | Native class | CPU | `loadAudioData(path)`; no query properties |
+| AudioStream | A streamed WAV/MP3 resource (decoded per playhead) | Native class | CPU | `loadAudioStream(path)`; no query properties |
+| Audio | One playing audio handle | Native class | CPU | `playAudio(source)`; read-only `playing`/`paused`; read-write `volume`/`pan`/`pitch`/`loop`; `stop`/`pause`/`resume`; dropping the handle does not stop the sound |
 | Lights | — | Slot-based | — | 4 point slots + 1 directional (fixed) |
 
 **Resource lifecycle rules:**
@@ -209,8 +209,8 @@ fixed light bank is slot-based.
 | Particles per system | 65536 |
 | Render-target size | 4096 per side (positive integers) |
 | Connected gamepads | 4 (fixed engine-owned bank reported by index) |
-| Background-music streams | 1 (starting a new track replaces the current one) |
-| Sound-effect voices | 32 (fixed engine-owned bank; deterministic steal when all busy) |
+| Concurrent streamed sources | 4 (fixed cap; deterministic policy when exceeded) |
+| Playback voices | 32 (fixed engine-owned bank; deterministic steal when all busy) |
 
 Physics colliders are **dynamic-count** (no fixed cap): the world grows with
 the script, with soft guidance rather than a hard maximum.
@@ -249,33 +249,45 @@ resource type** — no `create`, no `destroy`, no native-backed class.
 ## Audio model
 
 Audio playback is the sub-namespace `efx.audio`. The engine owns **all**
-mixing: scripts never see channels, buses, buffers, or voice allocation. The
-author-facing surface is `playBackgroundMusic` (one streamed track) and
-`playAudioEffect` (fire-and-forget effects), with `loadSoundData`/`playSound`
-as the mid-level pair and `SoundData`/`Sound`/`Music` as native-backed classes.
+mixing: scripts never see channels, buses, buffers, or voice allocation. There
+are two source kinds, loaded separately from playback: `AudioData` holds
+fully-decoded PCM and can back many overlapping playheads; `AudioStream` decodes
+a long resource incrementally. One `playAudio(source, opts?)` verb accepts
+either and returns a single `Audio` handle; `AudioData`/`AudioStream`/`Audio`
+are native-backed classes.
 
 - **Formats.** WAV (integer PCM / float) and MP3 from the resource root. Only
   **decoded PCM** is played — sequenced/modular formats (PS2/PSF, tracker
   modules, MIDI) are not supported and are rejected.
-- **Music.** One streamed background-music source is active at a time;
-  starting a new track replaces the current one. `Music` exposes `playing`,
-  `stop`, `pause`, `resume`, and `setVolume`. Long tracks are decoded
-  incrementally, not held fully in memory.
-- **Effects.** A fixed bank of 32 voices is mixed from fully-decoded sound
-  data; `Sound` exposes `playing`, `stop`, `volume`, `pan`, `pitch`. When all
-  voices are busy the engine steals the quietest non-looping voice (oldest
-  first); if every voice is looping the new request returns `null`. Dropping a
-  `Sound` handle never cuts the effect short.
+- **Loading vs playing.** `loadAudioData(path)` returns immutable PCM, so one
+  buffer can be played many times at once. `loadAudioStream(path)` returns a
+  streamed resource; each `playAudio` opens its own decoder and ~1 s ring, so
+  the same stream can be started more than once. A playing handle retains its
+  source.
+- **Playback handles.** `playAudio` returns an `Audio` handle with read-only
+  `playing`/`paused`, read-write `volume`/`pan`/`pitch`/`loop`, and
+  `stop`/`pause`/`resume`. Options passed at start are initial values only: a
+  fade is a sequence of handle `volume` writes in `update`. Dropping a handle
+  never cuts the sound short; `stop()` does.
+- **Bank and caps.** A fixed bank of 32 playback voices is mixed; the number of
+  simultaneously *streaming* voices is capped at 4. When the bank (or the
+  stream cap) is full the engine applies a deterministic policy (steal the
+  quietest non-looping voice, oldest first); if every candidate is looping the
+  new request returns `null`.
+- **Master gain.** `efx.audio.volume` is a read-write master output gain
+  applied to all playback — the only grouping control. There are no per-source
+  buses or channels.
 - **Mixing.** Sources are resampled from their file rate to the device rate
   with linear interpolation; `pitch` is a playback-rate multiplier over that
   conversion. `pan` is a linear stereo pan in `[-1, 1]`.
 - **No device.** With no audio device (headless CI) the player runs silently:
-  effect starts return `null`, music reports not playing, and nothing crashes.
-  On web, audio stays locked until a user gesture; the first input unlocks it,
-  and `efx.audio.resume()` is the explicit path.
-- **Errors.** A non-string path or unknown option throws `TypeError`; an
-  unreadable or undecodable resource throws `Error`; a negative `volume` or
-  non-positive `pitch` setter throws `RangeError`.
+  `playAudio` still returns a handle, but it reports not playing and produces no
+  sound, and nothing crashes. On web, audio stays locked until a user gesture;
+  the first input unlocks it and pending playbacks begin, with
+  `efx.audio.resume()` as the explicit path.
+- **Errors.** A non-string path, an invalid source, or unknown option throws
+  `TypeError`; an unreadable or undecodable resource throws `Error`; a negative
+  `volume`/master gain or non-positive `pitch` throws `RangeError`.
 
 ## Adding to the API
 
@@ -334,7 +346,7 @@ in the generated reference (or to an open question below):
 | Raycasts / line-of-sight / picking | `efx.physics.raycast` / `overlap` / `shapeCast` |
 | Keyboard/mouse input query + events | `efx.keyboard` / `efx.mouse` / `efx.window` |
 | Gamepad input query + events | `efx.gamepad` |
-| Audio playback (music + effects) | `efx.audio` (`playBackgroundMusic` / `playAudioEffect`) |
+| Audio playback (streamed + decoded) | `efx.audio` (`loadAudioData` / `loadAudioStream` / `playAudio`) |
 | Script modules (TypeScript `import`) | the CommonJS `require` model |
 | Text / fonts | `efx.loadFontData` / `createFont` / `drawText` / `measureText` |
 | Callbacks for update and rendering | `efx.registerUpdateHook` / `registerRenderHook` |

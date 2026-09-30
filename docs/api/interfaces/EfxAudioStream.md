@@ -2,11 +2,11 @@
 
 ***
 
-[EmotionFX API](../README.md) / EfxSoundData
+[EmotionFX API](../README.md) / EfxAudioStream
 
-# Interface: EfxSoundData
+# Interface: EfxAudioStream
 
-Decoded PCM sound data loaded from the resource root (opaque native-backed class).
+A streamed audio resource; each `playAudio` opens an independent decoder (opaque native-backed class).
 
 ## Methods
 

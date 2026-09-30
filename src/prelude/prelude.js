@@ -575,22 +575,6 @@ function __efxPreludeInstall(efx) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
-
-    /* F14 audio sugar: the author-facing playAudioEffect caches decoded sound
-       data by path (high-level, built only on the public C API). */
-    var __efxAudioCache = {};
-    function __efxAudioLoad(path) {
-        var key = String(path);
-        var sd = __efxAudioCache[key];
-        if (!sd) {
-            sd = efx.audio.loadSoundData(key);
-            __efxAudioCache[key] = sd;
-        }
-        return sd;
-    }
-    efx.audio.playAudioEffect = function (path, opts) {
-        return efx.audio.playSound(__efxAudioLoad(path), opts);
-    };
 }
 
 __efxPreludeInstall(efx);

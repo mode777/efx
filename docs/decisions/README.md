@@ -59,6 +59,7 @@ directory holds only what stays true after a change is archived.
 | [0044](0044-curated-sample-dirs.md) | Accepted | A curated gallery sample is a self-contained resource-root directory; its gallery mount pack and the release `samples.zip` are derived from it by one deterministic pure-Node packer, with generated assets committed loose and drift-checked |
 | [0045](0045-physics-substepping.md) | Accepted | `efx.physics.step` sub-divides the clamped `dt` into equal substeps no larger than `EFX_PHYS_MAX_SUBSTEP` (1/60 s) so a large frame delta cannot skip thin static geometry; per-call and bounded, the 1/60 path stays bit-identical, force acts over the whole step (amends ADR 0040's "no fixed-step accumulator" clause) |
 | [0046](0046-physics-world-holds-live-bodies.md) | Accepted | The physics world holds every live `Body`/`Character` wrapper until `destroy()`, `physics.clear()`, or teardown, so GC never removes a collider from the simulation (amends ADR 0011/0012 for F12; the actual cause of the desktop fall-through bug misattributed in ADR 0045) |
+| [0047](0047-audio-source-model.md) | Accepted | F14 audio is two source kinds (`AudioData` static, `AudioStream` streamed) loaded separately from playback over one `playAudio` verb returning an `Audio` handle; start options are initial values only, a single master gain is the only grouping control (no channels/buses), and the fixed 32-voice bank caps concurrent streams at 4 (supersedes ADR 0042's music/effect script surface) |
 
 ## Adding a decision
 

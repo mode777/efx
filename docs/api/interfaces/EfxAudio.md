@@ -7,18 +7,50 @@
 # Interface: EfxAudio
 
 Audio playback. The engine owns all mixing: scripts never see channels,
-buses, or buffers. WAV and MP3 resources are supported; only decoded PCM is
-played (no sequenced/modular formats). One background-music stream is active
-at a time; a fixed bank of 32 sound-effect voices is mixed, with a
-deterministic steal policy when all are busy.
+buses, or buffers. Two source kinds are loaded separately from playback:
+`AudioData` holds fully-decoded PCM and can back many overlapping playheads;
+`AudioStream` decodes a long resource incrementally. WAV and MP3 resources
+are supported; only decoded PCM is played (no sequenced/modular formats).
+All volume control is per-handle plus the single master `volume`; fades are
+plain handle writes.
+
+## Properties
+
+### volume
+
+> **volume**: `number`
+
+Master output gain applied to all playback. Setting a negative value throws `RangeError`.
 
 ## Methods
 
-### loadSoundData()
+### loadAudioData()
 
-> **loadSoundData**(`path`): [`EfxSoundData`](EfxSoundData.md)
+> **loadAudioData**(`path`): [`EfxAudioData`](EfxAudioData.md)
 
-Decode a WAV or MP3 resource into sound data.
+Decode a WAV or MP3 resource into fully-decoded PCM.
+
+#### Parameters
+
+##### path
+
+`string`
+
+Root-relative resource path.
+
+#### Returns
+
+[`EfxAudioData`](EfxAudioData.md)
+
+The decoded data; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
+
+***
+
+### loadAudioStream()
+
+> **loadAudioStream**(`path`): [`EfxAudioStream`](EfxAudioStream.md)
+
+Open a WAV or MP3 resource as a streamed source.
 
 #### Parameters
 
@@ -30,93 +62,37 @@ Root-relative resource path.
 
 #### Returns
 
-[`EfxSoundData`](EfxSoundData.md)
+[`EfxAudioStream`](EfxAudioStream.md)
 
-The decoded sound data; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
-
-***
-
-### playAudioEffect()
-
-> **playAudioEffect**(`path`, `opts?`): [`EfxSound`](EfxSound.md) \| `null`
-
-Load (with path caching) and start a sound effect.
-
-#### Parameters
-
-##### path
-
-`string`
-
-Root-relative resource path.
-
-##### opts?
-
-[`PlaySoundOptions`](PlaySoundOptions.md)
-
-Volume, pan, pitch, and loop options.
-
-#### Returns
-
-[`EfxSound`](EfxSound.md) \| `null`
-
-The playing handle, or `null` when no voice is available.
+The streamed source; throws `Error` when it cannot be read or decoded, `TypeError` for a non-string path.
 
 ***
 
-### playBackgroundMusic()
+### playAudio()
 
-> **playBackgroundMusic**(`path`, `opts?`): [`EfxMusic`](EfxMusic.md)
+> **playAudio**(`source`, `opts?`): [`EfxAudioHandle`](EfxAudioHandle.md) \| `null`
 
-Start streamed background music, replacing any current track.
-
-#### Parameters
-
-##### path
-
-`string`
-
-Root-relative resource path.
-
-##### opts?
-
-[`PlayMusicOptions`](PlayMusicOptions.md)
-
-Volume and loop options.
-
-#### Returns
-
-[`EfxMusic`](EfxMusic.md)
-
-The music handle; throws `Error` when it cannot be read or decoded.
-
-***
-
-### playSound()
-
-> **playSound**(`sound`, `opts?`): [`EfxSound`](EfxSound.md) \| `null`
-
-Start a decoded sound as a sound-effect voice.
+Start an `AudioData` or `AudioStream` playback.
 
 #### Parameters
 
-##### sound
+##### source
 
-[`EfxSoundData`](EfxSoundData.md)
+[`EfxAudioData`](EfxAudioData.md) \| [`EfxAudioStream`](EfxAudioStream.md)
 
-Sound data from `loadSoundData`.
+Data from `loadAudioData` or a stream from `loadAudioStream`.
 
 ##### opts?
 
-[`PlaySoundOptions`](PlaySoundOptions.md)
+[`PlayAudioOptions`](PlayAudioOptions.md)
 
-Volume, pan, pitch, and loop options.
+Initial volume, pan, pitch, and loop values.
 
 #### Returns
 
-[`EfxSound`](EfxSound.md) \| `null`
+[`EfxAudioHandle`](EfxAudioHandle.md) \| `null`
 
-The playing handle, or `null` when no voice is available (all busy and looping, or no audio device).
+The playing handle, or `null` when no voice is available (the playback bank and streaming cap are full, or no device).
 
 ***
 
@@ -125,18 +101,6 @@ The playing handle, or `null` when no voice is available (all busy and looping, 
 > **resume**(): `void`
 
 Unlock/resume audio after a user gesture (web autoplay); a no-op on desktop.
-
-#### Returns
-
-`void`
-
-***
-
-### stopBackgroundMusic()
-
-> **stopBackgroundMusic**(): `void`
-
-Stop the active background music.
 
 #### Returns
 

@@ -77,10 +77,9 @@ int efx_api_register_physics(JSContext *ctx, JSValueConst efx);
 void efx_api_physics_release(JSContext *ctx);
 
 /* F14 — audio playback */
-JSValue efx_js_audio_loadSoundData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_audio_playSound(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_audio_playBackgroundMusic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_audio_stopBackgroundMusic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F14: attach the efx.audio sub-namespace to the single efx object */
