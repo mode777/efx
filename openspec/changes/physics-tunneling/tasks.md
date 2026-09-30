@@ -52,10 +52,10 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Run the pre-CI server suites via
+- [x] 5.1 Run the pre-CI server suites via
   `python3 tools/verify_remote.py all <branch>` and confirm native ctest
   (incl. `efx_physics_tests` and the smoke suite), Emscripten ctest, and the
   cross-runtime compare `12_physics` are green
-- [ ] 5.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
+- [x] 5.2 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
   Linux -> Windows -> macOS four-target gate is green; capture the run id in
   `AGENTS.md`

@@ -161,7 +161,10 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
   case through both runtimes, and the cross-runtime compare — no golden image
   (change `f12-collision-physics`, ADR 0040, recorded in AGENTS.md). The
   frame-rate tunneling hardening landed as change `physics-tunneling`
-  (`step(dt)` sub-divides into <= 1/60 s substeps; ADR 0045).
+  (`step(dt)` sub-divides into <= 1/60 s substeps; ADR 0045); its four-target
+  gate is **green** (ci run 36721212393: native suites incl. the new
+  thin-floor/large-`dt` cases on Linux/Windows/macOS, Emscripten ctest incl.
+  `web_12_physics` + web goldens + cross-runtime compare `12_physics`).
 - F13 (gamepad input) is **implemented** as an orthogonal milestone
   (predecessor F9; independent of F3–F8 and F10–F12) — a pinned vendored
   minigamepad poll backend confined to `efx_platform`
