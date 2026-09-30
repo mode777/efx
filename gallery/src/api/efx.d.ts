@@ -4,20 +4,25 @@
 // and grows with it. Update this file in the same change as any script-facing
 // API change, alongside docs/js-api.md (see AGENTS.md).
 //
-// Status: F1, F2, F3, F4a, F4b, F5a, F5b, F6a, F6b, F6c, F6e, F7, F8a, F9,
-// F10, F11, F12, and F13 are current behavior. F6d (the `--repl [<root>]`
-// interactive console) adds no API — it drives this same namespace from stdin;
-// `.help`/`.exit` are host commands, not `efx` functions. F8 is complete (F8b —
-// `drawModel`/demo pack — was retired as obsolete, superseded by multi-surface
-// meshes).
+// It covers the whole current surface: environment and lifecycle hooks, 2D
+// drawing, the 3D core and procedural primitives, lights and Phong materials,
+// render targets and post effects, the resource/glTF import layer, CPU
+// skinning, fonts and text, keyboard/mouse/gamepad input, CommonJS script
+// modules, billboards/particles, and the physics world. The `--repl` console
+// mode adds no API — it drives this same namespace from stdin.
 //
 // The declarations are global/ambient so they can be loaded verbatim into the
 // gallery editor (Monaco `addExtraLib`) and type-checked by `tsc`.
 
 /**
- * An RGBA color: four normalized floats in `0..1`, ordered `[r, g, b, a]`
- * (e.g. `[1, 0.5, 0, 1]`). Most lighting and material channels ignore the
- * alpha component.
+ * An RGBA color: four normalized floats in `0..1`, ordered `[r, g, b, a]`.
+ * Most lighting and material channels ignore the alpha component.
+ *
+ * @example
+ * ```js
+ * efx.setClearColor([0.05, 0.05, 0.1, 1]);
+ * efx.drawQuad(0, 0, tex, { color: [1, 0.5, 0, 1] });
+ * ```
  */
 type Color = [number, number, number, number];
 
@@ -27,7 +32,18 @@ type Vec2 = [number, number];
 /** A 3-component vector `[x, y, z]` in world units. */
 type Vec3 = [number, number, number];
 
-/** A column-major 4×4 matrix as a flat 16-number array. */
+/**
+ * A column-major 4×4 matrix as a flat 16-number array.
+ *
+ * @example
+ * ```js
+ * const model = efx.mat4.translate(
+ *   efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]),
+ *   [0, 0.5, 0],
+ * );
+ * efx.drawMesh(mesh, { transform: model });
+ * ```
+ */
 type Mat4 = [
   number, number, number, number,
   number, number, number, number,
@@ -35,14 +51,22 @@ type Mat4 = [
   number, number, number, number,
 ];
 
-/** A quaternion `[x, y, z, w]`. */
+/**
+ * A quaternion `[x, y, z, w]`.
+ *
+ * @example
+ * ```js
+ * const q = efx.quat.fromAxisAngle(90, [0, 1, 0]);
+ * const m = efx.quat.toMat4(q);
+ * ```
+ */
 type Quat = [number, number, number, number];
 
 // ---------------------------------------------------------------------------
-// F9 — input: keyboard, mouse & window
+// Input: keyboard, mouse & window
 // ---------------------------------------------------------------------------
 
-/** F9: engine-owned lowercase keyboard identifier set (docs/js-api.md). */
+/** The engine-owned lowercase keyboard identifier set (see `docs/js-api.md`). */
 type EfxKey =
   | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l'
   | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x'
@@ -62,23 +86,23 @@ type EfxKey =
   | 'rshift' | 'rctrl' | 'ralt' | 'rsuper'
   | 'menu';
 
-/** F9: engine-owned mouse button identifier set. */
+/** The engine-owned mouse button identifier set. */
 type EfxMouseButton = 'left' | 'right' | 'middle';
 
-/** F9: an active keyboard modifier name reported in event `mods`. */
+/** An active keyboard modifier name reported in an event's `mods`. */
 type EfxMod = 'shift' | 'ctrl' | 'alt' | 'super';
 
-/** F9: payload of a key-down event (`efx.keyboard.onDown`). */
+/** Payload of a key-down event. */
 interface KeyboardDownEvent {
   /** The key that went down. */
   key: EfxKey;
-  /** True when this is an auto-repeat rather than the initial press. */
+  /** `true` when this is an auto-repeat rather than the initial press. */
   repeat: boolean;
   /** Modifier keys held at the moment of the event. */
   mods: EfxMod[];
 }
 
-/** F9: payload of a key-up event (`efx.keyboard.onUp`). */
+/** Payload of a key-up event. */
 interface KeyboardUpEvent {
   /** The key that went up. */
   key: EfxKey;
@@ -86,13 +110,13 @@ interface KeyboardUpEvent {
   mods: EfxMod[];
 }
 
-/** F9: payload of a text-input event (`efx.keyboard.onChar`). */
+/** Payload of a text-input event. */
 interface CharEvent {
   /** The decoded character, e.g. `'A'` (may be more than one UTF-16 unit). */
   char: string;
 }
 
-/** F9: payload of a mouse button event (`efx.mouse.onDown` / `onUp`). */
+/** Payload of a mouse button event. */
 interface MouseButtonEvent {
   /** The button that changed state. */
   button: EfxMouseButton;
@@ -104,7 +128,7 @@ interface MouseButtonEvent {
   mods: EfxMod[];
 }
 
-/** F9: payload of a mouse move event (`efx.mouse.onMove`). */
+/** Payload of a mouse move event. */
 interface MouseMoveEvent {
   /** Cursor x in surface pixels. */
   x: number;
@@ -116,7 +140,7 @@ interface MouseMoveEvent {
   dy: number;
 }
 
-/** F9: payload of a mouse wheel event (`efx.mouse.onWheel`). */
+/** Payload of a mouse wheel event. */
 interface MouseWheelEvent {
   /** Horizontal scroll delta for this frame. */
   dx: number;
@@ -125,44 +149,133 @@ interface MouseWheelEvent {
 }
 
 /**
- * F9 keyboard namespace. Queries report current frame state; `isPressed` /
- * `isReleased` are one-frame edges. Event registrations return an idempotent
- * unsubscribe function.
+ * Keyboard queries and event subscriptions. Queries report current frame
+ * state; `isPressed`/`isReleased` are one-frame edges. Each event
+ * registration returns an idempotent unsubscribe function.
+ *
+ * @example
+ * ```js
+ * efx.keyboard.onDown((e) => {
+ *   if (e.repeat) return;
+ *   if (e.key === 'space') nova(pointerX, pointerY);
+ * });
+ *
+ * efx.registerUpdateHook(() => {
+ *   if (efx.keyboard.isDown('left') || efx.keyboard.isDown('a')) wx -= 240;
+ * });
+ * ```
  */
 interface EfxKeyboard {
-  /** True while `key` is held. Throws `TypeError` for an unknown key name. */
+  /**
+   * Test whether a key is currently held.
+   *
+   * @param key - Key name to test.
+   * @returns `true` while `key` is held; throws `TypeError` for an unknown key name.
+   */
   isDown(key: EfxKey): boolean;
-  /** True on the frame `key` transitioned down. Throws `TypeError` for an unknown key. */
+  /**
+   * Test whether a key transitioned down this frame.
+   *
+   * @param key - Key name to test.
+   * @returns `true` on the frame `key` transitioned down; throws `TypeError` for an unknown key.
+   */
   isPressed(key: EfxKey): boolean;
-  /** True on the frame `key` transitioned up. Throws `TypeError` for an unknown key. */
+  /**
+   * Test whether a key transitioned up this frame.
+   *
+   * @param key - Key name to test.
+   * @returns `true` on the frame `key` transitioned up; throws `TypeError` for an unknown key.
+   */
   isReleased(key: EfxKey): boolean;
-  /** Subscribe to key-down events; returns an unsubscribe function. */
+  /**
+   * Subscribe to key-down events.
+   *
+   * @param fn - Called with each key-down event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onDown(fn: (e: KeyboardDownEvent) => void): () => void;
-  /** Subscribe to key-up events; returns an unsubscribe function. */
+  /**
+   * Subscribe to key-up events.
+   *
+   * @param fn - Called with each key-up event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onUp(fn: (e: KeyboardUpEvent) => void): () => void;
-  /** Subscribe to text-input events; returns an unsubscribe function. */
+  /**
+   * Subscribe to decoded text-input events.
+   *
+   * @param fn - Called with each character event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onChar(fn: (e: CharEvent) => void): () => void;
 }
 
 /**
- * F9 mouse namespace. Queries report current frame state; `isPressed` /
- * `isReleased` are one-frame edges. Event registrations return an idempotent
- * unsubscribe function.
+ * Mouse queries and event subscriptions. Queries report current frame state;
+ * `isPressed`/`isReleased` are one-frame edges. Each event registration
+ * returns an idempotent unsubscribe function. All coordinates are surface
+ * (framebuffer) pixels with a top-left origin and y down — the same space as
+ * `drawQuad` and the 2D frame.
+ *
+ * @example
+ * ```js
+ * efx.mouse.onMove((e) => { pointerX = e.x; pointerY = e.y; });
+ * efx.mouse.onWheel((e) => { brush *= (1 - e.dy * 0.09); });
+ *
+ * efx.registerUpdateHook(() => {
+ *   if (efx.mouse.isDown('left')) well = 1;
+ * });
+ * ```
  */
 interface EfxMouse {
-  /** True while `button` is held. Throws `TypeError` for an unknown button. */
+  /**
+   * Test whether a mouse button is currently held.
+   *
+   * @param button - Button name to test.
+   * @returns `true` while `button` is held; throws `TypeError` for an unknown button.
+   */
   isDown(button: EfxMouseButton): boolean;
-  /** True on the frame `button` transitioned down. */
+  /**
+   * Test whether a mouse button transitioned down this frame.
+   *
+   * @param button - Button name to test.
+   * @returns `true` on the frame `button` transitioned down.
+   */
   isPressed(button: EfxMouseButton): boolean;
-  /** True on the frame `button` transitioned up. */
+  /**
+   * Test whether a mouse button transitioned up this frame.
+   *
+   * @param button - Button name to test.
+   * @returns `true` on the frame `button` transitioned up.
+   */
   isReleased(button: EfxMouseButton): boolean;
-  /** Subscribe to button-down events; returns an unsubscribe function. */
+  /**
+   * Subscribe to button-down events.
+   *
+   * @param fn - Called with each button-down event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onDown(fn: (e: MouseButtonEvent) => void): () => void;
-  /** Subscribe to button-up events; returns an unsubscribe function. */
+  /**
+   * Subscribe to button-up events.
+   *
+   * @param fn - Called with each button-up event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onUp(fn: (e: MouseButtonEvent) => void): () => void;
-  /** Subscribe to move events; returns an unsubscribe function. */
+  /**
+   * Subscribe to move events.
+   *
+   * @param fn - Called with each move event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onMove(fn: (e: MouseMoveEvent) => void): () => void;
-  /** Subscribe to wheel events; returns an unsubscribe function. */
+  /**
+   * Subscribe to wheel events.
+   *
+   * @param fn - Called with each wheel event, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onWheel(fn: (e: MouseWheelEvent) => void): () => void;
   /** Cursor position `[x, y]` in surface pixels. */
   readonly position: Vec2;
@@ -176,7 +289,17 @@ interface EfxMouse {
   readonly wheel: Vec2;
 }
 
-/** F9 read-only window metrics, in surface (framebuffer) pixels. */
+/**
+ * Read-only window metrics, in surface (framebuffer) pixels. On high-DPI
+ * displays the surface is larger than the logical window; `dpiScale` is the
+ * surface-to-logical ratio.
+ *
+ * @example
+ * ```js
+ * const [w, h] = efx.window.size;
+ * const logicalW = w / efx.window.dpiScale;
+ * ```
+ */
 interface EfxWindow {
   /** Window size `[width, height]` in surface pixels. */
   readonly size: Vec2;
@@ -189,53 +312,115 @@ interface EfxWindow {
 }
 
 // ---------------------------------------------------------------------------
-// F13 — gamepad input
+// Gamepad input
 // ---------------------------------------------------------------------------
 
-/** F13: engine-owned semantic gamepad button identifier set. */
+/** The engine-owned semantic gamepad button identifier set. */
 type EfxGamepadButton =
   | 'south' | 'east' | 'west' | 'north'
   | 'leftShoulder' | 'rightShoulder' | 'leftTrigger' | 'rightTrigger'
   | 'back' | 'start' | 'guide' | 'leftStick' | 'rightStick'
   | 'dpadUp' | 'dpadDown' | 'dpadLeft' | 'dpadRight';
 
-/** F13: engine-owned semantic gamepad axis identifier set. */
+/** The engine-owned semantic gamepad axis identifier set. */
 type EfxGamepadAxis =
   | 'leftX' | 'leftY' | 'rightX' | 'rightY' | 'leftTrigger' | 'rightTrigger';
 
-/** F13: a pad slot view. Plain data plus query methods; not a resource. */
+/**
+ * A pad slot view: plain data plus query methods. Not a resource — there is
+ * nothing to create or destroy.
+ */
 interface EfxGamepadView {
   /** Slot index this view reports (0-based). */
   readonly index: number;
-  /** True while a pad occupies this slot. */
+  /** `true` while a pad occupies this slot. */
   readonly connected: boolean;
   /** Device name string reported by the platform. */
   readonly name: string;
-  /** True when a semantic mapping was found (else only `rawButton`/`rawAxis`). */
+  /** `true` when a semantic mapping was found (else only `rawButton`/`rawAxis`). */
   readonly mapped: boolean;
-  /** True while `button` is held. Throws `TypeError` for an unknown button. */
+  /**
+   * Test whether a semantic button is currently held.
+   *
+   * @param button - Semantic button name.
+   * @returns `true` while `button` is held; throws `TypeError` for an unknown button.
+   */
   isDown(button: EfxGamepadButton): boolean;
-  /** True on the frame `button` transitioned down. */
+  /**
+   * Test whether a semantic button transitioned down this frame.
+   *
+   * @param button - Semantic button name.
+   * @returns `true` on the frame `button` transitioned down.
+   */
   isPressed(button: EfxGamepadButton): boolean;
-  /** True on the frame `button` transitioned up. */
+  /**
+   * Test whether a semantic button transitioned up this frame.
+   *
+   * @param button - Semantic button name.
+   * @returns `true` on the frame `button` transitioned up.
+   */
   isReleased(button: EfxGamepadButton): boolean;
-  /** Normalized axis value: sticks `-1..1`, triggers `0..1`. */
+  /**
+   * Read a normalized axis value.
+   *
+   * @param axis - Semantic axis name.
+   * @returns Stick axes in `-1..1` and trigger axes in `0..1`; throws `TypeError` for an unknown axis.
+   */
   axis(axis: EfxGamepadAxis): number;
-  /** Raw device button value by index (for unmapped pads). */
+  /**
+   * Read a raw device button value by index (for unmapped pads).
+   *
+   * @param index - Raw button index.
+   * @returns The raw device value (0 when out of range).
+   */
   rawButton(index: number): number;
-  /** Raw device axis value by index (for unmapped pads). */
+  /**
+   * Read a raw device axis value by index (for unmapped pads).
+   *
+   * @param index - Raw axis index.
+   * @returns The raw device value (0 when out of range).
+   */
   rawAxis(index: number): number;
 }
 
-/** F13 gamepad namespace (a fixed engine-owned bank of four pad slots). */
+/**
+ * Gamepad queries and connect/disconnect events over a fixed engine-owned
+ * bank of four pad slots, reported by index.
+ *
+ * @example
+ * ```js
+ * efx.gamepad.onConnect((pad) => efx.log('pad: ' + pad.name));
+ * efx.registerUpdateHook(() => {
+ *   const pad = efx.gamepad.get(0);
+ *   if (!pad) return;
+ *   if (pad.isDown('rightTrigger')) boost = 1;
+ *   x += pad.axis('leftX') * speed * dt;
+ * });
+ * ```
+ */
 interface EfxGamepad {
   /** Number of currently connected pads. */
   readonly count: number;
-  /** Pad view for `index`, or `null` when the slot is empty. Throws `TypeError` for a non-numeric index. */
+  /**
+   * Get the pad view for a slot.
+   *
+   * @param index - Slot index (0-based).
+   * @returns The pad view, or `null` when the slot is empty; throws `TypeError` for a non-numeric index.
+   */
   get(index: number): EfxGamepadView | null;
-  /** Subscribe to connect events; returns an unsubscribe function. */
+  /**
+   * Subscribe to pad-connect events.
+   *
+   * @param fn - Called with the pad view when a pad connects, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onConnect(fn: (pad: EfxGamepadView) => void): () => void;
-  /** Subscribe to disconnect events; returns an unsubscribe function. */
+  /**
+   * Subscribe to pad-disconnect events.
+   *
+   * @param fn - Called with the pad view when a pad disconnects, before the update hooks.
+   * @returns An idempotent unsubscribe function.
+   */
   onDisconnect(fn: (pad: EfxGamepadView) => void): () => void;
 }
 
@@ -243,7 +428,7 @@ interface EfxGamepad {
 // Resource types
 // ---------------------------------------------------------------------------
 
-/** F2: raw CPU pixels plus size and format (opaque native-backed class). */
+/** Raw CPU pixels plus size and format (opaque native-backed class). */
 interface EfxImageData {
   /** Image width in pixels. Throws `TypeError` when destroyed. */
   readonly width: number;
@@ -253,7 +438,7 @@ interface EfxImageData {
   destroy(): void;
 }
 
-/** F2: a GPU texture (opaque native-backed class). */
+/** A GPU texture (opaque native-backed class). */
 interface EfxTexture {
   /** Texture width in pixels. Throws `TypeError` when destroyed. */
   readonly width: number;
@@ -263,7 +448,7 @@ interface EfxTexture {
   destroy(): void;
 }
 
-/** F5a: a GPU render target (color + depth; opaque native-backed class). */
+/** A GPU render target with color and depth attachments (opaque native-backed class). */
 interface EfxRenderTarget {
   /** Target width in pixels. Throws `TypeError` when destroyed. */
   readonly width: number;
@@ -276,7 +461,7 @@ interface EfxRenderTarget {
 /** A live Texture or RenderTarget — accepted anywhere a texture is sampled. */
 type EfxSample = EfxTexture | EfxRenderTarget;
 
-/** F3: CPU mesh data (1..16 surfaces; opaque native-backed class). */
+/** CPU mesh data holding 1..16 surfaces (opaque native-backed class). */
 interface EfxMeshData {
   /** Number of surfaces (1..16). */
   readonly surfaceCount: number;
@@ -284,7 +469,7 @@ interface EfxMeshData {
   destroy(): void;
 }
 
-/** F3: a GPU mesh uploaded from MeshData (opaque native-backed class). */
+/** A GPU mesh uploaded from MeshData (opaque native-backed class). */
 interface EfxMesh {
   /** Number of surfaces (1..16). */
   readonly surfaceCount: number;
@@ -293,16 +478,16 @@ interface EfxMesh {
 }
 
 // ---------------------------------------------------------------------------
-// F8a — font + text
+// Font + text
 // ---------------------------------------------------------------------------
 
-/** F8a: a parsed TrueType/OpenType font (CPU only; opaque native-backed class). */
+/** A parsed TrueType/OpenType font, CPU only (opaque native-backed class). */
 interface EfxFontData {
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** F8a: a baked glyph atlas plus layout metrics (opaque native-backed class). */
+/** A baked glyph atlas plus layout metrics (opaque native-backed class). */
 interface EfxFont {
   /** Pixel size the atlas was baked at. */
   readonly size: number;
@@ -316,13 +501,13 @@ interface EfxFont {
   destroy(): void;
 }
 
-/** F8a: a baked outline ring around glyphs. */
+/** A baked outline ring around glyphs. */
 interface FontOutline {
   /** Outline thickness in pixels (must be > 0). */
   width: number;
 }
 
-/** F8a: a baked blurred shadow behind glyphs. */
+/** A baked blurred shadow behind glyphs. */
 interface FontShadow {
   /** Blur radius in pixels (must be > 0). */
   blur: number;
@@ -330,7 +515,19 @@ interface FontShadow {
   offset?: Vec2;
 }
 
-/** F8a: options for `createFont`. */
+/**
+ * Options for `createFont`.
+ *
+ * @example
+ * ```js
+ * const title = efx.createFont(efx.loadFontData('font.ttf'), {
+ *   size: 44,
+ *   outline: { width: 2 },
+ *   shadow: { blur: 3, offset: [2, 2] },
+ * });
+ * const body = efx.createFont(efx.loadFontData('font.ttf'), { size: 24 });
+ * ```
+ */
 interface CreateFontOptions {
   /** Pixel size baked into the atlas (must be > 0). */
   size: number;
@@ -346,7 +543,18 @@ interface CreateFontOptions {
   shadow?: FontShadow | null;
 }
 
-/** F8a: options for `drawText` / `measureText`. */
+/**
+ * Options for `drawText` / `measureText`.
+ *
+ * @example
+ * ```js
+ * efx.drawText(paragraph, body, 40, 168, {
+ *   width: 560,
+ *   align: 'justify',
+ *   color: [0.85, 0.88, 0.95, 1],
+ * });
+ * ```
+ */
 interface TextOptions {
   /** Horizontal alignment (default `'left'`); `'justify'` requires `width`. */
   align?: 'left' | 'center' | 'right' | 'justify';
@@ -368,7 +576,7 @@ interface TextOptions {
   scale?: number;
 }
 
-/** F8a: laid-out text bounds returned by `drawText` / `measureText`. */
+/** Laid-out text bounds returned by `drawText` / `measureText`. */
 interface TextBounds {
   /** Laid-out width in pixels. */
   readonly width: number;
@@ -379,10 +587,23 @@ interface TextBounds {
 }
 
 // ---------------------------------------------------------------------------
-// F2 — 2D drawing
+// 2D drawing
 // ---------------------------------------------------------------------------
 
-/** F2: options for `drawQuad`. */
+/**
+ * Options for `drawQuad`.
+ *
+ * @example
+ * ```js
+ * // a 48x48 tinted sprite (see the "Bouncing Sprites" sample)
+ * efx.drawQuad(d.x, d.y, tex, { size: [48, 48], color: d.c });
+ * // a cropped atlas region with an explicit pivot
+ * efx.drawQuad(160, 16, tex, {
+ *   size: [128, 128],
+ *   sourceRect: { x: 128, y: 128, w: 256, h: 256 },
+ * });
+ * ```
+ */
 interface DrawQuadOptions {
   /** Tint `[r, g, b, a]` (default opaque white). */
   color?: Color;
@@ -398,7 +619,15 @@ interface DrawQuadOptions {
   sourceRect?: SourceRect;
 }
 
-/** F2: options for `setCamera2D`. */
+/**
+ * Options for `setCamera2D`.
+ *
+ * @example
+ * ```js
+ * efx.setCamera2D({ frame: [640, 480] });          // virtual 640x480 frame
+ * efx.setCamera2D({ frame: [640, 480], zoom: 2 }); // 2x zoom about the center
+ * ```
+ */
 interface Camera2DOptions {
   /** Virtual resolution `[width, height]`; defaults to the current window size. */
   frame?: Vec2;
@@ -412,7 +641,24 @@ interface Camera2DOptions {
   rotation?: number;
 }
 
-/** F2: options for `createImageData`. */
+/**
+ * Options for `createImageData`.
+ *
+ * @example
+ * ```js
+ * // a procedural radial glow (see the "Particle Showcase" sample)
+ * const size = 32;
+ * const px = new Uint8Array(size * size * 4);
+ * for (let y = 0; y < size; y++) {
+ *   for (let x = 0; x < size; x++) {
+ *     const i = (y * size + x) * 4;
+ *     px[i] = px[i + 1] = px[i + 2] = 255;
+ *     px[i + 3] = 255; // ...compute coverage from the distance to center
+ *   }
+ * }
+ * const glow = efx.createImageData({ width: size, height: size, pixels: px });
+ * ```
+ */
 interface CreateImageDataOptions {
   /** Image width in pixels (must be > 0). */
   width: number;
@@ -424,7 +670,16 @@ interface CreateImageDataOptions {
   format?: 'rgba8';
 }
 
-/** F2/F6e: sampler options for `createTexture`. */
+/**
+ * Sampler options for `createTexture`.
+ *
+ * @example
+ * ```js
+ * // tiled, minified ground texture: repeat wrap plus a mip chain
+ * const tex = efx.createTexture(efx.loadImage('paving_color.jpg'),
+ *                               { mipmaps: true });
+ * ```
+ */
 interface TextureOptions {
   /** Texture wrap mode (default `'repeat'`). */
   wrap?: 'repeat' | 'clamp' | 'mirror';
@@ -447,10 +702,17 @@ interface SourceRect {
 }
 
 // ---------------------------------------------------------------------------
-// F3 — 3D core
+// 3D core
 // ---------------------------------------------------------------------------
 
-/** F3: options for `setCamera3D`. */
+/**
+ * Options for `setCamera3D`.
+ *
+ * @example
+ * ```js
+ * efx.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+ * ```
+ */
 interface Camera3DOptions {
   /** Camera position in world units. */
   pos: Vec3;
@@ -470,7 +732,7 @@ type FlatNumbers = number[] | Float32Array;
 /** Flat index arrays: a plain array or a typed array of unsigned integers. */
 type FlatIndices = number[] | Uint32Array;
 
-/** F3/F6c: one mesh surface's attribute arrays (a Godot surface / glTF primitive). */
+/** One mesh surface's attribute arrays (a Godot surface / glTF primitive). */
 interface MeshSurfaceData {
   /** Required flat xyz positions (3 numbers per vertex). */
   positions: FlatNumbers;
@@ -488,7 +750,7 @@ interface MeshSurfaceData {
   indices?: FlatIndices;
 }
 
-/** F4a/F4b: an ambient/diffuse/emissive Phong channel. */
+/** An ambient/diffuse/emissive Phong channel. */
 interface PhongChannel {
   /** Channel color `[r, g, b, a]` (alpha ignored by shading). */
   color: Color;
@@ -496,7 +758,7 @@ interface PhongChannel {
   map?: EfxSample | null;
 }
 
-/** F4a/F4b: the specular Phong channel (adds a shininess exponent). */
+/** The specular Phong channel (adds a shininess exponent). */
 interface SpecularChannel {
   /** Specular color `[r, g, b, a]` (alpha ignored by shading). */
   color: Color;
@@ -506,7 +768,21 @@ interface SpecularChannel {
   map?: EfxSample | null;
 }
 
-/** F4a/F4b: a per-surface Phong material (JS-managed, snapshotted at binding). */
+/**
+ * A per-surface Phong material. It is JS-managed (no native handle, no
+ * `destroy()`) and the engine snapshots it at binding time, so later mutation
+ * of the script object does not change the bound material.
+ *
+ * @example
+ * ```js
+ * efx.setMeshSurfaceMaterial(cube, 0, {
+ *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
+ *   diffuse:  { color: [1, 1, 1, 1] },
+ *   specular: { color: [1, 1, 1, 1], shininess: 32 },
+ *   emissive: { color: [0, 0, 0, 1] },
+ * });
+ * ```
+ */
 interface Material {
   /** Ambient channel (default black). */
   ambient?: PhongChannel;
@@ -520,7 +796,7 @@ interface Material {
   alphaMask?: EfxSample | null;
 }
 
-/** F3: the multi-surface batch form of `createMeshData`. */
+/** The multi-surface batch form of `createMeshData`. */
 interface MeshDataBatch {
   /** 1..16 surfaces, each a Godot surface / glTF primitive. */
   surfaces: MeshSurfaceData[];
@@ -536,7 +812,7 @@ interface MeshDataBatch {
   indices?: never;
 }
 
-/** F3: the single-surface shorthand form of `createMeshData`. */
+/** The single-surface shorthand form of `createMeshData`. */
 interface MeshDataShorthand extends MeshSurfaceData {
   /** One entry; `null` selects the engine default material. */
   materials?: (Material | null)[];
@@ -544,20 +820,56 @@ interface MeshDataShorthand extends MeshSurfaceData {
   surfaces?: never;
 }
 
-/** F3: `createMeshData` accepts either the batch or the shorthand form. */
+/**
+ * `createMeshData` accepts either the batch or the shorthand form.
+ *
+ * @example
+ * ```js
+ * // shorthand: one surface
+ * const quad = efx.createMeshData({
+ *   positions: [-4, 0, -4, 4, 0, -4, 4, 0, 4, -4, 0, 4],
+ *   normals:   [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+ *   uvs:       [0, 0, 6, 0, 6, 6, 0, 6],
+ *   indices:   [0, 1, 2, 0, 2, 3],
+ * });
+ *
+ * // batch: several surfaces with per-surface materials
+ * const mesh = efx.createMeshData({
+ *   surfaces: [{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] }],
+ *   materials: [null],
+ * });
+ * ```
+ */
 type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
 
-/** F3/F7: options for `drawMesh`. */
+/**
+ * Options for `drawMesh`.
+ *
+ * @example
+ * ```js
+ * efx.drawMesh(cube, {
+ *   transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]),
+ *   color: [0.95, 0.5, 0.2, 1],
+ * });
+ * ```
+ */
 interface DrawMeshCallOptions {
   /** Column-major transform (default identity). */
   transform?: Mat4;
   /** Tint multiplying vertex colors (default opaque white). */
   color?: Color;
-  /** F7: `true` draws the current CPU-posed vertices; absent/false the bind pose. */
+  /** `true` draws the current CPU-posed vertices; absent/false the bind pose. */
   skinned?: boolean;
 }
 
-/** F3: options for `makeCube`. */
+/**
+ * Options for `makeCube`.
+ *
+ * @example
+ * ```js
+ * const cube = efx.createMesh(efx.makeCube({ size: 1.4 }));
+ * ```
+ */
 interface MakeCubeOptions {
   /** Edge length (default 1, must be > 0). */
   size?: number;
@@ -565,7 +877,14 @@ interface MakeCubeOptions {
   material?: Material | null;
 }
 
-/** F3: options for `makePlane`. */
+/**
+ * Options for `makePlane`.
+ *
+ * @example
+ * ```js
+ * const ground = efx.createMesh(efx.makePlane({ size: 10, segments: 4 }));
+ * ```
+ */
 interface MakePlaneOptions {
   /** Edge length (default 1, must be > 0). */
   size?: number;
@@ -575,7 +894,14 @@ interface MakePlaneOptions {
   material?: Material | null;
 }
 
-/** F3: options for `makeSphere`. */
+/**
+ * Options for `makeSphere`.
+ *
+ * @example
+ * ```js
+ * const ball = efx.createMesh(efx.makeSphere({ radius: 1.6, segments: 32 }));
+ * ```
+ */
 interface MakeSphereOptions {
   /** Sphere radius (default 1, must be > 0). */
   radius?: number;
@@ -585,7 +911,15 @@ interface MakeSphereOptions {
   material?: Material | null;
 }
 
-/** F3: options for `makeCapsule`. */
+/**
+ * Options for `makeCapsule`.
+ *
+ * @example
+ * ```js
+ * // a capsule matching a physics character (radius 0.4, height 1.8)
+ * const body = efx.createMesh(efx.makeCapsule({ radius: 0.4, height: 1.8 }));
+ * ```
+ */
 interface MakeCapsuleOptions {
   /** Capsule radius (default 1, must be > 0). */
   radius?: number;
@@ -598,10 +932,17 @@ interface MakeCapsuleOptions {
 }
 
 // ---------------------------------------------------------------------------
-// F4a — lights
+// Lights
 // ---------------------------------------------------------------------------
 
-/** F4a: options for `setLight` (a point light). */
+/**
+ * Options for `setLight` (a point light).
+ *
+ * @example
+ * ```js
+ * efx.setLight(0, { pos: [3, 4, 2], color: [1, 0.95, 0.9, 1], range: 20 });
+ * ```
+ */
 interface PointLightOptions {
   /** Light position in world units. */
   pos: Vec3;
@@ -611,7 +952,14 @@ interface PointLightOptions {
   range?: number;
 }
 
-/** F4a: options for `setDirectionalLight`. */
+/**
+ * Options for `setDirectionalLight`.
+ *
+ * @example
+ * ```js
+ * efx.setDirectionalLight({ dir: [-0.5, -1, -0.3], color: [0.2, 0.25, 0.35, 1] });
+ * ```
+ */
 interface DirectionalLightOptions {
   /** Direction the light travels (the direction to the light is `-dir`). */
   dir: Vec3;
@@ -620,10 +968,17 @@ interface DirectionalLightOptions {
 }
 
 // ---------------------------------------------------------------------------
-// F5a — render targets
+// Render targets
 // ---------------------------------------------------------------------------
 
-/** F5a: options for `createRenderTarget`. */
+/**
+ * Options for `createRenderTarget`.
+ *
+ * @example
+ * ```js
+ * const scene = efx.createRenderTarget({ width: 512, height: 512 });
+ * ```
+ */
 interface RenderTargetOptions {
   /** Target width in pixels (positive integer, 1..4096). */
   width: number;
@@ -632,10 +987,10 @@ interface RenderTargetOptions {
 }
 
 // ---------------------------------------------------------------------------
-// F5b — post effects & render scale
+// Post effects & render scale
 // ---------------------------------------------------------------------------
 
-/** F5b: a color-filter post effect (identity with all defaults). */
+/** A color-filter post effect (identity with all defaults). */
 interface ColorFilterPostEffect {
   /** Discriminator selecting the color-filter effect. */
   effect: 'colorFilter';
@@ -651,7 +1006,7 @@ interface ColorFilterPostEffect {
   tint?: Color;
 }
 
-/** F5b: a separable gaussian blur post effect. */
+/** A separable gaussian blur post effect. */
 interface BlurPostEffect {
   /** Discriminator selecting the blur effect. */
   effect: 'blur';
@@ -661,7 +1016,7 @@ interface BlurPostEffect {
   radius?: number;
 }
 
-/** F5b: a bloom post effect. */
+/** A bloom post effect. */
 interface BloomPostEffect {
   /** Discriminator selecting the bloom effect. */
   effect: 'bloom';
@@ -673,33 +1028,59 @@ interface BloomPostEffect {
   strength?: number;
 }
 
-/** F5b: one entry of the declarative post-effect chain (`setPostEffects`). */
+/** One entry of the declarative post-effect chain (`setPostEffects`). */
 type EfxPostEffect = ColorFilterPostEffect | BlurPostEffect | BloomPostEffect;
 
-/** F5b: options for `setRenderScale`. */
+/**
+ * Options for `setRenderScale`.
+ *
+ * @example
+ * ```js
+ * efx.setRenderScale(0.5, { filter: 'nearest' }); // crisp half-res pixels
+ * efx.setRenderScale(1);                          // back to native
+ * ```
+ */
 interface RenderScaleOptions {
   /** Final blit filter (default `'linear'`). */
   filter?: 'nearest' | 'linear';
 }
 
 // ---------------------------------------------------------------------------
-// F6 — resource loading
+// Resource loading
 // ---------------------------------------------------------------------------
 
-/** F6b: options for `loadMeshData`. */
+/**
+ * Options for `loadMeshData`.
+ *
+ * @example
+ * ```js
+ * const first = efx.loadMeshData('scene.gltf');
+ * const named = efx.loadMeshData('scene.gltf', { mesh: 'Teapot' });
+ * const byIndex = efx.loadMeshData('scene.gltf', { mesh: 2 });
+ * ```
+ */
 interface LoadMeshDataOptions {
   /** Mesh selector: a non-negative index or a mesh name; defaults to the first mesh. */
   mesh?: number | string;
 }
 
 // ---------------------------------------------------------------------------
-// F7 — skinning & animation
+// Skinning & animation
 // ---------------------------------------------------------------------------
 
 /**
- * F7 pose sample: one clip sampled at `time` (seconds) with an optional blend
+ * One pose sample: a clip sampled at `time` (seconds) with an optional blend
  * `weight` (normalized engine-side across an array; a single sample ignores
  * it). `clip` is a clip name or an index.
+ *
+ * @example
+ * ```js
+ * // cross-fade walk -> run over two seconds
+ * efx.poseMesh(hero, [
+ *   { clip: 'Walk', time: t, weight: 1 - k },
+ *   { clip: 'Run',  time: t, weight: k },
+ * ]);
+ * ```
  */
 interface PoseSample {
   /** Clip name (glTF `name`, or stable `clipN`) or a non-negative clip index. */
@@ -711,16 +1092,27 @@ interface PoseSample {
 }
 
 // ---------------------------------------------------------------------------
-// F11 — billboards, 2D sprites & CPU particles
+// Billboards, 2D sprites & CPU particles
 // ---------------------------------------------------------------------------
 
-/** F11: quad render mode for world-space billboards and particles. */
+/** Quad render mode for world-space billboards and particles. */
 type EfxFacing = 'view' | 'y' | 'plane';
 
-/** F2/F11: blend mode for 2D quads, sprites, and particle batches. */
+/** Blend mode for 2D quads, sprites, and particle batches. */
 type EfxBlendMode = 'alpha' | 'additive' | 'subtractive';
 
-/** F11: options for `drawBillboard`. */
+/**
+ * Options for `drawBillboard`.
+ *
+ * @example
+ * ```js
+ * efx.drawBillboard([0, 0.4, 0], {
+ *   texture: spark,
+ *   size: 0.9,
+ *   color: [1, 0.7, 0.3, 0.9],
+ * });
+ * ```
+ */
 interface DrawBillboardOptions {
   /** Texture (or render target) to draw; required. */
   texture: EfxSample;
@@ -740,7 +1132,17 @@ interface DrawBillboardOptions {
   depthTest?: boolean;
 }
 
-/** F11: one entry of a `drawSprites` batch (equivalent to a `drawQuad` call). */
+/**
+ * One entry of a `drawSprites` batch; each is equivalent to a `drawQuad` call.
+ *
+ * @example
+ * ```js
+ * efx.drawSprites(spark, [
+ *   { x: 20,  y: 20, size: [48, 48], color: [1, 0.4, 0.2, 0.9] },
+ *   { x: 74,  y: 20, size: [48, 48], color: [1, 0.7, 0.3, 0.9] },
+ * ]);
+ * ```
+ */
 interface SpriteOptions {
   /** Quad top-left x in frame pixels. */
   x: number;
@@ -760,7 +1162,7 @@ interface SpriteOptions {
   origin?: Vec2;
 }
 
-/** F11: emission volume for a particle system. */
+/** Emission volume for a particle system. */
 interface EmissionShapeOptions {
   /** Shape kind. */
   shape: 'point' | 'box' | 'sphere' | 'sphereSurface' | 'disc';
@@ -768,7 +1170,30 @@ interface EmissionShapeOptions {
   size?: Vec3;
 }
 
-/** F11: options for `createParticleSystem` (`texture`, `max`, `lifetime` required). */
+/**
+ * Options for `createParticleSystem` (`texture`, `max`, and `lifetime` are
+ * required).
+ *
+ * @example
+ * ```js
+ * // an additive fire (see the "Particle Showcase" sample)
+ * const fire = efx.createParticleSystem({
+ *   texture: spark,
+ *   max: 600,
+ *   lifetime: [0.4, 0.9],
+ *   emissionRate: 140,
+ *   position: [0, 0.1, 0],
+ *   direction: [0, 1, 0],
+ *   spread: 22,
+ *   speed: [0.8, 1.8],
+ *   gravity: [0, 0.6, 0],
+ *   sizes: [0.55, 0.05],
+ *   colors: [[1, 0.9, 0.45, 0.95], [1, 0.25, 0.05, 0]],
+ *   blend: 'additive',
+ *   facing: 'view',
+ * });
+ * ```
+ */
 interface ParticleSystemOptions {
   /** Texture (or render target) for particle quads; required. */
   texture: EfxSample;
@@ -830,12 +1255,16 @@ interface ParticleSystemOptions {
   speedScale?: number;
 }
 
-/** F11: partial update bag for `ParticleSystem.set`. */
+/** Partial update bag for `ParticleSystem.set`. */
 type ParticleSystemSetOptions = Partial<ParticleSystemOptions>;
 
-/** F11: a native-backed CPU particle system. */
+/** A native-backed CPU particle system. */
 interface EfxParticleSystem {
-  /** Emit `n` particles immediately (a burst). */
+  /**
+   * Emit a burst of particles immediately.
+   *
+   * @param n - Number of particles to emit.
+   */
   emit(n: number): void;
   /** Start continuous emission. */
   start(): void;
@@ -845,7 +1274,11 @@ interface EfxParticleSystem {
   pause(): void;
   /** Reset the system to its initial state. */
   reset(): void;
-  /** Apply a partial options update atomically. */
+  /**
+   * Apply a partial options update atomically.
+   *
+   * @param opts - Any subset of the creation options to change.
+   */
   set(opts: ParticleSystemSetOptions): void;
   /** Number of live particles. */
   readonly count: number;
@@ -856,60 +1289,161 @@ interface EfxParticleSystem {
 }
 
 // ---------------------------------------------------------------------------
-// F3 — pure-JS math layer
+// Pure-JS math layer
 // ---------------------------------------------------------------------------
 
-/** F3: pure-JS 4×4 matrix helpers (inputs are never mutated). */
+/** Pure-JS 4×4 matrix helpers (inputs are never mutated). */
 interface EfxMat4 {
-  /** Return the identity matrix. */
+  /**
+   * Build the identity matrix.
+   *
+   * @returns A new identity `Mat4`.
+   */
   identity(): Mat4;
-  /** Build a perspective projection (column-major, GL convention). */
+  /**
+   * Build a perspective projection (column-major, GL convention).
+   *
+   * @param fovY - Vertical field of view in degrees.
+   * @param aspect - Viewport aspect ratio (width / height).
+   * @param near - Near plane distance.
+   * @param far - Far plane distance.
+   * @returns A new projection `Mat4`.
+   */
   perspective(fovY: number, aspect: number, near: number, far: number): Mat4;
-  /** Build an orthographic projection. */
+  /**
+   * Build an orthographic projection.
+   *
+   * @param w - View width in world units.
+   * @param h - View height in world units.
+   * @param near - Near plane distance.
+   * @param far - Far plane distance.
+   * @returns A new orthographic `Mat4`.
+   */
   ortho(w: number, h: number, near: number, far: number): Mat4;
-  /** Return `m` translated by `v`. */
+  /**
+   * Translate a matrix.
+   *
+   * @param m - Source matrix.
+   * @param v - Translation `[x, y, z]`.
+   * @returns A new translated `Mat4`.
+   */
   translate(m: Mat4, v: Vec3): Mat4;
-  /** Return `m` rotated `deg` degrees about `axis`. */
+  /**
+   * Rotate a matrix about an axis.
+   *
+   * @param m - Source matrix.
+   * @param deg - Rotation angle in degrees.
+   * @param axis - Rotation axis.
+   * @returns A new rotated `Mat4`.
+   */
   rotate(m: Mat4, deg: number, axis: Vec3): Mat4;
-  /** Return `m` scaled by `v`. */
+  /**
+   * Scale a matrix.
+   *
+   * @param m - Source matrix.
+   * @param v - Scale factors `[x, y, z]`.
+   * @returns A new scaled `Mat4`.
+   */
   scale(m: Mat4, v: Vec3): Mat4;
-  /** Return the matrix product `a · b` (b applies to a vector first). */
+  /**
+   * Multiply two matrices.
+   *
+   * @param a - Left-hand matrix.
+   * @param b - Right-hand matrix.
+   * @returns The product `a · b` (b applies to a vector first).
+   */
   multiply(a: Mat4, b: Mat4): Mat4;
 }
 
-/** F3: pure-JS 3-component vector helpers (inputs are never mutated). */
+/** Pure-JS 3-component vector helpers (inputs are never mutated). */
 interface EfxVec3 {
-  /** Return `a + b`. */
+  /**
+   * Add two vectors.
+   *
+   * @param a - Left operand.
+   * @param b - Right operand.
+   * @returns `a + b`.
+   */
   add(a: Vec3, b: Vec3): Vec3;
-  /** Return `a - b`. */
+  /**
+   * Subtract two vectors.
+   *
+   * @param a - Left operand.
+   * @param b - Right operand.
+   * @returns `a - b`.
+   */
   sub(a: Vec3, b: Vec3): Vec3;
-  /** Return `v * s`. */
+  /**
+   * Scale a vector.
+   *
+   * @param v - Vector to scale.
+   * @param s - Scalar factor.
+   * @returns `v * s`.
+   */
   scale(v: Vec3, s: number): Vec3;
-  /** Return the unit vector along `v`. */
+  /**
+   * Normalize a vector.
+   *
+   * @param v - Vector to normalize.
+   * @returns The unit vector along `v`.
+   */
   normalize(v: Vec3): Vec3;
-  /** Return the cross product `a × b`. */
+  /**
+   * Compute the cross product.
+   *
+   * @param a - Left operand.
+   * @param b - Right operand.
+   * @returns `a × b`.
+   */
   cross(a: Vec3, b: Vec3): Vec3;
-  /** Return the dot product `a · b`. */
+  /**
+   * Compute the dot product.
+   *
+   * @param a - Left operand.
+   * @param b - Right operand.
+   * @returns `a · b`.
+   */
   dot(a: Vec3, b: Vec3): number;
 }
 
-/** F3: pure-JS quaternion helpers (inputs are never mutated). */
+/** Pure-JS quaternion helpers (inputs are never mutated). */
 interface EfxQuat {
-  /** Return the identity quaternion. */
+  /**
+   * Build the identity quaternion.
+   *
+   * @returns A new identity `Quat`.
+   */
   identity(): Quat;
-  /** Build a quaternion from an axis and an angle in degrees. */
+  /**
+   * Build a quaternion from an axis and an angle.
+   *
+   * @param deg - Rotation angle in degrees.
+   * @param axis - Rotation axis.
+   * @returns The corresponding `Quat`.
+   */
   fromAxisAngle(deg: number, axis: Vec3): Quat;
-  /** Return the quaternion product `a · b`. */
+  /**
+   * Multiply two quaternions.
+   *
+   * @param a - Left operand.
+   * @param b - Right operand.
+   * @returns The product `a · b`.
+   */
   multiply(a: Quat, b: Quat): Quat;
-  /** Convert a quaternion to a rotation matrix. */
+  /**
+   * Convert a quaternion to a rotation matrix.
+   *
+   * @param q - Quaternion to convert.
+   * @returns The equivalent rotation `Mat4`.
+   */
   toMat4(q: Quat): Mat4;
 }
 
 // ---------------------------------------------------------------------------
-// F12 — collision, character & impulse dynamics
+// Collision, character & impulse dynamics
 // ---------------------------------------------------------------------------
 
-/** F12: a sphere collider. */
+/** A sphere collider. */
 interface SphereShape {
   /** Discriminator selecting the sphere shape. */
   type: 'sphere';
@@ -917,7 +1451,7 @@ interface SphereShape {
   radius: number;
 }
 
-/** F12: an axis-aligned box collider. */
+/** An axis-aligned box collider. */
 interface BoxShape {
   /** Discriminator selecting the box shape. */
   type: 'box';
@@ -925,7 +1459,7 @@ interface BoxShape {
   size: Vec3;
 }
 
-/** F12: a vertical capsule collider. */
+/** A vertical capsule collider. */
 interface CapsuleShape {
   /** Discriminator selecting the capsule shape. */
   type: 'capsule';
@@ -935,7 +1469,7 @@ interface CapsuleShape {
   height: number;
 }
 
-/** F12: a static triangle-mesh collider built from a live Mesh. */
+/** A static triangle-mesh collider built from a live Mesh. */
 interface MeshShape {
   /** Discriminator selecting the triangle-mesh shape. */
   type: 'mesh';
@@ -943,10 +1477,30 @@ interface MeshShape {
   mesh: EfxMesh;
 }
 
-/** F12: a collision shape accepted by bodies and by the spatial queries. */
+/**
+ * A collision shape accepted by bodies and by the spatial queries.
+ *
+ * @example
+ * ```js
+ * const box  = { type: 'box', size: [1, 1, 1] };
+ * const ball = { type: 'sphere', radius: 0.5 };
+ * const hero = { type: 'capsule', radius: 0.4, height: 1.8 };
+ * const ramp = { type: 'mesh', mesh: rampMesh };
+ * ```
+ */
 type PhysicsShape = SphereShape | BoxShape | CapsuleShape | MeshShape;
 
-/** F12: options for `physics.createBody`. */
+/**
+ * Options for `physics.createBody`.
+ *
+ * @example
+ * ```js
+ * const crate = efx.physics.createBody({
+ *   dynamic: true, mass: 2, friction: 0.6, restitution: 0.1,
+ *   shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0],
+ * });
+ * ```
+ */
 interface CreateBodyOptions {
   /** Collider shape; required. */
   shape: PhysicsShape;
@@ -968,7 +1522,14 @@ interface CreateBodyOptions {
   mask?: number;
 }
 
-/** F12: options for `physics.createStaticMesh`. */
+/**
+ * Options for `physics.createStaticMesh`.
+ *
+ * @example
+ * ```js
+ * const ramp = efx.physics.createStaticMesh(rampMesh, { friction: 0.8 });
+ * ```
+ */
 interface CreateStaticMeshOptions {
   /** Initial position in world units (default `[0, 0, 0]`). */
   position?: Vec3;
@@ -984,7 +1545,17 @@ interface CreateStaticMeshOptions {
   mask?: number;
 }
 
-/** F12: options for `physics.createCharacter`. */
+/**
+ * Options for `physics.createCharacter`.
+ *
+ * @example
+ * ```js
+ * const hero = efx.physics.createCharacter({
+ *   radius: 0.4, height: 1.8, position: [-5, 1, 0],
+ *   floorMaxAngle: 50, stepHeight: 0.35, floorSnapLength: 0.15,
+ * });
+ * ```
+ */
 interface CreateCharacterOptions {
   /** Capsule radius (must be > 0); required. */
   radius: number;
@@ -1010,7 +1581,7 @@ interface CreateCharacterOptions {
   mask?: number;
 }
 
-/** F12: one contact reported on a dynamic body's `contacts` list. */
+/** One contact reported on a dynamic body's `contacts` list. */
 interface PhysicsContact {
   /** The other collider's handle (`null` for a static mesh or character). */
   readonly body: EfxBody | null;
@@ -1026,7 +1597,7 @@ interface PhysicsContact {
   readonly impulse: number;
 }
 
-/** F12: a native-backed collider in the single physics world. */
+/** A native-backed collider in the single physics world. */
 interface EfxBody {
   /** Read-only world position (mutate `velocity` to move a dynamic body). */
   readonly position: Vec3;
@@ -1036,15 +1607,23 @@ interface EfxBody {
   readonly transform: Mat4;
   /** Read-only contacts from the last `step`; valid until the next `step`. */
   readonly contacts: PhysicsContact[];
-  /** Apply an instantaneous impulse (dynamic only; else `TypeError`). */
+  /**
+   * Apply an instantaneous impulse.
+   *
+   * @param v - Impulse vector in world units.
+   */
   applyImpulse(v: Vec3): void;
-  /** Apply a force for the next `step` (dynamic only; else `TypeError`). */
+  /**
+   * Apply a force for the next `step`.
+   *
+   * @param v - Force vector in world units.
+   */
   applyForce(v: Vec3): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** F12: one collision reported by `Character.moveAndSlide`. */
+/** One collision reported by `Character.moveAndSlide`. */
 interface PhysicsMoveCollision {
   /** The blocking collider's handle (`null` for a static mesh or character). */
   readonly body: EfxBody | null;
@@ -1054,7 +1633,7 @@ interface PhysicsMoveCollision {
   readonly point: Vec3;
 }
 
-/** F12: the result of `Character.moveAndSlide`. */
+/** The result of `Character.moveAndSlide`. */
 interface PhysicsMoveResult {
   /** Resulting world position. */
   readonly position: Vec3;
@@ -1070,7 +1649,7 @@ interface PhysicsMoveResult {
   readonly collisions: PhysicsMoveCollision[];
 }
 
-/** F12: a native-backed kinematic capsule character controller. */
+/** A native-backed kinematic capsule character controller. */
 interface EfxCharacter {
   /** Read-only world position. */
   readonly position: Vec3;
@@ -1078,13 +1657,26 @@ interface EfxCharacter {
   velocity: Vec3;
   /** Read-only: true when currently standing on a floor. */
   readonly onFloor: boolean;
-  /** Sweep and slide the capsule by `motion` (world units). */
+  /**
+   * Sweep and slide the capsule.
+   *
+   * @param motion - Desired displacement for this call, in world units.
+   * @returns The move result: position, floor/wall/ceiling flags, and collisions.
+   */
   moveAndSlide(motion: Vec3): PhysicsMoveResult;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** F12: options for `physics.raycast`. */
+/**
+ * Options for `physics.raycast`.
+ *
+ * @example
+ * ```js
+ * const hit = efx.physics.raycast(hero.position, [1, 0, 0], { maxDistance: 6 });
+ * if (hit) efx.log('hit at ' + hit.distance.toFixed(2));
+ * ```
+ */
 interface RaycastOptions {
   /** Maximum ray distance (positive finite); required. */
   maxDistance: number;
@@ -1096,7 +1688,7 @@ interface RaycastOptions {
   sensors?: boolean;
 }
 
-/** F12: one raycast hit. */
+/** One raycast hit. */
 interface PhysicsRayHit {
   /** Hit point `[x, y, z]`. */
   readonly point: Vec3;
@@ -1108,7 +1700,7 @@ interface PhysicsRayHit {
   readonly body: EfxBody | EfxCharacter | null;
 }
 
-/** F12: options for `physics.overlap`. */
+/** Options for `physics.overlap`. */
 interface OverlapOptions {
   /** Query position in world units (default `[0, 0, 0]`). */
   position?: Vec3;
@@ -1116,7 +1708,7 @@ interface OverlapOptions {
   mask?: number;
 }
 
-/** F12: options for `physics.shapeCast`. */
+/** Options for `physics.shapeCast`. */
 interface ShapeCastOptions {
   /** Collision mask bitmask filter. */
   mask?: number;
@@ -1124,7 +1716,7 @@ interface ShapeCastOptions {
   sensors?: boolean;
 }
 
-/** F12: one shape-cast hit. */
+/** One shape-cast hit. */
 interface PhysicsShapeHit {
   /** Hit point `[x, y, z]`. */
   readonly point: Vec3;
@@ -1136,29 +1728,96 @@ interface PhysicsShapeHit {
   readonly body: EfxBody | EfxCharacter | null;
 }
 
-/** F12: the single physics world (script-stepped; the engine never steps). */
+/**
+ * The single physics world. The script owns stepping: call `step(dt)` each
+ * frame and the engine never advances the world on its own.
+ *
+ * @example
+ * ```js
+ * efx.physics.gravity = [0, -9.81, 0];
+ * const ground = efx.physics.createBody({
+ *   shape: { type: 'box', size: [40, 1, 40] }, position: [0, -0.5, 0] });
+ * const crate = efx.physics.createBody({
+ *   dynamic: true, mass: 2,
+ *   shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0] });
+ * const hero = efx.physics.createCharacter({ radius: 0.4, height: 1.8 });
+ *
+ * efx.registerUpdateHook((dt) => {
+ *   efx.physics.step(dt);
+ *   hero.moveAndSlide([1.5 * dt, -9.81 * dt, 0]);
+ * });
+ * ```
+ */
 interface EfxPhysics {
   /** World gravity `[x, y, z]` (read-write; default `[0, -9.81, 0]`). */
   gravity: Vec3;
   /** Solver iteration count (read-write positive integer; default 8). */
   iterations: number;
-  /** Advance the world by `dt` seconds. */
+  /**
+   * Advance the world.
+   *
+   * @param dt - Time step in seconds.
+   */
   step(dt: number): void;
   /** Remove every collider from the world. */
   clear(): void;
-  /** Create a static, dynamic, or sensor body. */
+  /**
+   * Create a static, dynamic, or sensor body.
+   *
+   * @param opts - Body options; `shape` is required.
+   * @returns The new body handle.
+   */
   createBody(opts: CreateBodyOptions): EfxBody;
-  /** Create a static triangle-mesh collider from a live Mesh. */
+  /**
+   * Create a static triangle-mesh collider from a live Mesh.
+   *
+   * @param mesh - Source mesh (arbitrary surface count).
+   * @param opts - Optional placement and material options.
+   * @returns The new static body handle.
+   */
   createStaticMesh(mesh: EfxMesh, opts?: CreateStaticMeshOptions): EfxBody;
-  /** Create a kinematic capsule character controller. */
+  /**
+   * Create a kinematic capsule character controller.
+   *
+   * @param opts - Character options; `radius` and `height` are required.
+   * @returns The new character handle.
+   */
   createCharacter(opts: CreateCharacterOptions): EfxCharacter;
-  /** Cast a ray; returns the first hit, or `null` when nothing is hit. */
+  /**
+   * Cast a ray and return the nearest hit.
+   *
+   * @param origin - Ray origin in world units.
+   * @param direction - Ray direction (normalized by the engine).
+   * @param opts - Query options; `maxDistance` is required.
+   * @returns The first hit, or `null` when nothing is hit.
+   */
   raycast(origin: Vec3, direction: Vec3, opts: RaycastOptions): PhysicsRayHit | null;
-  /** Cast a ray returning every hit sorted by distance (`opts.all: true`). */
+  /**
+   * Cast a ray and return every hit sorted by distance.
+   *
+   * @param origin - Ray origin in world units.
+   * @param direction - Ray direction (normalized by the engine).
+   * @param opts - Query options with `all: true`; `maxDistance` is required.
+   * @returns Every hit sorted by distance.
+   */
   raycast(origin: Vec3, direction: Vec3, opts: RaycastOptions & { all: true }): PhysicsRayHit[];
-  /** Return the live bodies/characters intersecting `shape` (including sensors). */
+  /**
+   * Find bodies and characters intersecting a shape (including sensors).
+   *
+   * @param shape - Query shape.
+   * @param opts - Optional query position and mask.
+   * @returns The live handles that intersect `shape`.
+   */
   overlap(shape: PhysicsShape, opts?: OverlapOptions): (EfxBody | EfxCharacter)[];
-  /** Sweep `shape` from `from` by `motion`; returns the first hit, or `null`. */
+  /**
+   * Sweep a shape and return the first hit.
+   *
+   * @param shape - Shape to sweep.
+   * @param from - Sweep start in world units.
+   * @param motion - Sweep displacement in world units.
+   * @param opts - Optional mask and sensor inclusion.
+   * @returns The first hit, or `null` when nothing is hit.
+   */
   shapeCast(shape: PhysicsShape, from: Vec3, motion: Vec3,
             opts?: ShapeCastOptions): PhysicsShapeHit | null;
 }
@@ -1167,58 +1826,176 @@ interface EfxPhysics {
 // The single `efx` namespace
 // ---------------------------------------------------------------------------
 
-/** The engine-provided script surface; the only global scripts use. */
+/**
+ * The engine-provided script surface; the only global scripts use.
+ *
+ * @example
+ * ```js
+ * // the smallest complete 3D scene (the "Hello Cube" sample)
+ * efx.setClearColor([0.03, 0.04, 0.09, 1]);
+ * efx.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+ * efx.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+ * efx.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
+ *
+ * const cube = efx.createMesh(efx.makeCube({ size: 1.4 }));
+ * efx.setMeshSurfaceMaterial(cube, 0, {
+ *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
+ *   diffuse:  { color: [1, 1, 1, 1] },
+ *   specular: { color: [1, 1, 1, 1], shininess: 32 },
+ *   emissive: { color: [0, 0, 0, 1] },
+ * });
+ *
+ * let t = 0;
+ * function update(dt) { t += dt; }
+ * function render() {
+ *   const model = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
+ *   efx.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
+ * }
+ * ```
+ */
 interface Efx {
-  // F1 — environment & lifecycle
+  // Environment & lifecycle
 
-  /** Print `msg` to stdout followed by a newline and flush. */
+  /**
+   * Print a message to stdout followed by a newline and flush.
+   *
+   * @param msg - Value to print; non-strings use their standard string representation, and omitting it prints an empty line.
+   */
   log(msg?: unknown): void;
-  /** Request engine termination with exit code `code` (default 0); never returns. */
+  /**
+   * Request engine termination with an exit code.
+   *
+   * @param code - Exit code (default 0).
+   * @returns Never returns normally: the engine unwinds and exits with `code`.
+   */
   quit(code?: number): never;
-  /** Return the host arguments passed after `--script <file>`. */
+  /**
+   * Get the host arguments passed to the script run.
+   *
+   * @returns The `--script <file> [args...]` tail, or an empty array when none were given.
+   */
   args(): string[];
-  /** Register a per-frame update hook `fn(dt)`; returns an unsubscribe function. */
+  /**
+   * Register a per-frame update hook.
+   *
+   * @param fn - Called once per frame with `dt` seconds since the previous frame (0 on the first).
+   * @returns An idempotent unsubscribe function.
+   */
   registerUpdateHook(fn: (dt: number) => void): () => void;
-  /** Register a per-frame render hook `fn()`; returns an unsubscribe function. */
+  /**
+   * Register a per-frame render hook.
+   *
+   * @param fn - Called once per frame after update hooks; takes no arguments.
+   * @returns An idempotent unsubscribe function.
+   */
   registerRenderHook(fn: () => void): () => void;
 
-  // F2 — 2D drawing
+  // 2D drawing
 
-  /** Set the frame clear color `[r, g, b, a]` (default black). */
+  /**
+   * Set the frame clear color.
+   *
+   * @param color - Clear color `[r, g, b, a]` (default black).
+   */
   setClearColor(color: Color): void;
-  /** Set the 2D virtual pixel frame and its projection state. */
+  /**
+   * Set the 2D virtual pixel frame and its projection state.
+   *
+   * @param opts - Frame, center, zoom, and rotation.
+   */
   setCamera2D(opts: Camera2DOptions): void;
-  /** Build CPU pixels as an ImageData. */
+  /**
+   * Build CPU pixels as an ImageData.
+   *
+   * @param opts - Width, height, RGBA8 pixels, and optional format.
+   * @returns The new ImageData.
+   */
   createImageData(opts: CreateImageDataOptions): EfxImageData;
-  /** Upload ImageData to a GPU Texture with optional sampler settings. */
+  /**
+   * Upload ImageData to a GPU texture.
+   *
+   * @param imageData - Source pixels.
+   * @param opts - Optional wrap, filter, and mipmap settings.
+   * @returns The new texture.
+   */
   createTexture(imageData: EfxImageData, opts?: TextureOptions): EfxTexture;
-  /** Engine-owned 1×1 white Texture (read-only; `destroy()` throws). */
+  /** Engine-owned 1×1 white texture (read-only; `destroy()` throws). */
   readonly whiteTexture: EfxTexture;
-  /** Record one textured quad at frame-pixel `(x, y)`. */
+  /**
+   * Record one textured quad.
+   *
+   * @param x - Quad top-left x in frame pixels.
+   * @param y - Quad top-left y in frame pixels.
+   * @param texture - Live texture or render target to sample.
+   * @param opts - Optional tint, transform, size, origin, and source rect.
+   */
   drawQuad(x: number, y: number, texture: EfxSample, opts?: DrawQuadOptions): void;
-  /** Set the blend mode for subsequently recorded 2D draws (default `'alpha'`). */
+  /**
+   * Set the blend mode for subsequently recorded 2D draws.
+   *
+   * @param mode - `'alpha'` (default), `'additive'`, or `'subtractive'`.
+   */
   setBlendMode(mode: EfxBlendMode): void;
 
-  // F3 — 3D core
+  // 3D core
 
-  /** Set the single 3D camera (separate from the 2D frame). */
+  /**
+   * Set the single 3D camera (separate from the 2D frame).
+   *
+   * @param opts - Camera position, target, field of view, and clip planes.
+   */
   setCamera3D(opts: Camera3DOptions): void;
-  /** Build multi-surface MeshData from the batch or shorthand form. */
+  /**
+   * Build multi-surface MeshData from the batch or shorthand form.
+   *
+   * @param data - Surface attributes and optional per-surface materials.
+   * @returns The new CPU MeshData.
+   */
   createMeshData(data: CreateMeshDataOptions): EfxMeshData;
-  /** Upload all surfaces of MeshData to a GPU Mesh. */
+  /**
+   * Upload all surfaces of MeshData to a GPU mesh.
+   *
+   * @param meshData - Source CPU mesh data.
+   * @returns The new GPU mesh.
+   */
   createMesh(meshData: EfxMeshData): EfxMesh;
-  /** Draw a whole mesh, depth-tested, under the recorded 3D camera. */
+  /**
+   * Draw a whole mesh, depth-tested, under the recorded 3D camera.
+   *
+   * @param mesh - Live mesh to draw (required positional argument).
+   * @param opts - Optional transform, tint, and skinned flag.
+   */
   drawMesh(mesh: EfxMesh, opts?: DrawMeshCallOptions): void;
-  /** Build single-surface cube MeshData. */
+  /**
+   * Build single-surface cube MeshData.
+   *
+   * @param opts - Optional size and bound material.
+   * @returns The new CPU MeshData.
+   */
   makeCube(opts?: MakeCubeOptions): EfxMeshData;
-  /** Build single-surface plane MeshData (on XZ, facing +Y). */
+  /**
+   * Build single-surface plane MeshData (on XZ, facing +Y).
+   *
+   * @param opts - Optional size, segments, and bound material.
+   * @returns The new CPU MeshData.
+   */
   makePlane(opts?: MakePlaneOptions): EfxMeshData;
-  /** Build single-surface UV sphere MeshData. */
+  /**
+   * Build single-surface UV sphere MeshData.
+   *
+   * @param opts - Optional radius, segments, and bound material.
+   * @returns The new CPU MeshData.
+   */
   makeSphere(opts?: MakeSphereOptions): EfxMeshData;
-  /** Build single-surface vertical capsule MeshData. */
+  /**
+   * Build single-surface vertical capsule MeshData.
+   *
+   * @param opts - Optional radius, height, segments, and bound material.
+   * @returns The new CPU MeshData.
+   */
   makeCapsule(opts?: MakeCapsuleOptions): EfxMeshData;
 
-  // F3 — pure-JS math layer
+  // Pure-JS math layer
 
   /** Pure-JS 4×4 matrix helpers. */
   mat4: EfxMat4;
@@ -1227,61 +2004,142 @@ interface Efx {
   /** Pure-JS quaternion helpers. */
   quat: EfxQuat;
 
-  // F4a/F4b — lights & per-surface Phong materials
+  // Lights & per-surface Phong materials
 
-  /** Set point-light slot `0..3` (`null` disables the slot). */
+  /**
+   * Set a point-light slot.
+   *
+   * @param slot - Slot index `0..3`.
+   * @param opts - Light options, or `null` to disable the slot.
+   */
   setLight(slot: number, opts: PointLightOptions | null): void;
-  /** Set the single directional light (`null` disables it). */
+  /**
+   * Set the single directional light.
+   *
+   * @param opts - Light options, or `null` to disable it.
+   */
   setDirectionalLight(opts: DirectionalLightOptions | null): void;
-  /** Bind a Phong material to one mesh surface (`null` restores the default). */
+  /**
+   * Bind a Phong material to one mesh surface.
+   *
+   * @param mesh - Owning live mesh.
+   * @param surfaceIndex - Surface to bind (`0`-based).
+   * @param mat - Material object, or `null` to restore the engine default.
+   */
   setMeshSurfaceMaterial(mesh: EfxMesh, surfaceIndex: number, mat: Material | null): void;
 
-  // F5a — render targets
+  // Render targets
 
-  /** Create a GPU render target with a color and depth attachment. */
+  /**
+   * Create a GPU render target with a color and depth attachment.
+   *
+   * @param opts - Target width and height (1..4096 each).
+   * @returns The new render target.
+   */
   createRenderTarget(opts: RenderTargetOptions): EfxRenderTarget;
-  /** Redirect subsequently recorded draws into `rt` (clears it on entry). */
+  /**
+   * Redirect subsequently recorded draws into a render target, clearing it on entry.
+   *
+   * @param rt - Target to draw into.
+   */
   beginRenderTarget(rt: EfxRenderTarget): void;
   /** Return to the default target. */
   endRenderTarget(): void;
 
-  // F5b — post effects & render scale
+  // Post effects & render scale
 
-  /** Set the declarative post-effect chain (`null`/`[]` clears it; max 8 entries). */
+  /**
+   * Set the declarative post-effect chain.
+   *
+   * @param list - Up to 8 effect entries, or `null`/`[]` to clear the chain.
+   */
   setPostEffects(list: EfxPostEffect[] | null): void;
-  /** Set the scene-resolution scale and final blit filter. */
+  /**
+   * Set the scene-resolution scale and final blit filter.
+   *
+   * @param scale - Scene resolution ratio in `(0, 2]` (default 1).
+   * @param opts - Optional blit filter.
+   */
   setRenderScale(scale: number, opts?: RenderScaleOptions): void;
 
-  // F6a — resource loading (paths relative to the resource root)
+  // Resource loading (paths relative to the resource root)
 
-  /** Read a UTF-8 text resource. */
+  /**
+   * Read a UTF-8 text resource.
+   *
+   * @param path - Resource-root-relative path.
+   * @returns The decoded text.
+   */
   loadText(path: string): string;
-  /** Decode a PNG/JPEG image resource to RGBA8 ImageData. */
+  /**
+   * Decode a PNG/JPEG image resource to RGBA8.
+   *
+   * @param path - Resource-root-relative path.
+   * @returns The decoded ImageData.
+   */
   loadImage(path: string): EfxImageData;
 
-  // F6b — glTF 2.0 static import
+  // glTF 2.0 static import
 
-  /** Import a glTF/GLB mesh (materials converted and bound per surface). */
+  /**
+   * Import a glTF/GLB mesh (materials converted and bound per surface).
+   *
+   * @param path - Resource-root-relative path.
+   * @param opts - Optional mesh selector.
+   * @returns The imported CPU MeshData.
+   */
   loadMeshData(path: string, opts?: LoadMeshDataOptions): EfxMeshData;
 
-  // F8a — font + text (C-implemented mid-level facilities)
+  // Font + text (C-implemented mid-level facilities)
 
-  /** Parse a `.ttf`/`.otf` font into FontData. */
+  /**
+   * Parse a `.ttf`/`.otf` font into FontData.
+   *
+   * @param path - Resource-root-relative path.
+   * @returns The parsed FontData.
+   */
   loadFontData(path: string): EfxFontData;
-  /** Bake a fixed glyph atlas Font from FontData. */
+  /**
+   * Bake a fixed glyph atlas from FontData.
+   *
+   * @param fontData - Parsed source font.
+   * @param opts - Required bake options (at minimum `size`).
+   * @returns The baked Font.
+   */
   createFont(fontData: EfxFontData, opts: CreateFontOptions): EfxFont;
-  /** Lay out and record 2D text quads; returns the laid-out bounds. */
+  /**
+   * Lay out and record 2D text quads.
+   *
+   * @param text - Text to draw (supports newlines).
+   * @param font - Baked font to draw with.
+   * @param x - Anchor x in frame pixels.
+   * @param y - Anchor y in frame pixels.
+   * @param opts - Optional alignment, wrap, colors, rotation, and scale.
+   * @returns The laid-out bounds.
+   */
   drawText(text: string, font: EfxFont, x: number, y: number,
            opts?: TextOptions): TextBounds;
-  /** Lay out text without drawing; returns the same bounds. */
+  /**
+   * Lay out text without drawing it.
+   *
+   * @param text - Text to measure.
+   * @param font - Baked font to measure with.
+   * @param opts - Optional alignment, wrap, and scale (matching a later draw).
+   * @returns The laid-out bounds.
+   */
   measureText(text: string, font: EfxFont, opts?: TextOptions): TextBounds;
 
-  // F7 — CPU skinning & animation (the script owns the clock)
+  // CPU skinning & animation (the script owns the clock)
 
-  /** CPU-pose a skinned mesh in place from one sample or a weighted array. */
+  /**
+   * CPU-pose a skinned mesh in place.
+   *
+   * @param mesh - Live skinned mesh.
+   * @param pose - One pose sample, or an array of samples to blend.
+   */
   poseMesh(mesh: EfxMesh, pose: PoseSample | PoseSample[]): void;
 
-  // F9 — input: sub-namespaces of the single efx object
+  // Input: sub-namespaces of the single efx object
 
   /** Keyboard queries and events. */
   keyboard: EfxKeyboard;
@@ -1289,22 +2147,40 @@ interface Efx {
   mouse: EfxMouse;
   /** Read-only window metrics. */
   window: EfxWindow;
-  // F13 — gamepad input: fixed bank of pad slots
   /** Gamepad bank queries and connect/disconnect events. */
   gamepad: EfxGamepad;
 
-  // F11 — world-space billboards, batched 2D sprites, CPU particles
+  // World-space billboards, batched 2D sprites, CPU particles
 
-  /** Record one world-space billboard quad at `pos`. */
+  /**
+   * Record one world-space billboard quad.
+   *
+   * @param pos - World position `[x, y, z]`.
+   * @param opts - Required texture plus size, tint, facing, and depth options.
+   */
   drawBillboard(pos: Vec3, opts: DrawBillboardOptions): void;
-  /** Record a batch of 2D sprite quads from one texture. */
+  /**
+   * Record a batch of 2D sprite quads from one texture.
+   *
+   * @param texture - Live texture or render target to sample.
+   * @param sprites - One options bag per quad; validation is atomic.
+   */
   drawSprites(texture: EfxSample, sprites: SpriteOptions[]): void;
-  /** Create a native-backed CPU particle system. */
+  /**
+   * Create a native-backed CPU particle system.
+   *
+   * @param opts - System options; `texture`, `max`, and `lifetime` are required.
+   * @returns The new particle system.
+   */
   createParticleSystem(opts: ParticleSystemOptions): EfxParticleSystem;
-  /** Record one batch for a particle system's live particles. */
+  /**
+   * Record one batch for a particle system's live particles.
+   *
+   * @param system - System whose live particles to draw.
+   */
   drawParticles(system: EfxParticleSystem): void;
 
-  // F12 — collision, character & impulse dynamics (single world, script-stepped)
+  // Collision, character & impulse dynamics (single world, script-stepped)
 
   /** The single physics world. */
   physics: EfxPhysics;
@@ -1313,7 +2189,7 @@ interface Efx {
 declare const efx: Efx;
 
 // ---------------------------------------------------------------------------
-// F10 — CommonJS module authoring facilities
+// CommonJS module authoring facilities
 // ---------------------------------------------------------------------------
 //
 // Every script file under the resource root is a module; `require`/`module`/
@@ -1322,34 +2198,53 @@ declare const efx: Efx;
 // TypeScript authors normally write `import`/`export` and let `tsc`
 // (`module: commonjs`) emit the `require` form.
 
-/** F10: one entry of `require.cache`. */
+/** One entry of `require.cache`. */
 interface EfxModuleCacheEntry {
   /** Root-relative resolved module path. */
   id: string;
   /** The module's `exports` value. */
   exports: unknown;
-  /** True once the module body has finished evaluating. */
+  /** `true` once the module body has finished evaluating. */
   loaded: boolean;
 }
 
-/** F10: the module-scoped `require` function. */
+/**
+ * The module-scoped `require` function. It resolves relative (`./`, `../`) or
+ * root-relative specifiers and loads synchronously.
+ *
+ * @example
+ * ```js
+ * const palette = require('./lib/palette.js'); // relative module
+ * const orbit = require('./lib/orbit');        // no extension -> .js fallback
+ * const scene = require('./data/scene.json');  // JSON module -> parsed value
+ * ```
+ */
 interface EfxRequire {
-  /** Resolve a relative (`./`, `../`) or root-relative specifier and return
-   * its `module.exports` synchronously. */
+  /**
+   * Load a module and return its exports.
+   *
+   * @param specifier - Relative (`./`, `../`) or root-relative module path.
+   * @returns The module's `module.exports` value.
+   */
   (specifier: string): unknown;
-  /** Resolve a specifier to its root-relative module path. */
+  /**
+   * Resolve a specifier to its canonical module path.
+   *
+   * @param specifier - Specifier to resolve.
+   * @returns The root-relative resolved module path.
+   */
   resolve(specifier: string): string;
   /** Modules cached by resolved path. */
   readonly cache: Record<string, EfxModuleCacheEntry>;
 }
 
-/** F10: the module-scoped `module` object. */
+/** The module-scoped `module` object. */
 interface EfxModule {
   /** The value `require` returns for this module. */
   exports: unknown;
   /** Root-relative resolved module path. */
   id: string;
-  /** True once the module body has finished evaluating. */
+  /** `true` once the module body has finished evaluating. */
   loaded: boolean;
 }
 
