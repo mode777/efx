@@ -349,3 +349,228 @@ JSValue efx_js_createTexture(JSContext *ctx, JSValueConst this_val, int argc, JS
     JS_SetOpaque(obj, t);
     return obj;
 }
+
+typedef struct {
+    float color[4];
+    float rotation;
+    float scale;
+    float src[4];
+    int has_src;
+    float size[2];
+    int has_size;
+    float origin[2];
+    int has_origin;
+} quad_opts;
+
+static void quad_opts_default(quad_opts *q) {
+    memset(q, 0, sizeof(*q));
+    q->color[0] = q->color[1] = q->color[2] = q->color[3] = 1.0f;
+    q->scale = 1.0f;
+}
+
+static int check_quad_opts_fields(JSContext *ctx, JSValueConst opts) {
+    static const char *known[] = {"color", "rotation", "scale", "sourceRect", "size", "origin"};
+    JSPropertyEnum *props = NULL;
+    uint32_t nprops = 0;
+    if (JS_GetOwnPropertyNames(ctx, &props, &nprops, opts,
+                               JS_GPN_STRING_MASK) == 0) {
+        for (uint32_t i = 0; i < nprops; i++) {
+            const char *k = JS_AtomToCString(ctx, props[i].atom);
+            int ok = 0;
+            for (int j = 0; j < 6; j++) {
+                if (k && strcmp(k, known[j]) == 0) {
+                    ok = 1;
+                    break;
+                }
+            }
+            if (k) {
+                JS_FreeCString(ctx, k);
+            }
+            JS_FreeAtom(ctx, props[i].atom);
+            if (!ok) {
+                for (uint32_t j = i + 1; j < nprops; j++) {
+                    JS_FreeAtom(ctx, props[j].atom);
+                }
+                js_free(ctx, props);
+                JS_ThrowTypeError(ctx, "unknown drawQuad option");
+                return -1;
+            }
+        }
+        js_free(ctx, props);
+    }
+    return 0;
+}
+
+/* parse the drawQuad opts bag into `q` (first failing check wins) */
+static int read_quad_opts(JSContext *ctx, uint64_t tex_handle,
+                          JSValueConst opts, quad_opts *q) {
+    quad_opts_default(q);
+    if (check_quad_opts_fields(ctx, opts) != 0) {
+        return -1;
+    }
+
+    JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
+    if (!JS_IsUndefined(cv)) {
+        if (efx_api_get_float_array(ctx, cv, q->color, 4) != 0) {
+            JS_FreeValue(ctx, cv);
+            return -1;
+        }
+    }
+    JS_FreeValue(ctx, cv);
+
+    JSValue rv = JS_GetPropertyStr(ctx, opts, "rotation");
+    if (!JS_IsUndefined(rv)) {
+        double d;
+        if (JS_ToFloat64(ctx, &d, rv) < 0 || !isfinite(d)) {
+            JS_FreeValue(ctx, rv);
+            efx_api_type_error(ctx, "rotation must be a finite number");
+            return -1;
+        }
+        q->rotation = (float)d;
+    }
+    JS_FreeValue(ctx, rv);
+
+    JSValue sv = JS_GetPropertyStr(ctx, opts, "scale");
+    if (!JS_IsUndefined(sv)) {
+        double d;
+        if (JS_ToFloat64(ctx, &d, sv) < 0 || !isfinite(d)) {
+            JS_FreeValue(ctx, sv);
+            efx_api_type_error(ctx, "scale must be a finite number");
+            return -1;
+        }
+        if (d <= 0) {
+            JS_FreeValue(ctx, sv);
+            efx_api_range_error(ctx, "scale must be > 0");
+            return -1;
+        }
+        q->scale = (float)d;
+    }
+    JS_FreeValue(ctx, sv);
+
+    JSValue zv = JS_GetPropertyStr(ctx, opts, "size");
+    if (!JS_IsUndefined(zv)) {
+        if (efx_api_get_float_array(ctx, zv, q->size, 2) != 0) {
+            JS_FreeValue(ctx, zv);
+            return -1;
+        }
+        if (q->size[0] <= 0 || q->size[1] <= 0) {
+            JS_FreeValue(ctx, zv);
+            efx_api_range_error(ctx, "size entries must be > 0");
+            return -1;
+        }
+        q->has_size = 1;
+    }
+    JS_FreeValue(ctx, zv);
+
+    JSValue ov = JS_GetPropertyStr(ctx, opts, "origin");
+    if (!JS_IsUndefined(ov)) {
+        if (efx_api_get_float_array(ctx, ov, q->origin, 2) != 0) {
+            JS_FreeValue(ctx, ov);
+            return -1;
+        }
+        q->has_origin = 1;
+    }
+    JS_FreeValue(ctx, ov);
+
+    JSValue srcv = JS_GetPropertyStr(ctx, opts, "sourceRect");
+    if (!JS_IsUndefined(srcv)) {
+        if (efx_api_read_source_rect(ctx, tex_handle, srcv, q->src,
+                                     &q->has_src) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 3) {
+        return efx_api_type_error(ctx, "drawQuad requires (x, y, texture, opts?)");
+    }
+    double x, y;
+    if (JS_ToFloat64(ctx, &x, argv[0]) < 0 || JS_ToFloat64(ctx, &y, argv[1]) < 0) {
+        return efx_api_type_error(ctx, "x and y must be numbers");
+    }
+    if (!isfinite(x) || !isfinite(y)) {
+        return efx_api_range_error(ctx, "x and y must be finite");
+    }
+    /* F5a texture coercion: a live Texture or a live RenderTarget */
+    uint64_t tex_handle = 0;
+    if (efx_api_get_live_sample(ctx, argv[2], &tex_handle) != 0) {
+        return JS_EXCEPTION;
+    }
+
+    quad_opts q;
+    if (argc >= 4 && !JS_IsUndefined(argv[3])) {
+        if (!JS_IsObject(argv[3])) {
+            return efx_api_type_error(ctx, "opts must be an object");
+        }
+        if (read_quad_opts(ctx, tex_handle, argv[3], &q) != 0) {
+            return JS_EXCEPTION;
+        }
+    } else {
+        quad_opts_default(&q);
+    }
+
+    /* size derivation: explicit size -> sourceRect extent -> texture
+     * pixels (a render target's extent plays the texture's role, F5a) */
+    float w, h;
+    if (q.has_size) {
+        w = q.size[0];
+        h = q.size[1];
+    } else if (q.has_src) {
+        w = q.src[2];
+        h = q.src[3];
+    } else {
+        int tw = 0, th = 0;
+        efx_render_sample_size(tex_handle, &tw, &th);
+        w = (float)tw;
+        h = (float)th;
+    }
+    float origin_x = q.has_origin ? q.origin[0] : w * 0.5f;
+    float origin_y = q.has_origin ? q.origin[1] : h * 0.5f;
+
+    int rc = efx_render_quad((float)x, (float)y, w, h,
+                             tex_handle, q.color, q.rotation, q.scale, q.src,
+                             q.has_src, origin_x, origin_y);
+    if (rc == EFX_RENDER_ERR_BUDGET) {
+        return efx_api_range_error(ctx, "display list budget exceeded");
+    }
+    if (rc == EFX_RENDER_ERR_SINK) {
+        return efx_api_generic_error(ctx, "no render surface (draw calls need a window)");
+    }
+    if (rc == EFX_RENDER_ERR_FEEDBACK) {
+        return efx_api_type_error(ctx,
+                          "cannot sample the render target being drawn into");
+    }
+    if (rc != EFX_RENDER_OK) {
+        return efx_api_generic_error(ctx, "drawQuad failed");
+    }
+    return JS_UNDEFINED;
+}
+
+
+JSValue efx_js_setBlendMode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1) {
+        return efx_api_type_error(ctx, "setBlendMode requires a mode string");
+    }
+    const char *s = JS_ToCString(ctx, argv[0]);
+    if (!s) {
+        return efx_api_type_error(ctx, "setBlendMode requires a mode string");
+    }
+    int mode;
+    if (strcmp(s, "alpha") == 0) {
+        mode = EFX_BLEND_ALPHA;
+    } else if (strcmp(s, "additive") == 0) {
+        mode = EFX_BLEND_ADDITIVE;
+    } else if (strcmp(s, "subtractive") == 0) {
+        mode = EFX_BLEND_SUBTRACTIVE;
+    } else {
+        JS_FreeCString(ctx, s);
+        return efx_api_type_error(ctx, "unknown blend mode");
+    }
+    JS_FreeCString(ctx, s);
+    efx_render_set_blend(mode);
+    return JS_UNDEFINED;
+}
