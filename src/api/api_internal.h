@@ -32,6 +32,14 @@ typedef enum {
     EFX_ELEM_U32,    /* non-number -> TypeError; non-u32 -> RangeError(msg_int) */
 } efx_elem_policy;
 
+/* option-reader policy flags (efx_api_opt_number/_bool); 0 = undefined is
+ * absent, JS_ToFloat64/JS_ToBool coercion, the message used verbatim */
+enum {
+    EFX_OPT_NULL_ABSENT = 1, /* null also reads as absent */
+    EFX_OPT_STRICT = 2,      /* require a number/boolean; no coercion */
+    EFX_OPT_KEY_MSG = 4,     /* the TypeError text is "<key> <msg>" */
+};
+
 /* ------------------------------------------------- resource classes */
 
 typedef struct {
@@ -191,10 +199,10 @@ extern efxjs_particlesystem *efx_api_get_live_ps(JSContext *ctx, JSValueConst v)
 extern efxjs_rendertarget *efx_api_get_live_render_target(JSContext *ctx, JSValueConst v);
 extern int efx_api_get_live_sample(JSContext *ctx, JSValueConst v, uint64_t *out_handle);
 extern struct efx_host_state *efx_api_host_state(JSContext *ctx);
-extern int efx_api_opt_bool(JSContext *ctx, JSValueConst obj, const char *key, int *out);
-extern int efx_api_opt_number(JSContext *ctx, JSValueConst obj, const char *key, double *out, const char *msg);
+extern int efx_api_opt_bool(JSContext *ctx, JSValueConst obj, const char *key, int *out, int policy, const char *msg);
+extern int efx_api_opt_number(JSContext *ctx, JSValueConst obj, const char *key, double *out, int policy, const char *msg);
 extern int efx_api_opt_u32(JSContext *ctx, JSValueConst obj, const char *key, uint32_t *out, const char *msg_num, const char *msg_range);
-extern int efx_api_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key, float out[3]);
+extern int efx_api_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key, efx_vec3 *out);
 extern JSValue efx_api_plain_error(JSContext *ctx, const char *msg);
 extern JSValue efx_api_range_error(JSContext *ctx, const char *msg);
 extern int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len, efx_elem_policy policy, const char *msg_numbers, const char *msg_finite, const char *msg_int, void (*sink)(void *, int32_t, double), void *ud);

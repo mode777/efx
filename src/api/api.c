@@ -234,32 +234,53 @@ int efx_api_get_float_array(JSContext *ctx, JSValueConst v, float *out, int n) {
 
 
 /* generic optional-field readers: 1 present, 0 absent, -1 error (throws).
- * The wording is passed in per call so every domain keeps its existing
- * message text (the error catalog pins them). */
+ * The policy flags and wording are passed per call so every domain keeps its
+ * existing rule and message text (the error catalog pins them). */
+
+static int opt_absent(JSValueConst v, int policy) {
+    return JS_IsUndefined(v) || ((policy & EFX_OPT_NULL_ABSENT) && JS_IsNull(v));
+}
+
+static void opt_error(JSContext *ctx, int policy, const char *key,
+                      const char *msg) {
+    if (policy & EFX_OPT_KEY_MSG) {
+        JS_ThrowTypeError(ctx, "%s %s", key, msg);
+    } else {
+        efx_api_type_error(ctx, msg);
+    }
+}
 
 int efx_api_opt_number(JSContext *ctx, JSValueConst obj, const char *key,
-                      double *out, const char *msg) {
+                      double *out, int policy, const char *msg) {
     JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    if (JS_IsUndefined(v)) {
+    if (opt_absent(v, policy)) {
         JS_FreeValue(ctx, v);
         return 0;
     }
-    if (JS_ToFloat64(ctx, out, v) < 0 || !isfinite(*out)) {
-        JS_FreeValue(ctx, v);
-        efx_api_type_error(ctx, msg);
+    double d = 0.0;
+    int bad = ((policy & EFX_OPT_STRICT) && !JS_IsNumber(v)) ||
+              JS_ToFloat64(ctx, &d, v) < 0 || !isfinite(d);
+    JS_FreeValue(ctx, v);
+    if (bad) {
+        opt_error(ctx, policy, key, msg);
         return -1;
     }
-    JS_FreeValue(ctx, v);
+    *out = d;
     return 1;
 }
 
 
 int efx_api_opt_bool(JSContext *ctx, JSValueConst obj, const char *key,
-                    int *out) {
+                    int *out, int policy, const char *msg) {
     JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    if (JS_IsUndefined(v)) {
+    if (opt_absent(v, policy)) {
         JS_FreeValue(ctx, v);
         return 0;
+    }
+    if ((policy & EFX_OPT_STRICT) && !JS_IsBool(v)) {
+        JS_FreeValue(ctx, v);
+        opt_error(ctx, policy, key, msg);
+        return -1;
     }
     *out = JS_ToBool(ctx, v) ? 1 : 0;
     JS_FreeValue(ctx, v);
@@ -270,7 +291,7 @@ int efx_api_opt_bool(JSContext *ctx, JSValueConst obj, const char *key,
 int efx_api_opt_u32(JSContext *ctx, JSValueConst obj, const char *key,
                    uint32_t *out, const char *msg_num, const char *msg_range) {
     double d;
-    int r = efx_api_opt_number(ctx, obj, key, &d, msg_num);
+    int r = efx_api_opt_number(ctx, obj, key, &d, 0, msg_num);
     if (r <= 0) {
         return r;
     }
@@ -284,15 +305,20 @@ int efx_api_opt_u32(JSContext *ctx, JSValueConst obj, const char *key,
 
 
 int efx_api_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key,
-                    float out[3]) {
+                    efx_vec3 *out) {
     JSValue v = JS_GetPropertyStr(ctx, obj, key);
     if (JS_IsUndefined(v)) {
         JS_FreeValue(ctx, v);
         return 0;
     }
-    int r = efx_api_get_float_array(ctx, v, out, 3);
+    float f[3];
+    int r = efx_api_get_float_array(ctx, v, f, 3);
     JS_FreeValue(ctx, v);
-    return r == 0 ? 1 : -1;
+    if (r != 0) {
+        return -1;
+    }
+    *out = efx_v3(f[0], f[1], f[2]);
+    return 1;
 }
 
 

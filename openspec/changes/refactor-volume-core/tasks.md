@@ -60,7 +60,7 @@
   `Body`/`Character` classes (D6). Verify: V1 `physics_js`; V2
   `smoke_12_physics`, `smoke_showcase_physics`; `smoke_error_catalog`
   byte-identical.
-- [ ] 5.2 Extend `efx_api_opt_*` with the D7 policy flags. Delete
+- [x] 5.2 Extend `efx_api_opt_*` with the D7 policy flags. Delete
   `audio_opt_number`/`audio_opt_bool`, `phys_opt_*` and `get_opt_number`,
   passing each site's current policy and message. Verify: V1 `audio_js`,
   `physics_js`, `font_js`; the catalog stays byte-identical, including

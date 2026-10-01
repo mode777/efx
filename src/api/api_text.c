@@ -11,22 +11,8 @@ static JSValue text_error(JSContext *ctx, int code, const char *msg) {
 }
 
 
-static int get_opt_number(JSContext *ctx, JSValueConst obj, const char *key,
-                          int *present, double *out) {
-    JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    *present = 0;
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (JS_ToFloat64(ctx, out, v) < 0 || !isfinite(*out)) {
-        JS_FreeValue(ctx, v);
-        return -1;
-    }
-    JS_FreeValue(ctx, v);
-    *present = 1;
-    return 0;
-}
+/* "<key> must be a finite number" (EFX_OPT_KEY_MSG) */
+static const char NUM_MSG[] = "must be a finite number";
 
 
 static int parse_align(JSContext *ctx, JSValueConst obj, const char *key,
@@ -99,11 +85,9 @@ static int parse_layout_opts(JSContext *ctx, JSValueConst opts,
     if (parse_align(ctx, opts, "align", &lo->align) != 0) return -1;
     if (parse_valign(ctx, opts, "valign", &lo->valign) != 0) return -1;
     double d;
-    int present = 0;
-    if (get_opt_number(ctx, opts, "width", &present, &d) != 0) {
-        efx_api_type_error(ctx, "width must be a finite number");
-        return -1;
-    }
+    int present = efx_api_opt_number(ctx, opts, "width", &d, EFX_OPT_KEY_MSG,
+                                     NUM_MSG);
+    if (present < 0) return -1;
     if (present) {
         if (!(d > 0)) {
             efx_api_range_error(ctx, "width must be > 0");
@@ -112,10 +96,9 @@ static int parse_layout_opts(JSContext *ctx, JSValueConst opts,
         lo->has_width = 1;
         lo->width = (float)d;
     }
-    if (get_opt_number(ctx, opts, "lineHeight", &present, &d) != 0) {
-        efx_api_type_error(ctx, "lineHeight must be a finite number");
-        return -1;
-    }
+    present = efx_api_opt_number(ctx, opts, "lineHeight", &d, EFX_OPT_KEY_MSG,
+                                 NUM_MSG);
+    if (present < 0) return -1;
     if (present) {
         if (!(d > 0)) {
             efx_api_range_error(ctx, "lineHeight must be > 0");
@@ -124,15 +107,13 @@ static int parse_layout_opts(JSContext *ctx, JSValueConst opts,
         lo->has_line_height = 1;
         lo->line_height = (float)d;
     }
-    if (get_opt_number(ctx, opts, "rotation", &present, &d) != 0) {
-        efx_api_type_error(ctx, "rotation must be a finite number");
-        return -1;
-    }
+    present = efx_api_opt_number(ctx, opts, "rotation", &d, EFX_OPT_KEY_MSG,
+                                 NUM_MSG);
+    if (present < 0) return -1;
     if (present) lo->rotation = (float)d;
-    if (get_opt_number(ctx, opts, "scale", &present, &d) != 0) {
-        efx_api_type_error(ctx, "scale must be a finite number");
-        return -1;
-    }
+    present = efx_api_opt_number(ctx, opts, "scale", &d, EFX_OPT_KEY_MSG,
+                                 NUM_MSG);
+    if (present < 0) return -1;
     if (present) {
         if (!(d > 0)) {
             efx_api_range_error(ctx, "scale must be > 0");
@@ -192,11 +173,9 @@ JSValue efx_js_loadFontData(JSContext *ctx, JSValueConst this_val, int argc,
 
 static int read_font_size(JSContext *ctx, JSValueConst opts, efx_font_opts *fo) {
     double d = 0;
-    int present = 0;
-    if (get_opt_number(ctx, opts, "size", &present, &d) != 0) {
-        efx_api_type_error(ctx, "size must be a finite number");
-        return -1;
-    }
+    int present = efx_api_opt_number(ctx, opts, "size", &d, EFX_OPT_KEY_MSG,
+                                     NUM_MSG);
+    if (present < 0) return -1;
     if (!present) {
         efx_api_type_error(ctx, "createFont requires size");
         return -1;
@@ -245,11 +224,9 @@ static int read_font_glyphs(JSContext *ctx, JSValueConst opts,
 static int read_font_padding(JSContext *ctx, JSValueConst opts,
                              efx_font_opts *fo) {
     double d = 0;
-    int present = 0;
-    if (get_opt_number(ctx, opts, "padding", &present, &d) != 0) {
-        efx_api_type_error(ctx, "padding must be a finite number");
-        return -1;
-    }
+    int present = efx_api_opt_number(ctx, opts, "padding", &d,
+                                     EFX_OPT_KEY_MSG, NUM_MSG);
+    if (present < 0) return -1;
     if (present) {
         if (d < 0 || d != floor(d)) {
             efx_api_range_error(ctx, "padding must be a non-negative integer");
@@ -299,10 +276,11 @@ static int read_font_outline(JSContext *ctx, JSValueConst opts,
         return -1;
     }
     double d = 0;
-    int present = 0;
-    if (get_opt_number(ctx, outline, "width", &present, &d) != 0 || !present) {
+    static const char need[] = "outline requires a numeric width";
+    int present = efx_api_opt_number(ctx, outline, "width", &d, 0, need);
+    if (present != 1) {
         JS_FreeValue(ctx, outline);
-        efx_api_type_error(ctx, "outline requires a numeric width");
+        if (present == 0) efx_api_type_error(ctx, need);
         return -1;
     }
     if (!(d > 0)) {
@@ -334,10 +312,11 @@ static int read_font_shadow(JSContext *ctx, JSValueConst opts,
         return -1;
     }
     double d = 0;
-    int present = 0;
-    if (get_opt_number(ctx, shadow, "blur", &present, &d) != 0 || !present) {
+    static const char need[] = "shadow requires a numeric blur";
+    int present = efx_api_opt_number(ctx, shadow, "blur", &d, 0, need);
+    if (present != 1) {
         JS_FreeValue(ctx, shadow);
-        efx_api_type_error(ctx, "shadow requires a numeric blur");
+        if (present == 0) efx_api_type_error(ctx, need);
         return -1;
     }
     if (!(d > 0)) {

@@ -295,5 +295,11 @@ a call with its current policy and message.
   "exception pending after destroy". Creation was clean in every row, and no
   `destroy()` threw, so the leak comes only from the `JS_GetOpaque2` probe
   chain. A Texture is the first probe, so it never leaked.
+- **D7 flags.** Three flags were enough: `EFX_OPT_NULL_ABSENT`,
+  `EFX_OPT_STRICT` and `EFX_OPT_KEY_MSG` (the message is "<key> <msg>").
+  `REPORT_PRESENT` was dropped, because the readers' 1/0/−1 return already
+  reports presence. Text's two "requires a numeric …" sites throw their own
+  message when the field is absent (return 0). `efx_api_opt_vec3` now writes
+  an `efx_vec3`, since physics is its only caller.
 
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->

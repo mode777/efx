@@ -45,7 +45,7 @@ static int pcfg_vec(JSContext *ctx, JSValueConst o, const char *k, float out[3],
 /* scalar field: 0 absent, 1 set, -1 error */
 static int pcfg_num(JSContext *ctx, JSValueConst o, const char *k, float *out) {
     double d;
-    int r = efx_api_opt_number(ctx, o, k, &d, "option must be a finite number");
+    int r = efx_api_opt_number(ctx, o, k, &d, 0, "option must be a finite number");
     if (r == 1) {
         *out = (float)d;
     }

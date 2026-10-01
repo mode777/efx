@@ -3,41 +3,8 @@
 
 /* ================================================= F14 audio bindings */
 
-static int audio_opt_number(JSContext *ctx, JSValueConst opts, const char *key,
-                            double *out) {
-    JSValue v = JS_GetPropertyStr(ctx, opts, key);
-    if (JS_IsUndefined(v) || JS_IsNull(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    double d = 0.0;
-    int bad = !JS_IsNumber(v) || JS_ToFloat64(ctx, &d, v) < 0 || !isfinite(d);
-    JS_FreeValue(ctx, v);
-    if (bad) {
-        JS_ThrowTypeError(ctx, "%s must be a finite number", key);
-        return -1;
-    }
-    *out = d;
-    return 1;
-}
-
-
-static int audio_opt_bool(JSContext *ctx, JSValueConst opts, const char *key,
-                          int *out) {
-    JSValue v = JS_GetPropertyStr(ctx, opts, key);
-    if (JS_IsUndefined(v) || JS_IsNull(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (!JS_IsBool(v)) {
-        JS_FreeValue(ctx, v);
-        JS_ThrowTypeError(ctx, "%s must be a boolean", key);
-        return -1;
-    }
-    *out = JS_ToBool(ctx, v) ? 1 : 0;
-    JS_FreeValue(ctx, v);
-    return 1;
-}
+/* audio options: null is absent, no coercion, the key leads the message */
+#define AUDIO_OPT (EFX_OPT_NULL_ABSENT | EFX_OPT_STRICT | EFX_OPT_KEY_MSG)
 
 
 /* reads a resource for a loader; on failure throws and returns NULL */
@@ -344,8 +311,10 @@ static JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int
             return JS_EXCEPTION;
         }
         double n = 0.0;
+        const char *num = "must be a finite number";
         int r;
-        if ((r = audio_opt_number(ctx, argv[1], "volume", &n)) < 0) {
+        if ((r = efx_api_opt_number(ctx, argv[1], "volume", &n, AUDIO_OPT,
+                                    num)) < 0) {
             return JS_EXCEPTION;
         }
         if (r) {
@@ -354,19 +323,22 @@ static JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int
             }
             volume = (float)n;
         }
-        if ((r = audio_opt_number(ctx, argv[1], "pan", &n)) < 0) {
+        if ((r = efx_api_opt_number(ctx, argv[1], "pan", &n, AUDIO_OPT,
+                                    num)) < 0) {
             return JS_EXCEPTION;
         }
         if (r) {
             pan = (float)n;
         }
-        if ((r = audio_opt_number(ctx, argv[1], "pitch", &n)) < 0) {
+        if ((r = efx_api_opt_number(ctx, argv[1], "pitch", &n, AUDIO_OPT,
+                                    num)) < 0) {
             return JS_EXCEPTION;
         }
         if (r) {
             pitch = (n > 0.0) ? (float)n : 1.0f;
         }
-        if ((r = audio_opt_bool(ctx, argv[1], "loop", &loop)) < 0) {
+        if (efx_api_opt_bool(ctx, argv[1], "loop", &loop, AUDIO_OPT,
+                             "must be a boolean") < 0) {
             return JS_EXCEPTION;
         }
     }

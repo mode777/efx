@@ -71,37 +71,9 @@ static JSValue hit_wrapper(JSContext *ctx, efx_phys_character ch,
 }
 
 
-/* option readers: 1 present, 0 absent, -1 error (throws) */
-static int phys_opt_number(JSContext *ctx, JSValueConst obj, const char *key,
-                          double *out) {
-    return efx_api_opt_number(ctx, obj, key, out,
-                      "numeric option fields must be finite numbers");
-}
-
-
-static int phys_opt_bool(JSContext *ctx, JSValueConst obj, const char *key,
-                        int *out) {
-    return efx_api_opt_bool(ctx, obj, key, out);
-}
-
-
-static int phys_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key,
-                        efx_vec3 *out) {
-    float f[3];
-    int r = efx_api_opt_vec3(ctx, obj, key, f);
-    if (r == 1) {
-        *out = efx_v3(f[0], f[1], f[2]);
-    }
-    return r;
-}
-
-
-static int phys_opt_mask(JSContext *ctx, JSValueConst obj, const char *key,
-                        uint32_t *out) {
-    return efx_api_opt_u32(ctx, obj, key, out,
-                   "numeric option fields must be finite numbers",
-                   "layer/mask must be a 32-bit unsigned integer");
-}
+/* physics option wording; numbers coerce (policy 0) */
+static const char NUM_MSG[] = "numeric option fields must be finite numbers";
+static const char MASK_MSG[] = "layer/mask must be a 32-bit unsigned integer";
 
 
 static int parse_shape(JSContext *ctx, JSValueConst v, parsed_shape *out) {
@@ -121,7 +93,7 @@ static int parse_shape(JSContext *ctx, JSValueConst v, parsed_shape *out) {
         double r;
         if (efx_api_check_known_fields(ctx, v, known, 2, "shape") != 0) {
             rc = -1;
-        } else if (phys_opt_number(ctx, v, "radius", &r) != 1) {
+        } else if (efx_api_opt_number(ctx, v, "radius", &r, 0, NUM_MSG) != 1) {
             efx_api_type_error(ctx, "sphere shapes require a radius");
             rc = -1;
         } else if (!(r > 0)) {
@@ -151,8 +123,8 @@ static int parse_shape(JSContext *ctx, JSValueConst v, parsed_shape *out) {
     } else if (strcmp(type, "capsule") == 0) {
         static const char *known[] = {"type", "radius", "height"};
         double r = 0, h = 0;
-        int has_r = phys_opt_number(ctx, v, "radius", &r);
-        int has_h = phys_opt_number(ctx, v, "height", &h);
+        int has_r = efx_api_opt_number(ctx, v, "radius", &r, 0, NUM_MSG);
+        int has_h = efx_api_opt_number(ctx, v, "height", &h, 0, NUM_MSG);
         if (efx_api_check_known_fields(ctx, v, known, 3, "shape") != 0) {
             rc = -1;
         } else if (has_r != 1 || has_h != 1) {
@@ -608,12 +580,17 @@ static int read_common_body_opts(JSContext *ctx, JSValueConst opts, int *sensor,
     *position = efx_v3(0, 0, 0);
     *layer = 0xFFFFFFFFu;
     *mask = 0xFFFFFFFFu;
-    if (phys_opt_bool(ctx, opts, "sensor", sensor) < 0) return -1;
-    if (phys_opt_number(ctx, opts, "friction", friction) < 0) return -1;
-    if (phys_opt_number(ctx, opts, "restitution", restitution) < 0) return -1;
-    if (phys_opt_vec3(ctx, opts, "position", position) < 0) return -1;
-    if (phys_opt_mask(ctx, opts, "layer", layer) < 0) return -1;
-    if (phys_opt_mask(ctx, opts, "mask", mask) < 0) return -1;
+    if (efx_api_opt_bool(ctx, opts, "sensor", sensor, 0, NULL) < 0) return -1;
+    if (efx_api_opt_number(ctx, opts, "friction", friction, 0, NUM_MSG) < 0)
+        return -1;
+    if (efx_api_opt_number(ctx, opts, "restitution", restitution, 0,
+                           NUM_MSG) < 0)
+        return -1;
+    if (efx_api_opt_vec3(ctx, opts, "position", position) < 0) return -1;
+    if (efx_api_opt_u32(ctx, opts, "layer", layer, NUM_MSG, MASK_MSG) < 0)
+        return -1;
+    if (efx_api_opt_u32(ctx, opts, "mask", mask, NUM_MSG, MASK_MSG) < 0)
+        return -1;
     if (*friction < 0) {
         efx_api_range_error(ctx, "friction must not be negative");
         return -1;
@@ -646,9 +623,10 @@ static JSValue physics_createBody(JSContext *ctx, JSValueConst this_val,
     if (prc != 0) return JS_EXCEPTION;
 
     int dynamic = 0;
-    phys_opt_bool(ctx, opts, "dynamic", &dynamic);
+    efx_api_opt_bool(ctx, opts, "dynamic", &dynamic, 0, NULL);
     double mass = 1.0;
-    if (phys_opt_number(ctx, opts, "mass", &mass) < 0) return JS_EXCEPTION;
+    if (efx_api_opt_number(ctx, opts, "mass", &mass, 0, NUM_MSG) < 0)
+        return JS_EXCEPTION;
     if (dynamic && !(mass > 0)) {
         return efx_api_range_error(ctx, "dynamic bodies require a positive mass");
     }
@@ -752,8 +730,8 @@ static JSValue physics_createCharacter(JSContext *ctx, JSValueConst this_val,
         return JS_EXCEPTION;
     }
     double radius = 0, height = 0;
-    int has_r = phys_opt_number(ctx, opts, "radius", &radius);
-    int has_h = phys_opt_number(ctx, opts, "height", &height);
+    int has_r = efx_api_opt_number(ctx, opts, "radius", &radius, 0, NUM_MSG);
+    int has_h = efx_api_opt_number(ctx, opts, "height", &height, 0, NUM_MSG);
     if (has_r < 0 || has_h < 0) return JS_EXCEPTION;
     if (has_r != 1 || has_h != 1) {
         return efx_api_type_error(ctx, "createCharacter requires radius and height");
@@ -763,20 +741,21 @@ static JSValue physics_createCharacter(JSContext *ctx, JSValueConst this_val,
         return efx_api_range_error(ctx, "height must be at least 2 * radius");
     }
     efx_vec3 position = efx_v3(0, 0, 0), up = efx_v3(0, 1, 0);
-    if (phys_opt_vec3(ctx, opts, "position", &position) < 0) return JS_EXCEPTION;
-    if (phys_opt_vec3(ctx, opts, "up", &up) < 0) return JS_EXCEPTION;
+    if (efx_api_opt_vec3(ctx, opts, "position", &position) < 0)
+        return JS_EXCEPTION;
+    if (efx_api_opt_vec3(ctx, opts, "up", &up) < 0) return JS_EXCEPTION;
     if (efx_v3_len_sq(up) <= 0) return efx_api_range_error(ctx, "up must be non-zero");
 
     double floor_max_angle = 45, snap = 0.1, step_height = 0.3, safe = 0.001;
-    if (phys_opt_number(ctx, opts, "floorMaxAngle", &floor_max_angle) < 0)
-        return JS_EXCEPTION;
-    if (phys_opt_number(ctx, opts, "floorSnapLength", &snap) < 0)
-        return JS_EXCEPTION;
-    if (phys_opt_number(ctx, opts, "stepHeight", &step_height) < 0)
-        return JS_EXCEPTION;
-    if (phys_opt_number(ctx, opts, "safeMargin", &safe) < 0) return JS_EXCEPTION;
     double max_slides = 6;
-    if (phys_opt_number(ctx, opts, "maxSlides", &max_slides) < 0)
+    if (efx_api_opt_number(ctx, opts, "floorMaxAngle", &floor_max_angle, 0,
+                           NUM_MSG) < 0 ||
+        efx_api_opt_number(ctx, opts, "floorSnapLength", &snap, 0, NUM_MSG) < 0 ||
+        efx_api_opt_number(ctx, opts, "stepHeight", &step_height, 0,
+                           NUM_MSG) < 0 ||
+        efx_api_opt_number(ctx, opts, "safeMargin", &safe, 0, NUM_MSG) < 0 ||
+        efx_api_opt_number(ctx, opts, "maxSlides", &max_slides, 0,
+                           NUM_MSG) < 0)
         return JS_EXCEPTION;
     if (!(max_slides >= 1) || floor(max_slides) != max_slides) {
         return efx_api_range_error(ctx, "maxSlides must be a positive integer");
@@ -785,8 +764,9 @@ static JSValue physics_createCharacter(JSContext *ctx, JSValueConst this_val,
     if (step_height < 0) return efx_api_range_error(ctx, "stepHeight must not be negative");
     if (safe < 0) return efx_api_range_error(ctx, "safeMargin must not be negative");
     uint32_t layer = 0xFFFFFFFFu, mask = 0xFFFFFFFFu;
-    if (phys_opt_mask(ctx, opts, "layer", &layer) < 0) return JS_EXCEPTION;
-    if (phys_opt_mask(ctx, opts, "mask", &mask) < 0) return JS_EXCEPTION;
+    if (efx_api_opt_u32(ctx, opts, "layer", &layer, NUM_MSG, MASK_MSG) < 0 ||
+        efx_api_opt_u32(ctx, opts, "mask", &mask, NUM_MSG, MASK_MSG) < 0)
+        return JS_EXCEPTION;
 
     efx_character_desc d;
     memset(&d, 0, sizeof(d));
@@ -838,8 +818,10 @@ static JSValue physics_raycast(JSContext *ctx, JSValueConst this_val, int argc,
         }
     }
     double maxd = 0;
-    int has = JS_IsObject(opts) ? phys_opt_number(ctx, opts, "maxDistance", &maxd)
-                                : 0;
+    int has = JS_IsObject(opts)
+                  ? efx_api_opt_number(ctx, opts, "maxDistance", &maxd, 0,
+                                       NUM_MSG)
+                  : 0;
     if (has < 0) return JS_EXCEPTION;
     if (has != 1 || !(maxd > 0)) {
         return efx_api_type_error(ctx, "raycast requires a positive maxDistance");
@@ -847,9 +829,10 @@ static JSValue physics_raycast(JSContext *ctx, JSValueConst this_val, int argc,
     uint32_t mask = 0xFFFFFFFFu;
     int all = 0, sensors = 0;
     if (JS_IsObject(opts)) {
-        if (phys_opt_mask(ctx, opts, "mask", &mask) < 0) return JS_EXCEPTION;
-        if (phys_opt_bool(ctx, opts, "all", &all) < 0) return JS_EXCEPTION;
-        if (phys_opt_bool(ctx, opts, "sensors", &sensors) < 0) return JS_EXCEPTION;
+        if (efx_api_opt_u32(ctx, opts, "mask", &mask, NUM_MSG, MASK_MSG) < 0 ||
+            efx_api_opt_bool(ctx, opts, "all", &all, 0, NULL) < 0 ||
+            efx_api_opt_bool(ctx, opts, "sensors", &sensors, 0, NULL) < 0)
+            return JS_EXCEPTION;
     }
     efx_ray_hit hits[256];
     int cap = all ? 256 : 1;
@@ -888,9 +871,9 @@ static JSValue physics_overlap(JSContext *ctx, JSValueConst this_val, int argc,
     efx_vec3 position = efx_v3(0, 0, 0);
     uint32_t mask = 0xFFFFFFFFu;
     if (JS_IsObject(opts)) {
-        if (phys_opt_vec3(ctx, opts, "position", &position) < 0)
+        if (efx_api_opt_vec3(ctx, opts, "position", &position) < 0 ||
+            efx_api_opt_u32(ctx, opts, "mask", &mask, NUM_MSG, MASK_MSG) < 0)
             return JS_EXCEPTION;
-        if (phys_opt_mask(ctx, opts, "mask", &mask) < 0) return JS_EXCEPTION;
     }
     efx_phys_mesh *temp = NULL;
     if (ps.mesh_src) {
@@ -945,8 +928,8 @@ static JSValue physics_shapeCast(JSContext *ctx, JSValueConst this_val,
     uint32_t mask = 0xFFFFFFFFu;
     int sensors = 0;
     if (JS_IsObject(opts)) {
-        if (phys_opt_mask(ctx, opts, "mask", &mask) < 0) return JS_EXCEPTION;
-        if (phys_opt_bool(ctx, opts, "sensors", &sensors) < 0)
+        if (efx_api_opt_u32(ctx, opts, "mask", &mask, NUM_MSG, MASK_MSG) < 0 ||
+            efx_api_opt_bool(ctx, opts, "sensors", &sensors, 0, NULL) < 0)
             return JS_EXCEPTION;
     }
     efx_phys_mesh *temp = NULL;
