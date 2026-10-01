@@ -4,8 +4,9 @@
 /*
  * Native-JS web runtime (f2b): on Emscripten the page's own JS engine is
  * the script runtime — no quickjs ships in the wasm (ADR 0022). bridge_*.c
- * exposes the `efx` C surface to host-engine JS; src/web/js/*.js (post-js
- * glue) loads main.js, wires hooks and mirrors the desktop error/exit contract.
+ * exposes the `efx` C surface to host-engine JS; the post-js glue under
+ * src/web/js loads main.js, wires hooks and mirrors the desktop error/exit
+ * contract.
  */
 
 int efx_web_main(int argc, char *const *argv);
