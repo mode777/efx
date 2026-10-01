@@ -65,6 +65,22 @@ else()
 endif()
 
 if(EMSCRIPTEN)
+    # P10: the bridge fragments are linked directly into each web executable
+    # rather than the static archive. The wasm linker drops archive members
+    # with no incoming C reference, and the post-js glue reaches these
+    # EMSCRIPTEN_KEEPALIVE functions by name, so a single bridge object used
+    # to be pulled in only because efx_web_main lived beside them.
+    set(EFX_WEB_BRIDGE
+        src/web/bridge_core.c
+        src/web/bridge_render2d.c
+        src/web/bridge_resource.c
+        src/web/bridge_text.c
+        src/web/bridge_target_post.c
+        src/web/bridge_particles.c
+        src/web/bridge_render3d.c
+        src/web/bridge_input.c
+        src/web/bridge_audio.c
+        src/web/bridge_physics.c)
     add_library(efx_core STATIC
         src/render/render_records.c
         src/render/render_texture.c
@@ -90,16 +106,6 @@ if(EMSCRIPTEN)
         src/resource/stb_image_impl.c
         src/render/stb_truetype_impl.c
         src/render/stb_rect_pack_impl.c
-        src/web/bridge_core.c
-        src/web/bridge_render2d.c
-        src/web/bridge_resource.c
-        src/web/bridge_text.c
-        src/web/bridge_target_post.c
-        src/web/bridge_particles.c
-        src/web/bridge_render3d.c
-        src/web/bridge_input.c
-        src/web/bridge_audio.c
-        src/web/bridge_physics.c
     )
 else()
     add_library(efx_core STATIC
@@ -207,7 +213,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(EMSCRIPTEN)
-    add_executable(player src/web/web_main.c)
+    add_executable(player src/web/web_main.c ${EFX_WEB_BRIDGE})
 else()
     add_executable(player
         src/main.c
@@ -264,7 +270,7 @@ if(EMSCRIPTEN)
     # (examples/browser) is only the standalone fallback demo; the public
     # sample gallery is a separate site under gallery/ (ADR 0030) and feeds
     # the engine a host-provided entry script at boot.
-    add_executable(player_web src/web/web_main.c)
+    add_executable(player_web src/web/web_main.c ${EFX_WEB_BRIDGE})
     target_link_libraries(player_web PRIVATE efx_core efx_platform)
     set_target_properties(player_web PROPERTIES
         SUFFIX ".html"
@@ -280,7 +286,7 @@ if(EMSCRIPTEN)
     # to /fixtures/<name>; captures are exported via canvas.toDataURL and
     # read back by tools/run_web_goldens.mjs / tools/run_web_harness.mjs
     if(EFX_BUILD_GOLDEN_TESTS)
-        add_executable(player_web_golden src/web/web_main.c)
+        add_executable(player_web_golden src/web/web_main.c ${EFX_WEB_BRIDGE})
         target_link_libraries(player_web_golden PRIVATE efx_core efx_platform)
         target_compile_definitions(player_web_golden PRIVATE EFX_WEB_GOLDEN=1)
         set_target_properties(player_web_golden PROPERTIES
