@@ -60,7 +60,13 @@ JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc, JSVa
 JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawSprites(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_createParticleSystem(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_create_particle_system_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawParticles(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
+/* R22 spike-only natives passed to the prelude's private object (never
+ * registered on `efx`); removed when the spike branch is discarded */
+JSValue efx_js_live_sample(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_draw_quad_unpacked(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* per-context setup: registers resource classes, prototypes and state */
 int efx_api_init(JSContext *ctx);

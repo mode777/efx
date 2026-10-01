@@ -546,3 +546,30 @@ if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)
         endif()
     endif()
 endif()
+
+# R22 spike-only (throwaway branch): headless desktop runner for the error
+# catalog and the timing measurements
+option(EFX_BUILD_R22_SPIKE "Build the R22 spike harnesses" OFF)
+if(EFX_BUILD_R22_SPIKE AND NOT EMSCRIPTEN)
+    add_executable(r22_catalog
+        tools/r22_catalog.c
+    )
+    target_link_libraries(r22_catalog PRIVATE efx_core)
+    if(MSVC)
+        target_compile_definitions(r22_catalog PRIVATE _CRT_SECURE_NO_WARNINGS)
+    else()
+        target_compile_options(r22_catalog PRIVATE -Wall -Wextra)
+        target_compile_definitions(r22_catalog PRIVATE _POSIX_C_SOURCE=200809L)
+    endif()
+
+    add_executable(r22_timing
+        tools/r22_timing.c
+    )
+    target_link_libraries(r22_timing PRIVATE efx_core)
+    if(MSVC)
+        target_compile_definitions(r22_timing PRIVATE _CRT_SECURE_NO_WARNINGS)
+    else()
+        target_compile_options(r22_timing PRIVATE -Wall -Wextra)
+        target_compile_definitions(r22_timing PRIVATE _POSIX_C_SOURCE=200809L)
+    endif()
+endif()

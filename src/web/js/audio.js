@@ -203,9 +203,11 @@
        runtime): the same embedded source the desktop quickjs runtime
        evaluates (ADR 0022). The IIFE returns the module-runtime factory,
        which is instantiated per entry below with the web host-global
-       shadow. */
+       shadow. The second wrapper parameter carries the binding-provided
+       natives object (R22 spike, design D1); the web binding passes none
+       yet, so the shared validators stay dormant here. */
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
-    st.createModuleRuntime = new Function('efx', preludeSrc)(api);
+    st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, undefined);
 
     globalThis['efx'] = api;
     st.api = api;

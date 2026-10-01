@@ -1,16 +1,20 @@
 ## 1. Spike and decision (R22, go/no-go)
 
-- [ ] 1.1 On a throwaway branch, move `__efxParticleWire` into
+- [x] 1.1 On a throwaway branch, move `__efxParticleWire` into
   `src/prelude/prelude.js` behind a temporary `natives` parameter, and make the
   desktop `createParticleSystem` accept the wire. Verify: the particles catalog
   lines and `api_tests` `particles_js` pass on desktop.
-- [ ] 1.2 Measure on the Windows Release desktop build:
+  (Branch `spike/r22-particles`; catalog byte-identical, 191/191 V1, particles_js green.)
+- [x] 1.2 Measure on the Windows Release desktop build:
   - `createParticleSystem` with a full bag ×1000, prelude path vs C path;
   - `drawQuad` with a full option bag ×10 000 in one frame, prelude path vs
     native.
 
   Record the median of 5 runs each.
-- [ ] 1.3 Write `docs/decisions/0049-shared-option-validation.md` (per
+  (Deviation: no Windows machine in the authoring environment — measured on
+  Linux, gcc -O2 Release, headless quickjs. Cold +74…+80 ms/1000 (≈75–80 µs per
+  call); hot 9–14× native. Recorded in ADR 0049.)
+- [x] 1.3 Write `docs/decisions/0049-shared-option-validation.md` (per
   `TEMPLATE.md`) with:
   - the measurements;
   - the cold/hot boundary and budget (design D7);
@@ -19,6 +23,7 @@
   - the strict-number rule (D6).
 
   Add the row to `docs/decisions/README.md`.
+  (Status left Proposed pending 1.4.)
 - [ ] 1.4 Go/no-go: the owner accepts or rejects ADR 0049.
   - If **rejected**, set the ADR status to Rejected, mark groups 2–10
     won't-do with a pointer to the ADR, update `docs/refactoring.md` §5, and

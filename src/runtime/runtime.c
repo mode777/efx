@@ -263,13 +263,35 @@ static int install_efx_api(efx_runtime *rt) {
     return 0;
 }
 
+/* build the private natives object handed to the prelude wrapper (R22
+ * spike: particles). Never stored on the global object (design D1). */
+static JSValue build_prelude_natives(efx_runtime *rt) {
+    JSValue natives = JS_NewObject(rt->ctx);
+    JSValue live = JS_NewCFunction(rt->ctx, efx_js_live_sample, "liveSample", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "liveSample", live);
+    JSValue wire = JS_NewCFunction(rt->ctx, efx_js_create_particle_system_wire,
+                                   "createParticleSystemWire", 2);
+    JS_SetPropertyStr(rt->ctx, natives, "createParticleSystemWire", wire);
+    /* spike-only timing references */
+    JSValue opts_create = JS_NewCFunction(rt->ctx, efx_js_createParticleSystem,
+                                          "createParticleSystemOpts", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "createParticleSystemOpts", opts_create);
+    JSValue quad = JS_NewCFunction(rt->ctx, efx_js_draw_quad_unpacked,
+                                   "drawQuadUnpacked", 18);
+    JS_SetPropertyStr(rt->ctx, natives, "drawQuadUnpacked", quad);
+    return natives;
+}
+
 /* evaluate the engine-bundled pure-JS layer (F3 math + primitives, F10
- * CommonJS runtime) and instantiate its module-runtime factory */
+ * CommonJS runtime) and instantiate its module-runtime factory. The wrapper
+ * is evaluated as a function value and called with (efx, natives) (R22
+ * spike, design D1). */
 static int eval_prelude(efx_runtime *rt) {
     static const char wrapper[] =
-        "(function(efx){\n";
+        "(function(efx, natives){\n";
+    static const char tail[] = "\n})";
     size_t wrap_len = sizeof(wrapper) - 1;
-    size_t total = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + 16;
+    size_t total = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + sizeof(tail);
     char *code = malloc(total);
     if (!code) {
         fprintf(stderr, "player: out of memory\n");
@@ -277,8 +299,8 @@ static int eval_prelude(efx_runtime *rt) {
     }
     memcpy(code, wrapper, wrap_len);
     memcpy(code + wrap_len, EFX_JS_PRELUDE, (size_t)EFX_JS_PRELUDE_LEN);
-    memcpy(code + wrap_len + (size_t)EFX_JS_PRELUDE_LEN, "\n})(efx);\n", 11);
-    size_t code_len = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + 10;
+    memcpy(code + wrap_len + (size_t)EFX_JS_PRELUDE_LEN, tail, sizeof(tail));
+    size_t code_len = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + sizeof(tail) - 1;
     JSValue factory =
         JS_Eval(rt->ctx, code, code_len, "<prelude>", JS_EVAL_TYPE_GLOBAL);
     free(code);
@@ -287,11 +309,29 @@ static int eval_prelude(efx_runtime *rt) {
         finish_exception(rt);
         return -1;
     }
+    if (!JS_IsFunction(rt->ctx, factory)) {
+        fprintf(stderr, "player: prelude did not evaluate to a function\n");
+        JS_FreeValue(rt->ctx, factory);
+        return -1;
+    }
     JSValue glob2 = JS_GetGlobalObject(rt->ctx);
     JSValue efx_obj = JS_GetPropertyStr(rt->ctx, glob2, "efx");
     JS_FreeValue(rt->ctx, glob2);
-    rt->module_runtime = JS_Call(rt->ctx, factory, JS_UNDEFINED, 1, &efx_obj);
+    JSValue natives = build_prelude_natives(rt);
+    JSValue args[2] = { efx_obj, natives };
+    JSValue mod_factory = JS_Call(rt->ctx, factory, JS_UNDEFINED, 2, args);
     JS_FreeValue(rt->ctx, factory);
+    JS_FreeValue(rt->ctx, natives);
+    if (JS_IsException(mod_factory)) {
+        fprintf(stderr, "player: module runtime init failed\n");
+        finish_exception(rt);
+        JS_FreeValue(rt->ctx, efx_obj);
+        return -1;
+    }
+    /* the wrapper returns the module-runtime factory; instantiate it with
+     * (efx, opts) as before (desktop passes no opts) */
+    rt->module_runtime = JS_Call(rt->ctx, mod_factory, JS_UNDEFINED, 1, &efx_obj);
+    JS_FreeValue(rt->ctx, mod_factory);
     JS_FreeValue(rt->ctx, efx_obj);
     if (JS_IsException(rt->module_runtime)) {
         fprintf(stderr, "player: module runtime init failed\n");

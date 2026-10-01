@@ -565,6 +565,106 @@ const JSCFunctionListEntry particlesystem_proto_funcs[] = {
 
 /* --------------------------------------------------- F11 particle/billboard bindings */
 
+/* desktop twin of the web wire reader (src/web/bridge_particles.c); the
+ * layout comment there applies here too */
+#define EFX_PART_WIRE_LEN 352
+
+static void wire_particle_config(const float *w, uint64_t texture,
+                                 efx_particle_config *c) {
+    memset(c, 0, sizeof(*c));
+    c->texture = texture;
+    c->max = (int)w[0];
+    c->space = (int)w[1];
+    c->facing = (int)w[2];
+    c->blend = (int)w[3];
+    c->life_min = w[4];
+    c->life_max = w[5];
+    c->emission_rate = w[6];
+    c->emitter_lifetime = w[7];
+    c->speed_scale = w[8];
+    c->spread = w[9];
+    c->size_count = (int)w[10];
+    c->size_variation = w[11];
+    c->color_count = (int)w[12];
+    c->relative_rotation = (int)w[13];
+    c->shape = (int)w[14];
+    c->quad_count = (int)w[15];
+    c->rotation_min = w[16];
+    c->rotation_max = w[17];
+    c->spin_start = w[18];
+    c->spin_end = w[19];
+    c->spin_variation = w[20];
+    for (int i = 0; i < 3; i++) c->position[i] = w[21 + i];
+    for (int i = 0; i < 3; i++) c->direction[i] = w[24 + i];
+    c->speed_min = w[27];
+    c->speed_max = w[28];
+    for (int i = 0; i < 3; i++) c->gravity[i] = w[29 + i];
+    for (int i = 0; i < 3; i++) c->lin_acc_min[i] = w[32 + i];
+    for (int i = 0; i < 3; i++) c->lin_acc_max[i] = w[35 + i];
+    c->radial_acc_min = w[38];
+    c->radial_acc_max = w[39];
+    c->tangential_acc_min = w[40];
+    c->tangential_acc_max = w[41];
+    c->damping_min = w[42];
+    c->damping_max = w[43];
+    for (int i = 0; i < 8; i++) c->sizes[i] = w[44 + i];
+    for (int i = 0; i < 8; i++) {
+        for (int k = 0; k < 4; k++) c->colors[i][k] = w[52 + i * 4 + k];
+    }
+    for (int i = 0; i < 3; i++) c->shape_size[i] = w[84 + i];
+    for (int i = 0; i < 64; i++) {
+        for (int k = 0; k < 4; k++) c->quads[i][k] = w[87 + i * 4 + k];
+    }
+    for (int i = 0; i < 3; i++) c->normal[i] = w[343 + i];
+    c->insert_mode = (int)w[346];
+}
+
+/* native create from the prelude's normalized wire (R22 spike): the option
+ * bag was validated and marshalled by the shared prelude validator */
+JSValue efx_js_create_particle_system_wire(JSContext *ctx, JSValueConst this_val,
+                                           int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 2) {
+        return efx_api_type_error(ctx, "particle wire native requires (wire, texture)");
+    }
+    size_t blen = 0;
+    uint8_t *bytes = NULL;
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, argv[0], NULL, NULL, NULL);
+    if (JS_IsException(ab)) {
+        return ab;
+    }
+    bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+    JS_FreeValue(ctx, ab);
+    if (!bytes || blen < EFX_PART_WIRE_LEN * sizeof(float)) {
+        return efx_api_type_error(ctx, "particle wire must be a Float32Array(352)");
+    }
+    double tex = 0;
+    if (JS_ToFloat64(ctx, &tex, argv[1]) < 0) {
+        return JS_EXCEPTION;
+    }
+    efx_particle_config c;
+    wire_particle_config((const float *)bytes, (uint64_t)tex, &c);
+    int err = 0;
+    uint64_t h = efx_render_particles_create(&c, &err);
+    if (!h) {
+        if (err == EFX_RENDER_ERR_SIZE) {
+            return efx_api_range_error(ctx, "invalid particle configuration");
+        }
+        return efx_api_generic_error(ctx, "createParticleSystem failed");
+    }
+    efxjs_particlesystem *p = calloc(1, sizeof(*p));
+    if (!p) {
+        efx_render_particles_destroy(h);
+        return efx_api_generic_error(ctx, "out of memory");
+    }
+    p->handle = h;
+    p->alive = 1;
+    JSValue obj = JS_NewObjectClass(ctx, particlesystem_class_id);
+    JS_SetOpaque(obj, p);
+    return obj;
+}
+
+
 JSValue efx_js_createParticleSystem(JSContext *ctx, JSValueConst this_val,
                                     int argc, JSValueConst *argv) {
     (void)this_val;
