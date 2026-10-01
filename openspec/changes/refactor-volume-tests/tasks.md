@@ -76,7 +76,7 @@
   all goldens) and V3 (`python tools/gen_prelude.py --check`). Confirm
   `tests/scripts/s_error_catalog.expected.txt` is unchanged and record the
   volume Δ (E4).
-- [ ] 7.2 Push the branch and run V4
+- [x] 7.2 Push the branch and run V4
   (`python3 tools/verify_remote.py all refactor-volume-tests`). Verify: green,
   and the Emscripten `ctest -N` equals the R0 inventory plus the four R1
   names.

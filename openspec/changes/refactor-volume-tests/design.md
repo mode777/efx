@@ -261,3 +261,12 @@ build. It is then deleted.
   40 561 → 40 062 (**−499**, estimate −650). The shortfall is mostly the
   one-entry-per-line `EFX_CASE` tables (kept for grep-ability and the CMake
   scan) and 30 R6 candidates instead of ~35.
+- **V4 replaced by local runs (7.2).** Without the SSH server, every V4 suite
+  ran on the Windows workstation against the pushed branch: native ctest
+  incl. goldens (D3D11, not llvmpipe), Emscripten ctest (local emsdk 5.0.5,
+  not the pinned 3.1.64; 159 = R0 156 + the three physics R1 names, since
+  `clear_color_js` is desktop-only), `run_web_compare.mjs`, all 49 web
+  goldens and `run_web_harness.mjs` in chrome-headless-shell 131, and the
+  gallery suite (`test_web_override.mjs`, `test_web_assets.mjs`, gallery
+  build, `run_gallery_smoke.mjs`). All green. The canonical llvmpipe /
+  pinned-emsdk signal comes from the V5 Linux and Emscripten jobs.
