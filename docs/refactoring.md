@@ -1,6 +1,6 @@
 # Refactoring plan
 
-Status: **proposal — no code changed yet.** Snapshot taken 2026-09-30 against
+Status: **implemented through Checkpoint 3.** Snapshot taken 2026-09-30 against
 `main` after F14 (all milestones F1–F14 implemented, four-target gate green).
 Re-verified 2026-09-30 against `main` at `9435f8c` (after `curated-sample-dirs`,
 `web-keyboard-focus`, `physics-tunneling`, the physics-GC fix and
@@ -21,7 +21,14 @@ implemented by the OpenSpec change `refactor-split-modules` — **Checkpoint 2
 reached**: the duplicated helpers were consolidated in place (P3–P6 desktop,
 P8–P9 web, P11–P13 render) and the four large files split by domain
 (P7 `src/api/api*.c`, P10 `src/web/js/*.js` + `src/web/bridge_*.c`,
-P14 `src/render/render_*.c`). Phases G–I (P15–P21) remain proposed. The
+P14 `src/render/render_*.c`). Phases G–I (P15–P21) are implemented by the
+OpenSpec change `refactor-long-functions` — **Checkpoint 3 reached**: the long
+functions are decomposed (P15–P16), the web runners share `tools/lib/web-host.mjs`
+(P17), the CMake vendor targets share `efx_add_vendor_library` with
+`compile_commands.json` unchanged (P18), the input files are renamed (P19), and
+the API-reference ADR is renumbered to 0048 (P20). P21 (slimming `AGENTS.md`
+"Current state") was dropped: it requires owner sign-off, which was not
+obtained. The
 catalog also found that desktop/web error messages drift more widely than §4.1
 assumed: `s_error_catalog.js`'s `DIVERGENT` map lists the 18 known
 divergences, recorded (not fixed) per §4.1.
@@ -439,7 +446,7 @@ diffs rather than moves.
 
 ### Phase G — Long functions
 
-#### P15. Decompose `efx_pipeline_play`
+#### P15. Decompose `efx_pipeline_play` — **done**
 
 - **Current behavior:** 299 lines covering scratch sizing, quad-run emission,
   billboard/particle emission with the alpha depth sort, the VBO upload,
@@ -455,7 +462,7 @@ diffs rather than moves.
 - **Validation:** V2 + V4 (all goldens incl. particles/billboards/targets/
   post) + **V5 through macOS** (Metal/D3D11 flip and depth paths).
 
-#### P16. Decompose the remaining long functions (one PR per module)
+#### P16. Decompose the remaining long functions (one PR per module) — **done**
 
 | Function | Extract into |
 |----------|--------------|
@@ -477,7 +484,7 @@ diffs rather than moves.
 
 ### Phase H — Tools and build
 
-#### P17. Shared web test runner library
+#### P17. Shared web test runner library — **done**
 
 - **Current behavior:** three puppeteer runners and one asset test each
   hand-roll the dynamic import, static server and browser launch.
@@ -488,7 +495,7 @@ diffs rather than moves.
   `run_gallery_smoke.mjs` and `test_web_assets.mjs` run locally with
   unchanged output.
 
-#### P18. CMake vendor-target helper (optional)
+#### P18. CMake vendor-target helper (optional) — **done**
 
 - **Current behavior:** the miniz/cgltf/dr_libs targets repeat
   include/warning-relaxation boilerplate.
@@ -499,7 +506,7 @@ diffs rather than moves.
 
 ### Phase I — Naming and documentation hygiene
 
-#### P19. Consistent input file names
+#### P19. Consistent input file names — **done**
 
 - **Current behavior:** `src/input/efx_input.{c,h}` and `efx_gamepad.{c,h}`
   are the only prefixed module files.
@@ -508,7 +515,7 @@ diffs rather than moves.
   are unchanged.
 - **Validation:** V1 + V5.
 
-#### P20. Resolve the ADR 0042 collision
+#### P20. Resolve the ADR 0042 collision — **done**
 
 - **Current behavior:** two ADRs are numbered 0042. `AGENTS.md` cites 0042
   for audio.
@@ -519,7 +526,7 @@ diffs rather than moves.
 - **Validation:** every link in `docs/decisions/README.md` resolves, and a
   grep finds no stale "0042 — The API reference" citations.
 
-#### P21. Slim `AGENTS.md` "Current state" (needs owner sign-off)
+#### P21. Slim `AGENTS.md` "Current state" (needs owner sign-off) — **dropped** (no sign-off)
 
 - **Current behavior:** about 430 lines (lines 8–441) restating per-milestone
   API surfaces, CI run IDs, and the roadmap table.

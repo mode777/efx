@@ -1,5 +1,5 @@
-#include "input/efx_input.h"
-#include "input/efx_gamepad.h"
+#include "input/input.h"
+#include "input/gamepad.h"
 
 #include <string.h>
 

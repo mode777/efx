@@ -1178,75 +1178,49 @@ static int particle_cmp(const void *a, const void *b) {
     return 0;
 }
 
-void efx_pipeline_play(void) {
-    if (!P.installed) {
-        return;
+/* grow the shared scratch to hold at least the quad-record vertices */
+static int ensure_scratch(int quad_count) {
+    if (quad_count <= 0) {
+        return 1;
     }
-    int count = 0;
-    const efx_record *records = efx_render_records(&count);
-    int run_count = 0;
-    const efx_draw_run *runs = count > 0 ? efx_render_runs(&run_count) : NULL;
-    if (run_count > 0 && !runs) {
-        return;
+    int cap = quad_count * 6 + 4;
+    if (cap > P.scratch_cap) {
+        pipe_vertex *grown = realloc(P.scratch, (size_t)cap * sizeof(pipe_vertex));
+        if (!grown) {
+            return 0;
+        }
+        P.scratch = grown;
+        P.scratch_cap = cap;
     }
+    return 1;
+}
 
-    int vw = 0, vh = 0;
-    efx_render_viewport(&vw, &vh);
+/* grow a pair of parallel int arrays to hold at least `need` entries; the
+ * call site's OOM branch is unchanged (both reallocs must succeed) */
+static int grow_int_pair(int **a, int **b, int *cap, int need) {
+    if (need <= *cap) {
+        return 1;
+    }
+    int ncap = *cap ? *cap : 64;
+    while (ncap < need) {
+        ncap *= 2;
+    }
+    int *na = realloc(*a, (size_t)ncap * sizeof(int));
+    int *nb = realloc(*b, (size_t)ncap * sizeof(int));
+    if (na) *a = na;
+    if (nb) *b = nb;
+    if (!na || !nb) {
+        return 0;
+    }
+    *cap = ncap;
+    return 1;
+}
 
-    /* quad scratch sizing: only the quad records are emitted */
-    int quad_count = 0;
-    for (int i = 0; i < count; i++) {
-        if (records[i].type == EFX_RECORD_QUAD) {
-            quad_count++;
-        }
-    }
-    if (quad_count > 0) {
-        int cap = quad_count * 6 + 4;
-        if (cap > P.scratch_cap) {
-            pipe_vertex *grown = realloc(P.scratch, (size_t)cap * sizeof(pipe_vertex));
-            if (!grown) {
-                return;
-            }
-            P.scratch = grown;
-            P.scratch_cap = cap;
-        }
-    }
-
-    /* F2 playback: emit ALL quad runs into one dynamic-buffer update
-       (multiple updates per frame are unreliable on Metal/D3D11), then
-       interleave run draws and mesh records in record order */
-    if (run_count > P.run_cap) {
-        int cap = P.run_cap ? P.run_cap : 64;
-        while (cap < run_count) {
-            cap *= 2;
-        }
-        int *first = realloc(P.run_first, (size_t)cap * sizeof(int));
-        int *verts = realloc(P.run_verts, (size_t)cap * sizeof(int));
-        if (first) P.run_first = first;
-        if (verts) P.run_verts = verts;
-        if (!first || !verts) {
-            return;
-        }
-        P.run_cap = cap;
-    }
-    int *run_first = P.run_first;
-    int *run_verts = P.run_verts;
-    /* F5b: when a chain is set or the render scale is not 1, the default
-       segment renders into the engine-owned implicit scene target (an RT),
-       so its records need the GL-family RT y-flip too */
-    int post_active = efx_render_post_active();
-    float post_scale = 1.0f;
-    int post_filter = EFX_FILTER_LINEAR;
-    efx_render_render_scale(&post_scale, &post_filter);
-    int scene_w = vw, scene_h = vh;
-    uint64_t scene = 0;
-    if (post_active) {
-        scene_w = post_dim(vw, post_scale);
-        scene_h = post_dim(vh, post_scale);
-        scene = efx_render_post_scene_target(scene_w, scene_h);
-    }
-    int use_post = post_active && scene != 0;
-    uint64_t default_surface = use_post ? scene : 0;
+/* emit every quad run into the scratch, recording each run's first vertex
+ * and vertex count; returns the total vertex count */
+static int emit_quad_runs(const efx_record *records, const efx_draw_run *runs,
+                          int run_count, int *run_first, int *run_verts,
+                          int use_post) {
     pipe_vertex *v = P.scratch;
     for (int ri = 0; ri < run_count; ri++) {
         run_first[ri] = (int)(v - P.scratch);
@@ -1263,31 +1237,47 @@ void efx_pipeline_play(void) {
         }
         run_verts[ri] = (int)(v - P.scratch) - start;
     }
-    int quad_verts = (int)(v - P.scratch);
-    /* F11: emit billboard and particle vertices after the quad batch (same
-       vertex format; drawn with the depth-tested billboard pipeline) */
-    if (count > P.rec_cap) {
-        int cap = P.rec_cap ? P.rec_cap : 64;
-        while (cap < count) cap *= 2;
-        int *bo = realloc(P.rec_boff, (size_t)cap * sizeof(int));
-        int *bc = realloc(P.rec_bcnt, (size_t)cap * sizeof(int));
-        if (bo) P.rec_boff = bo;
-        if (bc) P.rec_bcnt = bc;
-        if (!bo || !bc) return;
-        P.rec_cap = cap;
+    return (int)(v - P.scratch);
+}
+
+/* order world-space particle views back-to-front for an alpha batch */
+static particle_sort *sort_particles_back_to_front(
+    const efx_particle_record *pr, const efx_particle_view *views, int pc) {
+    particle_sort *order = malloc((size_t)pc * sizeof(particle_sort));
+    if (!order) {
+        return NULL;
     }
-    int *boff = P.rec_boff;
-    int *bcnt = P.rec_bcnt;
-    for (int i = 0; i < count; i++) {
-        boff[i] = -1;
-        bcnt[i] = 0;
+    const float *cp = pr->camera.pos;
+    float fwd[3] = {pr->camera.target[0] - cp[0],
+                    pr->camera.target[1] - cp[1],
+                    pr->camera.target[2] - cp[2]};
+    float fl = sqrtf(fwd[0] * fwd[0] + fwd[1] * fwd[1] + fwd[2] * fwd[2]);
+    if (fl > 0.0f) {
+        fwd[0] /= fl; fwd[1] /= fl; fwd[2] /= fl;
     }
-    int total = quad_verts;
+    for (int k = 0; k < pc; k++) {
+        order[k].view = &views[k];
+        order[k].depth =
+            (views[k].pos[0] - cp[0]) * fwd[0] +
+            (views[k].pos[1] - cp[1]) * fwd[1] +
+            (views[k].pos[2] - cp[2]) * fwd[2];
+    }
+    qsort(order, (size_t)pc, sizeof(particle_sort), particle_cmp);
+    return order;
+}
+
+/* F11: emit billboard and particle vertices after the quad batch (same
+ * vertex format; drawn with the depth-tested billboard pipeline); returns the
+ * total vertex count, or -1 on allocation failure */
+static int emit_billboards_and_particles(const efx_record *records, int count,
+                                         int *boff, int *bcnt, int use_post,
+                                         int scene_w, int scene_h, int vw,
+                                         int vh, int total) {
     for (int i = 0; i < count; i++) {
         const efx_record *r = &records[i];
         if (r->type == EFX_RECORD_BILLBOARD) {
-            if (!scratch_reserve(total + 4)) return;
-            v = P.scratch + total;
+            if (!scratch_reserve(total + 4)) return -1;
+            pipe_vertex *v = P.scratch + total;
             v = emit_billboard(v, &r->u.billboard,
                               rec_aspect(r, use_post, scene_w, scene_h, vw, vh),
                               rec_flip(r, use_post));
@@ -1305,8 +1295,8 @@ void efx_pipeline_play(void) {
             }
             /* reserve 4 verts per quad plus 3 bridge verts between them */
             int need = pc * 4 + (pc - 1) * 3;
-            if (!scratch_reserve(total + need)) return;
-            v = P.scratch + total;
+            if (!scratch_reserve(total + need)) return -1;
+            pipe_vertex *v = P.scratch + total;
             int start = total;
             int blend = r->u.particles.blend;
             pipe_vertex q4[4];
@@ -1318,25 +1308,8 @@ void efx_pipeline_play(void) {
                 int flip = rec_flip(r, use_post);
                 if (blend == EFX_BLEND_ALPHA && pc > 1) {
                     particle_sort *order =
-                        malloc((size_t)pc * sizeof(particle_sort));
-                    if (!order) return;
-                    const float *cp = r->u.particles.camera.pos;
-                    float fwd[3] = {r->u.particles.camera.target[0] - cp[0],
-                                    r->u.particles.camera.target[1] - cp[1],
-                                    r->u.particles.camera.target[2] - cp[2]};
-                    float fl = sqrtf(fwd[0] * fwd[0] + fwd[1] * fwd[1] +
-                                     fwd[2] * fwd[2]);
-                    if (fl > 0.0f) {
-                        fwd[0] /= fl; fwd[1] /= fl; fwd[2] /= fl;
-                    }
-                    for (int k = 0; k < pc; k++) {
-                        order[k].view = &views[k];
-                        order[k].depth =
-                            (views[k].pos[0] - cp[0]) * fwd[0] +
-                            (views[k].pos[1] - cp[1]) * fwd[1] +
-                            (views[k].pos[2] - cp[2]) * fwd[2];
-                    }
-                    qsort(order, (size_t)pc, sizeof(particle_sort), particle_cmp);
+                        sort_particles_back_to_front(&r->u.particles, views, pc);
+                    if (!order) return -1;
                     for (int k = 0; k < pc; k++) {
                         emit_particle_world(q4, order[k].view,
                                             &r->u.particles.camera, facing,
@@ -1364,31 +1337,94 @@ void efx_pipeline_play(void) {
             total += need;
         }
     }
-    int vcount = total;
-    if (vcount > 0) {
-        size_t bytes = (size_t)vcount * sizeof(pipe_vertex);
-        if (bytes > P.vbuf_size) {
-            /* sokol buffers are fixed-size: replace with a larger one
-               (updated once per frame, so a fresh buffer is safe here) */
-            size_t size = P.vbuf_size;
-            while (size < bytes) {
-                size *= 2;
-            }
-            sg_destroy_buffer(P.vbuf);
-            P.vbuf = sg_make_buffer(&(sg_buffer_desc){
-                .size = size,
-                .usage = {.vertex_buffer = true, .dynamic_update = true},
-            });
-            P.vbuf_size = size;
-        }
-        sg_update_buffer(P.vbuf, &(sg_range){.ptr = P.scratch, .size = bytes});
-    }
+    return total;
+}
 
-    /* pass management (F5a/F5b): the default surface pass opens eagerly
-       (clear-only frames render exactly as before); BEGIN/END control
-       records switch between the default surface and render-target
-       attachments. With post active the default surface is the scene
-       target; the chain resolves it to the real default afterwards. */
+/* upload the emitted vertices into the shared dynamic vertex buffer */
+static void upload_vertices(int vcount) {
+    if (vcount <= 0) {
+        return;
+    }
+    size_t bytes = (size_t)vcount * sizeof(pipe_vertex);
+    if (bytes > P.vbuf_size) {
+        /* sokol buffers are fixed-size: replace with a larger one
+           (updated once per frame, so a fresh buffer is safe here) */
+        size_t size = P.vbuf_size;
+        while (size < bytes) {
+            size *= 2;
+        }
+        sg_destroy_buffer(P.vbuf);
+        P.vbuf = sg_make_buffer(&(sg_buffer_desc){
+            .size = size,
+            .usage = {.vertex_buffer = true, .dynamic_update = true},
+        });
+        P.vbuf_size = size;
+    }
+    sg_update_buffer(P.vbuf, &(sg_range){.ptr = P.scratch, .size = bytes});
+}
+
+/* apply a pipeline, bind the shared vertex buffer + texture view/sampler and
+ * draw a vertex range (skipped when the texture is not live) */
+static void draw_textured(sg_pipeline pip, uint64_t handle, int first,
+                          int count) {
+    sg_apply_pipeline(pip);
+    sg_bindings bnd = {0};
+    bnd.vertex_buffers[0] = P.vbuf;
+    sg_view view = view_for_handle(handle);
+    if (view.id != SG_INVALID_ID) {
+        bnd.views[0] = view;
+        bnd.samplers[0] = sampler_for_handle(handle);
+        sg_apply_bindings(&bnd);
+        sg_draw(first, count, 1);
+    }
+}
+
+/* BEGIN_TARGET: close the current pass and open the render target's; falls
+ * back to the default surface when the target is not live (unreachable when
+ * validation holds) */
+static void switch_to_target(uint64_t target, const float clear[4],
+                             int *cur_w, int *cur_h, uint64_t default_surface,
+                             int use_post, int scene_w, int scene_h, int vw,
+                             int vh) {
+    sg_end_pass();
+    pipe_rt *rt = (pipe_rt *)efx_render_target_native(target);
+    if (rt) {
+        sg_begin_pass(&(sg_pass){
+            .action = pipe_pass_action(clear),
+            .attachments = {.colors[0] = rt->color_att,
+                            .depth_stencil = rt->depth_att},
+        });
+        *cur_w = rt->w;
+        *cur_h = rt->h;
+    } else {
+        post_begin_pass(default_surface, clear);
+        *cur_w = use_post ? scene_w : vw;
+        *cur_h = use_post ? scene_h : vh;
+    }
+}
+
+/* END_TARGET: close the render target's pass and reopen the default surface */
+static void switch_to_default(const float clear[4], int *cur_w, int *cur_h,
+                              uint64_t default_surface, int use_post,
+                              int scene_w, int scene_h, int vw, int vh) {
+    sg_end_pass();
+    post_begin_pass(default_surface, clear);
+    *cur_w = use_post ? scene_w : vw;
+    *cur_h = use_post ? scene_h : vh;
+}
+
+/* pass management (F5a/F5b): the default surface pass opens eagerly
+ * (clear-only frames render exactly as before); BEGIN/END control records
+ * switch between the default surface and render-target attachments. With post
+ * active the default surface is the scene target; the chain resolves it to the
+ * real default afterwards. Then interleave run draws and mesh records in
+ * record order. */
+static void play_records(const efx_record *records, int count,
+                         const efx_draw_run *runs, int run_count,
+                         const int *run_first, const int *run_verts,
+                         const int *boff, const int *bcnt, int use_post,
+                         int scene_w, int scene_h, int vw, int vh,
+                         uint64_t default_surface) {
     float frame_clear[4];
     efx_render_clear_color(frame_clear);
     int cur_w = use_post ? scene_w : vw;
@@ -1398,46 +1434,23 @@ void efx_pipeline_play(void) {
     for (int i = 0; i < count; i++) {
         const efx_record *r = &records[i];
         if (r->type == EFX_RECORD_BEGIN_TARGET) {
-            sg_end_pass();
-            pipe_rt *rt =
-                (pipe_rt *)efx_render_target_native(r->u.begin_target.target);
-            if (rt) {
-                sg_begin_pass(&(sg_pass){
-                    .action = pipe_pass_action(r->u.begin_target.clear),
-                    .attachments = {.colors[0] = rt->color_att,
-                                    .depth_stencil = rt->depth_att},
-                });
-                cur_w = rt->w;
-                cur_h = rt->h;
-            } else {
-                /* unreachable when validation holds: fall back to default */
-                post_begin_pass(default_surface, frame_clear);
-                cur_w = use_post ? scene_w : vw;
-                cur_h = use_post ? scene_h : vh;
-            }
+            switch_to_target(r->u.begin_target.target, r->u.begin_target.clear,
+                             &cur_w, &cur_h, default_surface, use_post,
+                             scene_w, scene_h, vw, vh);
             continue;
         }
         if (r->type == EFX_RECORD_END_TARGET) {
-            sg_end_pass();
-            post_begin_pass(default_surface, frame_clear);
-            cur_w = use_post ? scene_w : vw;
-            cur_h = use_post ? scene_h : vh;
+            switch_to_default(frame_clear, &cur_w, &cur_h, default_surface,
+                              use_post, scene_w, scene_h, vw, vh);
             continue;
         }
         float aspect =
             (cur_w > 0 && cur_h > 0) ? (float)cur_w / (float)cur_h : 4.0f / 3.0f;
         if (r->type == EFX_RECORD_QUAD) {
             if (run_i < run_count && runs[run_i].start == i) {
-                sg_apply_pipeline(P.quad_pip[runs[run_i].blend]);
-                sg_bindings bnd = {0};
-                bnd.vertex_buffers[0] = P.vbuf;
-                sg_view view = view_for_handle(runs[run_i].texture);
-                if (view.id != SG_INVALID_ID) {
-                    bnd.views[0] = view;
-                    bnd.samplers[0] = sampler_for_handle(runs[run_i].texture);
-                    sg_apply_bindings(&bnd);
-                    sg_draw(run_first[run_i], run_verts[run_i], 1);
-                }
+                draw_textured(P.quad_pip[runs[run_i].blend],
+                              runs[run_i].texture, run_first[run_i],
+                              run_verts[run_i]);
                 run_i++;
                 i += runs[run_i - 1].count - 1;
             }
@@ -1445,37 +1458,98 @@ void efx_pipeline_play(void) {
             play_mesh_record(&r->u.mesh, aspect,
                              P.rt_flip && (use_post || r->target != 0));
         } else if (r->type == EFX_RECORD_BILLBOARD && bcnt[i] > 0) {
-            sg_apply_pipeline(P.bill_pip[r->u.billboard.blend]);
-            sg_bindings bnd = {0};
-            bnd.vertex_buffers[0] = P.vbuf;
-            sg_view view = view_for_handle(r->u.billboard.texture);
-            if (view.id != SG_INVALID_ID) {
-                bnd.views[0] = view;
-                bnd.samplers[0] = sampler_for_handle(r->u.billboard.texture);
-                sg_apply_bindings(&bnd);
-                sg_draw(boff[i], bcnt[i], 1);
-            }
+            draw_textured(P.bill_pip[r->u.billboard.blend],
+                          r->u.billboard.texture, boff[i], bcnt[i]);
         } else if (r->type == EFX_RECORD_PARTICLES && bcnt[i] > 0) {
             int space = efx_render_particles_space(r->u.particles.system);
             int blend = r->u.particles.blend;
-            sg_apply_pipeline(space == EFX_SPACE_WORLD ? P.bill_pip[blend]
-                                                       : P.quad_pip[blend]);
             uint64_t tex = efx_render_particles_texture(r->u.particles.system);
-            sg_bindings bnd = {0};
-            bnd.vertex_buffers[0] = P.vbuf;
-            sg_view view = view_for_handle(tex);
-            if (view.id != SG_INVALID_ID) {
-                bnd.views[0] = view;
-                bnd.samplers[0] = sampler_for_handle(tex);
-                sg_apply_bindings(&bnd);
-                sg_draw(boff[i], bcnt[i], 1);
-            }
+            draw_textured(space == EFX_SPACE_WORLD ? P.bill_pip[blend]
+                                                   : P.quad_pip[blend],
+                          tex, boff[i], bcnt[i]);
         }
     }
     sg_end_pass();
     if (use_post) {
-        run_post_chain(scene, scene_w, scene_h);
+        run_post_chain(default_surface, scene_w, scene_h);
     }
+}
+
+void efx_pipeline_play(void) {
+    if (!P.installed) {
+        return;
+    }
+    int count = 0;
+    const efx_record *records = efx_render_records(&count);
+    int run_count = 0;
+    const efx_draw_run *runs = count > 0 ? efx_render_runs(&run_count) : NULL;
+    if (run_count > 0 && !runs) {
+        return;
+    }
+
+    int vw = 0, vh = 0;
+    efx_render_viewport(&vw, &vh);
+
+    /* quad scratch sizing: only the quad records are emitted */
+    int quad_count = 0;
+    for (int i = 0; i < count; i++) {
+        if (records[i].type == EFX_RECORD_QUAD) {
+            quad_count++;
+        }
+    }
+    if (!ensure_scratch(quad_count)) {
+        return;
+    }
+
+    /* F2 playback: emit ALL quad runs into one dynamic-buffer update
+       (multiple updates per frame are unreliable on Metal/D3D11), then
+       interleave run draws and mesh records in record order */
+    if (!grow_int_pair(&P.run_first, &P.run_verts, &P.run_cap, run_count)) {
+        return;
+    }
+    int *run_first = P.run_first;
+    int *run_verts = P.run_verts;
+    /* F5b: when a chain is set or the render scale is not 1, the default
+       segment renders into the engine-owned implicit scene target (an RT),
+       so its records need the GL-family RT y-flip too */
+    int post_active = efx_render_post_active();
+    float post_scale = 1.0f;
+    int post_filter = EFX_FILTER_LINEAR;
+    efx_render_render_scale(&post_scale, &post_filter);
+    int scene_w = vw, scene_h = vh;
+    uint64_t scene = 0;
+    if (post_active) {
+        scene_w = post_dim(vw, post_scale);
+        scene_h = post_dim(vh, post_scale);
+        scene = efx_render_post_scene_target(scene_w, scene_h);
+    }
+    int use_post = post_active && scene != 0;
+    uint64_t default_surface = use_post ? scene : 0;
+
+    int quad_verts = emit_quad_runs(records, runs, run_count, run_first,
+                                    run_verts, use_post);
+
+    /* F11: emit billboard and particle vertices after the quad batch (same
+       vertex format; drawn with the depth-tested billboard pipeline) */
+    if (!grow_int_pair(&P.rec_boff, &P.rec_bcnt, &P.rec_cap, count)) {
+        return;
+    }
+    int *boff = P.rec_boff;
+    int *bcnt = P.rec_bcnt;
+    for (int i = 0; i < count; i++) {
+        boff[i] = -1;
+        bcnt[i] = 0;
+    }
+    int total = emit_billboards_and_particles(records, count, boff, bcnt,
+                                              use_post, scene_w, scene_h,
+                                              vw, vh, quad_verts);
+    if (total < 0) {
+        return;
+    }
+    upload_vertices(total);
+
+    play_records(records, count, runs, run_count, run_first, run_verts, boff,
+                 bcnt, use_post, scene_w, scene_h, vw, vh, default_surface);
 }
 
 void efx_pipeline_shutdown(void) {

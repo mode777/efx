@@ -1,4 +1,4 @@
-#include "input/efx_gamepad.h"
+#include "input/gamepad.h"
 
 #include <math.h>
 #include <stdlib.h>

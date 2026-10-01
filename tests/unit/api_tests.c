@@ -7,8 +7,8 @@
 #include "render/render.h"
 #include "resource/resource.h"
 #include "runtime/runtime.h"
-#include "input/efx_input.h"
-#include "input/efx_gamepad.h"
+#include "input/input.h"
+#include "input/gamepad.h"
 
 #include <stdio.h>
 #include <stdlib.h>

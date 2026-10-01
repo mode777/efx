@@ -10,18 +10,14 @@
  *        GALLERY_DIST       built site dir (default: gallery/dist)
  *        GALLERY_PORT       http port (default: 18124)
  */
-import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
+import { loadPuppeteer, serveStatic, launchBrowser } from './lib/web-host.mjs';
 
-let puppeteer;
-try {
-    puppeteer = (await import('puppeteer-core')).default;
-} catch {
-    console.error('puppeteer-core not installed: npm install --no-save puppeteer-core');
-    process.exit(2);
-}
+const puppeteer = await loadPuppeteer(
+    'puppeteer-core not installed: npm install --no-save puppeteer-core'
+);
 
 const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..');
 const DIST = path.resolve(process.env.GALLERY_DIST ?? path.join(ROOT, 'gallery', 'dist'));
@@ -38,30 +34,7 @@ if (!fs.existsSync(path.join(DIST, 'index.html'))) {
     process.exit(2);
 }
 
-const MIME = {
-    '.html': 'text/html',
-    '.js': 'text/javascript',
-    '.mjs': 'text/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.wasm': 'application/wasm',
-    '.data': 'application/octet-stream',
-    '.png': 'image/png',
-    '.svg': 'image/svg+xml',
-};
-
-const server = http.createServer((req, res) => {
-    let rel = decodeURIComponent((req.url ?? '/').split('?')[0]);
-    if (rel === '/' || rel === '') rel = '/index.html';
-    const file = path.join(DIST, rel);
-    if (!file.startsWith(DIST) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-        res.statusCode = 404;
-        res.end('not found');
-        return;
-    }
-    res.setHeader('Content-Type', MIME[path.extname(file)] ?? 'application/octet-stream');
-    fs.createReadStream(file).pipe(res);
-});
+const server = serveStatic(DIST, {}, { index: 'index.html', notFound: 'not found' });
 
 const fails = [];
 function check(ok, label) {
@@ -72,9 +45,9 @@ function check(ok, label) {
 await new Promise((r) => server.listen(PORT, r));
 console.log(`serving ${DIST} on :${PORT}`);
 
-const browser = await puppeteer.launch({
+const browser = await launchBrowser({
+    puppeteer,
     executablePath: CHROME,
-    headless: 'shell',
     args: [
         '--no-sandbox',
         '--disable-dev-shm-usage',

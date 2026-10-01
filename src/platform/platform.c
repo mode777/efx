@@ -24,7 +24,7 @@
 #include "platform/gamepad_backend.h"
 #include "platform/audio_backend.h"
 #include "render/render.h"
-#include "input/efx_input.h"
+#include "input/input.h"
 
 #include "sokol_app.h"
 #include "sokol_gfx.h"

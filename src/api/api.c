@@ -1252,6 +1252,45 @@ int efx_api_read_vec3(JSContext *ctx, JSValueConst v, float out[3],
 }
 
 
+/* parse a {x,y,w,h} sourceRect object, bounds-checked against the sampled
+ * texture; consumes `srcv` and sets *has_src on success */
+int efx_api_read_source_rect(JSContext *ctx, uint64_t tex, JSValueConst srcv,
+                             float src[4], int *has_src) {
+    if (!JS_IsObject(srcv)) {
+        JS_FreeValue(ctx, srcv);
+        efx_api_type_error(ctx, "sourceRect must be an object");
+        return -1;
+    }
+    static const char *skeys[] = {"x", "y", "w", "h"};
+    for (int i = 0; i < 4; i++) {
+        JSValue f = JS_GetPropertyStr(ctx, srcv, skeys[i]);
+        double d;
+        if (JS_ToFloat64(ctx, &d, f) < 0 || !isfinite(d)) {
+            JS_FreeValue(ctx, f);
+            JS_FreeValue(ctx, srcv);
+            efx_api_type_error(ctx, "sourceRect fields must be finite numbers");
+            return -1;
+        }
+        JS_FreeValue(ctx, f);
+        src[i] = (float)d;
+    }
+    JS_FreeValue(ctx, srcv);
+    if (src[2] <= 0 || src[3] <= 0) {
+        efx_api_range_error(ctx, "sourceRect extent must be > 0");
+        return -1;
+    }
+    int tw = 0, th = 0;
+    efx_render_sample_size(tex, &tw, &th);
+    if (src[0] < 0 || src[1] < 0 ||
+        src[0] + src[2] > (float)tw || src[1] + src[3] > (float)th) {
+        efx_api_range_error(ctx, "sourceRect outside texture bounds");
+        return -1;
+    }
+    *has_src = 1;
+    return 0;
+}
+
+
 /* parse one Phong channel color: required 4-element array */
 int efx_api_read_channel_color(JSContext *ctx, JSValueConst channel,
                               const char *name, float out[4]) {

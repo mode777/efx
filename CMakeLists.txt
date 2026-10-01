@@ -29,40 +29,46 @@ if(NOT EMSCRIPTEN)
     add_subdirectory(vendor/quickjs-ng EXCLUDE_FROM_ALL)
 endif()
 
-# F6a zip backend: miniz is a vendored single-file amalgamation built as its
-# own target with relaxed warnings so its diagnostics never trip efx_core's
-# -Werror (same treatment as the vendored stb implementation TUs).
-add_library(efx_miniz STATIC vendor/miniz/miniz.c)
-target_include_directories(efx_miniz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/miniz)
-if(MSVC)
-    target_compile_options(efx_miniz PRIVATE /W3)
-else()
-    target_compile_options(efx_miniz PRIVATE -w)
+# Vendored single-file/single-header C libraries are built as their own
+# targets with relaxed warnings so their diagnostics never trip efx_core's
+# -Werror. `POSIX_DEFINITIONS` apply on non-MSVC, `MSVC_DEFINITIONS` on MSVC.
+function(efx_add_vendor_library name)
+    cmake_parse_arguments(VL "" ""
+        "SOURCES;INCLUDES;MSVC_DEFINITIONS;POSIX_DEFINITIONS" ${ARGN})
+    add_library(${name} STATIC ${VL_SOURCES})
+    target_include_directories(${name} PUBLIC ${VL_INCLUDES})
+    if(MSVC)
+        target_compile_options(${name} PRIVATE /W3)
+        if(VL_MSVC_DEFINITIONS)
+            target_compile_definitions(${name} PRIVATE ${VL_MSVC_DEFINITIONS})
+        endif()
+    else()
+        target_compile_options(${name} PRIVATE -w)
+        if(VL_POSIX_DEFINITIONS)
+            target_compile_definitions(${name} PRIVATE ${VL_POSIX_DEFINITIONS})
+        endif()
+    endif()
+endfunction()
+
+# F6a zip backend: miniz is a vendored single-file amalgamation.
+efx_add_vendor_library(efx_miniz
+    SOURCES vendor/miniz/miniz.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/miniz
     # miniz uses ftello/fseeko (large-file stdio) on POSIX
-    target_compile_definitions(efx_miniz PRIVATE _POSIX_C_SOURCE=200809L)
-endif()
+    POSIX_DEFINITIONS _POSIX_C_SOURCE=200809L)
 
 # F6b glTF parser: cgltf is one header with its implementation compiled in a
-# dedicated TU with warnings relaxed (same treatment as the miniz/stb TUs).
-add_library(efx_cgltf STATIC src/resource/cgltf_impl.c)
-target_include_directories(efx_cgltf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cgltf)
-if(MSVC)
-    target_compile_options(efx_cgltf PRIVATE /W3)
-else()
-    target_compile_options(efx_cgltf PRIVATE -w)
-endif()
+# dedicated TU.
+efx_add_vendor_library(efx_cgltf
+    SOURCES src/resource/cgltf_impl.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cgltf)
 
 # F14 audio decoders: dr_libs (dr_wav + dr_mp3) is a single-header pair with
-# its implementation compiled in a dedicated TU with warnings relaxed (same
-# treatment as the miniz/cgltf/stb TUs).
-add_library(efx_drlibs STATIC src/audio/dr_impl.c)
-target_include_directories(efx_drlibs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/dr_libs)
-if(MSVC)
-    target_compile_options(efx_drlibs PRIVATE /W3)
-    target_compile_definitions(efx_drlibs PRIVATE _CRT_SECURE_NO_WARNINGS)
-else()
-    target_compile_options(efx_drlibs PRIVATE -w)
-endif()
+# its implementation compiled in a dedicated TU.
+efx_add_vendor_library(efx_drlibs
+    SOURCES src/audio/dr_impl.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/dr_libs
+    MSVC_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
 
 if(EMSCRIPTEN)
     # P10: the bridge fragments are linked directly into each web executable
@@ -90,8 +96,8 @@ if(EMSCRIPTEN)
         src/render/render_particles.c
         src/render/skin.c
         src/render/text.c
-        src/input/efx_input.c
-        src/input/efx_gamepad.c
+        src/input/input.c
+        src/input/gamepad.c
         src/physics/shape.c
         src/physics/broadphase.c
         src/physics/narrow.c
@@ -129,8 +135,8 @@ else()
         src/render/render_particles.c
         src/render/skin.c
         src/render/text.c
-        src/input/efx_input.c
-        src/input/efx_gamepad.c
+        src/input/input.c
+        src/input/gamepad.c
         src/physics/shape.c
         src/physics/broadphase.c
         src/physics/narrow.c
@@ -394,8 +400,8 @@ endif()
 
 # headless input-core unit tests (F9): pure-C state model + injection seam
 add_executable(efx_input_tests
-    src/input/efx_input.c
-    src/input/efx_gamepad.c
+    src/input/input.c
+    src/input/gamepad.c
     tests/unit/input_tests.c
 )
 target_include_directories(efx_input_tests PRIVATE src)
@@ -567,8 +573,8 @@ add_executable(efx_api_tests
     src/render/stb_rect_pack_impl.c
     src/audio/audio.c
     src/audio/decode.c
-    src/input/efx_input.c
-    src/input/efx_gamepad.c
+    src/input/input.c
+    src/input/gamepad.c
         src/physics/shape.c
         src/physics/broadphase.c
         src/physics/narrow.c

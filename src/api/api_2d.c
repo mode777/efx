@@ -95,12 +95,9 @@ JSValue efx_js_setCamera2D(JSContext *ctx, JSValueConst this_val, int argc, JSVa
 }
 
 
-JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "createImageData requires an options object");
-    }
-    JSValueConst opts = argv[0];
+/* validate width/height and compute the pixel byte count */
+static int read_image_size(JSContext *ctx, JSValueConst opts, int32_t *out_w,
+                           int32_t *out_h, size_t *out_n) {
     int32_t w = 0, hgt = 0;
     JSValue wv = JS_GetPropertyStr(ctx, opts, "width");
     JSValue hv = JS_GetPropertyStr(ctx, opts, "height");
@@ -111,23 +108,34 @@ JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, 
     JS_FreeValue(ctx, wv);
     JS_FreeValue(ctx, hv);
     if (bad || w <= 0 || hgt <= 0) {
-        return efx_api_range_error(ctx, "width and height must be positive");
+        efx_api_range_error(ctx, "width and height must be positive");
+        return -1;
     }
     double pw = (double)w * (double)hgt * 4.0;
     if (pw > (double)0x7fffffff) {
-        return efx_api_range_error(ctx, "image too large");
+        efx_api_range_error(ctx, "image too large");
+        return -1;
     }
+    *out_w = w;
+    *out_h = hgt;
+    *out_n = (size_t)pw;
+    return 0;
+}
 
+/* copy `n` pixel bytes from an array or typed array into a fresh buffer */
+static int read_image_pixels(JSContext *ctx, JSValueConst opts, size_t n,
+                             uint8_t **out_buf) {
     JSValue pixels = JS_GetPropertyStr(ctx, opts, "pixels");
     if (JS_IsUndefined(pixels)) {
         JS_FreeValue(ctx, pixels);
-        return efx_api_type_error(ctx, "createImageData requires pixels");
+        efx_api_type_error(ctx, "createImageData requires pixels");
+        return -1;
     }
-    size_t n = (size_t)pw;
     uint8_t *buf = malloc(n);
     if (!buf) {
         JS_FreeValue(ctx, pixels);
-        return efx_api_generic_error(ctx, "out of memory");
+        efx_api_generic_error(ctx, "out of memory");
+        return -1;
     }
     int rc;
     if (JS_IsArray(pixels)) {
@@ -162,10 +170,14 @@ JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, 
     JS_FreeValue(ctx, pixels);
     if (rc != 0) {
         free(buf);
-        return JS_EXCEPTION;
+        return -1;
     }
+    *out_buf = buf;
+    return 0;
+}
 
-    /* format field: only 'rgba8' (the default) exists in F2 */
+/* format field: only 'rgba8' (the default) exists in F2 */
+static int read_image_format(JSContext *ctx, JSValueConst opts) {
     JSValue fmt = JS_GetPropertyStr(ctx, opts, "format");
     int fmt_bad = 0;
     if (!JS_IsUndefined(fmt)) {
@@ -179,11 +191,14 @@ JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, 
     }
     JS_FreeValue(ctx, fmt);
     if (fmt_bad) {
-        free(buf);
-        return efx_api_range_error(ctx, "unsupported image format (only 'rgba8')");
+        efx_api_range_error(ctx, "unsupported image format (only 'rgba8')");
+        return -1;
     }
+    return 0;
+}
 
-    /* unknown-field check (typo protection) */
+/* unknown-field check (typo protection); the message omits a context word */
+static int check_imagedata_fields(JSContext *ctx, JSValueConst opts) {
     static const char *known[] = {"width", "height", "pixels", "format"};
     JSPropertyEnum *props = NULL;
     uint32_t nprops = 0;
@@ -210,9 +225,35 @@ JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, 
         }
         js_free(ctx, props);
         if (unknown) {
-            free(buf);
-            return JS_EXCEPTION;
+            return -1;
         }
+    }
+    return 0;
+}
+
+JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsObject(argv[0])) {
+        return efx_api_type_error(ctx, "createImageData requires an options object");
+    }
+    JSValueConst opts = argv[0];
+    int32_t w = 0, hgt = 0;
+    size_t n = 0;
+    if (read_image_size(ctx, opts, &w, &hgt, &n) != 0) {
+        return JS_EXCEPTION;
+    }
+
+    uint8_t *buf = NULL;
+    if (read_image_pixels(ctx, opts, n, &buf) != 0) {
+        return JS_EXCEPTION;
+    }
+    if (read_image_format(ctx, opts) != 0) {
+        free(buf);
+        return JS_EXCEPTION;
+    }
+    if (check_imagedata_fields(ctx, opts) != 0) {
+        free(buf);
+        return JS_EXCEPTION;
     }
 
     efxjs_imagedata *d = calloc(1, sizeof(efxjs_imagedata));

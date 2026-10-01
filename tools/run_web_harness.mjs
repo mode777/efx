@@ -9,18 +9,11 @@
  * Usage: node tools/run_web_harness.mjs
  * Env:   CHROME_SHELL_PATH / CHROME_PATH, WEB_GOLDEN_BUILD
  */
-import http from 'node:http';
-import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
+import { loadPuppeteer, serveStatic, launchBrowser } from './lib/web-host.mjs';
 
-let puppeteer;
-try {
-    puppeteer = (await import('puppeteer-core')).default;
-} catch {
-    console.error('puppeteer-core not installed: npm install puppeteer-core');
-    process.exit(2);
-}
+const puppeteer = await loadPuppeteer();
 
 const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..');
 const BUILD = process.env.WEB_GOLDEN_BUILD ?? path.join(ROOT, 'build-web-golden');
@@ -42,37 +35,12 @@ window.addEventListener('error', (e) => console.log('[page-err]', e.message));
 </script>
 <script src="/player_web_golden.js"></script></body></html>`;
 
-const MIME = { '.wasm': 'application/wasm', '.js': 'text/javascript', '.data': 'application/octet-stream' };
-const server = http.createServer((req, res) => {
-    if (req.url === '/' || req.url.startsWith('/?')) {
-        res.setHeader('Content-Type', 'text/html');
-        res.end(PAGE_HTML);
-        return;
-    }
-    const p = path.join(BUILD, decodeURIComponent(req.url.split('?')[0].slice(1)));
-    try {
-        const data = fs.readFileSync(p);
-        res.setHeader('Content-Type', MIME[path.extname(p)] ?? 'application/octet-stream');
-        res.end(data);
-    } catch {
-        res.statusCode = 404;
-        res.end('nope');
-    }
-});
+const server = serveStatic(BUILD, { '/': PAGE_HTML });
 await new Promise((r) => server.listen(PORT, r));
 
-const browser = await puppeteer.launch({
+const browser = await launchBrowser({
+    puppeteer,
     executablePath: process.env.CHROME_SHELL_PATH || process.env.CHROME_PATH || undefined,
-    headless: 'shell',
-    args: [
-        '--no-sandbox',
-        '--use-gl=angle',
-        '--use-angle=swiftshader',
-        '--enable-unsafe-swiftshader',
-        '--disable-gpu-sandbox',
-        '--enable-begin-frame-control',
-        '--run-all-compositor-stages-before-draw',
-    ],
 });
 const page = await browser.newPage();
 const consoleLines = [];

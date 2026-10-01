@@ -281,6 +281,35 @@ static int pcfg_shape(JSContext *ctx, JSValueConst o,
 
 /* parse the particle options over `c` (which the caller pre-fills). Unknown
  * fields throw; absent fields keep their current value. Returns 0/-1. */
+/* optional string enum field: absent leaves *out; unknown value -> TypeError */
+static int read_enum_field(JSContext *ctx, JSValueConst opts, const char *key,
+                           const char *const *names, const int *vals, int n,
+                           int *out, const char *errmsg) {
+    JSValue v = JS_GetPropertyStr(ctx, opts, key);
+    if (JS_IsUndefined(v)) {
+        JS_FreeValue(ctx, v);
+        return 0;
+    }
+    const char *s = JS_ToCString(ctx, v);
+    int matched = 0;
+    if (s) {
+        for (int i = 0; i < n; i++) {
+            if (strcmp(s, names[i]) == 0) {
+                *out = vals[i];
+                matched = 1;
+                break;
+            }
+        }
+        JS_FreeCString(ctx, s);
+    }
+    JS_FreeValue(ctx, v);
+    if (!matched) {
+        efx_api_type_error(ctx, errmsg);
+        return -1;
+    }
+    return 0;
+}
+
 static int read_particle_config(JSContext *ctx, JSValueConst opts,
                                 efx_particle_config *c) {
     static const char *known[] = {
@@ -317,36 +346,22 @@ static int read_particle_config(JSContext *ctx, JSValueConst opts,
     }
     JS_FreeValue(ctx, mv);
 
-    JSValue sp = JS_GetPropertyStr(ctx, opts, "space");
-    if (!JS_IsUndefined(sp)) {
-        const char *s = JS_ToCString(ctx, sp);
-        if (s && !strcmp(s, "screen")) c->space = EFX_SPACE_SCREEN;
-        else if (s && !strcmp(s, "world")) c->space = EFX_SPACE_WORLD;
-        else {
-            if (s) JS_FreeCString(ctx, s);
-            JS_FreeValue(ctx, sp);
-            efx_api_type_error(ctx, "space must be 'world' or 'screen'");
-            return -1;
-        }
-        JS_FreeCString(ctx, s);
+    static const char *space_names[] = {"screen", "world"};
+    static const int space_vals[] = {EFX_SPACE_SCREEN, EFX_SPACE_WORLD};
+    if (read_enum_field(ctx, opts, "space", space_names, space_vals, 2,
+                        &c->space,
+                        "space must be 'world' or 'screen'") != 0) {
+        return -1;
     }
-    JS_FreeValue(ctx, sp);
 
-    JSValue fv = JS_GetPropertyStr(ctx, opts, "facing");
-    if (!JS_IsUndefined(fv)) {
-        const char *s = JS_ToCString(ctx, fv);
-        if (s && !strcmp(s, "view")) c->facing = EFX_FACING_VIEW;
-        else if (s && !strcmp(s, "y")) c->facing = EFX_FACING_Y;
-        else if (s && !strcmp(s, "plane")) c->facing = EFX_FACING_PLANE;
-        else {
-            if (s) JS_FreeCString(ctx, s);
-            JS_FreeValue(ctx, fv);
-            efx_api_type_error(ctx, "facing must be 'view', 'y', or 'plane'");
-            return -1;
-        }
-        JS_FreeCString(ctx, s);
+    static const char *facing_names[] = {"view", "y", "plane"};
+    static const int facing_vals[] = {EFX_FACING_VIEW, EFX_FACING_Y,
+                                      EFX_FACING_PLANE};
+    if (read_enum_field(ctx, opts, "facing", facing_names, facing_vals, 3,
+                        &c->facing,
+                        "facing must be 'view', 'y', or 'plane'") != 0) {
+        return -1;
     }
-    JS_FreeValue(ctx, fv);
 
     if (c->space == EFX_SPACE_SCREEN && c->facing != EFX_FACING_VIEW) {
         efx_api_type_error(ctx, "facing must be 'view' for screen space");
@@ -355,21 +370,14 @@ static int read_particle_config(JSContext *ctx, JSValueConst opts,
 
     if (pcfg_vec(ctx, opts, "normal", c->normal, 0) < 0) return -1;
 
-    JSValue bv = JS_GetPropertyStr(ctx, opts, "blend");
-    if (!JS_IsUndefined(bv)) {
-        const char *s = JS_ToCString(ctx, bv);
-        if (s && !strcmp(s, "alpha")) c->blend = EFX_BLEND_ALPHA;
-        else if (s && !strcmp(s, "additive")) c->blend = EFX_BLEND_ADDITIVE;
-        else if (s && !strcmp(s, "subtractive")) c->blend = EFX_BLEND_SUBTRACTIVE;
-        else {
-            if (s) JS_FreeCString(ctx, s);
-            JS_FreeValue(ctx, bv);
-            efx_api_type_error(ctx, "blend must be 'alpha', 'additive', or 'subtractive'");
-            return -1;
-        }
-        JS_FreeCString(ctx, s);
+    static const char *blend_names[] = {"alpha", "additive", "subtractive"};
+    static const int blend_vals[] = {EFX_BLEND_ALPHA, EFX_BLEND_ADDITIVE,
+                                     EFX_BLEND_SUBTRACTIVE};
+    if (read_enum_field(ctx, opts, "blend", blend_names, blend_vals, 3,
+                        &c->blend,
+                        "blend must be 'alpha', 'additive', or 'subtractive'") != 0) {
+        return -1;
     }
-    JS_FreeValue(ctx, bv);
 
     if (pcfg_range(ctx, opts, "lifetime", &c->life_min, &c->life_max) < 0)
         return -1;
@@ -418,21 +426,14 @@ static int read_particle_config(JSContext *ctx, JSValueConst opts,
     if (pcfg_shape(ctx, opts, c) < 0) return -1;
     if (pcfg_quads(ctx, opts, c) < 0) return -1;
 
-    JSValue im = JS_GetPropertyStr(ctx, opts, "insertMode");
-    if (!JS_IsUndefined(im)) {
-        const char *s = JS_ToCString(ctx, im);
-        if (s && !strcmp(s, "top")) c->insert_mode = EFX_INSERT_TOP;
-        else if (s && !strcmp(s, "bottom")) c->insert_mode = EFX_INSERT_BOTTOM;
-        else if (s && !strcmp(s, "random")) c->insert_mode = EFX_INSERT_RANDOM;
-        else {
-            if (s) JS_FreeCString(ctx, s);
-            JS_FreeValue(ctx, im);
-            efx_api_type_error(ctx, "insertMode must be 'top', 'bottom', or 'random'");
-            return -1;
-        }
-        JS_FreeCString(ctx, s);
+    static const char *insert_names[] = {"top", "bottom", "random"};
+    static const int insert_vals[] = {EFX_INSERT_TOP, EFX_INSERT_BOTTOM,
+                                      EFX_INSERT_RANDOM};
+    if (read_enum_field(ctx, opts, "insertMode", insert_names, insert_vals, 3,
+                        &c->insert_mode,
+                        "insertMode must be 'top', 'bottom', or 'random'") != 0) {
+        return -1;
     }
-    JS_FreeValue(ctx, im);
 
     if ((r = pcfg_num(ctx, opts, "speedScale", &f)) < 0) return -1;
     if (r > 0) c->speed_scale = f;
@@ -657,6 +658,79 @@ JSValue efx_js_drawParticles(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
+static int read_billboard_pos(JSContext *ctx, JSValueConst v, float pos[3]) {
+    if (!JS_IsArray(v)) {
+        efx_api_type_error(ctx, "drawBillboard pos must be [x,y,z]");
+        return -1;
+    }
+    JSValue lv = JS_GetPropertyStr(ctx, v, "length");
+    int32_t ln = -1;
+    JS_ToInt32(ctx, &ln, lv);
+    JS_FreeValue(ctx, lv);
+    if (ln != 3) {
+        efx_api_type_error(ctx, "drawBillboard pos must be [x,y,z]");
+        return -1;
+    }
+    if (efx_api_get_float_array(ctx, v, pos, 3) != 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static int read_billboard_size(JSContext *ctx, JSValueConst opts, float *out_w,
+                               float *out_h) {
+    float w = 1.0f, h = 1.0f;
+    JSValue zv = JS_GetPropertyStr(ctx, opts, "size");
+    if (!JS_IsUndefined(zv)) {
+        if (JS_IsArray(zv)) {
+            float sz[2];
+            if (efx_api_get_float_array(ctx, zv, sz, 2) != 0) {
+                JS_FreeValue(ctx, zv);
+                return -1;
+            }
+            w = sz[0];
+            h = sz[1];
+        } else {
+            double d;
+            if (JS_ToFloat64(ctx, &d, zv) < 0 || !isfinite(d)) {
+                JS_FreeValue(ctx, zv);
+                efx_api_type_error(ctx, "size must be a number or [w,h]");
+                return -1;
+            }
+            w = h = (float)d;
+        }
+    }
+    JS_FreeValue(ctx, zv);
+    if (!(w > 0) || !(h > 0)) {
+        efx_api_range_error(ctx, "size entries must be > 0");
+        return -1;
+    }
+    *out_w = w;
+    *out_h = h;
+    return 0;
+}
+
+static int read_billboard_facing(JSContext *ctx, JSValueConst opts, int *out) {
+    int facing = EFX_FACING_VIEW;
+    JSValue fv = JS_GetPropertyStr(ctx, opts, "facing");
+    if (!JS_IsUndefined(fv)) {
+        const char *s = JS_ToCString(ctx, fv);
+        if (s && !strcmp(s, "view")) facing = EFX_FACING_VIEW;
+        else if (s && !strcmp(s, "y")) facing = EFX_FACING_Y;
+        else if (s && !strcmp(s, "plane")) facing = EFX_FACING_PLANE;
+        else {
+            if (s) JS_FreeCString(ctx, s);
+            JS_FreeValue(ctx, fv);
+            efx_api_type_error(ctx, "facing must be 'view', 'y', or 'plane'");
+            return -1;
+        }
+        JS_FreeCString(ctx, s);
+    }
+    JS_FreeValue(ctx, fv);
+    *out = facing;
+    return 0;
+}
+
 JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
                              JSValueConst *argv) {
     (void)this_val;
@@ -664,19 +738,7 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
         return efx_api_type_error(ctx, "drawBillboard requires (pos, opts)");
     }
     float pos[3];
-    if (!JS_IsArray(argv[0])) {
-        return efx_api_type_error(ctx, "drawBillboard pos must be [x,y,z]");
-    }
-    {
-        JSValue lv = JS_GetPropertyStr(ctx, argv[0], "length");
-        int32_t ln = -1;
-        JS_ToInt32(ctx, &ln, lv);
-        JS_FreeValue(ctx, lv);
-        if (ln != 3) {
-            return efx_api_type_error(ctx, "drawBillboard pos must be [x,y,z]");
-        }
-    }
-    if (efx_api_get_float_array(ctx, argv[0], pos, 3) != 0) {
+    if (read_billboard_pos(ctx, argv[0], pos) != 0) {
         return JS_EXCEPTION;
     }
     if (!JS_IsObject(argv[1])) {
@@ -709,28 +771,8 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
     float src[4] = {0, 0, 0, 0};
     int has_src = 0;
 
-    JSValue zv = JS_GetPropertyStr(ctx, opts, "size");
-    if (!JS_IsUndefined(zv)) {
-        if (JS_IsArray(zv)) {
-            float sz[2];
-            if (efx_api_get_float_array(ctx, zv, sz, 2) != 0) {
-                JS_FreeValue(ctx, zv);
-                return JS_EXCEPTION;
-            }
-            w = sz[0];
-            h = sz[1];
-        } else {
-            double d;
-            if (JS_ToFloat64(ctx, &d, zv) < 0 || !isfinite(d)) {
-                JS_FreeValue(ctx, zv);
-                return efx_api_type_error(ctx, "size must be a number or [w,h]");
-            }
-            w = h = (float)d;
-        }
-    }
-    JS_FreeValue(ctx, zv);
-    if (!(w > 0) || !(h > 0)) {
-        return efx_api_range_error(ctx, "size entries must be > 0");
+    if (read_billboard_size(ctx, opts, &w, &h) != 0) {
+        return JS_EXCEPTION;
     }
 
     JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
@@ -753,20 +795,9 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
     }
     JS_FreeValue(ctx, rv);
 
-    JSValue fv = JS_GetPropertyStr(ctx, opts, "facing");
-    if (!JS_IsUndefined(fv)) {
-        const char *s = JS_ToCString(ctx, fv);
-        if (s && !strcmp(s, "view")) facing = EFX_FACING_VIEW;
-        else if (s && !strcmp(s, "y")) facing = EFX_FACING_Y;
-        else if (s && !strcmp(s, "plane")) facing = EFX_FACING_PLANE;
-        else {
-            if (s) JS_FreeCString(ctx, s);
-            JS_FreeValue(ctx, fv);
-            return efx_api_type_error(ctx, "facing must be 'view', 'y', or 'plane'");
-        }
-        JS_FreeCString(ctx, s);
+    if (read_billboard_facing(ctx, opts, &facing) != 0) {
+        return JS_EXCEPTION;
     }
-    JS_FreeValue(ctx, fv);
 
     JSValue nv = JS_GetPropertyStr(ctx, opts, "normal");
     if (!JS_IsUndefined(nv)) {
@@ -789,33 +820,9 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
 
     JSValue sv = JS_GetPropertyStr(ctx, opts, "sourceRect");
     if (!JS_IsUndefined(sv)) {
-        if (!JS_IsObject(sv)) {
-            JS_FreeValue(ctx, sv);
-            return efx_api_type_error(ctx, "sourceRect must be an object");
+        if (efx_api_read_source_rect(ctx, tex, sv, src, &has_src) != 0) {
+            return JS_EXCEPTION;
         }
-        static const char *skeys[] = {"x", "y", "w", "h"};
-        for (int i = 0; i < 4; i++) {
-            JSValue f = JS_GetPropertyStr(ctx, sv, skeys[i]);
-            double d;
-            if (JS_ToFloat64(ctx, &d, f) < 0 || !isfinite(d)) {
-                JS_FreeValue(ctx, f);
-                JS_FreeValue(ctx, sv);
-                return efx_api_type_error(ctx, "sourceRect fields must be finite numbers");
-            }
-            JS_FreeValue(ctx, f);
-            src[i] = (float)d;
-        }
-        JS_FreeValue(ctx, sv);
-        if (src[2] <= 0 || src[3] <= 0) {
-            return efx_api_range_error(ctx, "sourceRect extent must be > 0");
-        }
-        int tw = 0, th = 0;
-        efx_render_sample_size(tex, &tw, &th);
-        if (src[0] < 0 || src[1] < 0 || src[0] + src[2] > (float)tw ||
-            src[1] + src[3] > (float)th) {
-            return efx_api_range_error(ctx, "sourceRect outside texture bounds");
-        }
-        has_src = 1;
     }
 
     int rc = efx_render_billboard(tex, pos, w, h, color, rotation, facing, normal,
@@ -836,25 +843,7 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
-/* validate + parse one sprite entry exactly as drawQuad parses its options */
-static int parse_sprite(JSContext *ctx, uint64_t tex, JSValueConst e,
-                        sprite_params *s) {
-    if (!JS_IsObject(e)) {
-        efx_api_type_error(ctx, "each sprite must be an object");
-        return -1;
-    }
-    static const char *known[] = {"x",     "y",      "size", "color",
-                                  "rotation", "scale", "sourceRect",
-                                  "origin"};
-    if (efx_api_check_known_fields(ctx, e, known, 8, "drawSprites") != 0) {
-        return -1;
-    }
-    s->color[0] = s->color[1] = s->color[2] = s->color[3] = 1.0f;
-    s->rotation = 0.0f;
-    s->scale = 1.0f;
-    s->has_src = 0;
-    s->has_origin = 0;
-
+static int parse_sprite_pos(JSContext *ctx, JSValueConst e, sprite_params *s) {
     JSValue xv = JS_GetPropertyStr(ctx, e, "x");
     JSValue yv = JS_GetPropertyStr(ctx, e, "y");
     double x = 0, y = 0;
@@ -868,7 +857,11 @@ static int parse_sprite(JSContext *ctx, uint64_t tex, JSValueConst e,
     }
     s->x = (float)x;
     s->y = (float)y;
+    return 0;
+}
 
+static int parse_sprite_transform(JSContext *ctx, JSValueConst e,
+                                  sprite_params *s) {
     JSValue cv = JS_GetPropertyStr(ctx, e, "color");
     if (!JS_IsUndefined(cv)) {
         if (efx_api_get_float_array(ctx, cv, s->color, 4) != 0) {
@@ -906,9 +899,13 @@ static int parse_sprite(JSContext *ctx, uint64_t tex, JSValueConst e,
         s->scale = (float)d;
     }
     JS_FreeValue(ctx, scv);
+    return 0;
+}
 
-    float size[2] = {0, 0};
-    int has_size = 0;
+static int parse_sprite_size(JSContext *ctx, JSValueConst e, float size[2],
+                             int *has_size) {
+    size[0] = size[1] = 0;
+    *has_size = 0;
     JSValue zv = JS_GetPropertyStr(ctx, e, "size");
     if (!JS_IsUndefined(zv)) {
         if (efx_api_get_float_array(ctx, zv, size, 2) != 0) {
@@ -920,10 +917,14 @@ static int parse_sprite(JSContext *ctx, uint64_t tex, JSValueConst e,
             efx_api_range_error(ctx, "size entries must be > 0");
             return -1;
         }
-        has_size = 1;
+        *has_size = 1;
     }
     JS_FreeValue(ctx, zv);
+    return 0;
+}
 
+static int parse_sprite_origin(JSContext *ctx, JSValueConst e,
+                               sprite_params *s) {
     JSValue ov = JS_GetPropertyStr(ctx, e, "origin");
     if (!JS_IsUndefined(ov)) {
         if (efx_api_get_float_array(ctx, ov, s->origin, 2) != 0) {
@@ -933,41 +934,50 @@ static int parse_sprite(JSContext *ctx, uint64_t tex, JSValueConst e,
         s->has_origin = 1;
     }
     JS_FreeValue(ctx, ov);
+    return 0;
+}
+
+/* validate + parse one sprite entry exactly as drawQuad parses its options */
+static int parse_sprite(JSContext *ctx, uint64_t tex, JSValueConst e,
+                        sprite_params *s) {
+    if (!JS_IsObject(e)) {
+        efx_api_type_error(ctx, "each sprite must be an object");
+        return -1;
+    }
+    static const char *known[] = {"x",     "y",      "size", "color",
+                                  "rotation", "scale", "sourceRect",
+                                  "origin"};
+    if (efx_api_check_known_fields(ctx, e, known, 8, "drawSprites") != 0) {
+        return -1;
+    }
+    s->color[0] = s->color[1] = s->color[2] = s->color[3] = 1.0f;
+    s->rotation = 0.0f;
+    s->scale = 1.0f;
+    s->has_src = 0;
+    s->has_origin = 0;
+
+    if (parse_sprite_pos(ctx, e, s) != 0) {
+        return -1;
+    }
+    if (parse_sprite_transform(ctx, e, s) != 0) {
+        return -1;
+    }
+
+    float size[2];
+    int has_size = 0;
+    if (parse_sprite_size(ctx, e, size, &has_size) != 0) {
+        return -1;
+    }
+    if (parse_sprite_origin(ctx, e, s) != 0) {
+        return -1;
+    }
 
     JSValue srcv = JS_GetPropertyStr(ctx, e, "sourceRect");
     if (!JS_IsUndefined(srcv)) {
-        if (!JS_IsObject(srcv)) {
-            JS_FreeValue(ctx, srcv);
-            efx_api_type_error(ctx, "sourceRect must be an object");
+        if (efx_api_read_source_rect(ctx, tex, srcv, s->src,
+                                     &s->has_src) != 0) {
             return -1;
         }
-        static const char *skeys[] = {"x", "y", "w", "h"};
-        for (int i = 0; i < 4; i++) {
-            JSValue f = JS_GetPropertyStr(ctx, srcv, skeys[i]);
-            double d;
-            if (JS_ToFloat64(ctx, &d, f) < 0 || !isfinite(d)) {
-                JS_FreeValue(ctx, f);
-                JS_FreeValue(ctx, srcv);
-                efx_api_type_error(ctx, "sourceRect fields must be finite numbers");
-                return -1;
-            }
-            JS_FreeValue(ctx, f);
-            s->src[i] = (float)d;
-        }
-        JS_FreeValue(ctx, srcv);
-        if (s->src[2] <= 0 || s->src[3] <= 0) {
-            efx_api_range_error(ctx, "sourceRect extent must be > 0");
-            return -1;
-        }
-        int tw = 0, th = 0;
-        efx_render_sample_size(tex, &tw, &th);
-        if (s->src[0] < 0 || s->src[1] < 0 ||
-            s->src[0] + s->src[2] > (float)tw ||
-            s->src[1] + s->src[3] > (float)th) {
-            efx_api_range_error(ctx, "sourceRect outside texture bounds");
-            return -1;
-        }
-        s->has_src = 1;
     }
 
     if (has_size) {

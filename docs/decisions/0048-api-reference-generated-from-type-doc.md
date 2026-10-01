@@ -1,4 +1,4 @@
-# 0042 — The API reference is generated from the type declaration; `js-api.md` is design guidelines
+# 0048 — The API reference is generated from the type declaration; `js-api.md` is design guidelines
 
 Status: Accepted (2026-09, change `api-reference-docs`)
 

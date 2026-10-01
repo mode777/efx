@@ -22,7 +22,7 @@
 
 #include <string.h>
 
-#include "input/efx_gamepad.h"
+#include "input/gamepad.h"
 
 #if defined(_WIN32)
 /* minigamepad's Windows section includes <xinput.h>/<dinput.h>, which expect

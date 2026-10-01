@@ -381,24 +381,9 @@ static void sample_clip(const efx_animation_clip *clip, float t,
     }
 }
 
-int efx_skin_evaluate(const efx_rig *rig, const efx_pose_sample *samples,
-                      int count, float *palette) {
-    if (!rig || !palette || rig->joint_count <= 0 || count < 0) {
-        return -1;
-    }
-    int n = rig->joint_count;
-    if (rig->clip_count < 0) {
-        return -1;
-    }
-    for (int i = 0; i < count; i++) {
-        if (samples[i].clip < 0 || samples[i].clip >= rig->clip_count) {
-            return -2;
-        }
-        if (count > 1 && samples[i].weight < 0.0f) {
-            return -3;
-        }
-    }
-    /* node -> joint map (bounds by the largest joint node index) */
+/* node -> joint map (bounds by the largest joint node index); returns -1 on
+ * OOM, else 0 with *out NULL when there are no joint nodes */
+static int build_joint_of_node(const efx_rig *rig, int n, int **out) {
     int max_node = -1;
     for (int j = 0; j < n; j++) {
         if (rig->joint_nodes[j] > max_node) {
@@ -422,31 +407,16 @@ int efx_skin_evaluate(const efx_rig *rig, const efx_pose_sample *samples,
             }
         }
     }
+    *out = joint_of_node;
+    return 0;
+}
 
-    efx_skin_trs *bind = malloc((size_t)n * sizeof(efx_skin_trs));
-    efx_skin_trs *acc = malloc((size_t)n * sizeof(efx_skin_trs));
-    efx_skin_trs *scratch = malloc((size_t)n * sizeof(efx_skin_trs));
-    float *local_mat = malloc((size_t)n * 16 * sizeof(float));
-    float *world = malloc((size_t)n * 16 * sizeof(float));
-    if (!bind || !acc || !scratch || !local_mat || !world) {
-        free(joint_of_node);
-        free(bind);
-        free(acc);
-        free(scratch);
-        free(local_mat);
-        free(world);
-        return -1;
-    }
-    if (efx_skin_bind_trs(rig, bind) != 0) {
-        free(joint_of_node);
-        free(bind);
-        free(acc);
-        free(scratch);
-        free(local_mat);
-        free(world);
-        return -1;
-    }
-
+/* blend the pose samples into `acc` (bind pose when count == 0 or all-zero
+ * weights) */
+static void blend_pose(const efx_rig *rig, const efx_pose_sample *samples,
+                       int count, int n, const int *joint_of_node,
+                       const efx_skin_trs *bind, efx_skin_trs *acc,
+                       efx_skin_trs *scratch) {
     if (count == 1) {
         memcpy(acc, bind, (size_t)n * sizeof(efx_skin_trs));
         float len = efx_skin_clip_length(&rig->clips[samples[0].clip]);
@@ -489,8 +459,11 @@ int efx_skin_evaluate(const efx_rig *rig, const efx_pose_sample *samples,
     } else {
         memcpy(acc, bind, (size_t)n * sizeof(efx_skin_trs));
     }
+}
 
-    /* compose locals, then FK in hierarchy order and build the palette */
+/* compose locals, then FK in hierarchy order and build the palette */
+static void compose_palette(const efx_rig *rig, int n, const efx_skin_trs *acc,
+                            float *local_mat, float *world, float *palette) {
     for (int j = 0; j < n; j++) {
         trs_compose(local_mat + (size_t)j * 16, &acc[j]);
     }
@@ -506,13 +479,60 @@ int efx_skin_evaluate(const efx_rig *rig, const efx_pose_sample *samples,
         efx_skin_mat_mul(palette + (size_t)j * 16, world + (size_t)j * 16,
                          rig->inverse_bind + (size_t)j * 16);
     }
+}
 
+static void skin_eval_free(int *joint_of_node, efx_skin_trs *bind,
+                           efx_skin_trs *acc, efx_skin_trs *scratch,
+                           float *local_mat, float *world) {
     free(joint_of_node);
     free(bind);
     free(acc);
     free(scratch);
     free(local_mat);
     free(world);
+}
+
+int efx_skin_evaluate(const efx_rig *rig, const efx_pose_sample *samples,
+                      int count, float *palette) {
+    if (!rig || !palette || rig->joint_count <= 0 || count < 0) {
+        return -1;
+    }
+    int n = rig->joint_count;
+    if (rig->clip_count < 0) {
+        return -1;
+    }
+    for (int i = 0; i < count; i++) {
+        if (samples[i].clip < 0 || samples[i].clip >= rig->clip_count) {
+            return -2;
+        }
+        if (count > 1 && samples[i].weight < 0.0f) {
+            return -3;
+        }
+    }
+
+    int *joint_of_node = NULL;
+    if (build_joint_of_node(rig, n, &joint_of_node) != 0) {
+        return -1;
+    }
+
+    efx_skin_trs *bind = malloc((size_t)n * sizeof(efx_skin_trs));
+    efx_skin_trs *acc = malloc((size_t)n * sizeof(efx_skin_trs));
+    efx_skin_trs *scratch = malloc((size_t)n * sizeof(efx_skin_trs));
+    float *local_mat = malloc((size_t)n * 16 * sizeof(float));
+    float *world = malloc((size_t)n * 16 * sizeof(float));
+    if (!bind || !acc || !scratch || !local_mat || !world) {
+        skin_eval_free(joint_of_node, bind, acc, scratch, local_mat, world);
+        return -1;
+    }
+    if (efx_skin_bind_trs(rig, bind) != 0) {
+        skin_eval_free(joint_of_node, bind, acc, scratch, local_mat, world);
+        return -1;
+    }
+
+    blend_pose(rig, samples, count, n, joint_of_node, bind, acc, scratch);
+    compose_palette(rig, n, acc, local_mat, world, palette);
+
+    skin_eval_free(joint_of_node, bind, acc, scratch, local_mat, world);
     return 0;
 }
 

@@ -3,8 +3,8 @@
 #include "runtime/runtime.h"
 #include "runtime/runtime_internal.h"
 #include "api/api.h"
-#include "input/efx_input.h"
-#include "input/efx_gamepad.h"
+#include "input/input.h"
+#include "input/gamepad.h"
 #include "physics/physics.h"
 #include "prelude/prelude.h"
 
@@ -168,7 +168,47 @@ static int finish_exception(efx_runtime *rt) {
     return 1;
 }
 
-efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
+static const JSCFunctionListEntry EFX_FUNCS[] = {
+    JS_CFUNC_DEF("log", 1, efx_js_log),
+    JS_CFUNC_DEF("quit", 1, efx_js_quit),
+    JS_CFUNC_DEF("args", 0, efx_js_args),
+    JS_CFUNC_DEF("registerUpdateHook", 1, efx_js_registerUpdateHook),
+    JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
+    JS_CFUNC_DEF("setClearColor", 1, efx_js_setClearColor),
+    JS_CFUNC_DEF("setCamera2D", 1, efx_js_setCamera2D),
+    JS_CFUNC_DEF("createImageData", 1, efx_js_createImageData),
+    JS_CFUNC_DEF("createTexture", 1, efx_js_createTexture),
+    JS_CFUNC_DEF("drawQuad", 4, efx_js_drawQuad),
+    JS_CFUNC_DEF("setBlendMode", 1, efx_js_setBlendMode),
+    JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
+    JS_CFUNC_DEF("setCamera3D", 1, efx_js_setCamera3D),
+    JS_CFUNC_DEF("createMeshData", 1, efx_js_createMeshData),
+    JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
+    JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
+    JS_CFUNC_DEF("poseMesh", 2, efx_js_poseMesh),
+    JS_CFUNC_DEF("setLight", 2, efx_js_setLight),
+    JS_CFUNC_DEF("setDirectionalLight", 1, efx_js_setDirectionalLight),
+    JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
+    JS_CFUNC_DEF("createRenderTarget", 1, efx_js_createRenderTarget),
+    JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
+    JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
+    JS_CFUNC_DEF("setPostEffects", 1, efx_js_setPostEffects),
+    JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
+    JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
+    JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
+    JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
+    JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
+    JS_CFUNC_DEF("createFont", 2, efx_js_createFont),
+    JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
+    JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
+    JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
+    JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
+    JS_CFUNC_DEF("createParticleSystem", 1, efx_js_createParticleSystem),
+    JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
+};
+
+/* context + host state setup */
+static efx_runtime *runtime_alloc(char *const *args, int arg_count) {
     efx_runtime *rt = calloc(1, sizeof(*rt));
     if (!rt) {
         fprintf(stderr, "player: out of memory\n");
@@ -191,81 +231,41 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         rt->host.arg_count = arg_count;
     }
     JS_SetContextOpaque(rt->ctx, &rt->host);
+    return rt;
+}
 
+/* assemble the `efx` object and the sub-namespace registrations */
+static int install_efx_api(efx_runtime *rt) {
     JSValue glob = JS_GetGlobalObject(rt->ctx);
     JSValue efx = JS_NewObject(rt->ctx);
-    static const JSCFunctionListEntry efx_funcs[] = {
-        JS_CFUNC_DEF("log", 1, efx_js_log),
-        JS_CFUNC_DEF("quit", 1, efx_js_quit),
-        JS_CFUNC_DEF("args", 0, efx_js_args),
-        JS_CFUNC_DEF("registerUpdateHook", 1, efx_js_registerUpdateHook),
-        JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
-        JS_CFUNC_DEF("setClearColor", 1, efx_js_setClearColor),
-        JS_CFUNC_DEF("setCamera2D", 1, efx_js_setCamera2D),
-        JS_CFUNC_DEF("createImageData", 1, efx_js_createImageData),
-        JS_CFUNC_DEF("createTexture", 1, efx_js_createTexture),
-        JS_CFUNC_DEF("drawQuad", 4, efx_js_drawQuad),
-        JS_CFUNC_DEF("setBlendMode", 1, efx_js_setBlendMode),
-        JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
-        JS_CFUNC_DEF("setCamera3D", 1, efx_js_setCamera3D),
-        JS_CFUNC_DEF("createMeshData", 1, efx_js_createMeshData),
-        JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
-        JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
-        JS_CFUNC_DEF("poseMesh", 2, efx_js_poseMesh),
-        JS_CFUNC_DEF("setLight", 2, efx_js_setLight),
-        JS_CFUNC_DEF("setDirectionalLight", 1, efx_js_setDirectionalLight),
-        JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
-        JS_CFUNC_DEF("createRenderTarget", 1, efx_js_createRenderTarget),
-        JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
-        JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
-        JS_CFUNC_DEF("setPostEffects", 1, efx_js_setPostEffects),
-        JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
-        JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
-        JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
-        JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
-        JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
-        JS_CFUNC_DEF("createFont", 2, efx_js_createFont),
-        JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
-        JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
-        JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
-        JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
-        JS_CFUNC_DEF("createParticleSystem", 1, efx_js_createParticleSystem),
-        JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
-    };
-    JS_SetPropertyFunctionList(rt->ctx, efx, efx_funcs,
-                               (int)(sizeof(efx_funcs) / sizeof(efx_funcs[0])));
+    JS_SetPropertyFunctionList(rt->ctx, efx, EFX_FUNCS,
+                               (int)(sizeof(EFX_FUNCS) / sizeof(EFX_FUNCS[0])));
     if (efx_api_register_input(rt->ctx, efx) < 0) {
         fprintf(stderr, "player: input api init failed\n");
         JS_FreeValue(rt->ctx, efx);
         JS_FreeValue(rt->ctx, glob);
-        efx_runtime_destroy(rt);
-        return NULL;
+        return -1;
     }
     if (efx_api_register_physics(rt->ctx, efx) < 0) {
         fprintf(stderr, "player: physics api init failed\n");
         JS_FreeValue(rt->ctx, efx);
         JS_FreeValue(rt->ctx, glob);
-        efx_runtime_destroy(rt);
-        return NULL;
+        return -1;
     }
     if (efx_api_register_audio(rt->ctx, efx) < 0) {
         fprintf(stderr, "player: audio api init failed\n");
         JS_FreeValue(rt->ctx, efx);
         JS_FreeValue(rt->ctx, glob);
-        efx_runtime_destroy(rt);
-        return NULL;
+        return -1;
     }
     JS_SetPropertyStr(rt->ctx, glob, "efx", efx);
     JS_FreeValue(rt->ctx, glob);
-    if (efx_api_init(rt->ctx) < 0) {
-        fprintf(stderr, "player: api init failed\n");
-        efx_runtime_destroy(rt);
-        return NULL;
-    }
-    /* engine-bundled pure-JS layer (F3 math + primitives, F10 CommonJS
-       runtime); evaluated against the efx namespace so both bindings share
-       one source. The IIFE returns the module-runtime factory, which we
-       instantiate here for the desktop binding. */
+    return 0;
+}
+
+/* evaluate the engine-bundled pure-JS layer (F3 math + primitives, F10
+ * CommonJS runtime) and instantiate its module-runtime factory */
+static int eval_prelude(efx_runtime *rt) {
     static const char wrapper[] =
         "(function(efx){\n";
     size_t wrap_len = sizeof(wrapper) - 1;
@@ -273,8 +273,7 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
     char *code = malloc(total);
     if (!code) {
         fprintf(stderr, "player: out of memory\n");
-        efx_runtime_destroy(rt);
-        return NULL;
+        return -1;
     }
     memcpy(code, wrapper, wrap_len);
     memcpy(code + wrap_len, EFX_JS_PRELUDE, (size_t)EFX_JS_PRELUDE_LEN);
@@ -286,8 +285,7 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
     if (JS_IsException(factory)) {
         fprintf(stderr, "player: prelude evaluation failed\n");
         finish_exception(rt);
-        efx_runtime_destroy(rt);
-        return NULL;
+        return -1;
     }
     JSValue glob2 = JS_GetGlobalObject(rt->ctx);
     JSValue efx_obj = JS_GetPropertyStr(rt->ctx, glob2, "efx");
@@ -299,13 +297,32 @@ efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
         fprintf(stderr, "player: module runtime init failed\n");
         rt->module_runtime = JS_UNDEFINED;
         finish_exception(rt);
-        efx_runtime_destroy(rt);
-        return NULL;
+        return -1;
     }
     rt->module_run_entry =
         JS_GetPropertyStr(rt->ctx, rt->module_runtime, "runEntry");
     if (!JS_IsFunction(rt->ctx, rt->module_run_entry)) {
         fprintf(stderr, "player: module runtime missing runEntry\n");
+        return -1;
+    }
+    return 0;
+}
+
+efx_runtime *efx_runtime_new(char *const *args, int arg_count) {
+    efx_runtime *rt = runtime_alloc(args, arg_count);
+    if (!rt) {
+        return NULL;
+    }
+    if (install_efx_api(rt) != 0) {
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
+    if (efx_api_init(rt->ctx) < 0) {
+        fprintf(stderr, "player: api init failed\n");
+        efx_runtime_destroy(rt);
+        return NULL;
+    }
+    if (eval_prelude(rt) != 0) {
         efx_runtime_destroy(rt);
         return NULL;
     }

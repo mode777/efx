@@ -5,8 +5,8 @@
 #include "runtime/runtime.h"
 #include "runtime/runtime_internal.h"
 #include "audio/audio.h"
-#include "input/efx_input.h"
-#include "input/efx_gamepad.h"
+#include "input/input.h"
+#include "input/gamepad.h"
 #include "physics/physics.h"
 #include "physics/broadphase.h"
 #include "render/render.h"
@@ -210,6 +210,7 @@ extern int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len, ef
 extern int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out);
 extern int efx_api_read_material_map(JSContext *ctx, JSValueConst ch, const char *name, uint64_t *out);
 extern int efx_api_read_number_array(JSContext *ctx, JSValueConst v, float **out, int *out_len, const char *what);
+extern int efx_api_read_source_rect(JSContext *ctx, uint64_t tex, JSValueConst srcv, float src[4], int *has_src);
 extern int efx_api_read_vec3(JSContext *ctx, JSValueConst v, float out[3], const char *what);
 extern JSValue efx_api_register_hook(JSContext *ctx, JSValueConst fn, int which);
 extern void efx_api_sink_float(void *ud, int32_t i, double d);

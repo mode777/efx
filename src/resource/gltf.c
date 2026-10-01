@@ -507,13 +507,8 @@ static float *accessor_floats(const cgltf_accessor *a, int *out_len) {
     return buf;
 }
 
-static int build_surface(gltf_ctx *c, const cgltf_primitive *prim,
-                         efx_surface_src *s) {
-    (void)c;
-    memset(s, 0, sizeof(*s));
-    if (prim->type != cgltf_primitive_type_triangles) {
-        return EFX_GLTF_ERR_PARSE;
-    }
+/* POSITION accessor -> s->positions; returns the glTF error code */
+static int import_position(const cgltf_primitive *prim, efx_surface_src *s) {
     const cgltf_accessor *pa =
         cgltf_find_accessor(prim, cgltf_attribute_type_position, 0);
     if (!pa) {
@@ -525,182 +520,215 @@ static int build_surface(gltf_ctx *c, const cgltf_primitive *prim,
         return len == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
     }
     if (len <= 0 || len % 3 != 0) {
-        surface_src_free(s);
         free(pos);
         return EFX_GLTF_ERR_PARSE;
     }
     s->positions = pos;
     s->positions_len = len;
-    int vcount = len / 3;
+    return EFX_GLTF_OK;
+}
 
+/* NORMAL accessor -> s->normals (absent is fine) */
+static int import_normals(const cgltf_primitive *prim, efx_surface_src *s,
+                          int vcount) {
     const cgltf_accessor *na =
         cgltf_find_accessor(prim, cgltf_attribute_type_normal, 0);
-    if (na) {
-        int nlen = 0;
-        float *nrm = accessor_floats(na, &nlen);
-        if (!nrm) {
-            surface_src_free(s);
-            return nlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
-        }
-        if (nlen != vcount * 3) {
-            free(nrm);
-            surface_src_free(s);
-            return EFX_GLTF_ERR_PARSE;
-        }
-        s->normals = nrm;
-        s->normals_len = nlen;
+    if (!na) {
+        return EFX_GLTF_OK;
     }
+    int nlen = 0;
+    float *nrm = accessor_floats(na, &nlen);
+    if (!nrm) {
+        return nlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+    }
+    if (nlen != vcount * 3) {
+        free(nrm);
+        return EFX_GLTF_ERR_PARSE;
+    }
+    s->normals = nrm;
+    s->normals_len = nlen;
+    return EFX_GLTF_OK;
+}
 
+/* TEXCOORD_0 accessor -> s->uvs (absent is fine) */
+static int import_uvs(const cgltf_primitive *prim, efx_surface_src *s,
+                      int vcount) {
     const cgltf_accessor *ua =
         cgltf_find_accessor(prim, cgltf_attribute_type_texcoord, 0);
-    if (ua) {
-        int ulen = 0;
-        float *uv = accessor_floats(ua, &ulen);
-        if (!uv) {
-            surface_src_free(s);
-            return ulen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
-        }
-        if (ulen != vcount * 2) {
-            free(uv);
-            surface_src_free(s);
-            return EFX_GLTF_ERR_PARSE;
-        }
-        s->uvs = uv;
-        s->uvs_len = ulen;
+    if (!ua) {
+        return EFX_GLTF_OK;
     }
+    int ulen = 0;
+    float *uv = accessor_floats(ua, &ulen);
+    if (!uv) {
+        return ulen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+    }
+    if (ulen != vcount * 2) {
+        free(uv);
+        return EFX_GLTF_ERR_PARSE;
+    }
+    s->uvs = uv;
+    s->uvs_len = ulen;
+    return EFX_GLTF_OK;
+}
 
+/* COLOR_0 accessor -> RGBA8-normalized floats in s->colors (absent is fine) */
+static int import_colors(const cgltf_primitive *prim, efx_surface_src *s,
+                         int vcount) {
     const cgltf_accessor *ca =
         cgltf_find_accessor(prim, cgltf_attribute_type_color, 0);
-    if (ca) {
-        size_t comps = cgltf_num_components(ca->type);
-        if (comps != 3 && comps != 4) {
-            surface_src_free(s);
-            return EFX_GLTF_ERR_PARSE;
-        }
-        int clen = 0;
-        float *raw = accessor_floats(ca, &clen);
-        if (!raw) {
-            surface_src_free(s);
-            return clen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
-        }
-        if (clen / (int)comps != vcount) {
-            free(raw);
-            surface_src_free(s);
-            return EFX_GLTF_ERR_PARSE;
-        }
-        float *col = malloc((size_t)vcount * 4 * sizeof(float));
-        if (!col) {
-            free(raw);
-            surface_src_free(s);
-            return EFX_GLTF_ERR_NOMEM;
-        }
-        for (int v = 0; v < vcount; v++) {
-            col[v * 4] = raw[v * (int)comps];
-            col[v * 4 + 1] = raw[v * (int)comps + 1];
-            col[v * 4 + 2] = raw[v * (int)comps + 2];
-            col[v * 4 + 3] = comps == 4 ? raw[v * 4 + 3] : 1.0f;
-        }
-        free(raw);
-        s->colors = col;
-        s->colors_len = vcount * 4;
+    if (!ca) {
+        return EFX_GLTF_OK;
     }
+    size_t comps = cgltf_num_components(ca->type);
+    if (comps != 3 && comps != 4) {
+        return EFX_GLTF_ERR_PARSE;
+    }
+    int clen = 0;
+    float *raw = accessor_floats(ca, &clen);
+    if (!raw) {
+        return clen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+    }
+    if (clen / (int)comps != vcount) {
+        free(raw);
+        return EFX_GLTF_ERR_PARSE;
+    }
+    float *col = malloc((size_t)vcount * 4 * sizeof(float));
+    if (!col) {
+        free(raw);
+        return EFX_GLTF_ERR_NOMEM;
+    }
+    for (int v = 0; v < vcount; v++) {
+        col[v * 4] = raw[v * (int)comps];
+        col[v * 4 + 1] = raw[v * (int)comps + 1];
+        col[v * 4 + 2] = raw[v * (int)comps + 2];
+        col[v * 4 + 3] = comps == 4 ? raw[v * 4 + 3] : 1.0f;
+    }
+    free(raw);
+    s->colors = col;
+    s->colors_len = vcount * 4;
+    return EFX_GLTF_OK;
+}
 
-    /* F6c: JOINTS_0 / WEIGHTS_0 -> four influences per vertex; the pair is
-     * all-or-nothing and every component counts must match the vertices */
+/* F6c: JOINTS_0 / WEIGHTS_0 -> four influences per vertex; the pair is
+ * all-or-nothing and every component counts must match the vertices */
+static int import_skin_attributes(const cgltf_primitive *prim,
+                                  efx_surface_src *s, int vcount) {
     const cgltf_accessor *ja =
         cgltf_find_accessor(prim, cgltf_attribute_type_joints, 0);
     const cgltf_accessor *wa =
         cgltf_find_accessor(prim, cgltf_attribute_type_weights, 0);
     if ((ja != NULL) != (wa != NULL)) {
-        surface_src_free(s);
         return EFX_GLTF_ERR_PARSE;
     }
-    if (ja) {
-        if (cgltf_num_components(ja->type) != EFX_JOINTS_PER_VERTEX ||
-            (int)ja->count != vcount ||
-            cgltf_num_components(wa->type) != EFX_WEIGHTS_PER_VERTEX ||
-            (int)wa->count != vcount) {
-            surface_src_free(s);
-            return EFX_GLTF_ERR_PARSE;
-        }
-        int jlen = 0;
-        float *jraw = accessor_floats(ja, &jlen);
-        if (!jraw) {
-            surface_src_free(s);
-            return jlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
-        }
-        if (jlen != vcount * EFX_JOINTS_PER_VERTEX) {
-            free(jraw);
-            surface_src_free(s);
-            return EFX_GLTF_ERR_PARSE;
-        }
-        uint32_t *joints = malloc((size_t)jlen * sizeof(uint32_t));
-        if (!joints) {
-            free(jraw);
-            surface_src_free(s);
-            return EFX_GLTF_ERR_NOMEM;
-        }
-        for (int i = 0; i < jlen; i++) {
-            /* u8/u16 component types unpack to exact small integral floats */
-            float jf = jraw[i];
-            if (!(jf >= 0.0f) || jf > 65535.0f || jf != (float)(int)jf) {
-                free(jraw);
-                free(joints);
-                surface_src_free(s);
-                return EFX_GLTF_ERR_PARSE;
-            }
-            joints[i] = (uint32_t)jf;
-        }
+    if (!ja) {
+        return EFX_GLTF_OK;
+    }
+    if (cgltf_num_components(ja->type) != EFX_JOINTS_PER_VERTEX ||
+        (int)ja->count != vcount ||
+        cgltf_num_components(wa->type) != EFX_WEIGHTS_PER_VERTEX ||
+        (int)wa->count != vcount) {
+        return EFX_GLTF_ERR_PARSE;
+    }
+    int jlen = 0;
+    float *jraw = accessor_floats(ja, &jlen);
+    if (!jraw) {
+        return jlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+    }
+    if (jlen != vcount * EFX_JOINTS_PER_VERTEX) {
         free(jraw);
-        int wlen = 0;
-        float *weights = accessor_floats(wa, &wlen);
-        if (!weights) {
+        return EFX_GLTF_ERR_PARSE;
+    }
+    uint32_t *joints = malloc((size_t)jlen * sizeof(uint32_t));
+    if (!joints) {
+        free(jraw);
+        return EFX_GLTF_ERR_NOMEM;
+    }
+    for (int i = 0; i < jlen; i++) {
+        /* u8/u16 component types unpack to exact small integral floats */
+        float jf = jraw[i];
+        if (!(jf >= 0.0f) || jf > 65535.0f || jf != (float)(int)jf) {
+            free(jraw);
             free(joints);
-            surface_src_free(s);
-            return wlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+            return EFX_GLTF_ERR_PARSE;
         }
-        if (wlen != vcount * EFX_WEIGHTS_PER_VERTEX) {
+        joints[i] = (uint32_t)jf;
+    }
+    free(jraw);
+    int wlen = 0;
+    float *weights = accessor_floats(wa, &wlen);
+    if (!weights) {
+        free(joints);
+        return wlen == -2 ? EFX_GLTF_ERR_NOMEM : EFX_GLTF_ERR_PARSE;
+    }
+    if (wlen != vcount * EFX_WEIGHTS_PER_VERTEX) {
+        free(joints);
+        free(weights);
+        return EFX_GLTF_ERR_PARSE;
+    }
+    for (int i = 0; i < wlen; i++) {
+        if (!isfinite(weights[i])) {
             free(joints);
             free(weights);
-            surface_src_free(s);
             return EFX_GLTF_ERR_PARSE;
         }
-        for (int i = 0; i < wlen; i++) {
-            if (!isfinite(weights[i])) {
-                free(joints);
-                free(weights);
-                surface_src_free(s);
-                return EFX_GLTF_ERR_PARSE;
-            }
-        }
-        s->joints = joints;
-        s->joints_len = jlen;
-        s->weights = weights;
-        s->weights_len = wlen;
     }
+    s->joints = joints;
+    s->joints_len = jlen;
+    s->weights = weights;
+    s->weights_len = wlen;
+    return EFX_GLTF_OK;
+}
 
-    if (prim->indices) {
-        size_t icount = prim->indices->count;
-        if (icount % 3 != 0 || icount > 0x7fffffffu) {
-            surface_src_free(s);
+/* index accessor -> s->indices (non-indexed primitives are fine) */
+static int import_indices(const cgltf_primitive *prim, efx_surface_src *s,
+                          int vcount) {
+    if (!prim->indices) {
+        return EFX_GLTF_OK;
+    }
+    size_t icount = prim->indices->count;
+    if (icount % 3 != 0 || icount > 0x7fffffffu) {
+        return EFX_GLTF_ERR_PARSE;
+    }
+    uint32_t *idx = malloc((icount ? icount : 1) * sizeof(uint32_t));
+    if (!idx) {
+        return EFX_GLTF_ERR_NOMEM;
+    }
+    for (size_t i = 0; i < icount; i++) {
+        size_t v = cgltf_accessor_read_index(prim->indices, i);
+        if (v >= (size_t)vcount) {
+            free(idx);
             return EFX_GLTF_ERR_PARSE;
         }
-        uint32_t *idx = malloc((icount ? icount : 1) * sizeof(uint32_t));
-        if (!idx) {
-            surface_src_free(s);
-            return EFX_GLTF_ERR_NOMEM;
-        }
-        for (size_t i = 0; i < icount; i++) {
-            size_t v = cgltf_accessor_read_index(prim->indices, i);
-            if (v >= (size_t)vcount) {
-                free(idx);
-                surface_src_free(s);
-                return EFX_GLTF_ERR_PARSE;
-            }
-            idx[i] = (uint32_t)v;
-        }
-        s->indices = idx;
-        s->indices_len = (int)icount;
+        idx[i] = (uint32_t)v;
+    }
+    s->indices = idx;
+    s->indices_len = (int)icount;
+    return EFX_GLTF_OK;
+}
+
+static int build_surface(gltf_ctx *c, const cgltf_primitive *prim,
+                         efx_surface_src *s) {
+    (void)c;
+    memset(s, 0, sizeof(*s));
+    if (prim->type != cgltf_primitive_type_triangles) {
+        return EFX_GLTF_ERR_PARSE;
+    }
+    int rc = import_position(prim, s);
+    if (rc != EFX_GLTF_OK) {
+        surface_src_free(s);
+        return rc;
+    }
+    int vcount = s->positions_len / 3;
+
+    rc = import_normals(prim, s, vcount);
+    if (rc == EFX_GLTF_OK) rc = import_uvs(prim, s, vcount);
+    if (rc == EFX_GLTF_OK) rc = import_colors(prim, s, vcount);
+    if (rc == EFX_GLTF_OK) rc = import_skin_attributes(prim, s, vcount);
+    if (rc == EFX_GLTF_OK) rc = import_indices(prim, s, vcount);
+    if (rc != EFX_GLTF_OK) {
+        surface_src_free(s);
+        return rc;
     }
     return EFX_GLTF_OK;
 }
@@ -939,15 +967,10 @@ static efx_rig *build_rig(gltf_ctx *c, const cgltf_mesh *mesh, int *err) {
 
 /* ------------------------------------------------------------ importer */
 
-efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
-                                     const efx_gltf_mesh_opts *opts, int *err) {
-    if (err) {
-        *err = EFX_GLTF_OK;
-    }
-    if (!res || !path || path[0] == '\0') {
-        if (err) *err = EFX_GLTF_ERR_IO;
-        return NULL;
-    }
+/* parse the file, load its buffers and reject required extensions; returns 0
+ * with *err set on failure */
+static int open_gltf(efx_resource *res, const char *path, cgltf_data **out,
+                     int *err) {
     cgltf_options options;
     memset(&options, 0, sizeof(options));
     options.file.read = gltf_file_read;
@@ -963,7 +986,7 @@ efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
                        ? EFX_GLTF_ERR_IO
                        : EFX_GLTF_ERR_PARSE;
         }
-        return NULL;
+        return 0;
     }
     cr = cgltf_load_buffers(&options, data, path);
     if (cr != cgltf_result_success) {
@@ -974,38 +997,120 @@ efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
                        ? EFX_GLTF_ERR_IO
                        : EFX_GLTF_ERR_PARSE;
         }
-        return NULL;
+        return 0;
     }
-
     if (data->extensions_required_count > 0) {
         cgltf_free(data);
         if (err) *err = EFX_GLTF_ERR_UNSUPPORTED;
-        return NULL;
+        return 0;
     }
+    *out = data;
+    return 1;
+}
 
-    /* select one mesh */
-    const cgltf_mesh *mesh = NULL;
+/* select one mesh by name or index; returns NULL with *err set */
+static const cgltf_mesh *select_mesh(const cgltf_data *data,
+                                     const efx_gltf_mesh_opts *opts, int *err) {
     if (opts && opts->has_mesh && opts->is_name) {
         for (cgltf_size i = 0; i < data->meshes_count; i++) {
             if (data->meshes[i].name && opts->mesh_name &&
                 strcmp(data->meshes[i].name, opts->mesh_name) == 0) {
-                mesh = &data->meshes[i];
-                break;
+                return &data->meshes[i];
             }
         }
-        if (!mesh) {
-            cgltf_free(data);
-            if (err) *err = EFX_GLTF_ERR_SELECTION;
-            return NULL;
+        if (err) *err = EFX_GLTF_ERR_SELECTION;
+        return NULL;
+    }
+    long index = (opts && opts->has_mesh) ? opts->mesh_index : 0;
+    if (index < 0 || (cgltf_size)index >= data->meshes_count) {
+        if (err) *err = EFX_GLTF_ERR_SELECTION;
+        return NULL;
+    }
+    return &data->meshes[index];
+}
+
+/* build every primitive of the selected mesh; returns 0 with *err set and
+ * any partially built surfaces freed */
+static int build_surfaces(gltf_ctx *ctx, const cgltf_mesh *mesh,
+                          efx_surface_src **out_srcs, int *out_count,
+                          int *err) {
+    int surface_count = (int)mesh->primitives_count;
+    efx_surface_src *srcs = calloc((size_t)surface_count, sizeof(*srcs));
+    if (!srcs) {
+        if (err) *err = EFX_GLTF_ERR_NOMEM;
+        return 0;
+    }
+    int rc = EFX_GLTF_OK;
+    for (int i = 0; i < surface_count && rc == EFX_GLTF_OK; i++) {
+        rc = build_surface(ctx, &mesh->primitives[i], &srcs[i]);
+    }
+    if (rc != EFX_GLTF_OK) {
+        for (int i = 0; i < surface_count; i++) {
+            surface_src_free(&srcs[i]);
         }
-    } else {
-        long index = (opts && opts->has_mesh) ? opts->mesh_index : 0;
-        if (index < 0 || (cgltf_size)index >= data->meshes_count) {
-            cgltf_free(data);
-            if (err) *err = EFX_GLTF_ERR_SELECTION;
-            return NULL;
+        free(srcs);
+        if (err) *err = rc;
+        return 0;
+    }
+    *out_srcs = srcs;
+    *out_count = surface_count;
+    return 1;
+}
+
+/* convert each primitive's glTF material onto the MeshData surface */
+static int apply_materials(gltf_ctx *ctx, efx_meshdata *md,
+                           const cgltf_mesh *mesh, int surface_count,
+                           int *err) {
+    for (int i = 0; i < surface_count; i++) {
+        const cgltf_primitive *prim = &mesh->primitives[i];
+        if (!prim->material) {
+            continue; /* engine default material */
         }
-        mesh = &data->meshes[index];
+        efx_material mat;
+        int rc = material_from_gltf(ctx, prim->material, &mat);
+        if (rc != EFX_GLTF_OK) {
+            if (err) *err = rc;
+            return 0;
+        }
+        efx_meshdata_set_material(md, i, &mat, 1);
+    }
+    return 1;
+}
+
+/* F6c: bundle the skin/clip payload into the MeshData (opaque) */
+static int attach_rig(gltf_ctx *ctx, efx_meshdata *md, const cgltf_mesh *mesh,
+                      int *err) {
+    int rig_err = EFX_GLTF_OK;
+    efx_rig *rig = build_rig(ctx, mesh, &rig_err);
+    if (rig_err != EFX_GLTF_OK) {
+        if (err) *err = rig_err;
+        return 0;
+    }
+    if (rig) {
+        efx_meshdata_set_rig(md, rig);
+    }
+    return 1;
+}
+
+efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
+                                     const efx_gltf_mesh_opts *opts, int *err) {
+    if (err) {
+        *err = EFX_GLTF_OK;
+    }
+    if (!res || !path || path[0] == '\0') {
+        if (err) *err = EFX_GLTF_ERR_IO;
+        return NULL;
+    }
+
+    cgltf_data *data = NULL;
+    if (!open_gltf(res, path, &data, err)) {
+        return NULL;
+    }
+
+    const cgltf_mesh *mesh = select_mesh(data, opts, err);
+    if (!mesh) {
+        cgltf_free(data);
+        return NULL;
     }
 
     if (mesh->primitives_count < 1 ||
@@ -1032,26 +1137,11 @@ efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
         }
     }
 
-    int surface_count = (int)mesh->primitives_count;
-    efx_surface_src *srcs = calloc((size_t)surface_count, sizeof(*srcs));
-    if (!srcs) {
+    efx_surface_src *srcs = NULL;
+    int surface_count = 0;
+    if (!build_surfaces(&ctx, mesh, &srcs, &surface_count, err)) {
         ctx_free(&ctx);
         cgltf_free(data);
-        if (err) *err = EFX_GLTF_ERR_NOMEM;
-        return NULL;
-    }
-    int rc = EFX_GLTF_OK;
-    for (int i = 0; i < surface_count && rc == EFX_GLTF_OK; i++) {
-        rc = build_surface(&ctx, &mesh->primitives[i], &srcs[i]);
-    }
-    if (rc != EFX_GLTF_OK) {
-        for (int i = 0; i < surface_count; i++) {
-            surface_src_free(&srcs[i]);
-        }
-        free(srcs);
-        ctx_free(&ctx);
-        cgltf_free(data);
-        if (err) *err = rc;
         return NULL;
     }
 
@@ -1069,37 +1159,20 @@ efx_meshdata *efx_gltf_load_meshdata(efx_resource *res, const char *path,
         return NULL;
     }
 
-    for (int i = 0; i < surface_count; i++) {
-        const cgltf_primitive *prim = &mesh->primitives[i];
-        if (!prim->material) {
-            continue; /* engine default material */
-        }
-        efx_material mat;
-        rc = material_from_gltf(&ctx, prim->material, &mat);
-        if (rc != EFX_GLTF_OK) {
-            efx_meshdata_destroy(md);
-            ctx_destroy_textures(&ctx);
-            ctx_free(&ctx);
-            cgltf_free(data);
-            if (err) *err = rc;
-            return NULL;
-        }
-        efx_meshdata_set_material(md, i, &mat, 1);
-    }
-
-    /* F6c: bundle the skin/clip payload into the MeshData (opaque) */
-    int rig_err = EFX_GLTF_OK;
-    efx_rig *rig = build_rig(&ctx, mesh, &rig_err);
-    if (rig_err != EFX_GLTF_OK) {
+    if (!apply_materials(&ctx, md, mesh, surface_count, err)) {
         efx_meshdata_destroy(md);
         ctx_destroy_textures(&ctx);
         ctx_free(&ctx);
         cgltf_free(data);
-        if (err) *err = rig_err;
         return NULL;
     }
-    if (rig) {
-        efx_meshdata_set_rig(md, rig);
+
+    if (!attach_rig(&ctx, md, mesh, err)) {
+        efx_meshdata_destroy(md);
+        ctx_destroy_textures(&ctx);
+        ctx_free(&ctx);
+        cgltf_free(data);
+        return NULL;
     }
 
     ctx_free(&ctx);

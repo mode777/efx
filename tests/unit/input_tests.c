@@ -4,8 +4,8 @@
  * per-frame deltas, focus clearing, and the injection seam.
  * Usage: efx_input_tests <case> ; exit 0 = pass.
  */
-#include "input/efx_input.h"
-#include "input/efx_gamepad.h"
+#include "input/input.h"
+#include "input/gamepad.h"
 
 #include <math.h>
 #include <stdio.h>

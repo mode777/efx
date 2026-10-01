@@ -151,6 +151,112 @@ static int read_surface(JSContext *ctx, JSValueConst obj, efx_surface_src *s,
 }
 
 
+/* read a `surfaces` array into src/own; consumes the `surfaces` and
+ * `positions` JSValues (positions is unused in this form) */
+static int read_mesh_surfaces(JSContext *ctx, JSValue surfaces,
+                              JSValue positions, efx_surface_src *src,
+                              md_owned *own, int *out_count) {
+    if (!JS_IsArray(surfaces)) {
+        JS_FreeValue(ctx, surfaces);
+        JS_FreeValue(ctx, positions);
+        efx_api_type_error(ctx, "surfaces must be an array");
+        return -1;
+    }
+    JSValue lenv = JS_GetPropertyStr(ctx, surfaces, "length");
+    int32_t len = -1;
+    JS_ToInt32(ctx, &len, lenv);
+    JS_FreeValue(ctx, lenv);
+    JS_FreeValue(ctx, positions);
+    if (len < 1 || len > EFX_MESH_MAX_SURFACES) {
+        JS_FreeValue(ctx, surfaces);
+        efx_api_range_error(ctx, "surfaces must hold 1..16 entries");
+        return -1;
+    }
+    for (int32_t i = 0; i < len; i++) {
+        JSValue sv = JS_GetPropertyUint32(ctx, surfaces, (uint32_t)i);
+        int rc = read_surface(ctx, sv, &src[i], own, 0);
+        JS_FreeValue(ctx, sv);
+        if (rc != 0) {
+            JS_FreeValue(ctx, surfaces);
+            return -1;
+        }
+        (*out_count)++;
+    }
+    JS_FreeValue(ctx, surfaces);
+    return 0;
+}
+
+/* F4a: optional parallel materials array (one entry per surface) */
+static int read_materials(JSContext *ctx, JSValueConst opts,
+                          efx_material *mats, uint8_t *mat_has, int count) {
+    JSValue materials = JS_GetPropertyStr(ctx, opts, "materials");
+    if (JS_IsUndefined(materials)) {
+        JS_FreeValue(ctx, materials);
+        return 0;
+    }
+    if (!JS_IsArray(materials)) {
+        JS_FreeValue(ctx, materials);
+        efx_api_type_error(ctx, "materials must be an array");
+        return -1;
+    }
+    JSValue mlenv = JS_GetPropertyStr(ctx, materials, "length");
+    int32_t mlen = -1;
+    JS_ToInt32(ctx, &mlen, mlenv);
+    JS_FreeValue(ctx, mlenv);
+    if (mlen != count) {
+        JS_FreeValue(ctx, materials);
+        efx_api_range_error(ctx, "materials must have one entry per surface");
+        return -1;
+    }
+    for (int32_t i = 0; i < count; i++) {
+        JSValue mv = JS_GetPropertyUint32(ctx, materials, (uint32_t)i);
+        if (JS_IsNull(mv) || JS_IsUndefined(mv)) {
+            JS_FreeValue(ctx, mv);
+            continue;
+        }
+        if (efx_api_read_material(ctx, mv, &mats[i]) != 0) {
+            JS_FreeValue(ctx, mv);
+            JS_FreeValue(ctx, materials);
+            return -1;
+        }
+        mat_has[i] = 1;
+        JS_FreeValue(ctx, mv);
+    }
+    JS_FreeValue(ctx, materials);
+    return 0;
+}
+
+/* create the MeshData + JS wrapper from the read sources/materials; releases
+ * the temporary source buffers via `own` */
+static JSValue build_meshdata(JSContext *ctx, efx_surface_src *src, int count,
+                              efx_material *mats, uint8_t *mat_has,
+                              md_owned *own) {
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(src, count, &err);
+    md_owned_free(own);
+    if (!md) {
+        if (err == EFX_MESHERR_COUNT || err == EFX_MESHERR_LEN ||
+            err == EFX_MESHERR_INDEX) {
+            return efx_api_range_error(ctx, "invalid mesh data");
+        }
+        return efx_api_generic_error(ctx, "out of memory");
+    }
+    for (int i = 0; i < count; i++) {
+        efx_meshdata_set_material(md, i, mat_has[i] ? &mats[i] : NULL,
+                                  mat_has[i]);
+    }
+    efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
+    if (!wrap) {
+        efx_meshdata_destroy(md);
+        return efx_api_generic_error(ctx, "out of memory");
+    }
+    wrap->md = md;
+    wrap->alive = 1;
+    JSValue obj = JS_NewObjectClass(ctx, meshdata_class_id);
+    JS_SetOpaque(obj, wrap);
+    return obj;
+}
+
 JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
                               int argc, JSValueConst *argv) {
     (void)this_val;
@@ -187,109 +293,31 @@ JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
     int count = 0;
 
     if (has_surfaces) {
-        if (!JS_IsArray(surfaces)) {
-            JS_FreeValue(ctx, surfaces);
-            JS_FreeValue(ctx, positions);
-            return efx_api_type_error(ctx, "surfaces must be an array");
+        if (read_mesh_surfaces(ctx, surfaces, positions, src, &own, &count) != 0) {
+            md_owned_free(&own);
+            return JS_EXCEPTION;
         }
-        JSValue lenv = JS_GetPropertyStr(ctx, surfaces, "length");
-        int32_t len = -1;
-        JS_ToInt32(ctx, &len, lenv);
-        JS_FreeValue(ctx, lenv);
-        JS_FreeValue(ctx, positions);
-        if (len < 1 || len > EFX_MESH_MAX_SURFACES) {
-            JS_FreeValue(ctx, surfaces);
-            return efx_api_range_error(ctx, "surfaces must hold 1..16 entries");
-        }
-        for (int32_t i = 0; i < len; i++) {
-            JSValue sv = JS_GetPropertyUint32(ctx, surfaces, (uint32_t)i);
-            int rc = read_surface(ctx, sv, &src[i], &own, 0);
-            JS_FreeValue(ctx, sv);
-            if (rc != 0) {
-                JS_FreeValue(ctx, surfaces);
-                goto fail;
-            }
-            count++;
-        }
-        JS_FreeValue(ctx, surfaces);
     } else {
         JS_FreeValue(ctx, surfaces);
         /* the bag itself is the single surface */
         int rc = read_surface(ctx, opts, &src[0], &own, 1);
         JS_FreeValue(ctx, positions);
         if (rc != 0) {
-            goto fail;
+            md_owned_free(&own);
+            return JS_EXCEPTION;
         }
         count = 1;
     }
 
-    /* F4a: optional parallel materials array (one entry per surface) */
     efx_material mats[EFX_MESH_MAX_SURFACES];
     uint8_t mat_has[EFX_MESH_MAX_SURFACES];
     memset(mat_has, 0, sizeof(mat_has));
-    JSValue materials = JS_GetPropertyStr(ctx, opts, "materials");
-    if (!JS_IsUndefined(materials)) {
-        if (!JS_IsArray(materials)) {
-            JS_FreeValue(ctx, materials);
-            efx_api_type_error(ctx, "materials must be an array");
-            goto fail;
-        }
-        JSValue mlenv = JS_GetPropertyStr(ctx, materials, "length");
-        int32_t mlen = -1;
-        JS_ToInt32(ctx, &mlen, mlenv);
-        JS_FreeValue(ctx, mlenv);
-        if (mlen != count) {
-            JS_FreeValue(ctx, materials);
-            efx_api_range_error(ctx, "materials must have one entry per surface");
-            goto fail;
-        }
-        for (int32_t i = 0; i < count; i++) {
-            JSValue mv = JS_GetPropertyUint32(ctx, materials, (uint32_t)i);
-            if (JS_IsNull(mv) || JS_IsUndefined(mv)) {
-                JS_FreeValue(ctx, mv);
-                continue;
-            }
-            if (efx_api_read_material(ctx, mv, &mats[i]) != 0) {
-                JS_FreeValue(ctx, mv);
-                JS_FreeValue(ctx, materials);
-                goto fail;
-            }
-            mat_has[i] = 1;
-            JS_FreeValue(ctx, mv);
-        }
-    }
-    JS_FreeValue(ctx, materials);
-
-    {
-        int err = 0;
-        efx_meshdata *md = efx_meshdata_create(src, count, &err);
+    if (read_materials(ctx, opts, mats, mat_has, count) != 0) {
         md_owned_free(&own);
-        if (!md) {
-            if (err == EFX_MESHERR_COUNT || err == EFX_MESHERR_LEN ||
-                err == EFX_MESHERR_INDEX) {
-                return efx_api_range_error(ctx, "invalid mesh data");
-            }
-            return efx_api_generic_error(ctx, "out of memory");
-        }
-        for (int i = 0; i < count; i++) {
-            efx_meshdata_set_material(md, i, mat_has[i] ? &mats[i] : NULL,
-                                      mat_has[i]);
-        }
-        efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
-        if (!wrap) {
-            efx_meshdata_destroy(md);
-            return efx_api_generic_error(ctx, "out of memory");
-        }
-        wrap->md = md;
-        wrap->alive = 1;
-        JSValue obj = JS_NewObjectClass(ctx, meshdata_class_id);
-        JS_SetOpaque(obj, wrap);
-        return obj;
+        return JS_EXCEPTION;
     }
 
-fail:
-    md_owned_free(&own);
-    return JS_EXCEPTION;
+    return build_meshdata(ctx, src, count, mats, mat_has, &own);
 }
 
 

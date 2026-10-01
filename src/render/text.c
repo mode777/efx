@@ -279,37 +279,17 @@ static void free_font(efx_text_font *f) {
     free(f);
 }
 
-efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
-                                    const efx_font_opts *opts, int *err) {
-    if (err) *err = EFX_TEXT_OK;
-    if (!fd || !fd->alive || !opts) {
-        if (err) *err = EFX_TEXT_ERR_HANDLE;
-        return NULL;
-    }
-    if (!(opts->size > 0.0f)) {
-        if (err) *err = EFX_TEXT_ERR_RANGE;
-        return NULL;
-    }
-    if (opts->padding < 0) {
-        if (err) *err = EFX_TEXT_ERR_RANGE;
-        return NULL;
-    }
-    if (opts->effects.has_outline && !(opts->effects.outline_width > 0.0f)) {
-        if (err) *err = EFX_TEXT_ERR_RANGE;
-        return NULL;
-    }
-    if (opts->effects.has_shadow && !(opts->effects.shadow_blur > 0.0f)) {
-        if (err) *err = EFX_TEXT_ERR_RANGE;
-        return NULL;
-    }
-
+/* resolve the requested codepoint set (explicit list deduped + sorted, or the
+ * default printable set); returns 0 on allocation failure */
+static int resolve_codepoints(const efx_font_opts *opts, uint32_t **out_cps,
+                              int *out_ncp, int *err) {
     uint32_t *cps = NULL;
     int ncp = 0;
     if (opts->codepoints && opts->codepoint_count > 0) {
         cps = malloc((size_t)opts->codepoint_count * sizeof(uint32_t));
         if (!cps) {
             if (err) *err = EFX_TEXT_ERR_NOMEM;
-            return NULL;
+            return 0;
         }
         memcpy(cps, opts->codepoints,
                (size_t)opts->codepoint_count * sizeof(uint32_t));
@@ -324,56 +304,21 @@ efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
         ncp = efx_text_default_codepoints(&cps);
         if (ncp < 0) {
             if (err) *err = EFX_TEXT_ERR_NOMEM;
-            return NULL;
+            return 0;
         }
     }
+    *out_cps = cps;
+    *out_ncp = ncp;
+    return 1;
+}
 
-    efx_text_font *f = calloc(1, sizeof(*f));
-    if (!f) {
-        free(cps);
-        if (err) *err = EFX_TEXT_ERR_NOMEM;
-        return NULL;
-    }
-    f->size = opts->size;
-    f->fscale = stbtt_ScaleForPixelHeight(&fd->info, opts->size);
-    int ascent_u = 0, descent_u = 0, linegap_u = 0;
-    stbtt_GetFontVMetrics(&fd->info, &ascent_u, &descent_u, &linegap_u);
-    f->ascent = (float)ascent_u * f->fscale;
-    f->descent = (float)descent_u * f->fscale;
-    f->line_height = (float)(ascent_u - descent_u + linegap_u) * f->fscale;
-    if (f->line_height <= 0.0f) f->line_height = opts->size;
-    f->has_outline = opts->effects.has_outline;
-    f->has_shadow = opts->effects.has_shadow;
-    f->shadow_offset[0] = opts->effects.shadow_offset[0];
-    f->shadow_offset[1] = opts->effects.shadow_offset[1];
-
-    f->glyphs = calloc((size_t)(ncp > 0 ? ncp : 1), sizeof(efx_glyph));
-    if (!f->glyphs) {
-        free(cps);
-        free_font(f);
-        if (err) *err = EFX_TEXT_ERR_NOMEM;
-        return NULL;
-    }
-    int item_cap = (ncp > 0 ? ncp : 1) * 3;
-    bake_item *items = calloc((size_t)item_cap, sizeof(bake_item));
-    if (!items) {
-        free(cps);
-        free_font(f);
-        if (err) *err = EFX_TEXT_ERR_NOMEM;
-        return NULL;
-    }
+/* rasterize each codepoint's fill bitmap (plus baked outline/shadow variants)
+ * into `items`; sets f->glyph_count and returns the item count */
+static void rasterize_glyphs(const efx_text_fontdata *fd,
+                             const efx_font_opts *opts, const uint32_t *cps,
+                             int ncp, efx_text_font *f, bake_item *items,
+                             int *out_nitems) {
     int nitems = 0;
-    int kern_cap = 64;
-    f->kerns = malloc((size_t)kern_cap * sizeof(efx_kern_pair));
-    if (!f->kerns) {
-        free(items);
-        free(cps);
-        free_font(f);
-        if (err) *err = EFX_TEXT_ERR_NOMEM;
-        return NULL;
-    }
-    f->kern_count = 0;
-
     int glyph_count = 0;
     for (int i = 0; i < ncp; i++) {
         uint32_t cp = cps[i];
@@ -444,17 +389,13 @@ efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
         }
         glyph_count++;
     }
-
     f->glyph_count = glyph_count;
-    free(cps);
+    *out_nitems = nitems;
+}
 
-    if (nitems == 0) {
-        free(items);
-        free_font(f);
-        if (err) *err = EFX_TEXT_ERR_ATLAS;
-        return NULL;
-    }
-
+/* build the kerning pair table (best-effort: stops growing on OOM) */
+static void build_kerning(const efx_text_fontdata *fd, efx_text_font *f,
+                          int kern_cap) {
     for (int a = 0; a < f->glyph_count; a++) {
         for (int b = 0; b < f->glyph_count; b++) {
             int k = stbtt_GetCodepointKernAdvance(&fd->info,
@@ -475,17 +416,18 @@ efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
             }
         }
     }
+}
 
+/* find the smallest power-of-two atlas that packs every item; returns 0 on
+ * OOM or pack failure (rects freed internally on failure) */
+static int pack_atlas(const bake_item *items, int nitems, int pad,
+                      stbrp_rect **out_rects, int *out_atlas_size, int *err) {
     int atlas_size = 0;
     stbrp_rect *rects = malloc((size_t)nitems * sizeof(stbrp_rect));
     if (!rects) {
-        for (int k = 0; k < nitems; k++) free(items[k].bits);
-        free(items);
-        free_font(f);
         if (err) *err = EFX_TEXT_ERR_NOMEM;
-        return NULL;
+        return 0;
     }
-    int pad = opts->padding;
     for (int size = EFX_TEXT_ATLAS_MIN; size <= EFX_TEXT_ATLAS_MAX; size *= 2) {
         stbrp_node *nodes = malloc((size_t)size * sizeof(stbrp_node));
         if (!nodes) break;
@@ -505,22 +447,27 @@ efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
     }
     if (atlas_size == 0) {
         free(rects);
-        for (int k = 0; k < nitems; k++) free(items[k].bits);
-        free(items);
-        free_font(f);
         if (err) *err = EFX_TEXT_ERR_ATLAS;
-        return NULL;
+        return 0;
     }
+    *out_rects = rects;
+    *out_atlas_size = atlas_size;
+    return 1;
+}
 
+/* blit the packed items into an RGBA8 atlas and upload it; consumes `items`
+ * and `rects`; returns 0 on OOM (font cleanup is the caller's job) */
+static int build_atlas(efx_text_font *f, bake_item *items, int nitems,
+                       stbrp_rect *rects, int atlas_size, int pad, int filter,
+                       int *err) {
     size_t atlas_bytes = (size_t)atlas_size * (size_t)atlas_size * 4u;
     uint8_t *atlas = calloc(atlas_bytes, 1);
     if (!atlas) {
         free(rects);
         for (int k = 0; k < nitems; k++) free(items[k].bits);
         free(items);
-        free_font(f);
         if (err) *err = EFX_TEXT_ERR_NOMEM;
-        return NULL;
+        return 0;
     }
 
     for (int k = 0; k < nitems; k++) {
@@ -549,11 +496,115 @@ efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
     free(rects);
 
     f->texture = efx_render_texture_create(atlas_size, atlas_size, atlas,
-                                           EFX_TEX_WRAP_CLAMP, opts->filter, 0);
+                                           EFX_TEX_WRAP_CLAMP, filter, 0);
     free(atlas);
     if (!f->texture) {
+        if (err) *err = EFX_TEXT_ERR_NOMEM;
+        return 0;
+    }
+    return 1;
+}
+
+efx_text_font *efx_text_font_create(const efx_text_fontdata *fd,
+                                    const efx_font_opts *opts, int *err) {
+    if (err) *err = EFX_TEXT_OK;
+    if (!fd || !fd->alive || !opts) {
+        if (err) *err = EFX_TEXT_ERR_HANDLE;
+        return NULL;
+    }
+    if (!(opts->size > 0.0f)) {
+        if (err) *err = EFX_TEXT_ERR_RANGE;
+        return NULL;
+    }
+    if (opts->padding < 0) {
+        if (err) *err = EFX_TEXT_ERR_RANGE;
+        return NULL;
+    }
+    if (opts->effects.has_outline && !(opts->effects.outline_width > 0.0f)) {
+        if (err) *err = EFX_TEXT_ERR_RANGE;
+        return NULL;
+    }
+    if (opts->effects.has_shadow && !(opts->effects.shadow_blur > 0.0f)) {
+        if (err) *err = EFX_TEXT_ERR_RANGE;
+        return NULL;
+    }
+
+    uint32_t *cps = NULL;
+    int ncp = 0;
+    if (!resolve_codepoints(opts, &cps, &ncp, err)) {
+        return NULL;
+    }
+
+    efx_text_font *f = calloc(1, sizeof(*f));
+    if (!f) {
+        free(cps);
+        if (err) *err = EFX_TEXT_ERR_NOMEM;
+        return NULL;
+    }
+    f->size = opts->size;
+    f->fscale = stbtt_ScaleForPixelHeight(&fd->info, opts->size);
+    int ascent_u = 0, descent_u = 0, linegap_u = 0;
+    stbtt_GetFontVMetrics(&fd->info, &ascent_u, &descent_u, &linegap_u);
+    f->ascent = (float)ascent_u * f->fscale;
+    f->descent = (float)descent_u * f->fscale;
+    f->line_height = (float)(ascent_u - descent_u + linegap_u) * f->fscale;
+    if (f->line_height <= 0.0f) f->line_height = opts->size;
+    f->has_outline = opts->effects.has_outline;
+    f->has_shadow = opts->effects.has_shadow;
+    f->shadow_offset[0] = opts->effects.shadow_offset[0];
+    f->shadow_offset[1] = opts->effects.shadow_offset[1];
+
+    f->glyphs = calloc((size_t)(ncp > 0 ? ncp : 1), sizeof(efx_glyph));
+    if (!f->glyphs) {
+        free(cps);
         free_font(f);
         if (err) *err = EFX_TEXT_ERR_NOMEM;
+        return NULL;
+    }
+    int item_cap = (ncp > 0 ? ncp : 1) * 3;
+    bake_item *items = calloc((size_t)item_cap, sizeof(bake_item));
+    if (!items) {
+        free(cps);
+        free_font(f);
+        if (err) *err = EFX_TEXT_ERR_NOMEM;
+        return NULL;
+    }
+    int kern_cap = 64;
+    f->kerns = malloc((size_t)kern_cap * sizeof(efx_kern_pair));
+    if (!f->kerns) {
+        free(items);
+        free(cps);
+        free_font(f);
+        if (err) *err = EFX_TEXT_ERR_NOMEM;
+        return NULL;
+    }
+    f->kern_count = 0;
+
+    int nitems = 0;
+    rasterize_glyphs(fd, opts, cps, ncp, f, items, &nitems);
+    free(cps);
+
+    if (nitems == 0) {
+        free(items);
+        free_font(f);
+        if (err) *err = EFX_TEXT_ERR_ATLAS;
+        return NULL;
+    }
+
+    build_kerning(fd, f, kern_cap);
+
+    stbrp_rect *rects = NULL;
+    int atlas_size = 0;
+    if (!pack_atlas(items, nitems, opts->padding, &rects, &atlas_size, err)) {
+        for (int k = 0; k < nitems; k++) free(items[k].bits);
+        free(items);
+        free_font(f);
+        return NULL;
+    }
+
+    if (!build_atlas(f, items, nitems, rects, atlas_size, opts->padding,
+                     opts->filter, err)) {
+        free_font(f);
         return NULL;
     }
 

@@ -83,6 +83,138 @@ JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val,
 }
 
 
+typedef struct {
+    float color[4];
+    float rotation;
+    float scale;
+    float src[4];
+    int has_src;
+    float size[2];
+    int has_size;
+    float origin[2];
+    int has_origin;
+} quad_opts;
+
+static void quad_opts_default(quad_opts *q) {
+    memset(q, 0, sizeof(*q));
+    q->color[0] = q->color[1] = q->color[2] = q->color[3] = 1.0f;
+    q->scale = 1.0f;
+}
+
+static int check_quad_opts_fields(JSContext *ctx, JSValueConst opts) {
+    static const char *known[] = {"color", "rotation", "scale", "sourceRect", "size", "origin"};
+    JSPropertyEnum *props = NULL;
+    uint32_t nprops = 0;
+    if (JS_GetOwnPropertyNames(ctx, &props, &nprops, opts,
+                               JS_GPN_STRING_MASK) == 0) {
+        for (uint32_t i = 0; i < nprops; i++) {
+            const char *k = JS_AtomToCString(ctx, props[i].atom);
+            int ok = 0;
+            for (int j = 0; j < 6; j++) {
+                if (k && strcmp(k, known[j]) == 0) {
+                    ok = 1;
+                    break;
+                }
+            }
+            if (k) {
+                JS_FreeCString(ctx, k);
+            }
+            JS_FreeAtom(ctx, props[i].atom);
+            if (!ok) {
+                for (uint32_t j = i + 1; j < nprops; j++) {
+                    JS_FreeAtom(ctx, props[j].atom);
+                }
+                js_free(ctx, props);
+                JS_ThrowTypeError(ctx, "unknown drawQuad option");
+                return -1;
+            }
+        }
+        js_free(ctx, props);
+    }
+    return 0;
+}
+
+/* parse the drawQuad opts bag into `q` (first failing check wins) */
+static int read_quad_opts(JSContext *ctx, uint64_t tex_handle,
+                          JSValueConst opts, quad_opts *q) {
+    quad_opts_default(q);
+    if (check_quad_opts_fields(ctx, opts) != 0) {
+        return -1;
+    }
+
+    JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
+    if (!JS_IsUndefined(cv)) {
+        if (efx_api_get_float_array(ctx, cv, q->color, 4) != 0) {
+            JS_FreeValue(ctx, cv);
+            return -1;
+        }
+    }
+    JS_FreeValue(ctx, cv);
+
+    JSValue rv = JS_GetPropertyStr(ctx, opts, "rotation");
+    if (!JS_IsUndefined(rv)) {
+        double d;
+        if (JS_ToFloat64(ctx, &d, rv) < 0 || !isfinite(d)) {
+            JS_FreeValue(ctx, rv);
+            efx_api_type_error(ctx, "rotation must be a finite number");
+            return -1;
+        }
+        q->rotation = (float)d;
+    }
+    JS_FreeValue(ctx, rv);
+
+    JSValue sv = JS_GetPropertyStr(ctx, opts, "scale");
+    if (!JS_IsUndefined(sv)) {
+        double d;
+        if (JS_ToFloat64(ctx, &d, sv) < 0 || !isfinite(d)) {
+            JS_FreeValue(ctx, sv);
+            efx_api_type_error(ctx, "scale must be a finite number");
+            return -1;
+        }
+        if (d <= 0) {
+            JS_FreeValue(ctx, sv);
+            efx_api_range_error(ctx, "scale must be > 0");
+            return -1;
+        }
+        q->scale = (float)d;
+    }
+    JS_FreeValue(ctx, sv);
+
+    JSValue zv = JS_GetPropertyStr(ctx, opts, "size");
+    if (!JS_IsUndefined(zv)) {
+        if (efx_api_get_float_array(ctx, zv, q->size, 2) != 0) {
+            JS_FreeValue(ctx, zv);
+            return -1;
+        }
+        if (q->size[0] <= 0 || q->size[1] <= 0) {
+            JS_FreeValue(ctx, zv);
+            efx_api_range_error(ctx, "size entries must be > 0");
+            return -1;
+        }
+        q->has_size = 1;
+    }
+    JS_FreeValue(ctx, zv);
+
+    JSValue ov = JS_GetPropertyStr(ctx, opts, "origin");
+    if (!JS_IsUndefined(ov)) {
+        if (efx_api_get_float_array(ctx, ov, q->origin, 2) != 0) {
+            JS_FreeValue(ctx, ov);
+            return -1;
+        }
+        q->has_origin = 1;
+    }
+    JS_FreeValue(ctx, ov);
+
+    JSValue srcv = JS_GetPropertyStr(ctx, opts, "sourceRect");
+    if (!JS_IsUndefined(srcv)) {
+        if (efx_api_read_source_rect(ctx, tex_handle, srcv, q->src,
+                                     &q->has_src) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 3) {
@@ -101,161 +233,39 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
         return JS_EXCEPTION;
     }
 
-    float color[4] = {1, 1, 1, 1};
-    float rotation = 0, scale = 1;
-    float src[4] = {0, 0, 0, 0};
-    int has_src = 0;
-    float size[2] = {0, 0};
-    int has_size = 0;
-    float origin[2] = {0, 0};
-    int has_origin = 0;
-
+    quad_opts q;
     if (argc >= 4 && !JS_IsUndefined(argv[3])) {
         if (!JS_IsObject(argv[3])) {
             return efx_api_type_error(ctx, "opts must be an object");
         }
-        JSValueConst opts = argv[3];
-        static const char *known[] = {"color", "rotation", "scale", "sourceRect", "size", "origin"};
-        JSPropertyEnum *props = NULL;
-        uint32_t nprops = 0;
-        if (JS_GetOwnPropertyNames(ctx, &props, &nprops, opts,
-                                   JS_GPN_STRING_MASK) == 0) {
-            for (uint32_t i = 0; i < nprops; i++) {
-                const char *k = JS_AtomToCString(ctx, props[i].atom);
-                int ok = 0;
-                for (int j = 0; j < 6; j++) {
-                    if (k && strcmp(k, known[j]) == 0) {
-                        ok = 1;
-                        break;
-                    }
-                }
-                if (k) {
-                    JS_FreeCString(ctx, k);
-                }
-                JS_FreeAtom(ctx, props[i].atom);
-                if (!ok) {
-                    for (uint32_t j = i + 1; j < nprops; j++) {
-                        JS_FreeAtom(ctx, props[j].atom);
-                    }
-                    js_free(ctx, props);
-                    return JS_ThrowTypeError(ctx, "unknown drawQuad option");
-                }
-            }
-            js_free(ctx, props);
+        if (read_quad_opts(ctx, tex_handle, argv[3], &q) != 0) {
+            return JS_EXCEPTION;
         }
-
-        JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
-        if (!JS_IsUndefined(cv)) {
-            if (efx_api_get_float_array(ctx, cv, color, 4) != 0) {
-                JS_FreeValue(ctx, cv);
-                return JS_EXCEPTION;
-            }
-        }
-        JS_FreeValue(ctx, cv);
-
-        JSValue rv = JS_GetPropertyStr(ctx, opts, "rotation");
-        if (!JS_IsUndefined(rv)) {
-            double d;
-            if (JS_ToFloat64(ctx, &d, rv) < 0 || !isfinite(d)) {
-                JS_FreeValue(ctx, rv);
-                return efx_api_type_error(ctx, "rotation must be a finite number");
-            }
-            rotation = (float)d;
-        }
-        JS_FreeValue(ctx, rv);
-
-        JSValue sv = JS_GetPropertyStr(ctx, opts, "scale");
-        if (!JS_IsUndefined(sv)) {
-            double d;
-            if (JS_ToFloat64(ctx, &d, sv) < 0 || !isfinite(d)) {
-                JS_FreeValue(ctx, sv);
-                return efx_api_type_error(ctx, "scale must be a finite number");
-            }
-            if (d <= 0) {
-                JS_FreeValue(ctx, sv);
-                return efx_api_range_error(ctx, "scale must be > 0");
-            }
-            scale = (float)d;
-        }
-        JS_FreeValue(ctx, sv);
-
-        JSValue zv = JS_GetPropertyStr(ctx, opts, "size");
-        if (!JS_IsUndefined(zv)) {
-            if (efx_api_get_float_array(ctx, zv, size, 2) != 0) {
-                JS_FreeValue(ctx, zv);
-                return JS_EXCEPTION;
-            }
-            if (size[0] <= 0 || size[1] <= 0) {
-                JS_FreeValue(ctx, zv);
-                return efx_api_range_error(ctx, "size entries must be > 0");
-            }
-            has_size = 1;
-        }
-        JS_FreeValue(ctx, zv);
-
-        JSValue ov = JS_GetPropertyStr(ctx, opts, "origin");
-        if (!JS_IsUndefined(ov)) {
-            if (efx_api_get_float_array(ctx, ov, origin, 2) != 0) {
-                JS_FreeValue(ctx, ov);
-                return JS_EXCEPTION;
-            }
-            has_origin = 1;
-        }
-        JS_FreeValue(ctx, ov);
-
-        JSValue srcv = JS_GetPropertyStr(ctx, opts, "sourceRect");
-        if (!JS_IsUndefined(srcv)) {
-            if (!JS_IsObject(srcv)) {
-                JS_FreeValue(ctx, srcv);
-                return efx_api_type_error(ctx, "sourceRect must be an object");
-            }
-            static const char *skeys[] = {"x", "y", "w", "h"};
-            for (int i = 0; i < 4; i++) {
-                JSValue f = JS_GetPropertyStr(ctx, srcv, skeys[i]);
-                double d;
-                if (JS_ToFloat64(ctx, &d, f) < 0 || !isfinite(d)) {
-                    JS_FreeValue(ctx, f);
-                    JS_FreeValue(ctx, srcv);
-                    return efx_api_type_error(ctx, "sourceRect fields must be finite numbers");
-                }
-                JS_FreeValue(ctx, f);
-                src[i] = (float)d;
-            }
-            JS_FreeValue(ctx, srcv);
-            if (src[2] <= 0 || src[3] <= 0) {
-                return efx_api_range_error(ctx, "sourceRect extent must be > 0");
-            }
-            int tw = 0, th = 0;
-            efx_render_sample_size(tex_handle, &tw, &th);
-            if (src[0] < 0 || src[1] < 0 ||
-                src[0] + src[2] > (float)tw || src[1] + src[3] > (float)th) {
-                return efx_api_range_error(ctx, "sourceRect outside texture bounds");
-            }
-            has_src = 1;
-        }
+    } else {
+        quad_opts_default(&q);
     }
 
     /* size derivation: explicit size -> sourceRect extent -> texture
      * pixels (a render target's extent plays the texture's role, F5a) */
     float w, h;
-    if (has_size) {
-        w = size[0];
-        h = size[1];
-    } else if (has_src) {
-        w = src[2];
-        h = src[3];
+    if (q.has_size) {
+        w = q.size[0];
+        h = q.size[1];
+    } else if (q.has_src) {
+        w = q.src[2];
+        h = q.src[3];
     } else {
         int tw = 0, th = 0;
         efx_render_sample_size(tex_handle, &tw, &th);
         w = (float)tw;
         h = (float)th;
     }
-    float origin_x = has_origin ? origin[0] : w * 0.5f;
-    float origin_y = has_origin ? origin[1] : h * 0.5f;
+    float origin_x = q.has_origin ? q.origin[0] : w * 0.5f;
+    float origin_y = q.has_origin ? q.origin[1] : h * 0.5f;
 
     int rc = efx_render_quad((float)x, (float)y, w, h,
-                             tex_handle, color, rotation, scale, src, has_src,
-                             origin_x, origin_y);
+                             tex_handle, q.color, q.rotation, q.scale, q.src,
+                             q.has_src, origin_x, origin_y);
     if (rc == EFX_RENDER_ERR_BUDGET) {
         return efx_api_range_error(ctx, "display list budget exceeded");
     }
