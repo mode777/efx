@@ -264,6 +264,142 @@
             }
             return new EfxFont(id);
         },
+        checkMesh: function (v) {
+            liveMesh(v);
+        },
+        createBody: function (dynamic, sensor, t, r, hx, hy, hz, height,
+                              px, py, pz, mass, friction, restitution,
+                              layer, mask, mesh) {
+            var handle;
+            if (t === 3) {
+                handle = bridge['_efx_bridge_physics_create_static_mesh'](
+                    mesh.__handle, px, py, pz, sensor, friction, restitution,
+                    layer, mask);
+            } else {
+                handle = bridge['_efx_bridge_physics_create_body'](
+                    dynamic, sensor, t, r, hx, hy, hz, height, px, py, pz,
+                    mass, friction, restitution, layer, mask);
+            }
+            if (!handle) {
+                throw new Error('failed to create body');
+            }
+            var b = new EfxBody(handle);
+            physBodies.set(handle, b);
+            return b;
+        },
+        createStaticMesh: function (mesh, px, py, pz, sensor, friction,
+                                    restitution, layer, mask) {
+            var handle = bridge['_efx_bridge_physics_create_static_mesh'](
+                mesh.__handle, px, py, pz, sensor, friction, restitution,
+                layer, mask);
+            if (!handle) {
+                throw new Error('failed to create mesh collider');
+            }
+            var b = new EfxBody(handle);
+            physBodies.set(handle, b);
+            return b;
+        },
+        createCharacter: function (radius, height, px, py, pz, ux, uy, uz,
+                                   floorMaxAngle, snap, step, safe,
+                                   maxSlides, layer, mask) {
+            var handle = bridge['_efx_bridge_physics_create_character'](
+                radius, height, px, py, pz, ux, uy, uz, floorMaxAngle, snap,
+                step, safe, maxSlides, layer, mask);
+            if (!handle) {
+                throw new Error('failed to create character');
+            }
+            var c = new EfxCharacter(handle);
+            physCharacters.set(handle, c);
+            return c;
+        },
+        physicsStep: function (dt) {
+            bridge['_efx_bridge_physics_step'](dt);
+        },
+        raycast: function (ox, oy, oz, dx, dy, dz, maxd, mask, sensors, all) {
+            var count = bridge['_efx_bridge_physics_raycast'](
+                ox, oy, oz, dx, dy, dz, maxd, mask, sensors ? 1 : 0,
+                all ? 1 : 0, 0);
+            if (count <= 0) {
+                return all ? [] : null;
+            }
+            var ptr = bridge['_malloc'](count * 10 * 8);
+            var base = ptr >> 3;
+            bridge['_efx_bridge_physics_raycast'](
+                ox, oy, oz, dx, dy, dz, maxd, mask, sensors ? 1 : 0,
+                all ? 1 : 0, ptr);
+            var out = [];
+            for (var i = 0; i < count; i++) {
+                var b0 = base + i * 10;
+                var body = null;
+                if (HEAPF64[b0 + 8]) {
+                    body = physCharacters.get(HEAPF64[b0 + 8]) || null;
+                } else {
+                    body = physBodies.get(HEAPF64[b0 + 7]) || null;
+                }
+                out.push({
+                    point: [HEAPF64[b0], HEAPF64[b0 + 1], HEAPF64[b0 + 2]],
+                    normal: [HEAPF64[b0 + 3], HEAPF64[b0 + 4], HEAPF64[b0 + 5]],
+                    distance: HEAPF64[b0 + 6], body: body,
+                });
+            }
+            bridge['_free'](ptr);
+            return all ? out : out[0];
+        },
+        overlap: function (t, r, hx, hy, hz, height, mesh, px, py, pz, mask) {
+            var meshHandle = mesh ? mesh.__handle : 0;
+            var count = bridge['_efx_bridge_physics_overlap'](
+                t, r, hx, hy, hz, height, meshHandle, px, py, pz, mask, 0);
+            if (count <= 0) {
+                return [];
+            }
+            var ptr = bridge['_malloc'](count * 3 * 8);
+            var base = ptr >> 3;
+            bridge['_efx_bridge_physics_overlap'](
+                t, r, hx, hy, hz, height, meshHandle, px, py, pz, mask, ptr);
+            var out = [];
+            for (var i = 0; i < count; i++) {
+                var b0 = base + i * 3;
+                if (HEAPF64[b0 + 1]) {
+                    var ch = physCharacters.get(HEAPF64[b0 + 1]);
+                    if (ch) {
+                        out.push(ch);
+                    }
+                } else {
+                    var bd = physBodies.get(HEAPF64[b0]);
+                    if (bd) {
+                        out.push(bd);
+                    }
+                }
+            }
+            bridge['_free'](ptr);
+            return out;
+        },
+        shapeCast: function (t, r, hx, hy, hz, height, mesh, fx, fy, fz,
+                             mx, my, mz, mask, sensors) {
+            var meshHandle = mesh ? mesh.__handle : 0;
+            var ptr = bridge['_malloc'](10 * 8);
+            var base = ptr >> 3;
+            var rc = bridge['_efx_bridge_physics_shape_cast'](
+                t, r, hx, hy, hz, height, meshHandle, fx, fy, fz, mx, my, mz,
+                mask, sensors ? 1 : 0, ptr);
+            if (!rc) {
+                bridge['_free'](ptr);
+                return null;
+            }
+            var body = null;
+            if (HEAPF64[base + 8]) {
+                body = physCharacters.get(HEAPF64[base + 8]) || null;
+            } else {
+                body = physBodies.get(HEAPF64[base + 7]) || null;
+            }
+            var out = {
+                point: [HEAPF64[base], HEAPF64[base + 1], HEAPF64[base + 2]],
+                normal: [HEAPF64[base + 3], HEAPF64[base + 4], HEAPF64[base + 5]],
+                fraction: HEAPF64[base + 6], body: body,
+            };
+            bridge['_free'](ptr);
+            return out;
+        },
     };
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
     st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, natives);

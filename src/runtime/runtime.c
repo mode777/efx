@@ -285,6 +285,27 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JSValue font = JS_NewCFunction(rt->ctx, efx_js_create_font_wire,
                                    "createFont", 11);
     JS_SetPropertyStr(rt->ctx, natives, "createFont", font);
+    JSValue n;
+    n = JS_NewCFunction(rt->ctx, efx_js_check_mesh, "checkMesh", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkMesh", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_create_body_wire,
+                        "createBody", 17);
+    JS_SetPropertyStr(rt->ctx, natives, "createBody", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_create_static_mesh_wire,
+                        "createStaticMesh", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "createStaticMesh", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_create_character_wire,
+                        "createCharacter", 15);
+    JS_SetPropertyStr(rt->ctx, natives, "createCharacter", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_step_wire, "physicsStep", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "physicsStep", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_raycast_wire, "raycast", 10);
+    JS_SetPropertyStr(rt->ctx, natives, "raycast", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_overlap_wire, "overlap", 11);
+    JS_SetPropertyStr(rt->ctx, natives, "overlap", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_shape_cast_wire,
+                        "shapeCast", 15);
+    JS_SetPropertyStr(rt->ctx, natives, "shapeCast", n);
     return natives;
 }
 

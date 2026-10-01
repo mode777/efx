@@ -1102,6 +1102,108 @@ function __efxCreateFontOpts(natives, fontData, opts) {
                               hasShadow, shadowBlur, offX, offY);
 }
 
+/* ------------------------------------------ physics (F12)
+ *
+ * Shape, body, character, static-mesh and query option validation lives once
+ * here (ADR 0049); shapes marshal to the flat (type, radius, hx, hy, hz,
+ * height, mesh) form the bindings' bridges already use. Numbers are strict
+ * (D6); messages are the canonical texts of ADR 0049's table. */
+
+function __efxPhysNumber(v, what) {
+    if (typeof v !== 'number' || !isFinite(v)) {
+        throw new TypeError(what + ' must be a finite number');
+    }
+    return v;
+}
+
+function __efxPhysMask(v, what) {
+    if (typeof v !== 'number' || !isFinite(v)) {
+        throw new TypeError(what + ' must be a finite number');
+    }
+    if (Math.floor(v) !== v || v < 0 || v > 4294967295) {
+        throw new RangeError('layer/mask must be a 32-bit unsigned integer');
+    }
+    return v;
+}
+
+function __efxPhysVec3(v, what) {
+    return __efxFloatArray(v, 3);
+}
+
+function __efxPhysShape(v, natives) {
+    if (!__efxIsObject(v) || Array.isArray(v)) {
+        throw new TypeError('shape must be an options object');
+    }
+    if (v['type'] === 'sphere') {
+        __efxCheckKnown(v, ['type', 'radius'], 'shape', true);
+        if (typeof v['radius'] !== 'number') {
+            throw new TypeError('sphere shapes require a radius');
+        }
+        if (!(v['radius'] > 0)) {
+            throw new RangeError('radius must be positive');
+        }
+        return { t: 0, r: v['radius'], hx: 0, hy: 0, hz: 0, height: 0,
+                 mesh: null };
+    }
+    if (v['type'] === 'box') {
+        __efxCheckKnown(v, ['type', 'size'], 'shape', true);
+        var s = __efxFloatArray(v['size'], 3);
+        if (!(s[0] > 0 && s[1] > 0 && s[2] > 0)) {
+            throw new RangeError('box size components must be positive');
+        }
+        return { t: 1, r: 0, hx: s[0], hy: s[1], hz: s[2], height: 0,
+                 mesh: null };
+    }
+    if (v['type'] === 'capsule') {
+        __efxCheckKnown(v, ['type', 'radius', 'height'], 'shape', true);
+        if (typeof v['radius'] !== 'number' || typeof v['height'] !== 'number') {
+            throw new TypeError('capsule shapes require radius and height');
+        }
+        if (!(v['radius'] > 0)) {
+            throw new RangeError('radius must be positive');
+        }
+        if (!(v['height'] >= 2 * v['radius'])) {
+            throw new RangeError('capsule height must be at least 2 * radius');
+        }
+        return { t: 2, r: v['radius'], hx: 0, hy: 0, hz: 0, height: v['height'],
+                 mesh: null };
+    }
+    if (v['type'] === 'mesh') {
+        __efxCheckKnown(v, ['type', 'mesh'], 'shape', true);
+        if (v['mesh'] === undefined) {
+            throw new TypeError('expected a Mesh');
+        }
+        natives.checkMesh(v['mesh']);
+        return { t: 3, r: 0, hx: 0, hy: 0, hz: 0, height: 0, mesh: v['mesh'] };
+    }
+    throw new TypeError('unknown shape type');
+}
+
+function __efxPhysCommonOpts(opts) {
+    var sensor = !!opts['sensor'];
+    var friction = opts['friction'] === undefined
+        ? 0.5
+        : __efxPhysNumber(opts['friction'], 'friction');
+    var restitution = opts['restitution'] === undefined
+        ? 0
+        : __efxPhysNumber(opts['restitution'], 'restitution');
+    if (friction < 0) {
+        throw new RangeError('friction must not be negative');
+    }
+    if (restitution < 0 || restitution > 1) {
+        throw new RangeError('restitution must be in [0, 1]');
+    }
+    var position = opts['position'] === undefined
+        ? [0, 0, 0]
+        : __efxPhysVec3(opts['position'], 'position');
+    var layer = opts['layer'] === undefined ? 4294967295
+                                            : __efxPhysMask(opts['layer'], 'layer');
+    var mask = opts['mask'] === undefined ? 4294967295
+                                          : __efxPhysMask(opts['mask'], 'mask');
+    return { sensor: sensor, friction: friction, restitution: restitution,
+             position: position, layer: layer, mask: mask };
+}
+
 function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -1130,6 +1232,179 @@ function __efxPreludeInstall(efx, natives) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.physicsStep) {
+        var phys = efx.physics;
+        phys.step = function (dt) {
+            if (arguments.length < 1 || typeof dt !== 'number' || !isFinite(dt)) {
+                throw new TypeError('dt must be a finite number');
+            }
+            natives.physicsStep(dt);
+        };
+        phys.createBody = function (opts) {
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('createBody requires an options object');
+            }
+            __efxCheckKnown(opts,
+                ['dynamic', 'sensor', 'shape', 'position', 'mass',
+                 'friction', 'restitution', 'layer', 'mask'],
+                'createBody', true);
+            if (opts['shape'] === undefined) {
+                throw new TypeError('shape must be an options object');
+            }
+            var sh = __efxPhysShape(opts['shape'], natives);
+            var dynamic = !!opts['dynamic'];
+            var mass = opts['mass'] === undefined
+                ? 1
+                : __efxPhysNumber(opts['mass'], 'mass');
+            if (dynamic && !(mass > 0)) {
+                throw new RangeError('dynamic bodies require a positive mass');
+            }
+            var c = __efxPhysCommonOpts(opts);
+            return natives.createBody(dynamic, c.sensor ? 1 : 0, sh.t, sh.r,
+                sh.hx, sh.hy, sh.hz, sh.height, c.position[0], c.position[1],
+                c.position[2], mass, c.friction, c.restitution, c.layer,
+                c.mask, sh.mesh);
+        };
+        phys.createStaticMesh = function (mesh, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('createStaticMesh requires a Mesh');
+            }
+            natives.checkMesh(mesh);
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('createStaticMesh options must be an object');
+            }
+            __efxCheckKnown(opts,
+                ['position', 'sensor', 'friction', 'restitution', 'layer',
+                 'mask'],
+                'createStaticMesh', true);
+            var c = __efxPhysCommonOpts(opts);
+            return natives.createStaticMesh(mesh, c.position[0],
+                c.position[1], c.position[2], c.sensor ? 1 : 0, c.friction,
+                c.restitution, c.layer, c.mask);
+        };
+        phys.createCharacter = function (opts) {
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('createCharacter requires an options object');
+            }
+            __efxCheckKnown(opts,
+                ['radius', 'height', 'position', 'up', 'floorMaxAngle',
+                 'floorSnapLength', 'stepHeight', 'maxSlides', 'safeMargin',
+                 'layer', 'mask'],
+                'createCharacter', true);
+            if (typeof opts['radius'] !== 'number' ||
+                typeof opts['height'] !== 'number') {
+                throw new TypeError('createCharacter requires radius and height');
+            }
+            if (!(opts['radius'] > 0)) {
+                throw new RangeError('radius must be positive');
+            }
+            if (!(opts['height'] >= 2 * opts['radius'])) {
+                throw new RangeError('height must be at least 2 * radius');
+            }
+            var position = opts['position'] === undefined
+                ? [0, 0, 0]
+                : __efxPhysVec3(opts['position'], 'position');
+            var up = opts['up'] === undefined
+                ? [0, 1, 0]
+                : __efxPhysVec3(opts['up'], 'up');
+            if (up[0] === 0 && up[1] === 0 && up[2] === 0) {
+                throw new RangeError('up must be non-zero');
+            }
+            var floorMaxAngle = opts['floorMaxAngle'] === undefined
+                ? 45
+                : __efxPhysNumber(opts['floorMaxAngle'], 'floorMaxAngle');
+            var snap = opts['floorSnapLength'] === undefined
+                ? 0.1
+                : __efxPhysNumber(opts['floorSnapLength'], 'floorSnapLength');
+            var step = opts['stepHeight'] === undefined
+                ? 0.3
+                : __efxPhysNumber(opts['stepHeight'], 'stepHeight');
+            var safe = opts['safeMargin'] === undefined
+                ? 0.001
+                : __efxPhysNumber(opts['safeMargin'], 'safeMargin');
+            var maxSlides = opts['maxSlides'] === undefined
+                ? 6
+                : __efxPhysNumber(opts['maxSlides'], 'maxSlides');
+            if (!(maxSlides >= 1) || Math.floor(maxSlides) !== maxSlides) {
+                throw new RangeError('maxSlides must be a positive integer');
+            }
+            if (snap < 0) {
+                throw new RangeError('floorSnapLength must not be negative');
+            }
+            if (step < 0) {
+                throw new RangeError('stepHeight must not be negative');
+            }
+            if (safe < 0) {
+                throw new RangeError('safeMargin must not be negative');
+            }
+            var layer = opts['layer'] === undefined ? 4294967295
+                                                    : __efxPhysMask(opts['layer'], 'layer');
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.createCharacter(opts['radius'], opts['height'],
+                position[0], position[1], position[2], up[0], up[1], up[2],
+                floorMaxAngle, snap, step, safe, maxSlides, layer, mask);
+        };
+        phys.raycast = function (origin, direction, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('raycast requires origin and direction');
+            }
+            var o = __efxPhysVec3(origin, 'origin');
+            var d = __efxPhysVec3(direction, 'direction');
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('raycast options must be an object');
+            }
+            __efxCheckKnown(opts, ['maxDistance', 'mask', 'all', 'sensors'],
+                            'raycast', true);
+            var maxd = opts['maxDistance'];
+            if (typeof maxd !== 'number' || !isFinite(maxd) || !(maxd > 0)) {
+                throw new TypeError('raycast requires a positive maxDistance');
+            }
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.raycast(o[0], o[1], o[2], d[0], d[1], d[2], maxd,
+                                   mask, !!opts['sensors'], !!opts['all']);
+        };
+        phys.overlap = function (shape, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('overlap requires a shape');
+            }
+            var sh = __efxPhysShape(shape, natives);
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('overlap options must be an object');
+            }
+            __efxCheckKnown(opts, ['position', 'mask'], 'overlap', true);
+            var p = opts['position'] === undefined
+                ? [0, 0, 0]
+                : __efxPhysVec3(opts['position'], 'position');
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.overlap(sh.t, sh.r, sh.hx, sh.hy, sh.hz, sh.height,
+                                   sh.mesh, p[0], p[1], p[2], mask);
+        };
+        phys.shapeCast = function (shape, from, motion, opts) {
+            if (arguments.length < 3) {
+                throw new TypeError('shapeCast requires shape, from and motion');
+            }
+            var sh = __efxPhysShape(shape, natives);
+            var f = __efxPhysVec3(from, 'from');
+            var m = __efxPhysVec3(motion, 'motion');
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('shapeCast options must be an object');
+            }
+            __efxCheckKnown(opts, ['mask', 'sensors'], 'shapeCast', true);
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.shapeCast(sh.t, sh.r, sh.hx, sh.hy, sh.hz,
+                                     sh.height, sh.mesh, f[0], f[1], f[2],
+                                     m[0], m[1], m[2], mask,
+                                     !!opts['sensors']);
+        };
+    }
     if (natives && natives.createFont) {
         efx.createFont = function (fontData, opts) {
             if (arguments.length < 1) {

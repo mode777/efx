@@ -178,19 +178,19 @@
 11.sprites-array: TypeError: sprites must be an array
 11.sprite-xy: TypeError: sprite x and y must be finite numbers
 12.createbody-noopts: TypeError: createBody requires an options object
-12.createbody-noshape: KNOWN-DIVERGENCE
+12.createbody-noshape: TypeError: shape must be an options object
 12.createcharacter-noopts: TypeError: createCharacter requires an options object
 12.createcharacter-noradius: TypeError: createCharacter requires radius and height
-12.createstaticmesh-noopts: KNOWN-DIVERGENCE
+12.createstaticmesh-noopts: TypeError: createStaticMesh requires a Mesh
 12.createstaticmesh-nomesh: TypeError: expected a Mesh
 12.applyimpulse-static: TypeError: applyImpulse requires a dynamic body
-12.raycast-noopts: KNOWN-DIVERGENCE
+12.raycast-noopts: TypeError: raycast requires origin and direction
 12.raycast-nomax: TypeError: raycast requires a positive maxDistance
-12.overlap-noopts: KNOWN-DIVERGENCE
-12.shapecast-noopts: KNOWN-DIVERGENCE
-12.step-nodt: KNOWN-DIVERGENCE
+12.overlap-noopts: TypeError: overlap requires a shape
+12.shapecast-noopts: TypeError: shapeCast requires shape, from and motion
+12.step-nodt: TypeError: dt must be a finite number
 12.dt-nonfinite: TypeError: dt must be a finite number
-coercion.phys-number-string: KNOWN-DIVERGENCE
+coercion.phys-number-string: TypeError: friction must be a finite number
 12.createbody-bad-radius: RangeError: radius must be positive
 12.createbody-shape-unknown: TypeError: unknown shape option 'nope'
 12.body-destroyed: TypeError: using a destroyed Body

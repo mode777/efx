@@ -79,6 +79,16 @@ int efx_api_register_input(JSContext *ctx, JSValueConst efx);
 /* F12: attach the efx.physics sub-namespace to the single efx object */
 int efx_api_register_physics(JSContext *ctx, JSValueConst efx);
 
+/* F12 prelude natives (ADR 0049): flat-form physics constructors/queries */
+JSValue efx_js_check_mesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_create_body_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_create_static_mesh_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_create_character_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_step_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_raycast_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_overlap_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_shape_cast_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 /* F12: live Body/Character wrappers are held by the world; release them
  * before the context is freed */
 void efx_api_physics_release(JSContext *ctx);
