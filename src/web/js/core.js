@@ -486,6 +486,10 @@ function __efxEnsureApi() {
                                 return d.set.call(live(this), v);
                             };
                         }
+                        /* configurable: the shared prelude may wrap an
+                         * accessor (ADR 0049, e.g. ParticleSystem
+                         * speedScale writes reaching the option snapshot) */
+                        acc.configurable = true;
                         Object.defineProperty(proto, g, acc);
                     })(k);
                 }
