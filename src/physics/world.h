@@ -130,12 +130,10 @@ struct efx_physics_world {
     int iterations;
 };
 
-/* internal lookups (-1 when dead) */
-int efx_world_body_slot(const efx_physics_world *w, efx_phys_body b);
+/* internal lookup (-1 when dead) */
 int efx_world_char_slot(const efx_physics_world *w, efx_phys_character c);
 
-/* internal free-list slot allocators (shared by world.c and character.c) */
-int efx_world_alloc_body_slot(efx_physics_world *w);
+/* internal free-list slot allocator (shared by world.c and character.c) */
 int efx_world_alloc_char_slot(efx_physics_world *w);
 
 /* layers: both directions must include each other */
@@ -147,10 +145,5 @@ static inline int efx_world_layers_match(uint32_t la, uint32_t ma, uint32_t lb,
 /* solver: applies sequential impulses + Baumgarte correction across pairs.
  * Called by step once contacts are generated. */
 void efx_solver_solve(efx_physics_world *w, float dt);
-
-/* contact generation: fills w->pairs for the current positions and resets
- * each dynamic body's contact report. */
-void efx_world_generate_contacts(efx_physics_world *w);
-void efx_world_report_contacts(efx_physics_world *w);
 
 #endif /* EFX_PHYS_WORLD_H */

@@ -18,15 +18,6 @@ typedef struct efx_narrow_contact {
     float depth;     /* positive penetration */
 } efx_narrow_contact;
 
-/* ---- closest-feature helpers (shared by overlaps and sweeps) ---- */
-
-efx_vec3 efx_narrow_closest_on_aabb(efx_vec3 p, efx_vec3 center, efx_vec3 half);
-efx_vec3 efx_narrow_closest_on_segment(efx_vec3 p, efx_vec3 a, efx_vec3 b);
-int efx_narrow_closest_on_triangle(efx_vec3 p, efx_vec3 v0, efx_vec3 v1,
-                                   efx_vec3 v2, efx_vec3 *out);
-void efx_narrow_closest_segments(efx_vec3 p1, efx_vec3 q1, efx_vec3 p2,
-                                 efx_vec3 q2, efx_vec3 *c1, efx_vec3 *c2);
-
 /* ---- analytic overlaps: return contact count (0 or 1) ---- */
 
 int efx_narrow_sphere_sphere(efx_vec3 pa, float ra, efx_vec3 pb, float rb,
@@ -81,14 +72,5 @@ int efx_narrow_sweep_triangle(const efx_shape *a, efx_vec3 from,
                               efx_vec3 motion, efx_vec3 v0, efx_vec3 v1,
                               efx_vec3 v2, float *t, efx_vec3 *point,
                               efx_vec3 *normal);
-
-/* closest points between shape A at pa and shape B at pb / a triangle.
- * Returns the distance (0 when overlapping); *pa_out/b_out receive the
- * closest points when non-NULL. */
-float efx_narrow_distance(const efx_shape *a, efx_vec3 pa, const efx_shape *b,
-                          efx_vec3 pb, efx_vec3 *pa_out, efx_vec3 *pb_out);
-float efx_narrow_distance_triangle(const efx_shape *a, efx_vec3 pa,
-                                   efx_vec3 v0, efx_vec3 v1, efx_vec3 v2,
-                                   efx_vec3 *pa_out, efx_vec3 *pb_out);
 
 #endif /* EFX_PHYS_NARROW_H */

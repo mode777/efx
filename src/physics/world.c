@@ -33,7 +33,7 @@ static void update_body_aabb(efx_physics_world *w, efx_pbody *b) {
     }
 }
 
-int efx_world_body_slot(const efx_physics_world *w, efx_phys_body id) {
+static int efx_world_body_slot(const efx_physics_world *w, efx_phys_body id) {
     if (id == 0) return -1;
     for (int i = 0; i < w->body_count; i++) {
         if (w->bodies[i].alive && w->bodies[i].id == id) return i;
@@ -128,7 +128,7 @@ int efx_physics_iterations(const efx_physics_world *w) {
 
 /* ------------------------------------------------------------ body factory */
 
-int efx_world_alloc_body_slot(efx_physics_world *w) {
+static int efx_world_alloc_body_slot(efx_physics_world *w) {
     if (w->body_free_count > 0) {
         return w->body_free[--w->body_free_count];
     }
@@ -405,7 +405,9 @@ static void gen_dynamic_vs_mesh(efx_physics_world *w, int dyn_index,
     efx_phys_mesh_query_aabb(m->shape.mesh, local, mesh_tri_cb, &ctx);
 }
 
-void efx_world_generate_contacts(efx_physics_world *w) {
+/* fills w->pairs for the current positions and resets each dynamic body's
+ * contact report */
+static void efx_world_generate_contacts(efx_physics_world *w) {
     w->pair_count = 0;
     for (int i = 0; i < w->body_count; i++) {
         if (w->bodies[i].alive) w->bodies[i].contact_count = 0;
@@ -457,7 +459,7 @@ void efx_world_generate_contacts(efx_physics_world *w) {
     }
 }
 
-void efx_world_report_contacts(efx_physics_world *w) {
+static void efx_world_report_contacts(efx_physics_world *w) {
     for (int k = 0; k < w->pair_count; k++) {
         efx_contact_pair *p = &w->pairs[k];
         if (p->a_type == 0) {

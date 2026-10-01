@@ -19,14 +19,16 @@ static efx_vec3 tri_normal(efx_vec3 v0, efx_vec3 v1, efx_vec3 v2) {
     return efx_v3_scale(n, 1.0f / l);
 }
 
-efx_vec3 efx_narrow_closest_on_aabb(efx_vec3 p, efx_vec3 center, efx_vec3 half) {
+/* ---- closest-feature helpers (shared by overlaps and sweeps) ---- */
+
+static efx_vec3 efx_narrow_closest_on_aabb(efx_vec3 p, efx_vec3 center, efx_vec3 half) {
     efx_vec3 lo = efx_v3_sub(center, half);
     efx_vec3 hi = efx_v3_add(center, half);
     return efx_v3(efx_clampf(p.x, lo.x, hi.x), efx_clampf(p.y, lo.y, hi.y),
                   efx_clampf(p.z, lo.z, hi.z));
 }
 
-efx_vec3 efx_narrow_closest_on_segment(efx_vec3 p, efx_vec3 a, efx_vec3 b) {
+static efx_vec3 efx_narrow_closest_on_segment(efx_vec3 p, efx_vec3 a, efx_vec3 b) {
     efx_vec3 ab = efx_v3_sub(b, a);
     float denom = efx_v3_dot(ab, ab);
     if (denom < EPS) return a;
@@ -35,8 +37,8 @@ efx_vec3 efx_narrow_closest_on_segment(efx_vec3 p, efx_vec3 a, efx_vec3 b) {
     return efx_v3_add(a, efx_v3_scale(ab, t));
 }
 
-int efx_narrow_closest_on_triangle(efx_vec3 p, efx_vec3 v0, efx_vec3 v1,
-                                   efx_vec3 v2, efx_vec3 *out) {
+static int efx_narrow_closest_on_triangle(efx_vec3 p, efx_vec3 v0, efx_vec3 v1,
+                                          efx_vec3 v2, efx_vec3 *out) {
     efx_vec3 ab = efx_v3_sub(v1, v0);
     efx_vec3 ac = efx_v3_sub(v2, v0);
     efx_vec3 ap = efx_v3_sub(p, v0);
@@ -111,8 +113,8 @@ static int point_in_triangle(efx_vec3 p, efx_vec3 v0, efx_vec3 v1,
     return 1;
 }
 
-void efx_narrow_closest_segments(efx_vec3 p1, efx_vec3 q1, efx_vec3 p2,
-                                 efx_vec3 q2, efx_vec3 *c1, efx_vec3 *c2) {
+static void efx_narrow_closest_segments(efx_vec3 p1, efx_vec3 q1, efx_vec3 p2,
+                                        efx_vec3 q2, efx_vec3 *c1, efx_vec3 *c2) {
     efx_vec3 d1 = efx_v3_sub(q1, p1);
     efx_vec3 d2 = efx_v3_sub(q2, p2);
     efx_vec3 r = efx_v3_sub(p1, p2);
@@ -827,8 +829,11 @@ static float shape_radius(const efx_shape *s) {
                : 0.0f;
 }
 
-float efx_narrow_distance(const efx_shape *a, efx_vec3 pa, const efx_shape *b,
-                          efx_vec3 pb, efx_vec3 *pa_out, efx_vec3 *pb_out) {
+/* closest points between shape A at pa and shape B at pb / a triangle.
+ * Returns the distance (0 when overlapping); *pa_out/b_out receive the
+ * closest points when non-NULL. */
+static float efx_narrow_distance(const efx_shape *a, efx_vec3 pa, const efx_shape *b,
+                                 efx_vec3 pb, efx_vec3 *pa_out, efx_vec3 *pb_out) {
     efx_vec3 qa, qb;
     float d = feature_closest(a, pa, b->type, pb, b->half, b->half_height,
                               efx_v3(0, 0, 0), efx_v3(0, 0, 0),
@@ -838,9 +843,9 @@ float efx_narrow_distance(const efx_shape *a, efx_vec3 pa, const efx_shape *b,
     return d - shape_radius(a) - shape_radius(b);
 }
 
-float efx_narrow_distance_triangle(const efx_shape *a, efx_vec3 pa,
-                                   efx_vec3 v0, efx_vec3 v1, efx_vec3 v2,
-                                   efx_vec3 *pa_out, efx_vec3 *pb_out) {
+static float efx_narrow_distance_triangle(const efx_shape *a, efx_vec3 pa,
+                                          efx_vec3 v0, efx_vec3 v1, efx_vec3 v2,
+                                          efx_vec3 *pa_out, efx_vec3 *pb_out) {
     efx_vec3 qa, qb;
     float d = feature_closest(a, pa, NT_TRIANGLE, efx_v3(0, 0, 0),
                               efx_v3(0, 0, 0), 0, v0, v1, v2, &qa, &qb);
