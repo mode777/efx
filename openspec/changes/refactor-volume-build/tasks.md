@@ -107,8 +107,10 @@
   Xvfb+llvmpipe, web goldens, gallery smoke. The Emscripten ctest (159/159),
   web harness and cross-runtime compare were additionally run on the server
   during R18/R19.)
-- [ ] 7.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-build`)
+- [x] 7.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-build`)
   in the order Linux → Windows → macOS. Verify: green; record the run id.
+  (Run 36864472674: Linux, Windows, macOS, Emscripten, web goldens, curated
+  samples — all success.)
 
 ## 8. Docs and close-out
 
