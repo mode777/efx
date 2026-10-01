@@ -7,7 +7,7 @@ void flush_pending_uploads(void) {
     for (int i = 0; i < R.slot_count; i++) {
         tex_slot *s = &R.slots[i];
         /* upload queued textures, including ones destroyed while retained
-           maps still reference them (F4b design D6) */
+           maps still reference them (ADR 0027) */
         if (s->used && (s->alive || s->bind_refs > 0) && !s->native &&
             s->pending) {
             s->native = R.sink->create_texture(R.sink->ud, s->w, s->h, s->pending,
@@ -44,7 +44,7 @@ void flush_pending_uploads(void) {
     }
 }
 
-/* P12: initialise the fields shared by the queued (sink-less) and live
+/* initialise the fields shared by the queued (sink-less) and live
  * texture paths. The generation bump and the append-vs-reuse choice stay with
  * each caller (the queued path always appends; the live path scans for a free
  * slot), so observable handle sequencing is unchanged. */
@@ -139,7 +139,7 @@ static void schedule_texture_native_release(tex_slot *s) {
     R.deferred_tex[R.deferred_tex_count++] = (int)(s - R.slots);
 }
 
-/* finish a release once no material references the slot (design D6) */
+/* finish a release once no material references the slot (ADR 0027) */
 static void finalize_texture_release(tex_slot *s) {
     if (s->pending) {
         free(s->pending);
@@ -149,7 +149,7 @@ static void finalize_texture_release(tex_slot *s) {
     schedule_texture_native_release(s);
 }
 
-/* F4b map retention (design D6): material bindings keep their maps alive.
+/* F4b map retention (ADR 0027): material bindings keep their maps alive.
  * F5a: maps may reference a Texture or a RenderTarget — the retain/ref
  * helpers dispatch on whichever registry holds the handle. */
 void texture_bind_retain(uint64_t h) {
@@ -227,7 +227,7 @@ int efx_render_texture_ref_count(uint64_t h) {
     return s ? s->bind_refs : -1;
 }
 
-/* F4b/P13: the five per-channel map handles retained by a material snapshot,
+/* F4b: the five per-channel map handles retained by a material snapshot,
  * in the order the desktop/web bindings lay them out */
 static const size_t MAP_OFFSETS[] = {
     offsetof(efx_material, ambient_map),

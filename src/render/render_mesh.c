@@ -278,7 +278,7 @@ void efx_meshdata_set_material(efx_meshdata *md, int index,
 
 /* ------------------------------------------------------------- meshes */
 
-/* build the interleaved GPU layout (design D1) into a pending block: one
+/* build the interleaved GPU layout into a pending block: one
  * backing allocation holding every surface's interleaved vertices followed
  * by its indices; p->surfs points into it */
 static int pending_build(mesh_pending *p, const efx_meshdata *md) {
@@ -316,7 +316,7 @@ static int pending_build(mesh_pending *p, const efx_meshdata *md) {
         g->index_count = s->index_count ? s->index_count : s->vertex_count;
         g->interleaved = (const float *)w;
         g->skinned = (md->rig != NULL && s->joints != NULL) ? 1 : 0;
-        /* defaults: normal +z, uv 0, color white (design D1) */
+        /* defaults: normal +z, uv 0, color white */
         for (int v = 0; v < s->vertex_count; v++) {
             float *dst = (float *)w + v * 12;
             dst[0] = s->positions[v * 3];
@@ -813,7 +813,7 @@ static void lnormalize3(float out[3], const float v[3]) {
 }
 
 /* one light's contribution (shares the exact formula with the shader;
- * channel maps scale the diffuse/specular colors, design D1/D8) */
+ * channel maps scale the diffuse/specular colors, ADR 0026/0027) */
 static void lighting_term(const efx_material *mat, const efx_map_samples *maps,
                           const float contrib[3], float atten, const float N[3],
                           const float V[3], const float L[3],
@@ -867,7 +867,7 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
         maps = &neutral;
     }
     if (maps->has_mask && maps->mask_alpha < 0.5f) {
-        return 1; /* alpha-mask cutout (design D2) */
+        return 1; /* alpha-mask cutout (ADR 0027) */
     }
     float N[3];
     lnormalize3(N, normal);

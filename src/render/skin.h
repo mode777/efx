@@ -8,7 +8,7 @@
  * Pure C, no sokol, no quickjs (ADR 0003 module walls); matrices are
  * column-major float[16] and rotations are quaternions xyzw. The functions
  * here are deterministic and shared by the renderer and the CPU-reference
- * unit tests (design D7).
+ * unit tests (ADR 0035).
  */
 
 #include "render/render.h"
