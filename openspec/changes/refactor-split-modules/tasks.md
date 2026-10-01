@@ -79,15 +79,15 @@
 
 ## 7. Docs and verification
 
-- [ ] 7.1 Update `docs/refactoring.md` status: mark P3–P14 done and note
+- [x] 7.1 Update `docs/refactoring.md` status: mark P3–P14 done and note
   Checkpoint 2 reached; verify no pass in Phase C–F is still listed as pending
-- [ ] 7.2 Run the local unit suites
+- [x] 7.2 Run the local unit suites
   (`cmake -B build-h -DEFX_HEADLESS=ON && ctest --test-dir build-h`) and the
   generated-file checks (`python tools/gen_prelude.py --check`,
   `npm --prefix gallery run docs:check`); verify all green
-- [ ] 7.3 Run `python3 tools/verify_remote.py all <branch>` (native ctest incl.
+- [x] 7.3 Run `python3 tools/verify_remote.py all <branch>` (native ctest incl.
   all goldens, Emscripten ctest, web goldens, `run_web_compare.mjs`); verify
   green before dispatching CI
-- [ ] 7.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
+- [x] 7.4 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
   Linux → Windows → macOS gate is green; then merge to `main` and push per
   `AGENTS.md`
