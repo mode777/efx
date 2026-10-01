@@ -245,3 +245,12 @@ build. It is then deleted.
   free a buffer or image keep their explicit clean-up. A flipped `REQUIRE`
   printed `FAIL: blend`, exited 1, and the next 37 cases in the same process
   still passed (clean-up ran).
+- **R6 inventory.** The scan found 30 single-file functions (plan: ~35):
+  api 8, runtime 2, render 6, resource 1, audio 3 (including the platform
+  backend's `efx_audio_backend_resume`), physics 10, web 0. The plan's
+  example `efx_web_start_loop` (and `efx_web_root`) is **not** a candidate:
+  both are `EMSCRIPTEN_KEEPALIVE` exports that `src/web/js/boot.js` calls as
+  `Module['_efx_web_*']`. No function became unused, so none was deleted;
+  `efx_resource_size` and `efx_audio_backend_resume` moved above their only
+  caller. E3: desktop `efx_core` 403 → 374 and web `libefx_core` 305 → 286,
+  removals only. `check_exports.mjs` reports zero.

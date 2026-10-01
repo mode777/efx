@@ -58,7 +58,7 @@
   from `src/physics/efx_phys_vec.h` (D6). Change ADR 0040's
   "`vec3`/`quat`/`mat3` math" to "its own vector math". Verify: a grep finds
   zero references, and V1 `efx_physics_tests` passes.
-- [ ] 6.2 (R6) For each module (api, runtime, render, resource, audio,
+- [x] 6.2 (R6) For each module (api, runtime, render, resource, audio,
   physics, web), make the single-file `efx_*` functions `static` and drop
   their declarations, honoring the D7 exclusions. One commit per module.
   Delete any function the compiler reports as unused. Verify per commit: V1,
