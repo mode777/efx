@@ -54,7 +54,7 @@
 
 ## 5. Desktop physics wrapper and option readers (R12)
 
-- [ ] 5.1 Introduce `efxjs_collider` with per-kind list heads
+- [x] 5.1 Introduce `efxjs_collider` with per-kind list heads
   (`physics_colliders[2]` in `efx_host_state`). Share wrap, pin/unpin,
   finalize, live-resolve, `find_wrapper` and teardown, and keep distinct
   `Body`/`Character` classes (D6). Verify: V1 `physics_js`; V2

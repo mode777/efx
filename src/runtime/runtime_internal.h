@@ -43,12 +43,11 @@ struct efx_host_state {
     struct efx_hook_list gamepad_disconnect;
     /* F6a resource root (owned by the player, not the runtime) */
     struct efx_resource *resource;
-    /* F12 physics: the single engine-owned world and the linked lists of live
-     * Body/Character wrappers (borrowed JSValues, used for contact/hit
-     * identity) */
+    /* F12 physics: the single engine-owned world and, per collider kind
+     * (Body, Character), the linked list of live wrappers (borrowed JSValues,
+     * used for contact/hit identity) */
     void *physics_world;
-    void *physics_bodies;
-    void *physics_characters;
+    void *physics_colliders[2];
 };
 
 /* stable selector for the host callback lists (update/render + F9 input);

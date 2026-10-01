@@ -98,28 +98,22 @@ typedef struct {
 
 /* ------------------------------------------------ F12 physics classes */
 
-/* `self` is an owned reference while `pinned` (the collider is in the world,
+/* Body and Character share one wrapper; the script classes stay distinct.
+ * `self` is an owned reference while `pinned` (the collider is in the world,
  * so the world keeps its wrapper alive), otherwise borrowed (valid while this
- * struct is linked) */
-typedef struct efxjs_body {
-    efx_physics_world *w;
-    efx_phys_body handle;
-    int alive;
-    int pinned;
-    JSValue self;
-    struct efxjs_body *next;
-    struct efx_host_state *host;
-} efxjs_body;
+ * struct is linked on its kind's list) */
+enum { EFX_COLLIDER_BODY, EFX_COLLIDER_CHARACTER, EFX_COLLIDER_KINDS };
 
-typedef struct efxjs_character {
+typedef struct efxjs_collider {
+    int kind; /* EFX_COLLIDER_* */
     efx_physics_world *w;
-    efx_phys_character handle;
+    uint32_t handle; /* efx_phys_body or efx_phys_character, by kind */
     int alive;
     int pinned;
     JSValue self;
-    struct efxjs_character *next;
+    struct efxjs_collider *next;
     struct efx_host_state *host;
-} efxjs_character;
+} efxjs_collider;
 
 /* the parsed shape carries the source live Mesh for a mesh collider so the
  * caller can build the triangle data where it is needed */
@@ -178,20 +172,18 @@ extern JSClassID audio_class_id;
 extern JSClassID body_class_id;
 extern JSClassID character_class_id;
 
-/* prototype function lists defined outside api.c (referenced by CLASS_SPECS) */
+/* prototype function lists and hooks defined outside api.c (referenced by
+ * CLASS_SPECS) */
 extern const JSCFunctionListEntry body_proto_funcs[7];
 extern const JSCFunctionListEntry character_proto_funcs[5];
 extern const JSCFunctionListEntry particlesystem_proto_funcs[8];
 extern const JSCFunctionListEntry audio_proto_funcs[9];
+extern void efx_api_collider_release(void *p);
 
 /* shared helpers (defined in api.c) */
-extern void efx_api_body_unpin(JSContext *ctx, efxjs_body *b);
-extern void efx_api_character_unpin(JSContext *ctx, efxjs_character *c);
 extern int efx_api_check_known_fields(JSContext *ctx, JSValueConst obj, const char **known, int nknown, const char *where);
 extern JSValue efx_api_generic_error(JSContext *ctx, const char *msg);
 extern int efx_api_get_float_array(JSContext *ctx, JSValueConst v, float *out, int n);
-extern efxjs_body *efx_api_get_live_body(JSContext *ctx, JSValueConst v);
-extern efxjs_character *efx_api_get_live_character(JSContext *ctx, JSValueConst v);
 extern efxjs_imagedata *efx_api_get_live_imagedata(JSContext *ctx, JSValueConst v);
 extern efxjs_mesh *efx_api_get_live_mesh(JSContext *ctx, JSValueConst v);
 extern efxjs_meshdata *efx_api_get_live_meshdata(JSContext *ctx, JSValueConst v);
@@ -203,7 +195,6 @@ extern int efx_api_opt_bool(JSContext *ctx, JSValueConst obj, const char *key, i
 extern int efx_api_opt_number(JSContext *ctx, JSValueConst obj, const char *key, double *out, const char *msg);
 extern int efx_api_opt_u32(JSContext *ctx, JSValueConst obj, const char *key, uint32_t *out, const char *msg_num, const char *msg_range);
 extern int efx_api_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key, float out[3]);
-extern void efx_api_physics_release_wrappers(JSContext *ctx);
 extern JSValue efx_api_plain_error(JSContext *ctx, const char *msg);
 extern JSValue efx_api_range_error(JSContext *ctx, const char *msg);
 extern int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len, efx_elem_policy policy, const char *msg_numbers, const char *msg_finite, const char *msg_int, void (*sink)(void *, int32_t, double), void *ud);

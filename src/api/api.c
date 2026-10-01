@@ -582,116 +582,12 @@ static int ps_alive(const void *p) {
     return ((const efxjs_particlesystem *)p)->alive;
 }
 
-static int body_alive(const void *p) {
-    const efxjs_body *b = (const efxjs_body *)p;
-    return b->alive && b->w && efx_physics_body_alive(b->w, b->handle);
-}
-
-static int character_alive(const void *p) {
-    const efxjs_character *c = (const efxjs_character *)p;
-    return c->alive && c->w &&
-           efx_physics_character_alive(c->w, c->handle);
-}
-
-
-static void body_release(void *p) {
-    efxjs_body *b = (efxjs_body *)p;
-    if (b->host) {
-        struct efx_host_state *h = b->host;
-        efxjs_body **pp = (efxjs_body **)&h->physics_bodies;
-        while (*pp) {
-            if (*pp == b) {
-                *pp = b->next;
-                break;
-            }
-            pp = &(*pp)->next;
-        }
-    }
-    if (b->alive && b->w) {
-        efx_physics_destroy_body(b->w, b->handle);
-    }
-}
-
-
-static void character_release(void *p) {
-    efxjs_character *c = (efxjs_character *)p;
-    if (c->host) {
-        struct efx_host_state *h = c->host;
-        efxjs_character **pp = (efxjs_character **)&h->physics_characters;
-        while (*pp) {
-            if (*pp == c) {
-                *pp = c->next;
-                break;
-            }
-            pp = &(*pp)->next;
-        }
-    }
-    if (c->alive && c->w) {
-        efx_physics_destroy_character(c->w, c->handle);
-    }
-}
-
-
-/* drop the world's reference; this may finalize and free `b` */
-void efx_api_body_unpin(JSContext *ctx, efxjs_body *b) {
-    if (!b->pinned) return;
-    b->pinned = 0;
-    JS_FreeValue(ctx, b->self);
-}
-
-
-void efx_api_character_unpin(JSContext *ctx, efxjs_character *c) {
-    if (!c->pinned) return;
-    c->pinned = 0;
-    JS_FreeValue(ctx, c->self);
-}
-
-
-/* marks every wrapper destroyed and releases the world's references (after
- * efx_physics_clear, and at runtime teardown before the context is freed) */
-void efx_api_physics_release_wrappers(JSContext *ctx) {
-    struct efx_host_state *h = efx_api_host_state(ctx);
-    efxjs_body *b = (efxjs_body *)h->physics_bodies;
-    while (b) {
-        efxjs_body *next = b->next;
-        b->alive = 0;
-        efx_api_body_unpin(ctx, b);
-        b = next;
-    }
-    efxjs_character *c = (efxjs_character *)h->physics_characters;
-    while (c) {
-        efxjs_character *next = c->next;
-        c->alive = 0;
-        efx_api_character_unpin(ctx, c);
-        c = next;
-    }
-}
-
-
-void efx_api_physics_release(JSContext *ctx) {
-    efx_api_physics_release_wrappers(ctx);
-}
-
-
-/* ---- F12 binding helpers ---- */
 
 /* live Mesh resolution for static-mesh colliders (defined with the F3
  * bindings); on failure it throws and returns NULL */
 static efxjs_texture *get_live_texture(JSContext *ctx, JSValueConst v);
 
 static efxjs_font *get_live_font(JSContext *ctx, JSValueConst v);
-
-
-efxjs_body *efx_api_get_live_body(JSContext *ctx, JSValueConst v) {
-    return live_opaque(ctx, v, body_class_id, "expected a Body",
-                       "using a destroyed Body", body_alive);
-}
-
-
-efxjs_character *efx_api_get_live_character(JSContext *ctx, JSValueConst v) {
-    return live_opaque(ctx, v, character_class_id, "expected a Character",
-                       "using a destroyed Character", character_alive);
-}
 
 
 /* read-only query properties (Texture.width / Texture.height), resolved
@@ -888,9 +784,9 @@ static const efx_class_spec CLASS_SPECS[] = {
       EFX_ARRAY_COUNT(particlesystem_proto_funcs), particlesystem_destroy,
       particlesystem_release },
     { &body_class_id, "Body", body_proto_funcs,
-      EFX_ARRAY_COUNT(body_proto_funcs), NULL, body_release },
+      EFX_ARRAY_COUNT(body_proto_funcs), NULL, efx_api_collider_release },
     { &character_class_id, "Character", character_proto_funcs,
-      EFX_ARRAY_COUNT(character_proto_funcs), NULL, character_release },
+      EFX_ARRAY_COUNT(character_proto_funcs), NULL, efx_api_collider_release },
     { &audiodata_class_id, "AudioData", NULL, 0, audiodata_destroy,
       audiodata_release },
     { &audiostream_class_id, "AudioStream", NULL, 0, audiostream_destroy,
