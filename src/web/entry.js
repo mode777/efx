@@ -293,6 +293,24 @@ function __efxEnsureApi() {
         return st;
     }
     var bridge = Module;
+    /* one known-field check for every option bag (P8): unknown keys throw a
+     * TypeError naming the field. `where` names the bag (may be empty),
+     * `useKeys` selects Object.keys instead of getOwnPropertyNames, and
+     * `noName` reproduces the two legacy messages that omit the field. */
+    function __efxCheckKnown(obj, known, where, useKeys, noName) {
+        var names = useKeys ? Object.keys(obj) : Object.getOwnPropertyNames(obj);
+        for (var i = 0; i < names.length; i++) {
+            var k = names[i];
+            var ok = (known instanceof Array) ? known.indexOf(k) >= 0 : known[k];
+            if (!ok) {
+                if (noName) {
+                    throw new TypeError('unknown ' + (where ? where + ' option' : 'option'));
+                }
+                var prefix = where ? where + ' option ' : 'option ';
+                throw new TypeError('unknown ' + prefix + "'" + k + "'");
+            }
+        }
+    }
 
     st.dispatch = function (which, dt) {
         /* F9: input callbacks fire before the update hooks each frame */
@@ -592,12 +610,7 @@ function __efxEnsureApi() {
         }
         var known = { align: 1, valign: 1, width: 1, lineHeight: 1, color: 1,
                       outlineColor: 1, shadowColor: 1, rotation: 1, scale: 1 };
-        var names = Object.getOwnPropertyNames(opts);
-        for (var i = 0; i < names.length; i++) {
-            if (!known[names[i]]) {
-                throw new TypeError("unknown option '" + names[i] + "'");
-            }
-        }
+                __efxCheckKnown(opts, known, '');
         if (opts.align !== undefined) { out.align = __efxAlign(opts.align); }
         if (opts.valign !== undefined) { out.valign = __efxValign(opts.valign); }
         if (opts.width !== undefined) {
@@ -705,12 +718,7 @@ function __efxEnsureApi() {
         }
         var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
                       alphaMask: 1 };
-        var names = Object.getOwnPropertyNames(v);
-        for (var i = 0; i < names.length; i++) {
-            if (!known[names[i]]) {
-                throw new TypeError("unknown material option '" + names[i] + "'");
-            }
-        }
+                __efxCheckKnown(v, known, 'material');
         var out = new Float32Array(17);
         out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;   /* ambient */
         out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;   /* diffuse */
@@ -729,13 +737,7 @@ function __efxEnsureApi() {
             }
             var ck = ci === 2 ? { color: 1, shininess: 1, map: 1 }
                               : { color: 1, map: 1 };
-            var cnames = Object.getOwnPropertyNames(ch);
-            for (var k = 0; k < cnames.length; k++) {
-                if (!ck[cnames[k]]) {
-                    throw new TypeError("unknown " + chan[ci] +
-                        " option '" + cnames[k] + "'");
-                }
-            }
+            __efxCheckKnown(ch, ck, chan[ci]);
             if (ch.color === undefined) {
                 throw new TypeError(chan[ci] + ' channel requires color');
             }
@@ -827,12 +829,7 @@ function __efxEnsureApi() {
         } else {
             throw new TypeError('unknown post effect');
         }
-        var names = Object.getOwnPropertyNames(v);
-        for (var i = 0; i < names.length; i++) {
-            if (!known[names[i]]) {
-                throw new TypeError("unknown post effect option '" + names[i] + "'");
-            }
-        }
+                __efxCheckKnown(v, known, 'post effect');
         if (v['mix'] !== undefined) {
             out[1] = __efxPostNumber(v['mix'], 'mix');
         }
@@ -967,12 +964,7 @@ function __efxEnsureApi() {
         }
         var known = { x: 1, y: 1, size: 1, color: 1, rotation: 1, scale: 1,
                       sourceRect: 1, origin: 1 };
-        var names = Object.getOwnPropertyNames(e);
-        for (var i = 0; i < names.length; i++) {
-            if (!known[names[i]]) {
-                throw new TypeError('unknown drawSprites option');
-            }
-        }
+                __efxCheckKnown(e, known, 'drawSprites', false, true);
         var out = {
             x: __efxFinite(e['x'], 'sprite x and y must be finite numbers'),
             y: __efxFinite(e['y'], 'sprite x and y must be finite numbers'),
@@ -1056,13 +1048,7 @@ function __efxEnsureApi() {
             sizeVariation: 1, colors: 1, rotation: 1, spin: 1, spinVariation: 1,
             relativeRotation: 1, emissionShape: 1, quads: 1, insertMode: 1,
             speedScale: 1 };
-        var names = Object.getOwnPropertyNames(opts);
-        for (var i = 0; i < names.length; i++) {
-            if (!known[names[i]]) {
-                throw new TypeError("unknown createParticleSystem option '" +
-                                    names[i] + "'");
-            }
-        }
+        __efxCheckKnown(opts, known, 'createParticleSystem');
         var w = new Float32Array(EFX_PART_WIRE_LEN);
         /* defaults mirror efx_render_particles_create */
         w[4] = 1; w[5] = 1; w[7] = -1; w[8] = 1; w[10] = 1; w[12] = 1;
@@ -1203,12 +1189,7 @@ function __efxEnsureApi() {
                 throw new TypeError('emissionShape must be an object');
             }
             var ekn = { shape: 1, size: 1 };
-            var en = Object.getOwnPropertyNames(es);
-            for (i = 0; i < en.length; i++) {
-                if (!ekn[en[i]]) {
-                    throw new TypeError("unknown emissionShape option '" + en[i] + "'");
-                }
-            }
+                        __efxCheckKnown(es, ekn, 'emissionShape');
             w[14] = __efxPartEnum(es['shape'],
                 { point: 0, box: 1, sphere: 2, sphereSurface: 3, disc: 4 }, 0,
                 'emissionShape.shape');
@@ -1551,12 +1532,7 @@ function __efxEnsureApi() {
                     throw new TypeError('createTexture options must be an object');
                 }
                 var known = { wrap: 1, filter: 1, mipmaps: 1 };
-                var names = Object.getOwnPropertyNames(opts);
-                for (var i = 0; i < names.length; i++) {
-                    if (!known[names[i]]) {
-                        throw new TypeError("unknown createTexture option '" + names[i] + "'");
-                    }
-                }
+                                __efxCheckKnown(opts, known, 'createTexture');
                 if (opts['wrap'] !== undefined) {
                     var w = opts['wrap'];
                     if (w === 'repeat') {
@@ -1605,12 +1581,11 @@ function __efxEnsureApi() {
                     throw new TypeError('loadMeshData options must be an object');
                 }
                 var known = { mesh: 1 };
-                var names = Object.getOwnPropertyNames(opts);
-                for (var i = 0; i < names.length; i++) {
-                    if (!known[names[i]]) {
-                        bridge['_efx_bridge_mem_free'](pathPtr);
-                        throw new TypeError("unknown loadMeshData option '" + names[i] + "'");
-                    }
+                try {
+                    __efxCheckKnown(opts, known, 'loadMeshData');
+                } catch (e) {
+                    bridge['_efx_bridge_mem_free'](pathPtr);
+                    throw e;
                 }
                 if (opts['mesh'] !== undefined) {
                     var mv = opts['mesh'];
@@ -1662,12 +1637,7 @@ function __efxEnsureApi() {
             }
             var known = { size: 1, glyphs: 1, padding: 1, filter: 1, outline: 1,
                           shadow: 1 };
-            var names = Object.getOwnPropertyNames(opts);
-            for (var i = 0; i < names.length; i++) {
-                if (!known[names[i]]) {
-                    throw new TypeError("unknown createFont option '" + names[i] + "'");
-                }
-            }
+                        __efxCheckKnown(opts, known, 'createFont');
             if (opts.size === undefined) {
                 throw new TypeError('createFont requires size');
             }
@@ -1712,12 +1682,11 @@ function __efxEnsureApi() {
                     throw new TypeError('outline must be an object or null');
                 }
                 var oKnown = { width: 1 };
-                var oNames = Object.getOwnPropertyNames(opts.outline);
-                for (var j = 0; j < oNames.length; j++) {
-                    if (!oKnown[oNames[j]]) {
-                        if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
-                        throw new TypeError("unknown outline option '" + oNames[j] + "'");
-                    }
+                try {
+                    __efxCheckKnown(opts.outline, oKnown, 'outline');
+                } catch (e) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw e;
                 }
                 if (opts.outline.width === undefined) {
                     if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
@@ -1738,12 +1707,11 @@ function __efxEnsureApi() {
                     throw new TypeError('shadow must be an object or null');
                 }
                 var sKnown = { blur: 1, offset: 1 };
-                var sNames = Object.getOwnPropertyNames(opts.shadow);
-                for (var k = 0; k < sNames.length; k++) {
-                    if (!sKnown[sNames[k]]) {
-                        if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
-                        throw new TypeError("unknown shadow option '" + sNames[k] + "'");
-                    }
+                try {
+                    __efxCheckKnown(opts.shadow, sKnown, 'shadow');
+                } catch (e) {
+                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    throw e;
                 }
                 if (opts.shadow.blur === undefined) {
                     if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
@@ -1841,13 +1809,7 @@ function __efxEnsureApi() {
                 throw new TypeError('createRenderTarget requires an options object');
             }
             var known = { width: 1, height: 1 };
-            var names = Object.getOwnPropertyNames(opts);
-            for (var i = 0; i < names.length; i++) {
-                if (!known[names[i]]) {
-                    throw new TypeError("unknown createRenderTarget option '" +
-                        names[i] + "'");
-                }
-            }
+            __efxCheckKnown(opts, known, 'createRenderTarget');
             var dims = [];
             for (var k = 0; k < 2; k++) {
                 var key = k === 0 ? 'width' : 'height';
@@ -1953,12 +1915,7 @@ function __efxEnsureApi() {
                     throw new TypeError('setRenderScale options must be an object');
                 }
                 var kn = { filter: 1 };
-                var names = Object.getOwnPropertyNames(opts);
-                for (var i = 0; i < names.length; i++) {
-                    if (!kn[names[i]]) {
-                        throw new TypeError("unknown setRenderScale option '" + names[i] + "'");
-                    }
-                }
+                                __efxCheckKnown(opts, kn, 'setRenderScale');
                 if (opts['filter'] !== undefined) {
                     if (opts['filter'] === 'nearest') {
                         filter = 0;
@@ -2003,12 +1960,7 @@ function __efxEnsureApi() {
                     throw new TypeError('opts must be an object');
                 }
                 var known = { color: 1, rotation: 1, scale: 1, sourceRect: 1, size: 1, origin: 1 };
-                var names = Object.getOwnPropertyNames(opts);
-                for (var i = 0; i < names.length; i++) {
-                    if (!known[names[i]]) {
-                        throw new TypeError('unknown drawQuad option');
-                    }
-                }
+                                __efxCheckKnown(opts, known, 'drawQuad', false, true);
                 var cv = opts['color'];
                 if (cv !== undefined) {
                     color = __efxFloatArray(cv, 4);
@@ -2095,12 +2047,7 @@ function __efxEnsureApi() {
             }
             var known = { texture: 1, size: 1, color: 1, sourceRect: 1,
                           rotation: 1, facing: 1, depthTest: 1, normal: 1 };
-            var names = Object.getOwnPropertyNames(opts);
-            for (var i = 0; i < names.length; i++) {
-                if (!known[names[i]]) {
-                    throw new TypeError("unknown drawBillboard option '" + names[i] + "'");
-                }
-            }
+                        __efxCheckKnown(opts, known, 'drawBillboard');
             if (opts['texture'] === undefined) {
                 throw new TypeError('drawBillboard requires a texture');
             }
@@ -2265,12 +2212,7 @@ function __efxEnsureApi() {
                 throw new TypeError('setCamera3D requires an options object');
             }
             var known = { pos: 1, target: 1, fov: 1, near: 1, far: 1 };
-            var names = Object.getOwnPropertyNames(opts);
-            for (var i = 0; i < names.length; i++) {
-                if (!known[names[i]]) {
-                    throw new TypeError("unknown setCamera3D option '" + names[i] + "'");
-                }
-            }
+                        __efxCheckKnown(opts, known, 'setCamera3D');
             var pos = opts['pos'];
             var target = opts['target'];
             if (pos === undefined || target === undefined) {
@@ -2322,12 +2264,7 @@ function __efxEnsureApi() {
             var bagKnown = { surfaces: 1, positions: 1, normals: 1,
                 uvs: 1, colors: 1, joints: 1, weights: 1, indices: 1,
                 materials: 1 };
-            var bagNames = Object.getOwnPropertyNames(opts);
-            for (var bi = 0; bi < bagNames.length; bi++) {
-                if (!bagKnown[bagNames[bi]]) {
-                    throw new TypeError("unknown createMeshData option '" + bagNames[bi] + "'");
-                }
-            }
+                        __efxCheckKnown(opts, bagKnown, 'createMeshData');
             var surfaces = opts['surfaces'];
             var shorthand = opts['positions'] !== undefined;
             if (surfaces !== undefined && shorthand) {
@@ -2469,12 +2406,7 @@ function __efxEnsureApi() {
                     throw new TypeError('drawMesh options must be an object');
                 }
                 var known = { transform: 1, color: 1, skinned: 1 };
-                var names = Object.getOwnPropertyNames(opts);
-                for (var i = 0; i < names.length; i++) {
-                    if (!known[names[i]]) {
-                        throw new TypeError("unknown drawMesh option '" + names[i] + "'");
-                    }
-                }
+                                __efxCheckKnown(opts, known, 'drawMesh');
                 var tv = opts['transform'];
                 if (tv !== undefined) {
                     transform = __efxFloat32Array(tv, 'transform');
@@ -2546,12 +2478,7 @@ function __efxEnsureApi() {
                     throw new TypeError('pose samples must be objects');
                 }
                 var sk = { clip: 1, time: 1, weight: 1 };
-                var sn = Object.getOwnPropertyNames(s);
-                for (var k = 0; k < sn.length; k++) {
-                    if (!sk[sn[k]]) {
-                        throw new TypeError("unknown pose sample option '" + sn[k] + "'");
-                    }
-                }
+                                __efxCheckKnown(s, sk, 'pose sample');
                 var cv = s['clip'];
                 if (cv === undefined) {
                     throw new TypeError('pose sample requires clip');
@@ -2625,12 +2552,7 @@ function __efxEnsureApi() {
                 throw new TypeError('setLight options must be an object or null');
             }
             var lk = { pos: 1, color: 1, range: 1 };
-            var lnames = Object.getOwnPropertyNames(opts);
-            for (var li = 0; li < lnames.length; li++) {
-                if (!lk[lnames[li]]) {
-                    throw new TypeError("unknown setLight option '" + lnames[li] + "'");
-                }
-            }
+                        __efxCheckKnown(opts, lk, 'setLight');
             if (opts['pos'] === undefined) {
                 throw new TypeError('setLight requires pos');
             }
@@ -2667,12 +2589,7 @@ function __efxEnsureApi() {
                 throw new TypeError('setDirectionalLight options must be an object or null');
             }
             var dk = { dir: 1, color: 1 };
-            var dnames = Object.getOwnPropertyNames(opts);
-            for (var di = 0; di < dnames.length; di++) {
-                if (!dk[dnames[di]]) {
-                    throw new TypeError("unknown setDirectionalLight option '" + dnames[di] + "'");
-                }
-            }
+                        __efxCheckKnown(opts, dk, 'setDirectionalLight');
             if (opts['dir'] === undefined) {
                 throw new TypeError('setDirectionalLight requires dir');
             }
@@ -2845,14 +2762,6 @@ function __efxEnsureApi() {
     var physBodies = new Map();
     var physCharacters = new Map();
 
-    function __physKeys(obj, names, where) {
-        var keys = Object.keys(obj);
-        for (var i = 0; i < keys.length; i++) {
-            if (names.indexOf(keys[i]) < 0) {
-                throw new TypeError("unknown " + where + " option '" + keys[i] + "'");
-            }
-        }
-    }
     function __physNumber(v, what) {
         if (typeof v !== 'number' || !isFinite(v)) {
             throw new TypeError(what + ' must be a finite number');
@@ -2871,7 +2780,7 @@ function __efxEnsureApi() {
             throw new TypeError('shape must be an options object');
         }
         if (v.type === 'sphere') {
-            __physKeys(v, ['type', 'radius'], 'shape');
+            __efxCheckKnown(v, ['type', 'radius'], 'shape', true);
             if (typeof v.radius !== 'number') {
                 throw new TypeError('sphere shapes require a radius');
             }
@@ -2881,7 +2790,7 @@ function __efxEnsureApi() {
             return { t: 0, r: v.radius, hx: 0, hy: 0, hz: 0, height: 0, mesh: null };
         }
         if (v.type === 'box') {
-            __physKeys(v, ['type', 'size'], 'shape');
+            __efxCheckKnown(v, ['type', 'size'], 'shape', true);
             var s = __efxFloatArray(v.size, 3);
             if (!(s[0] > 0 && s[1] > 0 && s[2] > 0)) {
                 throw new RangeError('box size components must be positive');
@@ -2889,7 +2798,7 @@ function __efxEnsureApi() {
             return { t: 1, r: 0, hx: s[0], hy: s[1], hz: s[2], height: 0, mesh: null };
         }
         if (v.type === 'capsule') {
-            __physKeys(v, ['type', 'radius', 'height'], 'shape');
+            __efxCheckKnown(v, ['type', 'radius', 'height'], 'shape', true);
             if (typeof v.radius !== 'number' || typeof v.height !== 'number') {
                 throw new TypeError('capsule shapes require radius and height');
             }
@@ -2902,7 +2811,7 @@ function __efxEnsureApi() {
             return { t: 2, r: v.radius, hx: 0, hy: 0, hz: 0, height: v.height, mesh: null };
         }
         if (v.type === 'mesh') {
-            __physKeys(v, ['type', 'mesh'], 'shape');
+            __efxCheckKnown(v, ['type', 'mesh'], 'shape', true);
             return { t: 3, r: 0, hx: 0, hy: 0, hz: 0, height: 0, mesh: liveMesh(v.mesh) };
         }
         throw new TypeError('unknown shape type');
@@ -3127,9 +3036,9 @@ function __efxEnsureApi() {
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('createBody requires an options object');
             }
-            __physKeys(opts, ['dynamic', 'sensor', 'shape', 'position', 'mass',
+            __efxCheckKnown(opts, ['dynamic', 'sensor', 'shape', 'position', 'mass',
                               'friction', 'restitution', 'layer', 'mask'],
-                       'createBody');
+                       'createBody', true);
             if (opts.shape === undefined) {
                 throw new TypeError('createBody requires a shape');
             }
@@ -3170,9 +3079,9 @@ function __efxEnsureApi() {
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('createStaticMesh options must be an object');
             }
-            __physKeys(opts, ['position', 'sensor', 'friction', 'restitution',
+            __efxCheckKnown(opts, ['position', 'sensor', 'friction', 'restitution',
                               'layer', 'mask'],
-                       'createStaticMesh');
+                       'createStaticMesh', true);
             var c = __physBodyCommonOpts(opts);
             var handle = bridge['_efx_bridge_physics_create_static_mesh'](
                 m.__handle, c.position[0], c.position[1], c.position[2],
@@ -3188,10 +3097,10 @@ function __efxEnsureApi() {
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('createCharacter requires an options object');
             }
-            __physKeys(opts, ['radius', 'height', 'position', 'up',
+            __efxCheckKnown(opts, ['radius', 'height', 'position', 'up',
                               'floorMaxAngle', 'floorSnapLength', 'stepHeight',
                               'maxSlides', 'safeMargin', 'layer', 'mask'],
-                       'createCharacter');
+                       'createCharacter', true);
             if (typeof opts.radius !== 'number' ||
                 typeof opts.height !== 'number') {
                 throw new TypeError('createCharacter requires radius and height');
@@ -3270,8 +3179,8 @@ function __efxEnsureApi() {
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('raycast options must be an object');
             }
-            __physKeys(opts, ['maxDistance', 'mask', 'all', 'sensors'],
-                       'raycast');
+            __efxCheckKnown(opts, ['maxDistance', 'mask', 'all', 'sensors'],
+                       'raycast', true);
             if (typeof opts.maxDistance !== 'number' ||
                 !isFinite(opts.maxDistance) || !(opts.maxDistance > 0)) {
                 throw new TypeError('raycast requires a positive maxDistance');
@@ -3315,7 +3224,7 @@ function __efxEnsureApi() {
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('overlap options must be an object');
             }
-            __physKeys(opts, ['position', 'mask'], 'overlap');
+            __efxCheckKnown(opts, ['position', 'mask'], 'overlap', true);
             var p = opts.position === undefined
                         ? [0, 0, 0]
                         : __efxFloatArray(opts.position, 3);
@@ -3359,7 +3268,7 @@ function __efxEnsureApi() {
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('shapeCast options must be an object');
             }
-            __physKeys(opts, ['mask', 'sensors'], 'shapeCast');
+            __efxCheckKnown(opts, ['mask', 'sensors'], 'shapeCast', true);
             var mask = opts.mask === undefined ? 4294967295
                                                : __physMask(opts.mask, 'mask');
             var sensors = !!opts.sensors;

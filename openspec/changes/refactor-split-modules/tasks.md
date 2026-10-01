@@ -35,7 +35,7 @@
 
 ## 3. Web-binding helper consolidation (P8–P9)
 
-- [ ] 3.1 (P8) Add `__efxCheckKnown(obj, knownList, where, enumerate)` and
+- [x] 3.1 (P8) Add `__efxCheckKnown(obj, knownList, where, enumerate)` and
   replace the 25 inline loops and `__physKeys`, preserving each message format
   and the enumeration difference; verify the catalog compare is identical on
   web and `run_web_harness.mjs` passes
