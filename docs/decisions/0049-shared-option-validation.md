@@ -1,7 +1,8 @@
 # 0049 — Shared option-bag validation lives once, in the engine prelude
 
-Status: Proposed (2026-10, change `shared-option-validation` — pending the
-R22 go/no-go)
+Status: Accepted (2026-10, change `shared-option-validation`; go/no-go after
+the R22 spike — the cold budget is ratified at the measured absolute cost for
+creation-time APIs, ≈ 75–80 µs per call)
 
 Supports: ADR 0002 (embedded quickjs desktop runtime), ADR 0004 (single `efx`
 namespace), ADR 0022 (two bindings, one API; web runs the page engine over the

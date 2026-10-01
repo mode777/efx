@@ -214,6 +214,18 @@ if(NOT EMSCRIPTEN)
     efx_register_unit_cases(efx_resource_tests ${U}/resource_tests.c)
     efx_register_unit_cases(efx_text_tests ${U}/text_tests.c)
     efx_register_unit_cases(efx_api_tests ${U}/api_tests.c)
+    if(EFX_HEADLESS)
+        # no player target in headless builds: the error catalog's
+        # byte-compare runs through efx_catalog_runner instead
+        add_test(NAME catalog_headless
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_NAME=catalog_headless
+                -DPLAYER_COMMAND=$<TARGET_FILE:efx_catalog_runner>
+                -DARG_LINE=${S}/s_error_catalog.js\\;${S}
+                -DEXPECT=0
+                -DEXPECT_OUT_FILE=${S}/s_error_catalog.expected.txt
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+    endif()
 endif()
 
 # golden-image tests (require a GPU/display; enable in CI or locally with a

@@ -550,42 +550,6 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
 }
 
 
-/* R22 spike-only: primitive-level drawQuad used by the prelude timing
- * wrapper; the option bag was validated and unpacked in JS */
-JSValue efx_js_draw_quad_unpacked(JSContext *ctx, JSValueConst this_val,
-                                  int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 18) {
-        return efx_api_type_error(ctx, "drawQuad unpacked native requires 18 numbers");
-    }
-    double v[18];
-    for (int i = 0; i < 18; i++) {
-        if (JS_ToFloat64(ctx, &v[i], argv[i]) < 0) {
-            return JS_EXCEPTION;
-        }
-    }
-    float color[4] = {(float)v[5], (float)v[6], (float)v[7], (float)v[8]};
-    float src[4] = {(float)v[11], (float)v[12], (float)v[13], (float)v[14]};
-    int rc = efx_render_quad((float)v[1], (float)v[2], (float)v[3], (float)v[4],
-                             (uint64_t)v[0], color, (float)v[9], (float)v[10],
-                             src, (int)v[15], (float)v[16], (float)v[17]);
-    if (rc == EFX_RENDER_ERR_BUDGET) {
-        return efx_api_range_error(ctx, "display list budget exceeded");
-    }
-    if (rc == EFX_RENDER_ERR_SINK) {
-        return efx_api_generic_error(ctx, "no render surface (draw calls need a window)");
-    }
-    if (rc == EFX_RENDER_ERR_FEEDBACK) {
-        return efx_api_type_error(ctx,
-                          "cannot sample the render target being drawn into");
-    }
-    if (rc != EFX_RENDER_OK) {
-        return efx_api_generic_error(ctx, "drawQuad failed");
-    }
-    return JS_UNDEFINED;
-}
-
-
 JSValue efx_js_setBlendMode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {

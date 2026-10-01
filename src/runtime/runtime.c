@@ -263,22 +263,15 @@ static int install_efx_api(efx_runtime *rt) {
     return 0;
 }
 
-/* build the private natives object handed to the prelude wrapper (R22
- * spike: particles). Never stored on the global object (design D1). */
+/* build the private natives object handed to the prelude wrapper (design
+ * D1). Never stored on the global object. */
 static JSValue build_prelude_natives(efx_runtime *rt) {
     JSValue natives = JS_NewObject(rt->ctx);
     JSValue live = JS_NewCFunction(rt->ctx, efx_js_live_sample, "liveSample", 1);
     JS_SetPropertyStr(rt->ctx, natives, "liveSample", live);
     JSValue wire = JS_NewCFunction(rt->ctx, efx_js_create_particle_system_wire,
-                                   "createParticleSystemWire", 2);
+                                   "createParticleSystemWire", 3);
     JS_SetPropertyStr(rt->ctx, natives, "createParticleSystemWire", wire);
-    /* spike-only timing references */
-    JSValue opts_create = JS_NewCFunction(rt->ctx, efx_js_createParticleSystem,
-                                          "createParticleSystemOpts", 1);
-    JS_SetPropertyStr(rt->ctx, natives, "createParticleSystemOpts", opts_create);
-    JSValue quad = JS_NewCFunction(rt->ctx, efx_js_draw_quad_unpacked,
-                                   "drawQuadUnpacked", 18);
-    JS_SetPropertyStr(rt->ctx, natives, "drawQuadUnpacked", quad);
     return natives;
 }
 

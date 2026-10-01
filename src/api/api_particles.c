@@ -619,8 +619,9 @@ static void wire_particle_config(const float *w, uint64_t texture,
     c->insert_mode = (int)w[346];
 }
 
-/* native create from the prelude's normalized wire (R22 spike): the option
- * bag was validated and marshalled by the shared prelude validator */
+/* native create from the prelude's normalized wire (ADR 0049): the option
+ * bag was validated and marshalled by the shared prelude validator. argv[2]
+ * carries the original bag for the wrapper's snapshot (see ps set). */
 JSValue efx_js_create_particle_system_wire(JSContext *ctx, JSValueConst this_val,
                                            int argc, JSValueConst *argv) {
     (void)this_val;

@@ -1,7 +1,8 @@
-/* R22 spike-only harness (throwaway branch, never merged): runs the error
- * catalog through the desktop quickjs binding headlessly — same output
- * contract as `player --script` (efx.log lines on stdout, exit 0) but with a
- * mock GPU sink, so it runs without a display. */
+/* Headless desktop runner for the error catalog (ADR 0049 work): runs a
+ * script through the real quickjs runtime + bindings with a mock GPU sink —
+ * the `player --script` output contract (efx.log lines on stdout, exit 0)
+ * without a display, so the catalog's byte-compare runs in EFX_HEADLESS
+ * builds too. Not a player replacement: no window, hooks, or run modes. */
 #include "render/render.h"
 #include "resource/resource.h"
 #include "runtime/runtime.h"
@@ -26,7 +27,7 @@ static const efx_render_sink g_sink = {
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        fprintf(stderr, "usage: r22_catalog <script.js> <resource-root>\n");
+        fprintf(stderr, "usage: efx_catalog_runner <script.js> <resource-root>\n");
         return 2;
     }
     FILE *f = fopen(argv[1], "rb");

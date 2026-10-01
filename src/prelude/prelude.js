@@ -875,62 +875,9 @@ function __efxParticleWire(opts, liveSample) {
     return { wire: w, texture: texHandle };
 }
 
-/* R22 spike-only: a JS copy of the desktop drawQuad option reading, used to
- * measure the hypothetical prelude-drawQuad cost against the native one */
-function __efxQuadOptsJS(opts, sample) {
-    var color = [1, 1, 1, 1];
-    var rotation = 0, scale = 1;
-    var src = [0, 0, 0, 0];
-    var hasSrc = 0;
-    var size = [0, 0];
-    var hasSize = 0;
-    var origin = [0, 0];
-    var hasOrigin = 0;
-    if (opts !== undefined) {
-        var known = { color: 1, rotation: 1, scale: 1, sourceRect: 1,
-                      size: 1, origin: 1 };
-        __efxCheckKnown(opts, known, '', false, true);
-        var cv = opts['color'];
-        if (cv !== undefined) {
-            color = __efxFloatArray(cv, 4);
-        }
-        var rv = opts['rotation'];
-        if (rv !== undefined) {
-            rotation = __efxFinite(rv, 'rotation must be a finite number');
-        }
-        var sv = opts['scale'];
-        if (sv !== undefined) {
-            scale = __efxFinite(sv, 'scale must be a finite number');
-            if (scale <= 0) {
-                throw new RangeError('scale must be > 0');
-            }
-        }
-        var zv = opts['size'];
-        if (zv !== undefined) {
-            size = __efxFloatArray(zv, 2);
-            if (size[0] <= 0 || size[1] <= 0) {
-                throw new RangeError('size entries must be > 0');
-            }
-            hasSize = 1;
-        }
-        var ov = opts['origin'];
-        if (ov !== undefined) {
-            origin = __efxFloatArray(ov, 2);
-            hasOrigin = 1;
-        }
-        var srcv = opts['sourceRect'];
-        if (srcv !== undefined) {
-            src = __efxSourceRect(sample, srcv);
-            hasSrc = 1;
-        }
-    }
-    return { color: color, rotation: rotation, scale: scale, src: src,
-             hasSrc: hasSrc, size: size, hasSize: hasSize, origin: origin,
-             hasOrigin: hasOrigin };
-}
-
-/* spike-only sourceRect helper for __efxQuadOptsJS (same messages as the
- * web binding's __efxSourceRect; the sample size comes from liveSample) */
+/* validate a sourceRect against a sample source's size -> [x, y, w, h]
+ * (same messages as the bindings' __efxSourceRect; the size comes from the
+ * binding-resolved sample) */
 function __efxSourceRect(sample, v) {
     if (!__efxIsObject(v)) {
         throw new TypeError('sourceRect must be an object');
@@ -981,46 +928,9 @@ function __efxPreludeInstall(efx, natives) {
     if (natives && natives.createParticleSystemWire) {
         efx.createParticleSystem = function (opts) {
             var parsed = __efxParticleWire(opts, natives.liveSample);
-            return natives.createParticleSystemWire(parsed.wire, parsed.texture);
+            return natives.createParticleSystemWire(parsed.wire, parsed.texture,
+                                                    opts);
         };
-        /* ---- R22 spike-only timing references (throwaway branch) ---- */
-        if (natives.createParticleSystemOpts) {
-            efx.createParticleSystemC = natives.createParticleSystemOpts;
-            efx.__r22wireOnly = function (opts) {
-                return __efxParticleWire(opts, natives.liveSample);
-            };
-        }
-        if (natives.drawQuadUnpacked) {
-            efx.drawQuadJS = function (x, y, tex, opts) {
-                if (arguments.length < 3) {
-                    throw new TypeError('drawQuad requires (x, y, texture, opts?)');
-                }
-                var fx = __efxNumber(x, 'x and y must be numbers');
-                var fy = __efxNumber(y, 'x and y must be numbers');
-                if (!isFinite(fx) || !isFinite(fy)) {
-                    throw new RangeError('x and y must be finite');
-                }
-                var sample = natives.liveSample(tex);
-                var texHandle = (sample !== null && typeof sample === 'object')
-                    ? sample.handle : sample;
-                var o = __efxQuadOptsJS(opts, sample);
-                var fw, fh;
-                if (o.hasSize) {
-                    fw = o.size[0]; fh = o.size[1];
-                } else if (o.hasSrc) {
-                    fw = o.src[2]; fh = o.src[3];
-                } else {
-                    fw = sample.w; fh = sample.h;
-                }
-                var ox = o.hasOrigin ? o.origin[0] : fw * 0.5;
-                var oy = o.hasOrigin ? o.origin[1] : fh * 0.5;
-                natives.drawQuadUnpacked(texHandle, fx, fy, fw, fh,
-                    o.color[0], o.color[1], o.color[2], o.color[3],
-                    o.rotation, o.scale, o.src[0], o.src[1], o.src[2],
-                    o.src[3], o.hasSrc, ox, oy);
-            };
-        }
-        /* ---- end spike-only ---- */
     }
 }
 
