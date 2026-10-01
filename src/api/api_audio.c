@@ -260,7 +260,7 @@ const JSCFunctionListEntry audio_proto_funcs[] = {
 /* ---- namespace entry points ---- */
 
 static JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
-                                   int argc, JSValueConst *argv) {
+                                          int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "loadAudioData requires a path string");
@@ -290,7 +290,7 @@ static JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
 
 
 static JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val,
-                                     int argc, JSValueConst *argv) {
+                                            int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "loadAudioStream requires a path string");
@@ -321,7 +321,7 @@ static JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_va
 
 
 static JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int argc,
-                               JSValueConst *argv) {
+                                      JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "playAudio requires an AudioData or AudioStream");
@@ -422,7 +422,7 @@ static JSValue efx_js_audio_set_master(JSContext *ctx, JSValueConst this_val,
 
 
 static JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc,
-                            JSValueConst *argv) {
+                                   JSValueConst *argv) {
     (void)ctx;
     (void)this_val;
     (void)argc;
