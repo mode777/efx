@@ -2,7 +2,7 @@
  *
  * Runs identically on both bindings: desktop quickjs evaluates this against
  * the `efx` namespace at runtime init; the web bridge exports the same
- * source and the page's JS engine evaluates it in entry.js.
+ * source and the page's JS engine evaluates it after the bridge boots.
  *
  * Rules (js-api two-layer contract): plain ES6 only — no host APIs; plain
  * JS data in/out (ADR 0010); angles in degrees; matrices are flat 16-number
