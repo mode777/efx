@@ -1406,6 +1406,13 @@ function __efxRenderTargetOpts(opts) {
     return dims;
 }
 
+/* sample results are binding-shaped: the web returns {handle, w, h}, the
+ * desktop a plain handle number (ADR 0049 D2) */
+function __efxSampleHandle(sample) {
+    return (sample !== null && typeof sample === 'object') ? sample.handle
+                                                           : sample;
+}
+
 /* Phong material -> the 17-float block + 5 map-handles wire (the layout of
  * the bindings' material marshalling); `sample` resolves map resources */
 function __efxMaterialWire(v, sample) {
@@ -1441,7 +1448,7 @@ function __efxMaterialWire(v, sample) {
         out[ci * 4 + 2] = c[2];
         out[ci * 4 + 3] = c[3];
         if (ch['map'] !== undefined && ch['map'] !== null) {
-            maps[ci] = sample(ch['map']).handle;
+            maps[ci] = __efxSampleHandle(sample(ch['map']));
         }
         if (ci === 2 && ch['shininess'] !== undefined) {
             if (typeof ch['shininess'] !== 'number') {
@@ -1454,7 +1461,7 @@ function __efxMaterialWire(v, sample) {
         }
     }
     if (v['alphaMask'] !== undefined && v['alphaMask'] !== null) {
-        maps[4] = sample(v['alphaMask']).handle;
+        maps[4] = __efxSampleHandle(sample(v['alphaMask']));
     }
     return { blocks: out, maps: maps };
 }
