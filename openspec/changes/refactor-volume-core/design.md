@@ -345,5 +345,11 @@ a call with its current policy and message.
     key delivery (ADR 0043).
 
   All green. `check_exports.mjs` reports 0/0.
+- **V5 (8.3).** Run 36855766168 is green on Linux, Windows, macOS,
+  Emscripten and the Emscripten golden job. That covers the R16 pipeline
+  state on Metal/D3D11.
+- **ADR.** None needed. No new durable decision was made: R14 keeps the core
+  free of Emscripten macros (ADR 0003), and R11/R12 preserve ADR
+  0011/0012/0046.
 
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->

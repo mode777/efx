@@ -105,13 +105,13 @@
   Record the volume Δ (E4).
 - [x] 8.2 Push and run V4
   (`python3 tools/verify_remote.py all refactor-volume-core`). Verify: green.
-- [ ] 8.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-core`)
+- [x] 8.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-core`)
   in the order Linux → Windows → **macOS** (required for R16). Verify: green;
   record the run id.
 
 ## 9. Docs and close-out
 
-- [ ] 9.1 Update `docs/refactoring.md`: mark R8–R16 done, record the R11
+- [x] 9.1 Update `docs/refactoring.md`: mark R8–R16 done, record the R11
   finding (confirmed or not) under §6, note Checkpoint 2 and the measured Δ.
 - [ ] 9.2 Merge to `main` and push (per `AGENTS.md`), then archive the change
   (`skip_specs`).

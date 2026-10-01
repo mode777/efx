@@ -2,7 +2,9 @@
 
 Status: **in progress** — Phase A–B (R0–R7) **done** (change
 `refactor-volume-tests`, Checkpoint 1 green, run 36850058681, measured
-Δ −499 lines). R8 onward pending. Snapshot taken 2026-10-01 against `main` at `cdf1c67`
+Δ −499). Phase C–F (R8–R16) **done** (change `refactor-volume-core`,
+Checkpoint 2 green through macOS, run 36855766168, measured Δ −623). R17
+onward pending. Snapshot taken 2026-10-01 against `main` at `cdf1c67`
 (after `refactor-safety-net`, `refactor-split-modules` and
 `refactor-long-functions`). The previous plan — split and decompose, implemented
 through its Checkpoint 3 — is in git history (`git show cdf1c67:docs/refactoring.md`).
@@ -359,6 +361,8 @@ production code moves.
 
 #### R8. Render: constant defaults, stamped record header, no single-use wrappers
 
+- **Status:** done. `efx_render_begin_target` sets the active target before
+  `record_push`, so the begin record is stamped with its own target.
 - **Current behavior:** see §2.4 (defaults written twice and field by field,
   6 header stamps, 3 color loops, 2 forwarding wrappers).
 - **Structural improvement:**
@@ -377,6 +381,8 @@ production code moves.
 
 #### R9. Input, audio and gamepad accessors
 
+- **Status:** done. Gamepad slots only need a range guard, so `live_slot`
+  does not check `connected` (unchanged behavior).
 - **Current behavior:** see §2.4.
 - **Structural improvement:**
   - Input feeders push compound literals and share one
@@ -393,6 +399,9 @@ production code moves.
 
 #### R10. Runtime and player lifecycle
 
+- **Status:** done. `efx_player_run_entry` returns stop/continue and writes
+  the exit code to an out-parameter. A −1 sentinel would collide with
+  `efx.quit(-1)`.
 - **Current behavior:** 11 hand-written `efx_hooks_free_all` calls. Player root
   mode and the REPL duplicate run-entry → error/quit check → exit code →
   teardown.
@@ -410,6 +419,9 @@ production code moves.
 
 #### R11. Table-driven destroy and finalize
 
+- **Status:** done. The leak was **confirmed** for all ten non-Texture
+  classes. `destroy_no_pending_exception` failed on the old code and passes
+  now (§6).
 - **Current behavior:** the 118-line probe chain, plus 11 release helpers and
   11 finalizer shims (§2.2).
 - **Structural improvement:**
@@ -432,6 +444,9 @@ production code moves.
 
 #### R12. One collider wrapper and policy-based option readers
 
+- **Status:** done. The wrapper keeps per-kind lists, so teardown order is
+  unchanged. Three policy flags were enough (`NULL_ABSENT`, `STRICT`,
+  `KEY_MSG`); the readers' return value already reports presence.
 - **Current behavior:** paired Body/Character code, plus the
   `audio_opt_*`/`phys_opt_*`/`get_opt_number` wrappers (§2.2).
 - **Structural improvement:**
@@ -452,6 +467,9 @@ production code moves.
 
 #### R13. Return-code, heap and `sourceRect` helpers
 
+- **Status:** done. There were 10 ladder sites plus the text helper. The
+  shared 1/4/9 messages are opt-in per site: `drawSprites` can return 9,
+  which still maps to `drawSprites failed`.
 - **Current behavior:** 27 rc ladders, hand-freed heap pointers on every error
   path, and 3 `sourceRect` validators (§2.3).
 - **Structural improvement:**
@@ -470,6 +488,7 @@ production code moves.
 
 #### R14. Export core functions directly
 
+- **Status:** done. There were 33 passthroughs, not 31.
 - **Current behavior:** 31 `efx_bridge_*` functions only forward to a core
   `efx_*` function with the same signature.
 - **Structural improvement:**
@@ -484,6 +503,8 @@ production code moves.
 
 #### R15. Batched input getters
 
+- **Status:** done. 19 getters were replaced by two batched reads, through a
+  shared top-level `__efxScratch()`.
 - **Current behavior:** 11 per-field event getters plus 9 pointer, wheel and
   window getters. Each call is one wasm round trip.
 - **Structural improvement:**
@@ -498,6 +519,7 @@ production code moves.
 
 #### R16. Pipeline and post-chain helpers
 
+- **Status:** done. V5 is green through macOS.
 - **Current behavior:** see §2.4 (two near-identical pipeline descriptors, a
   redundant `post_draw` signature, 3 copies of the blur, two `emit_quad`
   variants).
@@ -671,8 +693,12 @@ For each domain:
    path).
 3. O(n) free-slot scans in the render pools. A free list would change the
    handle-allocation order.
-4. If R11's new test confirms the pending-exception leak in
-   `js_destroy_resource`, the fix lands with R11 as a recorded bug fix.
+4. **Fixed in R11 (confirmed).** `js_destroy_resource` probed classes with
+   `JS_GetOpaque2`, which throws on a mismatch. `destroy()` on any
+   non-Texture resource therefore returned normally but left TypeErrors
+   pending. The new `api_tests` case `destroy_no_pending_exception` failed
+   for all ten classes. Dispatch now goes through `JS_GetAnyOpaque`. Script
+   behavior and messages are unchanged.
 
 ---
 
@@ -695,7 +721,9 @@ flowchart LR
   locally (no SSH server), V5 green in run 36850058681; volume
   40 561 → 40 062 (−499).
 - **Checkpoint 2** (after R16): the core, binding and pipeline passes are done.
-  Run V4, then **V5 through macOS**.
+  Run V4, then **V5 through macOS**. **Done** — V4 suites run locally (no SSH
+  server), V5 green in run 36855766168 (Linux, Windows, macOS, Emscripten,
+  web goldens); volume 40 062 → 39 439 (−623).
 - **Checkpoint 3** (after R21): build, tools and comments are done. Run V5,
   merge to `main` per `AGENTS.md`, and archive.
 - **Part 2** starts only after ADR 0049 is accepted. It runs as its own OpenSpec
