@@ -254,3 +254,10 @@ build. It is then deleted.
   `efx_resource_size` and `efx_audio_backend_resume` moved above their only
   caller. E3: desktop `efx_core` 403 → 374 and web `libefx_core` 305 → 286,
   removals only. `check_exports.mjs` reports zero.
+- **Checkpoint 1 (local, 7.1).** V1 190/190, V2 297/297 (all goldens on
+  Windows/D3D11), local Emscripten 159/159, `run_web_compare.mjs` all match,
+  `gen_prelude.py --check` current, `docs/api` unchanged, and
+  `s_error_catalog.expected.txt` byte-identical to `cdf1c67`. E4 volume:
+  40 561 → 40 062 (**−499**, estimate −650). The shortfall is mostly the
+  one-entry-per-line `EFX_CASE` tables (kept for grep-ability and the CMake
+  scan) and 30 R6 candidates instead of ~35.

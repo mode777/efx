@@ -72,7 +72,7 @@
 
 ## 7. Checkpoint 1 verification
 
-- [ ] 7.1 Run the full local suite: V2 (`ctest --test-dir build -C Release`,
+- [x] 7.1 Run the full local suite: V2 (`ctest --test-dir build -C Release`,
   all goldens) and V3 (`python tools/gen_prelude.py --check`). Confirm
   `tests/scripts/s_error_catalog.expected.txt` is unchanged and record the
   volume Δ (E4).
