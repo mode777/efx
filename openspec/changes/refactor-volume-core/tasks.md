@@ -39,7 +39,7 @@
 
 ## 4. Desktop `destroy()`/finalize and the pending-exception fix (R11)
 
-- [ ] 4.1 Add `efx_runtime_context()` to `runtime_internal.h`, and the
+- [x] 4.1 Add `efx_runtime_context()` to `runtime_internal.h`, and the
   `destroy_no_pending_exception` case to `api_tests.c`. It destroys one
   ImageData, MeshData, Mesh, RenderTarget, FontData, Font, ParticleSystem,
   AudioData, AudioStream and Audio, and asserts `!JS_HasException(ctx)` after

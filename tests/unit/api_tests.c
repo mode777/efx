@@ -7,6 +7,7 @@
 #include "render/render.h"
 #include "resource/resource.h"
 #include "runtime/runtime.h"
+#include "runtime/runtime_internal.h"
 #include "input/input.h"
 #include "input/gamepad.h"
 
@@ -1697,6 +1698,67 @@ static int physics_js(void) {
     return 0;
 }
 
+/* destroy() on every non-Texture resource class returns without leaving an
+ * exception pending on the context (invisible to scripts, so asserted here) */
+static int destroy_no_pending_exception(void) {
+    static const struct {
+        const char *root;
+        const char *expr;
+    } rows[] = {
+        {NULL, "efx.createImageData({ width: 1, height: 1, pixels: new Uint8Array(4) })"},
+        {NULL, "efx.createMeshData({ positions: [0,0,0, 1,0,0, 0,1,0] })"},
+        {NULL, "efx.createMesh(efx.createMeshData({ positions: [0,0,0, 1,0,0, 0,1,0] }))"},
+        {NULL, "efx.createRenderTarget({ width: 8, height: 8 })"},
+        {EFX_RES_FIXTURES, "efx.loadFontData('font.ttf')"},
+        {EFX_RES_FIXTURES, "efx.createFont(efx.loadFontData('font.ttf'), { size: 16 })"},
+        {NULL, "efx.createParticleSystem({ texture: efx.whiteTexture, max: 4, lifetime: 1 })"},
+        {EFX_AUDIO_FIXTURES, "efx.audio.loadAudioData('tone.wav')"},
+        {EFX_AUDIO_FIXTURES, "efx.audio.loadAudioStream('tone.mp3')"},
+        {EFX_AUDIO_FIXTURES, "efx.audio.playAudio(efx.audio.loadAudioData('tone.wav'))"},
+    };
+    int failures = 0;
+    for (size_t i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        efx_render_install_sink(&g_sink);
+        efx_render_reset_state();
+        efx_render_set_viewport(1024, 600);
+        efx_render_begin_frame();
+        g_rt = efx_runtime_new(NULL, 0);
+        if (!g_rt) return fail("runtime");
+        efx_resource *res = NULL;
+        if (rows[i].root) {
+            int err = EFX_RESOURCE_OK;
+            res = efx_resource_open(rows[i].root, &err);
+            REQUIRE(res, "open fixtures");
+            efx_runtime_set_resource(g_rt, res);
+        }
+        char code[256];
+        snprintf(code, sizeof(code), "globalThis.r = %s;", rows[i].expr);
+        JSContext *ctx = efx_runtime_context(g_rt);
+        int created = efx_runtime_eval_string(g_rt, "test", code) == 0 &&
+                      !JS_HasException(ctx);
+        JSValue glob = JS_GetGlobalObject(ctx);
+        JSValue r = JS_GetPropertyStr(ctx, glob, "r");
+        JSValue fn = JS_GetPropertyStr(ctx, r, "destroy");
+        JSValue ret = JS_Call(ctx, fn, r, 0, NULL);
+        int threw = JS_IsException(ret);
+        int pending = JS_HasException(ctx);
+        JS_FreeValue(ctx, ret);
+        JS_FreeValue(ctx, fn);
+        JS_FreeValue(ctx, r);
+        JS_FreeValue(ctx, glob);
+        end_js();
+        efx_resource_close(res);
+        if (!created || threw || pending) {
+            fprintf(stderr, "%s: %s\n", rows[i].expr,
+                    !created ? "create failed"
+                             : threw ? "destroy threw"
+                                     : "exception pending after destroy");
+            failures++;
+        }
+    }
+    return failures ? fail("destroy left an exception pending") : 0;
+}
+
 static const efx_test_case cases[] = {
     EFX_CASE(white),
     EFX_CASE(quad_record),
@@ -1736,6 +1798,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(sprites_js),
     EFX_CASE(physics_js),
     EFX_CASE(audio_js),
+    EFX_CASE(destroy_no_pending_exception),
 };
 
 int main(int argc, char **argv) {

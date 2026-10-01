@@ -289,5 +289,11 @@ a call with its current policy and message.
   collide with `efx.quit(-1)`, which is a legal exit code. The caller still
   reads `main.js`, because root mode reports a missing entry as an error
   naming the root while the REPL treats it as fine.
+- **R11 confirmed.** On the old code, `destroy_no_pending_exception` failed
+  for **all ten** classes: ImageData, MeshData, Mesh, RenderTarget, FontData,
+  Font, ParticleSystem, AudioData, AudioStream and Audio. Each one reported
+  "exception pending after destroy". Creation was clean in every row, and no
+  `destroy()` threw, so the leak comes only from the `JS_GetOpaque2` probe
+  chain. A Texture is the first probe, so it never leaked.
 
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->

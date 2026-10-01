@@ -363,6 +363,10 @@ void efx_runtime_set_resource(efx_runtime *rt, struct efx_resource *resource) {
     rt->host.resource = resource;
 }
 
+JSContext *efx_runtime_context(efx_runtime *rt) {
+    return rt->ctx;
+}
+
 int efx_runtime_eval_file(efx_runtime *rt, const char *path) {
     size_t len = 0;
     char *code = read_file(path, &len);
