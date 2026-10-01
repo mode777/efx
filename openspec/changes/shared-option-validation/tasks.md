@@ -146,12 +146,20 @@
 
 ## 11. Verification and close-out
 
-- [ ] 11.1 Confirm `DIVERGENT` in `tests/scripts/s_error_catalog.js` is empty,
+- [x] 11.1 Confirm `DIVERGENT` in `tests/scripts/s_error_catalog.js` is empty,
   and `smoke_error_catalog`/`web_error_catalog` match the updated expected
   file byte-for-byte.
-- [ ] 11.2 Run V2 + V3 locally. Run V4
+  (DIVERGENT is empty; desktop catalog_headless byte-compare green; web
+  catalog green on the server.)
+- [x] 11.2 Run V2 + V3 locally. Run V4
   (`python3 tools/verify_remote.py all shared-option-validation`) and confirm
   green.
+  (V3 green locally; V2/V4 run on the SSH server: native 299/299 incl. all
+  goldens, Emscripten ctest, web goldens, compare, harness, gallery smoke —
+  green after two web-side fixes: psProto callable, material binding after
+  meshdata commit, plus the prelude liveSample-shape fix. One recorded
+  deviation: the prelude material-wire bug briefly broke the
+  map_alpha_mask/web material goldens and was caught and fixed here.)
 - [ ] 11.3 Dispatch V5 (`gh workflow run ci.yml --ref shared-option-validation`)
   in the order Linux → Windows → macOS. Verify: green; record the run id.
 - [ ] 11.4 Merge to `main` and push (per `AGENTS.md`). Confirm ADR 0049 is
