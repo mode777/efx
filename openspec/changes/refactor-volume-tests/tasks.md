@@ -54,7 +54,7 @@
 
 ## 6. Delete dead code and unused surface (R5–R7)
 
-- [ ] 6.1 (R5) Delete `efx_quat`, `efx_mat3` and the 8 unused inline helpers
+- [x] 6.1 (R5) Delete `efx_quat`, `efx_mat3` and the 8 unused inline helpers
   from `src/physics/efx_phys_vec.h` (D6). Change ADR 0040's
   "`vec3`/`quat`/`mat3` math" to "its own vector math". Verify: a grep finds
   zero references, and V1 `efx_physics_tests` passes.

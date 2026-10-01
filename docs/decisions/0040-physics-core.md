@@ -25,8 +25,8 @@ binding into a C11 codebase. The engine already has CPU simulation precedents
 - **A bespoke, dependency-free C11 core (`src/physics/`).** Sphere, axis-
   aligned box, vertical capsule, and triangle-mesh colliders; a median-split
   BVH per static mesh; an impulse-based **linear** solver; sensors; and a
-  kinematic capsule character. It links only libc and carries its own tiny
-  `vec3`/`quat`/`mat3` math — **no renderer, no platform layer, no script
+  kinematic capsule character. It links only libc and carries its own vector
+  math — **no renderer, no platform layer, no script
   runtime, and no `src/math`/GLM** — so `efx_physics_tests` builds and runs
   headless in milliseconds, independent of a display or the engine.
 - **One engine-owned world, stepped by the script.** A single world owns all
