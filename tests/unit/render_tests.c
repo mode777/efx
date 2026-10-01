@@ -302,10 +302,41 @@ static int texture_lifecycle(void) {
     return 0;
 }
 
+/* P12: queued (sink-less) texture creation always appends a fresh slot and
+ * never reuses a freed one; the resulting handle sequence is observable, so
+ * pin it before unifying the slot initialisation. */
+static int texture_queued_handles(void) {
+    uint8_t px[4] = {1, 2, 3, 4};
+    uint64_t t1 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0);
+    uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0);
+    if (t1 != (((uint64_t)1 << 32) | 1)) return fail("queued handle 1");
+    if (t2 != (((uint64_t)1 << 32) | 2)) return fail("queued handle 2");
+    /* destroying a queued texture frees its pending bytes but leaves the slot
+       consumed; the next create appends rather than reusing it */
+    if (efx_render_texture_destroy(t1) != EFX_RENDER_OK)
+        return fail("destroy queued");
+    uint64_t t3 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0);
+    if (t3 != (((uint64_t)1 << 32) | 3)) return fail("queued handle 3 (append)");
+    if (t1 == t3 || t2 == t3) return fail("queued handle reuse");
+    /* growth past the initial capacity keeps the append-only sequence */
+    uint64_t last = 0;
+    for (int i = 0; i < 70; i++) {
+        last = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+                                         EFX_FILTER_LINEAR, 0);
+        if (!last) return fail("queued grow");
+    }
+    if (last != (((uint64_t)1 << 32) | 73))
+        return fail("queued handle after grow");
+    efx_render_shutdown();
+    return 0;
+}
+
 /* F6e: the mipmaps creation flag is stored on the slot and read back;
  * any truthy value normalizes to 1, absent/false to 0 */
-static int texture_mipmaps(void) {
-    install_mock_sink();
+static int texture_mipmaps(void) {    install_mock_sink();
     uint8_t px[16] = {0};
     uint64_t plain = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
                                                EFX_FILTER_LINEAR, 0);
@@ -2188,6 +2219,7 @@ int main(int argc, char **argv) {
     if (!strcmp(c, "blend_snapshot")) return blend_snapshot();
     if (!strcmp(c, "record_budget")) return record_budget();
     if (!strcmp(c, "texture_lifecycle")) return texture_lifecycle();
+    if (!strcmp(c, "texture_queued_handles")) return texture_queued_handles();
     if (!strcmp(c, "texture_mipmaps")) return texture_mipmaps();
     if (!strcmp(c, "record_fields")) return record_fields();
     if (!strcmp(c, "batching")) return batching();

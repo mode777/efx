@@ -69,9 +69,9 @@ Public `api.h`, `web.h`, `render.h` are unchanged.
 
 ### D3 — Web fragments via ordered `--post-js`, no generator
 
-Split `entry.js` into `src/web/js/{core,render2d,render3d,resource,text,
-particles,input,physics,audio,boot}.js` and pass them as ordered `--post-js`
-flags; update `LINK_DEPENDS`.
+Split `entry.js` into `src/web/js/{core,render2d,resource,text,target_post,
+particles,render3d,input,physics,audio,boot}.js` and pass them as ordered
+`--post-js` flags; update `LINK_DEPENDS`.
 
 - **Why**: no build-time concatenation step to maintain, and the seam order is
   explicit in CMake. The plan's stated preference.
@@ -80,18 +80,47 @@ flags; update `LINK_DEPENDS`.
   ES modules in the post-js (the glue relies on shared top-level scope, not
   module imports).
 
+**Amended during apply:** the fragments are contiguous byte slices of the
+former `entry.js`, in file order, so concatenating them (and emcc's ordered
+`--post-js`) reproduces the file exactly. The former single file interleaves
+milestones inside `__efxEnsureApi` (2D and 3D API methods are split around the
+resource/text/target-post and particles blocks), so a domain-ordered
+reorganization was out of scope; the slices are grouped by the dominant
+contiguous domain and a separate `target_post.js` slice was added for the F5
+block, giving eleven fragments rather than the ten originally listed.
+
 ### D4 — Move-only passes prove equivalence mechanically
 
-For P7/P10/P14, review with `--color-moved` (only includes, `static` →
-internal-header declarations, and section headers should be non-dimmed) and
-compare `nm -g --defined-only` of `efx_core` before/after; the diff must be
-empty. For P10 also `diff` the concatenated web output against the pre-split
-`entry.js`, allowing only whitespace at seams.
+For P7/P10/P14, review with `--color-moved` and compare `nm -g --defined-only`
+of `efx_core` before/after. For P10 also `diff` the concatenated web output
+against the pre-split `entry.js`, allowing only whitespace at seams.
 
 - **Why**: these are the strongest available evidence that a large move changed
   nothing, and the plan mandates them.
 - **Alternatives**: rely on tests alone (tests cannot prove the absence of an
   unintended export or a reordered initializer).
+
+**Amended during apply (option 2):** the splits must share helpers that are
+currently `static` (`type_error`, the `opt_*`/`read_*` readers, `live_opaque`,
+the `get_live_*` resolvers, `check_known_fields`, `vec3_to_js`, …). Keeping
+them `static inline` in the internal headers would preserve a literally-empty
+`nm -g` diff, but was rejected for review cost. Instead the shared helpers
+become **non-static with an `efx_api_` prefix**, declared in the internal
+header. The `nm` criterion is therefore relaxed to: **the existing
+`efx_js_*` / public binding surface is unchanged**; the only additions are the
+new `efx_api_*` internal helpers. The public `api.h` / `web.h` / `render.h`
+stay byte-stable.
+
+**Amended during apply (P14):** the render split must share the engine-owned
+`R` and `POST` registries plus a dozen helpers (`ensure_state`,
+`flush_pending_uploads`, `record_push`, `pending_free`, the map/texture retain
+helpers, the post size/reset helpers, …) across the six fragments, so those
+become non-static and are declared in `render_internal.h`. A multi-TU split
+cannot keep them translation-unit-local, so the `nm` criterion is relaxed the
+same way as for P7: the public `efx_render_*` / `efx_meshdata_*` / `efx_rig_*`
+/ `efx_lighting_*` / `efx_affine_*` / `efx_material_*` surface is unchanged;
+the only additions are the internal state objects and helpers. `render.h`
+stays byte-stable.
 
 ### D5 — Policy objects, not merged behavior, for the readers
 
@@ -114,6 +143,22 @@ appending and the live path keeps scanning for a free slot.
 - **Why**: handle values are observable to the core tests and a reuse change
   would alter them; the asymmetry is a known deferred behavior change.
 - **Alternatives**: unify reuse now (changes observable handles; out of scope).
+
+### D7 — Shared resolvers, not a magic getter table, for P5
+
+P5 adds `live_opaque(...)` plus per-class `*_alive` predicates and rewrites the
+seven `get_live_*` (plus new `get_live_texture`/`get_live_font`) as one-line
+resolvers. The ~12 read-only getters use those resolvers and a shared
+`font_metric` helper. The design originally suggested a
+`JS_CGETSET_MAGIC_DEF` table dispatching on `magic`; that was **not** adopted.
+
+- **Why**: the getters differ not only in field but in class id, type/dead
+  message and value extraction, so a magic table needs a large switch and
+  casts for no behavioral benefit while raising the risk of a message change
+  the byte-pinned catalog would (correctly) reject. The shared resolvers
+  remove the same duplication with a smaller, reviewable diff.
+- **Alternatives**: the magic table (rejected as above); leaving the getters
+  untouched (keeps six copies of the unwrap/alive preamble).
 
 ## Risks / Trade-offs
 

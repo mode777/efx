@@ -16,10 +16,15 @@ so it can go through its own OpenSpec change.
 `refactor-safety-net` — **Checkpoint 1 reached**. The error catalog
 (`tests/scripts/s_error_catalog.js` + `.expected.txt`) and the dead-export
 guard (`tools/check_exports.mjs`) landed, and every dead symbol in §1.2 was
-removed (`tools/check_exports.mjs` now reports zero). Phases C–I remain
-proposed. The catalog also found that desktop/web error messages drift more
-widely than §4.1 assumed: `s_error_catalog.js`'s `DIVERGENT` map lists the 18
-known divergences, recorded (not fixed) per §4.1.
+removed (`tools/check_exports.mjs` now reports zero). Phases C–F (P3–P14) are
+implemented by the OpenSpec change `refactor-split-modules` — **Checkpoint 2
+reached**: the duplicated helpers were consolidated in place (P3–P6 desktop,
+P8–P9 web, P11–P13 render) and the four large files split by domain
+(P7 `src/api/api*.c`, P10 `src/web/js/*.js` + `src/web/bridge_*.c`,
+P14 `src/render/render_*.c`). Phases G–I (P15–P21) remain proposed. The
+catalog also found that desktop/web error messages drift more widely than §4.1
+assumed: `s_error_catalog.js`'s `DIVERGENT` map lists the 18 known
+divergences, recorded (not fixed) per §4.1.
 
 ---
 
@@ -278,7 +283,7 @@ restructuring works on code that is already smaller.
 All Phase C passes are in-place (no file moves yet), so reviewers see real
 diffs rather than moves.
 
-#### P3. One optional-field reader family
+#### P3. One optional-field reader family — **done**
 
 - **Current behavior:** `phys_opt_*` and `pcfg_*` implement the same
   "absent = 0 / set = 1 / error = −1, throws" contract with different
@@ -290,7 +295,7 @@ diffs rather than moves.
   then inline the wrappers at call sites. Do not merge the messages.
 - **Validation:** V1 + V2, and the P0 catalog is byte-identical.
 
-#### P4. Share the numeric element loop across array readers
+#### P4. Share the numeric element loop across array readers — **done**
 
 - **Current behavior:** `get_float_array`, `read_number_array`,
   `read_index_array`, `read_vec3` and `vec_from_value` each loop over
@@ -308,7 +313,7 @@ diffs rather than moves.
   Reviewers check a table in the PR description that maps each old reader to
   its policy.
 
-#### P5. Generic live-opaque resolver and getter
+#### P5. Generic live-opaque resolver and getter — **done**
 
 - **Current behavior:** seven `get_live_*` functions and about 12 read-only
   getters repeat the same unwrap/throw sequence.
@@ -320,7 +325,7 @@ diffs rather than moves.
 - **Validation:** V1 + V2 + V4, and the P0 catalog is byte-identical
   (destroyed-resource cases are in the catalog).
 
-#### P6. Table-driven class registration and finalizers
+#### P6. Table-driven class registration and finalizers — **done**
 
 - **Current behavior:** `efx_api_init` spells out 13 class registrations, and
   13 finalizers share one shape.
@@ -333,7 +338,7 @@ diffs rather than moves.
 
 ### Phase D — Split the desktop binding (move-only)
 
-#### P7. Split `api.c` by domain
+#### P7. Split `api.c` by domain — **done**
 
 - **Current behavior:** one ~5 970-line TU. Sections for F11, F12 and F14 are
   each split in two, and forward declarations bridge the gaps.
@@ -351,7 +356,7 @@ diffs rather than moves.
 
 ### Phase E — Web binding
 
-#### P8. `entry.js`: one known-field helper
+#### P8. `entry.js`: one known-field helper — **done**
 
 - **Current behavior:** 25 inline loops plus `__physKeys`. Message
   formats vary: `"unknown option 'x'"` vs `"unknown <where> option 'x'"`.
@@ -363,7 +368,7 @@ diffs rather than moves.
   a site uses `Object.keys`. Replace all sites.
 - **Validation:** V4, and the P0 catalog compare is identical on web.
 
-#### P9. `entry.js`: resource-class factory
+#### P9. `entry.js`: resource-class factory — **done**
 
 - **Current behavior:** 13 hand-written wrapper classes duplicate liveness,
   idempotent `destroy()`, and guarded getters.
@@ -373,7 +378,7 @@ diffs rather than moves.
   gallery type doc and the catalog both observe these).
 - **Validation:** V4 (`run_web_harness.mjs`, gallery smoke, catalog).
 
-#### P10. Split `entry.js` and `bridge.c` by domain (move-only)
+#### P10. Split `entry.js` and `bridge.c` by domain (move-only) — **done**
 
 - **Current behavior:** single `--post-js=src/web/entry.js`, single
   `bridge.c`.
@@ -390,7 +395,7 @@ diffs rather than moves.
 
 ### Phase F — Render core
 
-#### P11. Generic pool helpers in `render.c`
+#### P11. Generic pool helpers in `render.c` — **done**
 
 - **Current behavior:** four handle decoders and nine "double + realloc"
   growth blocks. Each has slightly different failure handling: the
@@ -401,7 +406,7 @@ diffs rather than moves.
   two-line wrappers. Keep each call site's OOM branch unchanged.
 - **Validation:** V1 (render_tests lifecycle/generation cases) + V2 goldens.
 
-#### P12. Unify texture-slot initialisation
+#### P12. Unify texture-slot initialisation — **done**
 
 - **Current behavior:** `efx_render_texture_create` initialises a `tex_slot`
   twice (queued and live paths). The queued path **always appends and never
@@ -413,14 +418,14 @@ diffs rather than moves.
 - **Validation:** V1 + V2. Add a unit test that pins current handle
   sequencing for queued creation before the change.
 
-#### P13. Material-map loops
+#### P13. Material-map loops — **done**
 
 - **Current behavior:** retain and release each list five map fields by hand.
 - **Structural improvement:** add a `static const size_t MAP_OFFSETS[]` (or
   an accessor returning the five handles) and loop over it.
 - **Validation:** V1 (F4b retention tests) + V2 (map goldens).
 
-#### P14. Split `render.c` (move-only)
+#### P14. Split `render.c` (move-only) — **done**
 
 - **Current behavior:** one TU owning global `R`.
 - **Structural improvement:** add `src/render/render_internal.h` (the `R`

@@ -206,7 +206,7 @@ endforeach()
 foreach(CASE
     compose_camera compose_quad value_snapshot default_camera_viewport
     blend_snapshot record_budget texture_lifecycle record_fields batching
-    texture_mipmaps
+    texture_mipmaps texture_queued_handles
     meshdata_validation meshdata_skinning mesh_lifecycle mesh_pending_upload
     mesh_record_fields mesh_record_order mesh_record_budget
     lights_state light_snapshot material_binding lighting_reference
