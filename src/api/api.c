@@ -1030,10 +1030,6 @@ static const efx_class_spec CLASS_SPECS[] = {
 
 
 int efx_api_init(JSContext *ctx) {
-    static int registered;
-    if (registered) {
-        return 0;
-    }
     JSRuntime *rt = JS_GetRuntime(ctx);
     const int nclasses = EFX_ARRAY_COUNT(CLASS_SPECS);
     for (int i = 0; i < nclasses; i++) {
@@ -1063,7 +1059,6 @@ int efx_api_init(JSContext *ctx) {
         JS_SetClassProto(ctx, *CLASS_SPECS[i].id, proto);
     }
     JS_FreeValue(ctx, destroy_fn);
-    registered = 1;
     return 0;
 }
 
