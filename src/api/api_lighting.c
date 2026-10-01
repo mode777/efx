@@ -3,116 +3,77 @@
 
 /* ------------------------------------------------------------ F4a bindings */
 
-JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val,
-                        int argc, JSValueConst *argv) {
+/* ---- natives for the shared prelude validators (ADR 0049) ---- */
+
+/* (slot, enabled, px, py, pz, r, g, b, a, range) */
+JSValue efx_js_set_point_light_wire(JSContext *ctx, JSValueConst this_val,
+                                    int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 2) {
-        return efx_api_type_error(ctx, "setLight requires (slot, opts)");
+    if (argc < 10) {
+        return efx_api_type_error(ctx, "point light wire native requires 10 arguments");
     }
-    double slot_d = 0;
-    if (!JS_IsNumber(argv[0]) || JS_ToFloat64(ctx, &slot_d, argv[0]) < 0 ||
-        !isfinite(slot_d) || slot_d != floor(slot_d) || slot_d < 0 ||
-        slot_d > (double)(EFX_MAX_POINT_LIGHTS - 1)) {
-        return efx_api_range_error(ctx, "light slot must be an integer 0..3");
+    int32_t slot = 0, enabled = 0;
+    if (JS_ToInt32(ctx, &slot, argv[0]) < 0 ||
+        JS_ToInt32(ctx, &enabled, argv[1]) < 0) {
+        return JS_EXCEPTION;
     }
-    int slot = (int)slot_d;
-    if (JS_IsNull(argv[1]) || JS_IsUndefined(argv[1])) {
+    double v[8];
+    for (int i = 0; i < 8; i++) {
+        if (JS_ToFloat64(ctx, &v[i], argv[2 + i]) < 0) {
+            return JS_EXCEPTION;
+        }
+    }
+    if (!enabled) {
         efx_render_set_point_light(slot, NULL);
         return JS_UNDEFINED;
     }
-    if (!JS_IsObject(argv[1])) {
-        return efx_api_type_error(ctx, "setLight options must be an object or null");
-    }
-    static const char *known[] = {"pos", "color", "range"};
-    if (efx_api_check_known_fields(ctx, argv[1], known, 3, "setLight") != 0) {
-        return JS_EXCEPTION;
-    }
     efx_point_light l;
     memset(&l, 0, sizeof(l));
-    JSValue pv = JS_GetPropertyStr(ctx, argv[1], "pos");
-    if (JS_IsUndefined(pv)) {
-        JS_FreeValue(ctx, pv);
-        return efx_api_type_error(ctx, "setLight requires pos");
-    }
-    if (efx_api_read_vec3(ctx, pv, l.pos, "pos") != 0) {
-        JS_FreeValue(ctx, pv);
-        return JS_EXCEPTION;
-    }
-    JS_FreeValue(ctx, pv);
-    JSValue cv = JS_GetPropertyStr(ctx, argv[1], "color");
-    if (JS_IsUndefined(cv)) {
-        JS_FreeValue(ctx, cv);
-        return efx_api_type_error(ctx, "setLight requires color");
-    }
-    if (efx_api_get_float_array(ctx, cv, l.color, 4) != 0) {
-        JS_FreeValue(ctx, cv);
-        return JS_EXCEPTION;
-    }
-    JS_FreeValue(ctx, cv);
-    JSValue rv = JS_GetPropertyStr(ctx, argv[1], "range");
-    if (JS_IsUndefined(rv)) {
-        JS_FreeValue(ctx, rv);
-        l.range = 0.0f;
-    } else {
-        double d = 0;
-        int bad = !JS_IsNumber(rv) || JS_ToFloat64(ctx, &d, rv) < 0;
-        JS_FreeValue(ctx, rv);
-        if (bad) {
-            return efx_api_type_error(ctx, "range must be a number");
-        }
-        if (!isfinite(d) || d < 0) {
-            return efx_api_range_error(ctx, "range must be a finite number >= 0");
-        }
-        l.range = (float)d;
-    }
+    l.pos[0] = (float)v[0];
+    l.pos[1] = (float)v[1];
+    l.pos[2] = (float)v[2];
+    l.color[0] = (float)v[3];
+    l.color[1] = (float)v[4];
+    l.color[2] = (float)v[5];
+    l.color[3] = (float)v[6];
+    l.range = (float)v[7];
     l.enabled = 1;
-    efx_render_set_point_light((int)slot, &l);
+    efx_render_set_point_light(slot, &l);
     return JS_UNDEFINED;
 }
 
 
-JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val,
-                                   int argc, JSValueConst *argv) {
+/* (enabled, dx, dy, dz, r, g, b, a) */
+JSValue efx_js_set_directional_light_wire(JSContext *ctx,
+                                          JSValueConst this_val,
+                                          int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1) {
-        return efx_api_type_error(ctx, "setDirectionalLight requires an options object or null");
+    if (argc < 8) {
+        return efx_api_type_error(ctx, "directional light wire native requires 8 arguments");
     }
-    if (JS_IsNull(argv[0]) || JS_IsUndefined(argv[0])) {
+    int32_t enabled = 0;
+    if (JS_ToInt32(ctx, &enabled, argv[0]) < 0) {
+        return JS_EXCEPTION;
+    }
+    double v[7];
+    for (int i = 0; i < 7; i++) {
+        if (JS_ToFloat64(ctx, &v[i], argv[1 + i]) < 0) {
+            return JS_EXCEPTION;
+        }
+    }
+    if (!enabled) {
         efx_render_set_directional_light(NULL);
         return JS_UNDEFINED;
     }
-    if (!JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "setDirectionalLight options must be an object or null");
-    }
-    static const char *known[] = {"dir", "color"};
-    if (efx_api_check_known_fields(ctx, argv[0], known, 2, "setDirectionalLight") != 0) {
-        return JS_EXCEPTION;
-    }
     efx_dir_light l;
     memset(&l, 0, sizeof(l));
-    JSValue dv = JS_GetPropertyStr(ctx, argv[0], "dir");
-    if (JS_IsUndefined(dv)) {
-        JS_FreeValue(ctx, dv);
-        return efx_api_type_error(ctx, "setDirectionalLight requires dir");
-    }
-    if (efx_api_read_vec3(ctx, dv, l.dir, "dir") != 0) {
-        JS_FreeValue(ctx, dv);
-        return JS_EXCEPTION;
-    }
-    JS_FreeValue(ctx, dv);
-    if (l.dir[0] == 0.0f && l.dir[1] == 0.0f && l.dir[2] == 0.0f) {
-        return efx_api_type_error(ctx, "dir must be non-zero");
-    }
-    JSValue cv = JS_GetPropertyStr(ctx, argv[0], "color");
-    if (JS_IsUndefined(cv)) {
-        JS_FreeValue(ctx, cv);
-        return efx_api_type_error(ctx, "setDirectionalLight requires color");
-    }
-    if (efx_api_get_float_array(ctx, cv, l.color, 4) != 0) {
-        JS_FreeValue(ctx, cv);
-        return JS_EXCEPTION;
-    }
-    JS_FreeValue(ctx, cv);
+    l.dir[0] = (float)v[0];
+    l.dir[1] = (float)v[1];
+    l.dir[2] = (float)v[2];
+    l.color[0] = (float)v[3];
+    l.color[1] = (float)v[4];
+    l.color[2] = (float)v[5];
+    l.color[3] = (float)v[6];
     l.enabled = 1;
     efx_render_set_directional_light(&l);
     return JS_UNDEFINED;

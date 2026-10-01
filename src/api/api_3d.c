@@ -458,77 +458,32 @@ JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
-JSValue efx_js_setCamera3D(JSContext *ctx, JSValueConst this_val,
-                           int argc, JSValueConst *argv) {
+/* (px, py, pz, tx, ty, tz, fov, near, far) */
+JSValue efx_js_set_camera3d_wire(JSContext *ctx, JSValueConst this_val,
+                                 int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "setCamera3D requires an options object");
+    if (argc < 9) {
+        return efx_api_type_error(ctx, "camera3d wire native requires 9 arguments");
     }
-    JSValueConst opts = argv[0];
-    static const char *known[] = {"pos", "target", "fov", "near", "far"};
-    if (efx_api_check_known_fields(ctx, opts, known, 5, "setCamera3D") != 0) {
-        return JS_EXCEPTION;
+    double d[9];
+    for (int i = 0; i < 9; i++) {
+        if (JS_ToFloat64(ctx, &d[i], argv[i]) < 0) {
+            return JS_EXCEPTION;
+        }
     }
     efx_camera3d cam;
     memset(&cam, 0, sizeof(cam));
-    cam.near_z = 0.1f;
-    cam.far_z = 100.0f;
-
-    static const char *vec_keys[] = {"pos", "target"};
-    float *vec_outs[] = {cam.pos, cam.target};
-    for (int i = 0; i < 2; i++) {
-        JSValue v = JS_GetPropertyStr(ctx, opts, vec_keys[i]);
-        if (JS_IsUndefined(v)) {
-            JS_FreeValue(ctx, v);
-            return efx_api_type_error(ctx, "setCamera3D requires pos and target");
-        }
-        float *buf = NULL;
-        int len = 0;
-        int rc = efx_api_read_number_array(ctx, v, &buf, &len, vec_keys[i]);
-        JS_FreeValue(ctx, v);
-        if (rc != 0) {
-            return JS_EXCEPTION;
-        }
-        if (len != 3) {
-            free(buf);
-            return efx_api_range_error(ctx, "pos and target must hold 3 numbers");
-        }
-        memcpy(vec_outs[i], buf, sizeof(float) * 3);
-        free(buf);
-    }
-    JSValue fv = JS_GetPropertyStr(ctx, opts, "fov");
-    if (JS_IsUndefined(fv)) {
-        JS_FreeValue(ctx, fv);
-        return efx_api_type_error(ctx, "setCamera3D requires fov");
-    }
-    double d = 0;
-    if (!JS_IsNumber(fv) || JS_ToFloat64(ctx, &d, fv) < 0) {
-        JS_FreeValue(ctx, fv);
-        return efx_api_type_error(ctx, "fov must be a number");
-    }
-    JS_FreeValue(ctx, fv);
-    if (!isfinite(d)) {
-        return efx_api_range_error(ctx, "fov must be finite");
-    }
-    cam.fov = (float)d;
-
-    static const char *opt_keys[] = {"near", "far"};
-    float *opt_outs[] = {&cam.near_z, &cam.far_z};
-    for (int i = 0; i < 2; i++) {
-        JSValue v = JS_GetPropertyStr(ctx, opts, opt_keys[i]);
-        if (!JS_IsUndefined(v)) {
-            if (!JS_IsNumber(v) || JS_ToFloat64(ctx, &d, v) < 0) {
-                JS_FreeValue(ctx, v);
-                return efx_api_type_error(ctx, "near and far must be numbers");
-            }
-            if (!isfinite(d)) {
-                JS_FreeValue(ctx, v);
-                return efx_api_range_error(ctx, "near and far must be finite");
-            }
-            *opt_outs[i] = (float)d;
-        }
-        JS_FreeValue(ctx, v);
-    }
+    cam.pos[0] = (float)d[0];
+    cam.pos[1] = (float)d[1];
+    cam.pos[2] = (float)d[2];
+    cam.target[0] = (float)d[3];
+    cam.target[1] = (float)d[4];
+    cam.target[2] = (float)d[5];
+    cam.fov = (float)d[6];
+    cam.near_z = (float)d[7];
+    cam.far_z = (float)d[8];
     efx_render_set_camera3d(&cam);
     return JS_UNDEFINED;
 }
+
+

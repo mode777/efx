@@ -63,11 +63,11 @@
 3d.drawmesh-destroyed: TypeError: using a destroyed resource
 3d.mesh-surfacecount-destroyed: TypeError: using a destroyed resource
 3d.md-surfacecount-destroyed: TypeError: using a destroyed resource
-4a.light-slot: KNOWN-DIVERGENCE
-4a.light-slot-neg: KNOWN-DIVERGENCE
+4a.light-slot: RangeError: light slot must be an integer 0..3
+4a.light-slot-neg: RangeError: light slot must be an integer 0..3
 4a.light-no-pos: TypeError: setLight requires pos
 4a.light-no-color: TypeError: setLight requires color
-4a.light-pos-short: KNOWN-DIVERGENCE
+4a.light-pos-short: RangeError: pos must hold 3 numbers
 4a.light-range-type: TypeError: range must be a number
 4a.light-range-neg: RangeError: range must be a finite number >= 0
 4a.light-unknown: TypeError: unknown setLight option 'frob'
@@ -173,7 +173,7 @@
 11.ps-set-max: RangeError: max must be in 1..65536
 11.ps-destroyed-emit: TypeError: using a destroyed resource
 11.billboard-no-texture: TypeError: drawBillboard requires a texture
-11.billboard-pos: KNOWN-DIVERGENCE
+11.billboard-pos: TypeError: drawBillboard pos must be [x,y,z]
 11.billboard-size: RangeError: size entries must be > 0
 11.sprites-array: TypeError: sprites must be an array
 11.sprite-xy: TypeError: sprite x and y must be finite numbers

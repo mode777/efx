@@ -175,18 +175,14 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("registerUpdateHook", 1, efx_js_registerUpdateHook),
     JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
     JS_CFUNC_DEF("setClearColor", 1, efx_js_setClearColor),
-    JS_CFUNC_DEF("setCamera2D", 1, efx_js_setCamera2D),
     /* createImageData/createTexture are installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawQuad", 4, efx_js_drawQuad),
     JS_CFUNC_DEF("setBlendMode", 1, efx_js_setBlendMode),
     JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
-    JS_CFUNC_DEF("setCamera3D", 1, efx_js_setCamera3D),
     /* createMeshData is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
     JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
     JS_CFUNC_DEF("poseMesh", 2, efx_js_poseMesh),
-    JS_CFUNC_DEF("setLight", 2, efx_js_setLight),
-    JS_CFUNC_DEF("setDirectionalLight", 1, efx_js_setDirectionalLight),
     JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
     /* createRenderTarget is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
@@ -303,6 +299,15 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     n = JS_NewCFunction(rt->ctx, efx_js_physics_shape_cast_wire,
                         "shapeCast", 15);
     JS_SetPropertyStr(rt->ctx, natives, "shapeCast", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_point_light_wire, "setPointLight", 10);
+    JS_SetPropertyStr(rt->ctx, natives, "setPointLight", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_directional_light_wire,
+                        "setDirectionalLight", 8);
+    JS_SetPropertyStr(rt->ctx, natives, "setDirectionalLight", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_camera2d_wire, "setCamera2D", 6);
+    JS_SetPropertyStr(rt->ctx, natives, "setCamera2D", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_camera3d_wire, "setCamera3D", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "setCamera3D", n);
     n = JS_NewCFunction(rt->ctx, efx_js_check_image_data, "checkImageData", 1);
     JS_SetPropertyStr(rt->ctx, natives, "checkImageData", n);
     n = JS_NewCFunction(rt->ctx, efx_js_create_image_data_wire,

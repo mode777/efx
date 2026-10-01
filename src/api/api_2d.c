@@ -39,57 +39,31 @@ JSValue efx_js_setClearColor(JSContext *ctx, JSValueConst this_val, int argc, JS
 }
 
 
-JSValue efx_js_setCamera2D(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+/* (frameW, frameH, x, y, zoom, rotation); x/y may be NaN — the engine
+ * resolves them to the frame center at record time */
+JSValue efx_js_set_camera2d_wire(JSContext *ctx, JSValueConst this_val,
+                                 int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "setCamera2D requires an options object");
+    if (argc < 6) {
+        return efx_api_type_error(ctx, "camera2d wire native requires 6 arguments");
     }
-    JSValueConst opts = argv[0];
     efx_camera2d cam;
     memset(&cam, 0, sizeof(cam));
     cam.zoom = 1.0f;
-    cam.x = NAN; /* NaN = resolve to frame center at record time */
+    cam.x = NAN;
     cam.y = NAN;
-
-    JSValue frame = JS_GetPropertyStr(ctx, opts, "frame");
-    if (!JS_IsUndefined(frame)) {
-        float f[2];
-        if (efx_api_get_float_array(ctx, frame, f, 2) != 0) {
-            JS_FreeValue(ctx, frame);
+    double d[6];
+    for (int i = 0; i < 6; i++) {
+        if (JS_ToFloat64(ctx, &d[i], argv[i]) < 0) {
             return JS_EXCEPTION;
         }
-        if (!(f[0] > 0 && f[1] > 0)) {
-            JS_FreeValue(ctx, frame);
-            return efx_api_range_error(ctx, "frame must be positive");
-        }
-        cam.frame_w = f[0];
-        cam.frame_h = f[1];
-        if (isnan(cam.x)) {
-            cam.x = f[0] * 0.5f;
-        }
-        if (isnan(cam.y)) {
-            cam.y = f[1] * 0.5f;
-        }
     }
-    JS_FreeValue(ctx, frame);
-
-    static const char *keys[] = {"x", "y", "zoom", "rotation"};
-    float *targets[] = {&cam.x, &cam.y, &cam.zoom, &cam.rotation};
-    for (int i = 0; i < 4; i++) {
-        JSValue v = JS_GetPropertyStr(ctx, opts, keys[i]);
-        if (!JS_IsUndefined(v)) {
-            double d;
-            if (JS_ToFloat64(ctx, &d, v) < 0 || !isfinite(d)) {
-                JS_FreeValue(ctx, v);
-                return efx_api_type_error(ctx, "camera fields must be finite numbers");
-            }
-            *targets[i] = (float)d;
-        }
-        JS_FreeValue(ctx, v);
-    }
-    if (!(cam.zoom > 0)) {
-        return efx_api_range_error(ctx, "zoom must be > 0");
-    }
+    cam.frame_w = (float)d[0];
+    cam.frame_h = (float)d[1];
+    cam.x = (float)d[2];
+    cam.y = (float)d[3];
+    cam.zoom = (float)d[4];
+    cam.rotation = (float)d[5];
     efx_render_set_camera(&cam);
     return JS_UNDEFINED;
 }

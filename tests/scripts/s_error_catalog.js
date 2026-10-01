@@ -46,10 +46,6 @@ var C = function (name, fn, divergent) {
  * green; the actual drift is recorded here and in docs/refactoring.md
  * section 4, and is not fixed by this behavior-preserving change. */
 var DIVERGENT = {
-    '4a.light-slot': 'desktop: light slot must be an integer 0..3 / web: light slot out of range (0..3)',
-    '4a.light-slot-neg': 'same as 4a.light-slot',
-    '4a.light-pos-short': 'desktop: expected 3 numbers / web: pos must hold 3 numbers',
-    '11.billboard-pos': 'desktop: drawBillboard pos must be [x,y,z] / web: pos must be [x,y] or [x,y,z]',
 };
 
 /* ------------------------------------------------------------- 2D layer */

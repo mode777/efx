@@ -103,10 +103,10 @@
 
 ## 8. Resource construction (R28)
 
-- [ ] 8.1 Migrate `createImageData`, `createTexture`, `createRenderTarget`,
+- [x] 8.1 Migrate `createImageData`, `createTexture`, `createRenderTarget`,
   `createMeshData` (surfaces + materials) and `loadMeshData`/`loadImage`
   argument validation to the prelude. Use the D4 load-failure codes.
-- [ ] 8.2 Resolve `6a.loadimage-missing`, `6b.loadmesh-missing` and
+- [x] 8.2 Resolve `6a.loadimage-missing`, `6b.loadmesh-missing` and
   `6b.loadmesh-corrupt`. Update the expected file and `DIVERGENT`.
 - [ ] 8.3 Verify: V1 `meshdata_js`, `mesh_js`, `createTexture_js`,
   `resource_js`, `gltf_js`, `f4b_js`, `f5a_js`; V2 goldens; V4

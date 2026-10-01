@@ -78,7 +78,8 @@
             if (arguments.length < 2) {
                 throw new TypeError('drawBillboard requires (pos, opts)');
             }
-            var p = __efxPartVec(pos, 'pos', false);
+            var p = __efxPartVec(pos, 'pos', false,
+                                 'drawBillboard pos must be [x,y,z]');
             if (!__efxIsObject(opts)) {
                 throw new TypeError('drawBillboard options must be an object');
             }

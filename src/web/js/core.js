@@ -863,12 +863,12 @@ function __efxEnsureApi() {
 
     /* --------------------------------------------- F11 (billboards + particles) */
 
-    function __efxPartVec(v, what, allow2) {
+    function __efxPartVec(v, what, allow2, shapeMsg) {
         if (!Array.isArray(v)) {
             throw new TypeError(what + ' must be an array');
         }
         if (v.length !== 3 && !(allow2 && v.length === 2)) {
-            throw new TypeError(what + ' must be [x,y] or [x,y,z]');
+            throw new TypeError(shapeMsg || (what + ' must be [x,y] or [x,y,z]'));
         }
         var out = [0, 0, 0];
         for (var i = 0; i < v.length; i++) {

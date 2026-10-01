@@ -197,6 +197,22 @@
         checkMesh: function (v) {
             liveMesh(v);
         },
+        setPointLight: function (slot, enabled, px, py, pz, r, g, b, a, range) {
+            bridge['_efx_bridge_set_point_light'](slot, enabled, px, py, pz,
+                                                  r, g, b, a, range);
+        },
+        setDirectionalLight: function (enabled, dx, dy, dz, r, g, b, a) {
+            bridge['_efx_bridge_set_directional_light'](enabled, dx, dy, dz,
+                                                        r, g, b, a);
+        },
+        setCamera2D: function (frameW, frameH, x, y, zoom, rotation) {
+            bridge['_efx_bridge_set_camera'](frameW, frameH, x, y, zoom,
+                                             rotation);
+        },
+        setCamera3D: function (px, py, pz, tx, ty, tz, fov, nearZ, farZ) {
+            bridge['_efx_bridge_set_camera3d'](px, py, pz, tx, ty, tz, fov,
+                                               nearZ, farZ);
+        },
         checkImageData: function (v) {
             liveImageData(v);
         },

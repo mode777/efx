@@ -1,53 +1,4 @@
-        setCamera3D: function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('setCamera3D requires an options object');
-            }
-            var known = { pos: 1, target: 1, fov: 1, near: 1, far: 1 };
-                        __efxCheckKnown(opts, known, 'setCamera3D');
-            var pos = opts['pos'];
-            var target = opts['target'];
-            if (pos === undefined || target === undefined) {
-                throw new TypeError('setCamera3D requires pos and target');
-            }
-            var p = __efxFloat32Array(pos, 'pos');
-            var t = __efxFloat32Array(target, 'target');
-            if (p.length !== 3 || t.length !== 3) {
-                throw new RangeError('pos and target must hold 3 numbers');
-            }
-            var fov = opts['fov'];
-            if (fov === undefined) {
-                throw new TypeError('setCamera3D requires fov');
-            }
-            if (typeof fov !== 'number') {
-                throw new TypeError('fov must be a number');
-            }
-            if (!isFinite(fov)) {
-                throw new RangeError('fov must be finite');
-            }
-            var nearZ = 0.1, farZ = 100;
-            var nv = opts['near'];
-            if (nv !== undefined) {
-                if (typeof nv !== 'number') {
-                    throw new TypeError('near and far must be numbers');
-                }
-                if (!isFinite(nv)) {
-                    throw new RangeError('near and far must be finite');
-                }
-                nearZ = nv;
-            }
-            var fv = opts['far'];
-            if (fv !== undefined) {
-                if (typeof fv !== 'number') {
-                    throw new TypeError('near and far must be numbers');
-                }
-                if (!isFinite(fv)) {
-                    throw new RangeError('near and far must be finite');
-                }
-                farZ = fv;
-            }
-            bridge['_efx_bridge_set_camera3d'](p[0], p[1], p[2],
-                t[0], t[1], t[2], fov, nearZ, farZ);
-        },
+                /* setCamera3D is installed by the shared prelude (ADR 0049) */
                 /* createMeshData is installed by the shared prelude (ADR 0049) */
         createMesh: function (meshData) {
             if (arguments.length < 1) {
@@ -184,81 +135,8 @@
                 6: [RangeError, 'clip index out of range'],
             });
         },
-        setLight: function (slot, opts) {
-            if (arguments.length < 2) {
-                throw new TypeError('setLight requires (slot, opts)');
-            }
-            if (typeof slot !== 'number' || (slot | 0) !== slot) {
-                throw new RangeError('light slot must be an integer 0..3');
-            }
-            if (slot < 0 || slot > 3) {
-                throw new RangeError('light slot out of range (0..3)');
-            }
-            if (opts === null || opts === undefined) {
-                bridge['_efx_bridge_set_point_light'](slot, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0);
-                return;
-            }
-            if (!__efxIsObject(opts)) {
-                throw new TypeError('setLight options must be an object or null');
-            }
-            var lk = { pos: 1, color: 1, range: 1 };
-                        __efxCheckKnown(opts, lk, 'setLight');
-            if (opts['pos'] === undefined) {
-                throw new TypeError('setLight requires pos');
-            }
-            var pv = __efxFloat32Array(opts['pos'], 'pos');
-            if (pv.length !== 3) {
-                throw new RangeError('pos must hold 3 numbers');
-            }
-            if (opts['color'] === undefined) {
-                throw new TypeError('setLight requires color');
-            }
-            var lc = __efxFloatArray(opts['color'], 4);
-            var range = 0;
-            if (opts['range'] !== undefined) {
-                if (typeof opts['range'] !== 'number') {
-                    throw new TypeError('range must be a number');
-                }
-                if (!isFinite(opts['range']) || opts['range'] < 0) {
-                    throw new RangeError('range must be a finite number >= 0');
-                }
-                range = opts['range'];
-            }
-            bridge['_efx_bridge_set_point_light'](slot, 1,
-                pv[0], pv[1], pv[2], lc[0], lc[1], lc[2], lc[3], range);
-        },
-        setDirectionalLight: function (opts) {
-            if (arguments.length < 1) {
-                throw new TypeError('setDirectionalLight requires an options object or null');
-            }
-            if (opts === null || opts === undefined) {
-                bridge['_efx_bridge_set_directional_light'](0, 0, 0, 0, 0, 0, 0, 0);
-                return;
-            }
-            if (!__efxIsObject(opts)) {
-                throw new TypeError('setDirectionalLight options must be an object or null');
-            }
-            var dk = { dir: 1, color: 1 };
-                        __efxCheckKnown(opts, dk, 'setDirectionalLight');
-            if (opts['dir'] === undefined) {
-                throw new TypeError('setDirectionalLight requires dir');
-            }
-            var dv = __efxFloat32Array(opts['dir'], 'dir');
-            if (dv.length !== 3) {
-                throw new RangeError('dir must hold 3 numbers');
-            }
-            if (dv[0] === 0 && dv[1] === 0 && dv[2] === 0) {
-                throw new TypeError('dir must be non-zero');
-            }
-            if (opts['color'] === undefined) {
-                throw new TypeError('setDirectionalLight requires color');
-            }
-            var dc = __efxFloatArray(opts['color'], 4);
-            bridge['_efx_bridge_set_directional_light'](1,
-                dv[0], dv[1], dv[2], dc[0], dc[1], dc[2], dc[3]);
-        },
-        setMeshSurfaceMaterial: function (mesh, index, mat) {
+                /* setLight/setDirectionalLight are installed by the shared prelude (ADR 0049) */
+                setMeshSurfaceMaterial: function (mesh, index, mat) {
             if (arguments.length < 3) {
                 throw new TypeError(
                     'setMeshSurfaceMaterial requires (mesh, surfaceIndex, mat)');

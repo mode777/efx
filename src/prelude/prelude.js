@@ -1600,6 +1600,28 @@ var __efxGltfMsgs = {
     7: 'glTF resource could not be read',
 };
 
+/* ------------------------------------- lights and cameras (F4a/F2/F3)
+ *
+ * Set-once configuration APIs; validation lives once here (ADR 0049). The
+ * vec3 length messages name the field (canonical web texts, ADR 0049 D5);
+ * the light slot uses the single desktop message for every failure. */
+
+function __efxVec3Field(v, what, lenMsg) {
+    var out = __efxFloat32Array(v, what);
+    if (out.length !== 3) {
+        throw new RangeError(lenMsg || (what + ' must hold 3 numbers'));
+    }
+    return out;
+}
+
+function __efxLightSlot(slot) {
+    if (typeof slot !== 'number' || !isFinite(slot) ||
+        slot !== Math.floor(slot) || slot < 0 || slot > 3) {
+        throw new RangeError('light slot must be an integer 0..3');
+    }
+    return slot | 0;
+}
+
 function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -1628,6 +1650,161 @@ function __efxPreludeInstall(efx, natives) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.setPointLight) {
+        efx.setLight = function (slot, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('setLight requires (slot, opts)');
+            }
+            var s = __efxLightSlot(slot);
+            if (opts === null || opts === undefined) {
+                natives.setPointLight(s, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setLight options must be an object or null');
+            }
+            __efxCheckKnown(opts, { pos: 1, color: 1, range: 1 }, 'setLight');
+            if (opts['pos'] === undefined) {
+                throw new TypeError('setLight requires pos');
+            }
+            var pv = __efxVec3Field(opts['pos'], 'pos');
+            if (opts['color'] === undefined) {
+                throw new TypeError('setLight requires color');
+            }
+            var lc = __efxFloatArray(opts['color'], 4);
+            var range = 0;
+            if (opts['range'] !== undefined) {
+                if (typeof opts['range'] !== 'number') {
+                    throw new TypeError('range must be a number');
+                }
+                if (!isFinite(opts['range']) || opts['range'] < 0) {
+                    throw new RangeError('range must be a finite number >= 0');
+                }
+                range = opts['range'];
+            }
+            natives.setPointLight(s, 1, pv[0], pv[1], pv[2],
+                                  lc[0], lc[1], lc[2], lc[3], range);
+        };
+        efx.setDirectionalLight = function (opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('setDirectionalLight requires an options object or null');
+            }
+            if (opts === null || opts === undefined) {
+                natives.setDirectionalLight(0, 0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setDirectionalLight options must be an object or null');
+            }
+            __efxCheckKnown(opts, { dir: 1, color: 1 }, 'setDirectionalLight');
+            if (opts['dir'] === undefined) {
+                throw new TypeError('setDirectionalLight requires dir');
+            }
+            var dv = __efxVec3Field(opts['dir'], 'dir');
+            if (dv[0] === 0 && dv[1] === 0 && dv[2] === 0) {
+                throw new TypeError('dir must be non-zero');
+            }
+            if (opts['color'] === undefined) {
+                throw new TypeError('setDirectionalLight requires color');
+            }
+            var dc = __efxFloatArray(opts['color'], 4);
+            natives.setDirectionalLight(1, dv[0], dv[1], dv[2],
+                                        dc[0], dc[1], dc[2], dc[3]);
+        };
+    }
+    if (natives && natives.setCamera2D) {
+        efx.setCamera2D = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('setCamera2D requires an options object');
+            }
+            var frameW = 0, frameH = 0, x = NaN, y = NaN, zoom = 1, rotation = 0;
+            var frame = opts['frame'];
+            if (frame !== undefined) {
+                var f = __efxFloatArray(frame, 2);
+                if (!(f[0] > 0 && f[1] > 0)) {
+                    throw new RangeError('frame must be positive');
+                }
+                frameW = f[0];
+                frameH = f[1];
+                if (isNaN(x)) {
+                    x = frameW * 0.5;
+                }
+                if (isNaN(y)) {
+                    y = frameH * 0.5;
+                }
+            }
+            var xv = opts['x'];
+            if (xv !== undefined) {
+                x = __efxFinite(xv, 'camera fields must be finite numbers');
+            }
+            var yv = opts['y'];
+            if (yv !== undefined) {
+                y = __efxFinite(yv, 'camera fields must be finite numbers');
+            }
+            var zv = opts['zoom'];
+            if (zv !== undefined) {
+                zoom = __efxFinite(zv, 'camera fields must be finite numbers');
+            }
+            var rv = opts['rotation'];
+            if (rv !== undefined) {
+                rotation = __efxFinite(rv, 'camera fields must be finite numbers');
+            }
+            if (!(zoom > 0)) {
+                throw new RangeError('zoom must be > 0');
+            }
+            natives.setCamera2D(frameW, frameH, x, y, zoom, rotation);
+        };
+    }
+    if (natives && natives.setCamera3D) {
+        efx.setCamera3D = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('setCamera3D requires an options object');
+            }
+            __efxCheckKnown(opts, { pos: 1, target: 1, fov: 1, near: 1,
+                                    far: 1 }, 'setCamera3D');
+            var pos = opts['pos'];
+            var target = opts['target'];
+            if (pos === undefined || target === undefined) {
+                throw new TypeError('setCamera3D requires pos and target');
+            }
+            var p = __efxVec3Field(pos, 'pos', 'pos and target must hold 3 numbers');
+            var t = __efxVec3Field(target, 'target',
+                                   'pos and target must hold 3 numbers');
+            var fov = opts['fov'];
+            if (fov === undefined) {
+                throw new TypeError('setCamera3D requires fov');
+            }
+            if (typeof fov !== 'number') {
+                throw new TypeError('fov must be a number');
+            }
+            if (!isFinite(fov)) {
+                throw new RangeError('fov must be finite');
+            }
+            var nearZ = 0.1, farZ = 100;
+            var nv = opts['near'];
+            if (nv !== undefined) {
+                if (typeof nv !== 'number') {
+                    throw new TypeError('near and far must be numbers');
+                }
+                if (!isFinite(nv)) {
+                    throw new RangeError('near and far must be finite');
+                }
+                nearZ = nv;
+            }
+            var fv = opts['far'];
+            if (fv !== undefined) {
+                if (typeof fv !== 'number') {
+                    throw new TypeError('near and far must be numbers');
+                }
+                if (!isFinite(fv)) {
+                    throw new RangeError('near and far must be finite');
+                }
+                farZ = fv;
+            }
+            natives.setCamera3D(p[0], p[1], p[2], t[0], t[1], t[2], fov,
+                                nearZ, farZ);
+        };
+    }
     if (natives && natives.createImageData) {
         efx.createImageData = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {

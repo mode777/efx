@@ -13,7 +13,7 @@ JSValue efx_js_registerRenderHook(JSContext *ctx, JSValueConst this_val, int arg
 
 /* F2 — 2D drawing */
 JSValue efx_js_setClearColor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_setCamera2D(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_set_camera2d_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_check_image_data(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_image_data_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_texture_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
@@ -22,7 +22,7 @@ JSValue efx_js_setBlendMode(JSContext *ctx, JSValueConst this_val, int argc, JSV
 JSValue efx_js_whiteTexture(JSContext *ctx, JSValueConst this_val);
 
 /* F3 — 3D core */
-JSValue efx_js_setCamera3D(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_set_camera3d_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
@@ -31,8 +31,8 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValue
 JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F4a — lighting + Phong materials */
-JSValue efx_js_setLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_set_point_light_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_set_directional_light_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F5a — render targets */
