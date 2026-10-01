@@ -252,9 +252,33 @@ if(EMSCRIPTEN)
         list(APPEND EFX_WEB_JS_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/${js}")
     endforeach()
 
+    # core functions the web JS calls directly instead of through a
+    # passthrough bridge export (the core stays free of Emscripten macros,
+    # ADR 0003); tools/check_exports.mjs reads this list
+    set(EFX_WEB_CORE_EXPORTS
+        _efx_input_key_id _efx_input_button_id
+        _efx_input_key_name _efx_input_button_name
+        _efx_input_key_is_down _efx_input_key_is_pressed
+        _efx_input_key_is_released _efx_input_button_is_down
+        _efx_input_button_is_pressed _efx_input_button_is_released
+        _efx_input_event_count _efx_input_clear_events
+        _efx_input_gamepad_count _efx_input_gamepad_connected
+        _efx_input_gamepad_mapped _efx_input_gamepad_button_id
+        _efx_input_gamepad_axis_id _efx_input_gamepad_button_is_down
+        _efx_input_gamepad_button_is_pressed
+        _efx_input_gamepad_button_is_released _efx_input_gamepad_axis
+        _efx_input_gamepad_raw_button _efx_input_gamepad_raw_axis
+        _efx_input_gamepad_connect_count _efx_input_gamepad_connect_at
+        _efx_input_gamepad_disconnect_count _efx_input_gamepad_disconnect_at
+        _efx_audio_master_volume _efx_audio_set_master_volume
+        _efx_audio_request_resume
+        _efx_render_set_blend _efx_render_end_target
+        _efx_render_set_render_scale)
+    list(JOIN EFX_WEB_CORE_EXPORTS "," EFX_WEB_CORE_EXPORTS_CSV)
+
     set(EFX_WEB_COMMON
         -sEXIT_RUNTIME=0 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=2MB
-        -sEXPORTED_FUNCTIONS=_main,_malloc,_free
+        -sEXPORTED_FUNCTIONS=_main,_malloc,_free,${EFX_WEB_CORE_EXPORTS_CSV}
         # the web bridge's JS (js/*.js/boot_pre.js) uses the FS API at
         # runtime for resource roots; keep it linked even when no C code
         # touches files (nothing else forces FS inclusion on the node player)

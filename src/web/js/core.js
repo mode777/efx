@@ -202,7 +202,7 @@ function __efxGamepadView(slot) {
             throw new TypeError('gamepad button query requires a button name');
         }
         var p = __efxAllocCStr(name);
-        var id = bridge['_efx_bridge_gamepad_button_id'](p);
+        var id = bridge['_efx_input_gamepad_button_id'](p);
         bridge['_free'](p);
         if (id < 0) {
             throw new TypeError('unknown gamepad button');
@@ -214,7 +214,7 @@ function __efxGamepadView(slot) {
             throw new TypeError('gamepad axis query requires an axis name');
         }
         var p = __efxAllocCStr(name);
-        var id = bridge['_efx_bridge_gamepad_axis_id'](p);
+        var id = bridge['_efx_input_gamepad_axis_id'](p);
         bridge['_free'](p);
         if (id < 0) {
             throw new TypeError('unknown gamepad axis');
@@ -223,110 +223,113 @@ function __efxGamepadView(slot) {
     }
     return {
         index: slot,
-        connected: !!bridge['_efx_bridge_gamepad_connected'](slot),
+        connected: !!bridge['_efx_input_gamepad_connected'](slot),
         name: UTF8ToString(bridge['_efx_bridge_gamepad_name'](slot)),
-        mapped: !!bridge['_efx_bridge_gamepad_mapped'](slot),
+        mapped: !!bridge['_efx_input_gamepad_mapped'](slot),
         isDown: function (b) {
-            return !!bridge['_efx_bridge_gamepad_button_down'](slot, buttonId(b));
+            return !!bridge['_efx_input_gamepad_button_is_down'](slot, buttonId(b));
         },
         isPressed: function (b) {
-            return !!bridge['_efx_bridge_gamepad_button_pressed'](slot, buttonId(b));
+            return !!bridge['_efx_input_gamepad_button_is_pressed'](slot, buttonId(b));
         },
         isReleased: function (b) {
-            return !!bridge['_efx_bridge_gamepad_button_released'](slot, buttonId(b));
+            return !!bridge['_efx_input_gamepad_button_is_released'](slot, buttonId(b));
         },
         axis: function (a) {
-            return bridge['_efx_bridge_gamepad_axis'](slot, axisId(a));
+            return bridge['_efx_input_gamepad_axis'](slot, axisId(a));
         },
         rawButton: function (i) {
             if (typeof i !== 'number') {
                 throw new TypeError('gamepad raw query requires an index');
             }
-            return bridge['_efx_bridge_gamepad_raw_button'](slot, i | 0);
+            return bridge['_efx_input_gamepad_raw_button'](slot, i | 0);
         },
         rawAxis: function (i) {
             if (typeof i !== 'number') {
                 throw new TypeError('gamepad raw query requires an index');
             }
-            return bridge['_efx_bridge_gamepad_raw_axis'](slot, i | 0);
+            return bridge['_efx_input_gamepad_raw_axis'](slot, i | 0);
         },
     };
+}
+
+/* one persistent 80-byte wasm scratch: per-draw uniforms (16 + 4 floats) and
+   the batched input reads (10 doubles) */
+function __efxScratch() {
+    var st = __efxState();
+    if (!st.scratch) {
+        st.scratch = Module['_malloc'](80);
+    }
+    return st.scratch;
 }
 
 /* F9: drain the frame's staged input events into the registered callbacks,
    in arrival order, before the update hooks run (design D2/D3) */
 function __efxDispatchInput(st) {
     var bridge = Module;
-    var n = bridge['_efx_bridge_input_count']();
+    var n = bridge['_efx_input_event_count']();
+    var buf = __efxScratch();
     for (var i = 0; i < n; i++) {
-        var type = bridge['_efx_bridge_input_type'](i);
+        /* type, key, button, repeat, mods, codepoint, x, y, dx, dy */
+        bridge['_efx_bridge_input_event'](i, buf);
+        var e = Array.prototype.slice.call(HEAPF64, buf >> 3, (buf >> 3) + 10);
+        var type = e[0];
         var hooks = null;
         var ev = null;
         if (type === 0) {
             hooks = st.keyboardDown;
             ev = {
-                key: UTF8ToString(bridge['_efx_bridge_key_name'](
-                    bridge['_efx_bridge_input_key'](i))),
-                repeat: !!bridge['_efx_bridge_input_repeat'](i),
-                mods: __efxMods(bridge['_efx_bridge_input_mods'](i)),
+                key: UTF8ToString(bridge['_efx_input_key_name'](e[1])),
+                repeat: !!e[3],
+                mods: __efxMods(e[4]),
             };
         } else if (type === 1) {
             hooks = st.keyboardUp;
             ev = {
-                key: UTF8ToString(bridge['_efx_bridge_key_name'](
-                    bridge['_efx_bridge_input_key'](i))),
-                mods: __efxMods(bridge['_efx_bridge_input_mods'](i)),
+                key: UTF8ToString(bridge['_efx_input_key_name'](e[1])),
+                mods: __efxMods(e[4]),
             };
         } else if (type === 2) {
             hooks = st.keyboardChar;
-            ev = { char: String.fromCodePoint(bridge['_efx_bridge_input_char'](i)) };
+            ev = { char: String.fromCodePoint(e[5]) };
         } else if (type === 3 || type === 4) {
             hooks = type === 3 ? st.mouseDown : st.mouseUp;
             ev = {
-                button: UTF8ToString(bridge['_efx_bridge_button_name'](
-                    bridge['_efx_bridge_input_button'](i))),
-                x: bridge['_efx_bridge_input_x'](i),
-                y: bridge['_efx_bridge_input_y'](i),
-                mods: __efxMods(bridge['_efx_bridge_input_mods'](i)),
+                button: UTF8ToString(bridge['_efx_input_button_name'](e[2])),
+                x: e[6],
+                y: e[7],
+                mods: __efxMods(e[4]),
             };
         } else if (type === 5) {
             hooks = st.mouseMove;
-            ev = {
-                x: bridge['_efx_bridge_input_x'](i),
-                y: bridge['_efx_bridge_input_y'](i),
-                dx: bridge['_efx_bridge_input_dx'](i),
-                dy: bridge['_efx_bridge_input_dy'](i),
-            };
+            ev = { x: e[6], y: e[7], dx: e[8], dy: e[9] };
         } else if (type === 6) {
             hooks = st.mouseWheel;
-            ev = {
-                dx: bridge['_efx_bridge_input_dx'](i),
-                dy: bridge['_efx_bridge_input_dy'](i),
-            };
+            ev = { dx: e[8], dy: e[9] };
         }
         if (hooks === null) {
             continue;
         }
         var rc = __efxCallHooks(st, hooks, ev);
         if (rc !== 0) {
-            bridge['_efx_bridge_input_clear']();
+            bridge['_efx_input_clear_events']();
             return rc;
         }
     }
-    bridge['_efx_bridge_input_clear']();
+    bridge['_efx_input_clear_events']();
 
     /* F13: gamepad connect/disconnect callbacks fire with the pad view */
-    var cn = bridge['_efx_bridge_gamepad_connect_count']();
+    var cn = bridge['_efx_input_gamepad_connect_count']();
     for (var c = 0; c < cn; c++) {
-        var slot = bridge['_efx_bridge_gamepad_connect_at'](c);
+        var slot = bridge['_efx_input_gamepad_connect_at'](c);
         var rcc = __efxCallHooks(st, st.gamepadConnect, __efxGamepadView(slot));
         if (rcc !== 0) {
             return rcc;
         }
     }
-    var dn = bridge['_efx_bridge_gamepad_disconnect_count']();
+    var dn = bridge['_efx_input_gamepad_disconnect_count']();
     for (var d = 0; d < dn; d++) {
-        var dslot = bridge['_efx_bridge_gamepad_disconnect_at'](d);
+        var dslot = bridge['_efx_input_gamepad_disconnect_at'](d);
         var rcd = __efxCallHooks(st, st.gamepadDisconnect, __efxGamepadView(dslot));
         if (rcd !== 0) {
             return rcd;
@@ -893,16 +896,6 @@ function __efxEnsureApi() {
             }
         }
         return out;
-    }
-
-    /* persistent scratch for per-draw uniforms (drawMesh is a hot path):
-       16 floats transform + 4 floats color, allocated once */
-    var drawScratch = 0;
-    function drawScratchPtr() {
-        if (!drawScratch) {
-            drawScratch = bridge['_malloc'](20 * 4);
-        }
-        return drawScratch;
     }
 
     function liveImageData(v) {

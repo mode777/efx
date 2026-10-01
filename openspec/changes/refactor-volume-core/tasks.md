@@ -78,12 +78,12 @@
 - [x] 6.3 Add `__efxSourceRect(tex, v)` and use it in `drawQuad`,
   `drawBillboard` and the sprite parser. Verify: V4 `web_2d_validation`,
   `web_11_particles`, catalog.
-- [ ] 6.4 (R14) Add `EFX_WEB_CORE_EXPORTS` to `CMakeLists.txt`, delete the 31
+- [x] 6.4 (R14) Add `EFX_WEB_CORE_EXPORTS` to `CMakeLists.txt`, delete the 31
   passthrough `efx_bridge_*` functions, rename the JS call sites, and teach
   `tools/check_exports.mjs` to read the CMake list (D9). Verify:
   `check_exports.mjs` reports zero; V4 (web ctest, web goldens,
   `run_web_harness.mjs`, gallery smoke); E6 export diff shows renames only.
-- [ ] 6.5 (R15) Add `efx_bridge_input_event`/`efx_bridge_input_state`
+- [x] 6.5 (R15) Add `efx_bridge_input_event`/`efx_bridge_input_state`
   (D10), delete the 20 per-field getters, and read through `HEAPF64` in
   `core.js`/`input.js`. Verify: V4 `web_9_input`, the
   `run_web_harness.mjs` input scenarios, and gallery smoke click-to-focus key

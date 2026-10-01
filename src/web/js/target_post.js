@@ -40,7 +40,7 @@
             });
         },
         endRenderTarget: function () {
-            var rc = bridge['_efx_bridge_target_end']();
+            var rc = bridge['_efx_render_end_target']();
             __efxRc(rc, 'endRenderTarget', {
                 1: true,
                 8: [TypeError, 'no render target is active'],
@@ -103,7 +103,7 @@
                     }
                 }
             }
-            var rc = bridge['_efx_bridge_set_render_scale'](scale, filter);
+            var rc = bridge['_efx_render_set_render_scale'](scale, filter);
             __efxRc(rc, 'setRenderScale', {
                 3: [RangeError, 'scale must be in (0, 2]'],
                 4: [TypeError, 'unknown filter'],

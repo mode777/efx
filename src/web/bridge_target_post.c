@@ -27,10 +27,6 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_target_begin(double handle) {
     return efx_render_begin_target((uint64_t)handle);
 }
 
-EMSCRIPTEN_KEEPALIVE int efx_bridge_target_end(void) {
-    return efx_render_end_target();
-}
-
 EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_quad(double handle, float x, float y, float w, float h,
                                               float cr, float cg, float cb, float ca,
                                               float rotation, float scale,
@@ -88,9 +84,5 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_set_post_effects(const float *wire,
         }
     }
     return efx_render_set_post_effects(entries, count);
-}
-
-EMSCRIPTEN_KEEPALIVE int efx_bridge_set_render_scale(float scale, int filter) {
-    return efx_render_set_render_scale(scale, filter);
 }
 

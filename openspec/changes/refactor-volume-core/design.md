@@ -310,5 +310,19 @@ a call with its current policy and message.
   (plus the text helper), not 27: the plan counted `if (rc === N)` blocks.
   Heap: `createFont` and `loadMeshData` now validate before they marshal.
   `createImageData` and `moveAndSlide` use one catch/finally free each.
+- **R14/R15 counts.** A scan for single-call bodies with identical parameter
+  lists found **33** passthroughs, not 31: 27 input/gamepad, 3 audio, and
+  `set_blend`, `target_end`, `set_render_scale`. All 33 are now in
+  `EFX_WEB_CORE_EXPORTS`. Handle-taking wrappers (`double` → `uint64_t`) are
+  not passthroughs and stay. R15 replaced **19** per-field getters (10 event
+  fields + 9 pointer/wheel/window) with `efx_bridge_input_event` and
+  `efx_bridge_input_state`. `efx_bridge_gamepad_name` stays (it maps NULL to
+  `""`). The draw scratch moved to a top-level `__efxScratch()` (80 bytes),
+  shared by `drawMesh` and both batched reads. E6: the `Module._*` surface
+  changed only by the 33 renames, minus the 19 getters, plus the 2 batched
+  reads. `check_exports.mjs` reports zero.
+- **Local V4 note.** The first `run_web_goldens.mjs` run after rebuilding
+  `player_web_golden` failed one scene twice. An immediate rerun passed every
+  time, so it looks like a local cold-start effect, not a regression.
 
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->

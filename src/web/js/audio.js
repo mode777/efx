@@ -171,17 +171,17 @@
             throw new TypeError('playAudio requires an AudioData or AudioStream');
         },
         resume: function () {
-            bridge['_efx_bridge_audio_resume']();
+            bridge['_efx_audio_request_resume']();
         },
     };
     Object.defineProperty(api.audio, 'volume', {
         get: function () {
-            return bridge['_efx_bridge_audio_master_volume']();
+            return bridge['_efx_audio_master_volume']();
         },
         set: function (v) {
             var n = __efxFiniteNumber(v, 'volume');
             if (n < 0) throw new RangeError('volume must be a non-negative number');
-            bridge['_efx_bridge_audio_set_master_volume'](n);
+            bridge['_efx_audio_set_master_volume'](n);
         },
     });
 

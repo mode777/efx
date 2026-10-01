@@ -3,8 +3,9 @@
  * Advisory dead-export guard (docs/refactoring.md P0b).
  *
  * Reports:
- *   1. EMSCRIPTEN_KEEPALIVE functions defined in src/web/bridge.c that are
- *      never referenced (as `_name` or `name`) from src/web/** or tools/**.
+ *   1. web exports never referenced (as `_name` or `name`) from src/web/**
+ *      or tools/**: EMSCRIPTEN_KEEPALIVE functions in src/web/bridge_*.c
+ *      and the core functions in CMakeLists.txt's EFX_WEB_CORE_EXPORTS.
  *   2. external `efx_*` functions declared in src/**<slash>.h whose only
  *      occurrences across src/** and tests/** are the declaration and (if
  *      any) the definition.
@@ -51,6 +52,13 @@ for (const line of bridge.split('\n')) {
     if (!line.includes('EMSCRIPTEN_KEEPALIVE')) continue;
     const m = line.match(/\b(efx_[A-Za-z0-9_]+)\s*\(/);
     if (m) keepalive.push(m[1]);
+}
+const coreExports = read(path.join(ROOT, 'CMakeLists.txt'))
+    .match(/set\(EFX_WEB_CORE_EXPORTS([^)]*)\)/);
+if (coreExports) {
+    for (const t of coreExports[1].split(/\s+/)) {
+        if (t.startsWith('_efx_')) keepalive.push(t.slice(1));
+    }
 }
 
 const webRefFiles = walk(path.join(ROOT, 'src/web'), ['.js', '.c', '.h'])
@@ -100,7 +108,7 @@ for (const name of declared) {
 /* ---- report ----------------------------------------------------------- */
 
 console.log('check_exports: advisory dead-export scan\n');
-console.log(`unused EMSCRIPTEN_KEEPALIVE exports (${unusedKeepalive.length}):`);
+console.log(`unused web exports (${unusedKeepalive.length}):`);
 for (const n of unusedKeepalive.sort()) console.log('  ' + n);
 console.log(`\nunused external efx_* C declarations (${unusedC.length}):`);
 for (const n of unusedC.sort()) console.log('  ' + n);

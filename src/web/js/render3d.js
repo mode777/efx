@@ -222,7 +222,7 @@
             }
             var tPtr = 0, cPtr = 0;
             if (transform !== null || color !== null) {
-                var base = drawScratchPtr();
+                var base = __efxScratch();
                 if (transform !== null) {
                     tPtr = base;
                     HEAPF32.set(transform, tPtr >> 2);

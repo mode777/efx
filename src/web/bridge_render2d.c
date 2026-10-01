@@ -19,10 +19,6 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_set_camera(float fw, float fh, float x, flo
     efx_render_set_camera(&cam);
 }
 
-EMSCRIPTEN_KEEPALIVE void efx_bridge_set_blend(int mode) {
-    efx_render_set_blend(mode);
-}
-
 typedef struct {
     uint8_t *pixels;
     int w, h;

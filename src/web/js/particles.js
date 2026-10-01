@@ -205,5 +205,5 @@
             } else {
                 throw new TypeError('unknown blend mode');
             }
-            bridge['_efx_bridge_set_blend'](m);
+            bridge['_efx_render_set_blend'](m);
         },

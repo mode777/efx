@@ -243,16 +243,4 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_handle_set_loop(int id, int loop) {
     }
 }
 
-EMSCRIPTEN_KEEPALIVE float efx_bridge_audio_master_volume(void) {
-    return efx_audio_master_volume();
-}
-
-EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_set_master_volume(float v) {
-    efx_audio_set_master_volume(v);
-}
-
-EMSCRIPTEN_KEEPALIVE void efx_bridge_audio_resume(void) {
-    efx_audio_request_resume();
-}
-
 
