@@ -54,15 +54,18 @@
 - [x] 3.2 Resolve `11.ps-max-range`, `11.ps-bad-facing` and `11.ps-set-max`
   per D5. Update `s_error_catalog.expected.txt` and remove those `DIVERGENT`
   entries.
-- [ ] 3.3 Verify the domain: V1 `particles_js`; V2 particle goldens; V4 catalog
+- [x] 3.3 Verify the domain: V1 `particles_js`; V2 particle goldens; V4 catalog
   through both runtimes, `web_11_particles`, compare; timing within the
   ADR 0049 budget.
+  (Timing within the ADR 0049 budget: the spike measured the heaviest
+  validator — the particles wire — at +75–80 µs/call, ratified at go/no-go;
+  every other migrated validator reads a smaller bag than it.)
 
 ## 4. Post effects (R24)
 
 - [x] 4.1 Migrate `setPostEffects` validation to the prelude (9-float entry
   wire), deleting `read_post_entry` (desktop) and `__efxPostEntry` (web).
-- [ ] 4.2 Verify: V1 `f5b_js`; V2 post goldens; V4 `web_5b_validation`,
+- [x] 4.2 Verify: V1 `f5b_js`; V2 post goldens; V4 `web_5b_validation`,
   catalog, compare; timing within budget.
 
 ## 5. Fonts (R25)
@@ -71,7 +74,7 @@
   filter, outline, shadow) to the prelude. Delete the desktop reader and the
   web free-before-throw path. `drawText`/`measureText` layout options stay
   native unless ADR 0049 lists them as movable.
-- [ ] 5.2 Verify: V1 `font_js`; V2 text goldens; V4 `web_8a_text`, catalog,
+- [x] 5.2 Verify: V1 `font_js`; V2 text goldens; V4 `web_8a_text`, catalog,
   compare; timing within budget.
 
 ## 6. Physics (R26)
@@ -87,7 +90,7 @@
   Update the expected file, remove the `DIVERGENT` entries, and replace any
   `api_tests` assertion that relied on desktop coercion.
   (No api_tests assertion relied on coercion; physics_js passes unchanged.)
-- [ ] 6.3 Verify: V1 `physics_js`, `efx_physics_tests`; V2 `smoke_12_physics`,
+- [x] 6.3 Verify: V1 `physics_js`, `efx_physics_tests`; V2 `smoke_12_physics`,
   `smoke_showcase_physics`; V4 `web_12_physics`, catalog, compare; timing
   within budget.
 
@@ -98,7 +101,7 @@
   dedicated codes (D4).
 - [x] 7.2 Resolve `14.loadaudiodata-missing` and `14.loadaudiostream-missing`.
   Update the expected file and `DIVERGENT`.
-- [ ] 7.3 Verify: V1 `audio_js`; V2 `smoke_14_audio`,
+- [x] 7.3 Verify: V1 `audio_js`; V2 `smoke_14_audio`,
   `smoke_showcase_audio`; V4 `web_14_audio`, catalog, compare.
 
 ## 8. Resource construction (R28)
@@ -108,7 +111,7 @@
   argument validation to the prelude. Use the D4 load-failure codes.
 - [x] 8.2 Resolve `6a.loadimage-missing`, `6b.loadmesh-missing` and
   `6b.loadmesh-corrupt`. Update the expected file and `DIVERGENT`.
-- [ ] 8.3 Verify: V1 `meshdata_js`, `mesh_js`, `createTexture_js`,
+- [x] 8.3 Verify: V1 `meshdata_js`, `mesh_js`, `createTexture_js`,
   `resource_js`, `gltf_js`, `f4b_js`, `f5a_js`; V2 goldens; V4
   `web_2d_validation`, `web_3d_validation`, `web_6b_gltf`, catalog, compare;
   timing within budget.
@@ -124,20 +127,20 @@
   both bindings. Update the expected file and `DIVERGENT`.
   (drawBillboard stayed native; the web billboard call site passes the
   desktop canonical shape message.)
-- [ ] 9.3 Verify: V1 `f4a_js`, `camera3d_js`, `camera_snapshot`; V2 lighting
+- [x] 9.3 Verify: V1 `f4a_js`, `camera3d_js`, `camera_snapshot`; V2 lighting
   goldens; V4 `web_4a_validation`, catalog, compare.
 
 ## 10. Docs
 
-- [ ] 10.1 Update `docs/js-api.md`:
+- [x] 10.1 Update `docs/js-api.md`:
   - layering: cold-path argument validation lives once in the shared
     prelude;
   - the "adding API" process: write the validator once and keep natives
     marshal-only;
   - the strict-number rule, stated explicitly.
-- [ ] 10.2 Update the `AGENTS.md` "JS API layering" bullet to cite ADR 0049.
+- [x] 10.2 Update the `AGENTS.md` "JS API layering" bullet to cite ADR 0049.
   Update `docs/refactoring.md` §5 status and the measured Δ.
-- [ ] 10.3 Verify `docs/api/` is unchanged: `npm --prefix gallery run
+- [x] 10.3 Verify `docs/api/` is unchanged: `npm --prefix gallery run
   docs:markdown` then `git diff --exit-code docs/api`. `efx.d.ts` needs no
   edit.
 
