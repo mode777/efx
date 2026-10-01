@@ -396,7 +396,7 @@ static uint64_t ctx_texture(gltf_ctx *c, const cgltf_texture *t) {
     return h;
 }
 
-/* PBR -> Phong conversion (design D4) */
+/* PBR -> Phong conversion (ADR 0032) */
 static int material_from_gltf(gltf_ctx *c, const cgltf_material *gm,
                               efx_material *out) {
     efx_material_default(out);
@@ -736,7 +736,7 @@ static int build_surface(gltf_ctx *c, const cgltf_primitive *prim,
 /* --------------------------------------------------------- F6c rig */
 
 /* nearest ancestor of `node` that is one of the skin's joints, or -1 when the
- * joint is a root of the joint hierarchy (design D3) */
+ * joint is a root of the joint hierarchy (ADR 0033) */
 static int joint_parent(const cgltf_data *data, const cgltf_node *node,
                         const int *joint_of_node) {
     for (const cgltf_node *p = node->parent; p; p = p->parent) {
@@ -749,7 +749,7 @@ static int joint_parent(const cgltf_data *data, const cgltf_node *node,
 }
 
 /* skin -> joint hierarchy + inverse bind matrices; identity-filled when the
- * accessor is absent (design D3) */
+ * accessor is absent (ADR 0033) */
 static int build_skeleton(gltf_ctx *c, const cgltf_skin *skin, efx_rig *rig) {
     int n = (int)skin->joints_count;
     if (n <= 0) {
@@ -861,7 +861,7 @@ static int build_channel(gltf_ctx *c, const cgltf_animation_channel *gc,
         return vlen == -2 ? -2 : 1;
     }
     /* CUBICSPLINE output stores in-tangent, value, out-tangent per keyframe;
-     * keep the middle value and import linearly (design D4) */
+     * keep the middle value and import linearly (ADR 0033) */
     int stride = s->interpolation == cgltf_interpolation_type_cubic_spline ? 3
                                                                             : 1;
     int total = keyframes * components * stride;

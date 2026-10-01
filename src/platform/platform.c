@@ -30,7 +30,7 @@
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
 
-/* fixed virtual frame for golden captures (design D7/D9) */
+/* fixed virtual frame for golden captures (ADR 0020) */
 #define EFX_CAP_W 640
 #define EFX_CAP_H 480
 
@@ -99,8 +99,7 @@ static void efx_capture_setup(void) {
     g_cap_view = sg_make_view(&(sg_view_desc){
         .color_attachment.image = g_cap_img,
     });
-    /* depth attachment so golden captures depth-test like the window pass
-       (design D4) */
+    /* depth attachment so golden captures depth-test like the window pass */
     MTLTextureDescriptor *dd = [MTLTextureDescriptor
         texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
                                      width:EFX_CAP_W height:EFX_CAP_H
@@ -130,7 +129,7 @@ static void efx_capture_setup(void) {
 #endif
 
 /* F9 input capture: the single platform event callback on all four targets
- * translates backend events into the pure-C input core (design D1). Sokol's
+ * translates backend events into the pure-C input core (ADR 0036). Sokol's
  * modifier constants share the engine's modifier bit layout. */
 static unsigned efx_input_mods(uint32_t mods) {
     unsigned out = 0;
@@ -152,7 +151,7 @@ static unsigned efx_input_mods(uint32_t mods) {
 #if defined(__EMSCRIPTEN__)
 /* game keys whose browser default (scrolling, focus movement) must be
  * suppressed while the canvas has focus; plain modifiers are left alone so
- * browser shortcuts keep working (design D6) */
+ * browser shortcuts keep working (ADR 0043) */
 static int efx_web_game_key(int key) {
     switch (key) {
     case 32:  /* space */

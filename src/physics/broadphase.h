@@ -2,7 +2,7 @@
 #define EFX_PHYS_BROADPHASE_H
 
 /*
- * F12 broadphase: a static triangle-mesh BVH (design D7). A mesh collider is
+ * F12 broadphase: a static triangle-mesh BVH (ADR 0040). A mesh collider is
  * an owned triangle soup with a median-split AABB tree; ray/sweep/overlap
  * queries descend it and test candidate triangles. Dynamic bodies are few and
  * are paired by AABB in world.c, so this file owns only the static structure.

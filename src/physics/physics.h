@@ -3,7 +3,7 @@
 
 /*
  * F12 public C surface for the collision + linear-dynamics + character core
- * (design D1/D3/D9). This is the pure-C API the two script bindings (desktop
+ * (ADR 0040). This is the pure-C API the two script bindings (desktop
  * `src/api`, web `src/web`) call; it depends only on libc and the physics
  * module's own math, never the renderer, platform layer, script runtime, or
  * GLM (ADR 0040).

@@ -2,7 +2,7 @@
 #define EFX_PHYS_SHAPE_H
 
 /*
- * F12 collision shape descriptors (design D3/D4). The physics core speaks
+ * F12 collision shape descriptors (ADR 0040). The physics core speaks
  * plain C shape structs; the bindings translate the script option objects
  * into these. Four shape types: sphere, axis-aligned box (full extent), a
  * *vertical* capsule (segment + radius), and a triangle mesh collider

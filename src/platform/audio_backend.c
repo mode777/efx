@@ -1,5 +1,5 @@
 /*
- * F14 platform audio backend (design D2, push model).
+ * F14 platform audio backend (ADR 0042, push model).
  *
  * sokol_audio is compiled here (SOKOL_AUDIO_IMPL) and confined to efx_platform;
  * the engine's pure-C core (src/audio/) never sees it. The device is fed in

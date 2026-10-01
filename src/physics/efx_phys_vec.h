@@ -2,7 +2,7 @@
 #define EFX_PHYS_VEC_H
 
 /*
- * F12 physics core: its own tiny vector math (design D1).
+ * F12 physics core: its own tiny vector math (ADR 0040).
  *
  * The collision/dynamics core MUST stay dependency-free — no renderer, no
  * platform layer, no script runtime, and crucially no src/math (GLM/C++), so a

@@ -94,7 +94,7 @@ void efx_solver_solve(efx_physics_world *w, float dt) {
     }
 
     /* positional correction with slop: removes residual penetration without
-     * adding the energy a pure Baumgarte bias would (design D6) */
+     * adding the energy a pure Baumgarte bias would (ADR 0040) */
     for (int i = 0; i < w->pair_count; i++) {
         efx_contact_pair *p = &w->pairs[i];
         if (p->sensor) continue;

@@ -2,7 +2,7 @@
 #define EFX_PHYS_NARROW_H
 
 /*
- * F12 narrowphase (design D4/D5): analytic primitive overlaps, ray casts, and
+ * F12 narrowphase (ADR 0040): analytic primitive overlaps, ray casts, and
  * conservative-advancement sweeps over the fixed shape set (sphere, axis-
  * aligned box, vertical capsule, triangle). Contact normals point from the
  * second shape (B, usually the static/kinematic one) toward the first (A), so
