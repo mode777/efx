@@ -16,20 +16,18 @@
 #define EFX_RES_FIXTURES "tests/fixtures/resource"
 #endif
 
+/* on failure, closes the case's resource root `r` */
+#define REQUIRE(c, msg) \
+    do { if (!(c)) { efx_resource_close(r); return fail(msg); } } while (0)
+
 static int dir_read(void) {
     int err = -1;
     efx_resource *r = efx_resource_open(EFX_RES_FIXTURES, &err);
     if (!r || err != EFX_RESOURCE_OK) return fail("open fixtures dir");
-    if (!efx_resource_exists(r, "hello.txt")) {
-        efx_resource_close(r);
-        return fail("hello.txt should exist");
-    }
+    REQUIRE(efx_resource_exists(r, "hello.txt"), "hello.txt should exist");
     size_t size = 0;
     uint8_t *buf = efx_resource_read(r, "hello.txt", &size, &err);
-    if (!buf || err != EFX_RESOURCE_OK) {
-        efx_resource_close(r);
-        return fail("read hello.txt");
-    }
+    REQUIRE(buf && err == EFX_RESOURCE_OK, "read hello.txt");
     if (size != 10 || memcmp(buf, "hello efx\n", 10) != 0) {
         efx_resource_free(buf);
         efx_resource_close(r);
@@ -77,10 +75,7 @@ static int dir_traversal(void) {
             efx_resource_close(r);
             return fail("escaping path was read");
         }
-        if (err != EFX_RESOURCE_ERR_PATH) {
-            efx_resource_close(r);
-            return fail("escaping path err code");
-        }
+        REQUIRE(err == EFX_RESOURCE_ERR_PATH, "escaping path err code");
     }
     efx_resource_close(r);
     return 0;
@@ -89,10 +84,7 @@ static int dir_traversal(void) {
 static int dir_bad_root(void) {
     int err = EFX_RESOURCE_OK;
     efx_resource *r = efx_resource_open(EFX_RES_FIXTURES "/no_such_dir", &err);
-    if (r) {
-        efx_resource_close(r);
-        return fail("missing root opened");
-    }
+    REQUIRE(!r, "missing root opened");
     return err == EFX_RESOURCE_ERR_OPEN ? 0 : fail("bad root err code");
 }
 
@@ -167,16 +159,10 @@ static int zip_read(void) {
     int err = EFX_RESOURCE_OK;
     efx_resource *r = open_pack(&err);
     if (!r) return fail("open pack.zip");
-    if (!efx_resource_is_zip(r)) {
-        efx_resource_close(r);
-        return fail("pack.zip not detected as zip");
-    }
+    REQUIRE(efx_resource_is_zip(r), "pack.zip not detected as zip");
     size_t size = 0;
     uint8_t *buf = efx_resource_read(r, "hello.txt", &size, &err);
-    if (!buf || err != EFX_RESOURCE_OK) {
-        efx_resource_close(r);
-        return fail("zip read hello.txt");
-    }
+    REQUIRE(buf && err == EFX_RESOURCE_OK, "zip read hello.txt");
     int ok = (size == 10 && memcmp(buf, "hello efx\n", 10) == 0);
     efx_resource_free(buf);
     efx_resource_close(r);
@@ -222,10 +208,7 @@ static int zip_bad_root(void) {
     int err = EFX_RESOURCE_OK;
     /* corrupt.png is not a zip archive */
     efx_resource *r = efx_resource_open(EFX_RES_FIXTURES "/corrupt.png", &err);
-    if (r) {
-        efx_resource_close(r);
-        return fail("non-zip file opened as root");
-    }
+    REQUIRE(!r, "non-zip file opened as root");
     return err == EFX_RESOURCE_ERR_OPEN ? 0 : fail("bad zip err code");
 }
 
@@ -283,10 +266,7 @@ static int gltf_zip(void) {
                                         &err);
     if (!r) return fail("open gltf_pack.zip");
     efx_meshdata *md = gltf_import(r, "triangle.gltf", NULL, &err);
-    if (!md || err != EFX_GLTF_OK) {
-        efx_resource_close(r);
-        return fail("import triangle.gltf from zip");
-    }
+    REQUIRE(md && err == EFX_GLTF_OK, "import triangle.gltf from zip");
     int ok = md->surface_count == 1 && md->surfaces[0].vertex_count == 3;
     efx_meshdata_destroy(md);
     /* external image inside the zip */

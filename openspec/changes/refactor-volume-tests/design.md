@@ -235,3 +235,13 @@ build. It is then deleted.
   0.001. The header's tolerance is `EFX_TEST_FEQ_EPS` (default 0.001f), and
   `math_tests.c` defines it as 0.0001f before including the header, so no
   assertion is weakened.
+- **R4 counts.** `api_tests.c` had 89 clean-up-and-fail blocks (as planned)
+  but **9** pasted `t(fn, kind)` helpers, not 6, in two variants that differ
+  only in the text of the error they raise when an assertion fails
+  (`'did not throw'`/`'wrong kind: '` vs `'no'`/`'wrong: '`). All 9 use the
+  first variant through `T_HELPER`; pass/fail logic is identical.
+  `resource_tests.c` has 8 blocks whose only clean-up is
+  `efx_resource_close(r)`; those use its `REQUIRE`. The 3 blocks that also
+  free a buffer or image keep their explicit clean-up. A flipped `REQUIRE`
+  printed `FAIL: blend`, exited 1, and the next 37 cases in the same process
+  still passed (clean-up ran).

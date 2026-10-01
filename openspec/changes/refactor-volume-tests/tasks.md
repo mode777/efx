@@ -45,11 +45,11 @@
 
 ## 5. Shorter assertions (R4)
 
-- [ ] 5.1 Add `REQUIRE` and `T_HELPER` to `api_tests.c` (D4). Convert all 89
+- [x] 5.1 Add `REQUIRE` and `T_HELPER` to `api_tests.c` (D4). Convert all 89
   clean-up-and-fail blocks and the 6 pasted `t(fn, kind)` helpers. Verify: V1;
   flip one assertion locally once to confirm the message is printed and
   `end_js()` runs; then revert the flip.
-- [ ] 5.2 Apply the equivalent `REQUIRE` to the 9 blocks in
+- [x] 5.2 Apply the equivalent `REQUIRE` to the 9 blocks in
   `resource_tests.c`. Verify: V2 (resource tests are desktop-only).
 
 ## 6. Delete dead code and unused surface (R5–R7)

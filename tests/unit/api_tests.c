@@ -79,6 +79,18 @@ static void end_js(void) {
     efx_render_shutdown();
 }
 
+#define REQUIRE(c, msg) do { if (!(c)) { end_js(); return fail(msg); } } while (0)
+
+/* JS assertion helper: t(fn, kind) requires fn() to throw a `kind` error */
+#define T_HELPER                                                              \
+    "function t(fn, kind) {"                                                  \
+    "  try { fn(); throw new Error('did not throw'); }"                       \
+    "  catch (e) {"                                                           \
+    "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;" \
+    "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"      \
+    "  }"                                                                     \
+    "}"
+
 static int ok_js(const char *code) {
     int rc = run_js(code);
     if (rc != 0) {
@@ -104,11 +116,9 @@ static int rec_count(void) {
 
 /* white texture: exists, stable identity, destroy() throws */
 static int white(void) {
-    if (ok_js("const a = efx.whiteTexture; const b = efx.whiteTexture; if (a !== b) throw new Error('identity');"
-              "try { a.destroy(); throw new Error('no'); } catch (e) { if (!(e instanceof TypeError)) throw e; }")) {
-        end_js();
-        return fail("white texture identity/destroy");
-    }
+    REQUIRE(!ok_js("const a = efx.whiteTexture; const b = efx.whiteTexture; if (a !== b) throw new Error('identity');"
+                   "try { a.destroy(); throw new Error('no'); } catch (e) { if (!(e instanceof TypeError)) throw e; }"),
+            "white texture identity/destroy");
     end_js();
     return 0;
 }
@@ -120,39 +130,22 @@ static int quad_record(void) {
         "efx.drawQuad(0, 0, efx.whiteTexture,"
         "  { rotation: 90, scale: 1.5, color: [1, 0, 0, 1], size: [64, 32],"
         "    sourceRect: { x: 0, y: 0, w: 1, h: 1 } });";
-    if (ok_js(code)) {
-        end_js();
-        return fail("snippet");
-    }
-    if (rec_count() != 1) {
-        end_js();
-        return fail("record count");
-    }
+    REQUIRE(!ok_js(code), "snippet");
+    REQUIRE(rec_count() == 1, "record count");
     efx_camera2d cam = {640, 480, 320, 240, 2, 0};
     efx_affine expect = efx_affine_mul(efx_camera_matrix(&cam, 640, 480),
                                        efx_quad_matrix(0, 0, 32, 16, 90, 1.5f));
     const efx_record *r = efx_render_records(NULL);
-    if (!feq(r[0].u.quad.m.a, expect.a) || !feq(r[0].u.quad.m.tx, expect.tx) ||
-        !feq(r[0].u.quad.m.ty, expect.ty)) {
-        end_js();
-        return fail("composed transform mismatch");
-    }
-    if (!feq(r[0].u.quad.tw, 1) || !feq(r[0].u.quad.sw, 1)) {
-        end_js();
-        return fail("source rect/texture size");
-    }
-    if (!feq(r[0].u.quad.w, 64) || !feq(r[0].u.quad.h, 32)) {
-        end_js();
-        return fail("explicit size overrides derivation");
-    }
-    if (!feq(r[0].u.quad.color[0], 1) || !feq(r[0].u.quad.color[1], 0) || !feq(r[0].u.quad.color[3], 1)) {
-        end_js();
-        return fail("tint");
-    }
-    if (r[0].u.quad.blend != EFX_BLEND_ALPHA) {
-        end_js();
-        return fail("blend");
-    }
+    REQUIRE(feq(r[0].u.quad.m.a, expect.a) &&
+            feq(r[0].u.quad.m.tx, expect.tx) && feq(r[0].u.quad.m.ty, expect.ty),
+            "composed transform mismatch");
+    REQUIRE(feq(r[0].u.quad.tw, 1) && feq(r[0].u.quad.sw, 1),
+            "source rect/texture size");
+    REQUIRE(feq(r[0].u.quad.w, 64) && feq(r[0].u.quad.h, 32),
+            "explicit size overrides derivation");
+    REQUIRE(feq(r[0].u.quad.color[0], 1) && feq(r[0].u.quad.color[1], 0) &&
+            feq(r[0].u.quad.color[3], 1), "tint");
+    REQUIRE(r[0].u.quad.blend == EFX_BLEND_ALPHA, "blend");
     end_js();
     return 0;
 }
@@ -167,32 +160,18 @@ static int size_derivation(void) {
         "efx.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 4 } });"        /* src extent */
         "efx.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 4 }, size: [50, 20] });"
         "efx.drawQuad(0, 0, tex, { size: [32, 16], scale: 2 });";                     /* scale after size */
-    if (ok_js(code)) {
-        end_js();
-        return fail("snippet");
-    }
+    REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
-    if (rec_count() != 4) {
-        end_js();
-        return fail("record count");
-    }
-    if (!feq(r[0].u.quad.w, 64) || !feq(r[0].u.quad.h, 32)) {
-        end_js();
-        return fail("derive from texture pixels");
-    }
-    if (!feq(r[1].u.quad.w, 8) || !feq(r[1].u.quad.h, 4)) {
-        end_js();
-        return fail("derive from sourceRect");
-    }
-    if (!feq(r[2].u.quad.w, 50) || !feq(r[2].u.quad.h, 20)) {
-        end_js();
-        return fail("explicit size overrides sourceRect");
-    }
+    REQUIRE(rec_count() == 4, "record count");
+    REQUIRE(feq(r[0].u.quad.w, 64) && feq(r[0].u.quad.h, 32),
+            "derive from texture pixels");
+    REQUIRE(feq(r[1].u.quad.w, 8) && feq(r[1].u.quad.h, 4),
+            "derive from sourceRect");
+    REQUIRE(feq(r[2].u.quad.w, 50) && feq(r[2].u.quad.h, 20),
+            "explicit size overrides sourceRect");
     /* scale 2 around the (default center) pivot: matrix a-component = 2 */
-    if (!feq(r[3].u.quad.w, 32) || !feq(r[3].u.quad.h, 16) || !feq(r[3].u.quad.m.a, 2)) {
-        end_js();
-        return fail("scale applies after size");
-    }
+    REQUIRE(feq(r[3].u.quad.w, 32) && feq(r[3].u.quad.h, 16) &&
+            feq(r[3].u.quad.m.a, 2), "scale applies after size");
     end_js();
     return 0;
 }
@@ -206,32 +185,22 @@ static int origin_pivot(void) {
         "efx.drawQuad(10, 20, tex);"
         "efx.drawQuad(10, 20, tex, { origin: [50, 100] });"              /* no transform: same */
         "efx.drawQuad(10, 20, tex, { origin: [0, 0], rotation: 90 });";  /* pivot at top-left */
-    if (ok_js(code)) {
-        end_js();
-        return fail("snippet");
-    }
+    REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
-    if (rec_count() != 3) {
-        end_js();
-        return fail("record count");
-    }
+    REQUIRE(rec_count() == 3, "record count");
     /* untransformed: origin must not move the quad */
-    if (!feq(r[0].u.quad.m.tx, r[1].u.quad.m.tx) || !feq(r[0].u.quad.m.ty, r[1].u.quad.m.ty) ||
-        !feq(r[0].u.quad.m.a, r[1].u.quad.m.a)) {
-        end_js();
-        return fail("origin must not move an untransformed quad");
-    }
+    REQUIRE(feq(r[0].u.quad.m.tx, r[1].u.quad.m.tx) &&
+            feq(r[0].u.quad.m.ty, r[1].u.quad.m.ty) &&
+            feq(r[0].u.quad.m.a, r[1].u.quad.m.a),
+            "origin must not move an untransformed quad");
     /* origin [0,0] + rotation 90 (y-down, clockwise): local (0,0) maps to
      * (10, 20) and local (64, 0) maps to (10, 20 + 64) */
-    if (!feq(r[2].u.quad.m.a + r[2].u.quad.m.c * 0 + r[2].u.quad.m.tx, 10) ||
-        !feq(r[2].u.quad.m.b * 0 + r[2].u.quad.m.d * 0 + r[2].u.quad.m.ty, 20)) {
-        end_js();
-        return fail("origin pivot corner position");
-    }
-    if (!feq(r[2].u.quad.m.a * 64 + r[2].u.quad.m.tx, 10) || !feq(r[2].u.quad.m.b * 64 + r[2].u.quad.m.ty, 84)) {
-        end_js();
-        return fail("origin pivot rotation direction");
-    }
+    REQUIRE(feq(r[2].u.quad.m.a + r[2].u.quad.m.c * 0 + r[2].u.quad.m.tx, 10) &&
+            feq(r[2].u.quad.m.b * 0 + r[2].u.quad.m.d * 0 + r[2].u.quad.m.ty, 20),
+            "origin pivot corner position");
+    REQUIRE(feq(r[2].u.quad.m.a * 64 + r[2].u.quad.m.tx, 10) &&
+            feq(r[2].u.quad.m.b * 64 + r[2].u.quad.m.ty, 84),
+            "origin pivot rotation direction");
     end_js();
     return 0;
 }
@@ -239,13 +208,7 @@ static int origin_pivot(void) {
 /* validation matrix for size/origin/zero-extent sourceRect */
 static int quad_validation(void) {
     const char *code =
-        "function t(fn, kind) {"
-        "  try { fn(); throw new Error('did not throw'); }"
-        "  catch (e) {"
-        "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: [0, 10] }), RangeError);"
         "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: [10] }), RangeError);"
         "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: 'big' }), TypeError);"
@@ -254,14 +217,8 @@ static int quad_validation(void) {
         "t(() => efx.drawQuad(0, 0, efx.whiteTexture,"
         "  { sourceRect: { x: 0, y: 0, w: 0, h: 1 } }), RangeError);"
         "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4], frobnicate: 1 }), TypeError);";
-    if (ok_js(code)) {
-        end_js();
-        return fail("quad validation matrix");
-    }
-    if (rec_count() != 0) {
-        end_js();
-        return fail("failed calls must record nothing");
-    }
+    REQUIRE(!ok_js(code), "quad validation matrix");
+    REQUIRE(rec_count() == 0, "failed calls must record nothing");
     end_js();
     return 0;
 }
@@ -279,10 +236,7 @@ static int texture_size_getters(void) {
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
         "try { efx.drawQuad(0, 0, tex); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("texture size getters");
-    }
+    REQUIRE(!ok_js(code), "texture size getters");
     end_js();
     return 0;
 }
@@ -294,32 +248,21 @@ static int camera_snapshot(void) {
         "efx.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });"
         "efx.setCamera2D({ frame: [640, 480], x: 370, y: 0 });"
         "efx.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });";
-    if (ok_js(code)) {
-        end_js();
-        return fail("snippet");
-    }
+    REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
-    if (r[0].u.quad.m.tx == r[1].u.quad.m.tx) {
-        end_js();
-        return fail("camera not snapshotted");
-    }
+    REQUIRE(r[0].u.quad.m.tx != r[1].u.quad.m.tx, "camera not snapshotted");
     /* second view looks 50 world px right of the first: at zoom 1 the
        recorded quad shifts 50 frame px left (world moves right on screen) */
-    if (!feq(r[1].u.quad.m.tx - r[0].u.quad.m.tx, -50.0f)) {
-        end_js();
-        return fail("camera delta");
-    }
+    REQUIRE(feq(r[1].u.quad.m.tx - r[0].u.quad.m.tx, -50.0f), "camera delta");
     end_js();
     return 0;
 }
 
 /* out-of-bounds sourceRect throws RangeError */
 static int src_oob(void) {
-    if (err_js("efx.drawQuad(0, 0, efx.whiteTexture,"
-               "  { sourceRect: { x: 0, y: 0, w: 5, h: 5 } });", "oob sourceRect")) {
-        end_js();
-        return fail("oob sourceRect must throw");
-    }
+    REQUIRE(!err_js("efx.drawQuad(0, 0, efx.whiteTexture,"
+                    "  { sourceRect: { x: 0, y: 0, w: 5, h: 5 } });", "oob sourceRect"),
+            "oob sourceRect must throw");
     end_js();
     return 0;
 }
@@ -331,10 +274,7 @@ static int budget(void) {
         "  for (let i = 0; i < 500000; i++) efx.drawQuad(0, 0, efx.whiteTexture);"
         "  throw new Error('budget not enforced');"
         "} catch (e) { if (!(e instanceof RangeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("budget RangeError");
-    }
+    REQUIRE(!ok_js(code), "budget RangeError");
     end_js();
     return 0;
 }
@@ -348,10 +288,7 @@ static int texture_lifecycle(void) {
         "tex.destroy();" /* idempotent */
         "try { efx.drawQuad(0, 0, tex); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("texture lifecycle");
-    }
+    REQUIRE(!ok_js(code), "texture lifecycle");
     end_js();
     return 0;
 }
@@ -362,47 +299,33 @@ static int blend_snapshot(void) {
         "efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"
         "efx.setBlendMode('subtractive');"
         "efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });";
-    if (ok_js(code)) {
-        end_js();
-        return fail("snippet");
-    }
+    REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
-    if (r[0].u.quad.blend != EFX_BLEND_ALPHA || r[1].u.quad.blend != EFX_BLEND_SUBTRACTIVE) {
-        end_js();
-        return fail("blend snapshot");
-    }
+    REQUIRE(r[0].u.quad.blend == EFX_BLEND_ALPHA &&
+            r[1].u.quad.blend == EFX_BLEND_SUBTRACTIVE, "blend snapshot");
     end_js();
     return 0;
 }
 
 /* setClearColor stores through the JS binding */
 static int clear_color_js(void) {
-    if (ok_js("efx.setClearColor([0.1, 0.7, 0.3, 1]);")) {
-        end_js();
-        return fail("snippet");
-    }
+    REQUIRE(!ok_js("efx.setClearColor([0.1, 0.7, 0.3, 1]);"), "snippet");
     float c[4];
     efx_render_clear_color(c);
-    if (!feq(c[0], 0.1f) || !feq(c[1], 0.7f) || !feq(c[2], 0.3f) || !feq(c[3], 1.0f)) {
-        end_js();
-        return fail("clear color not stored");
-    }
+    REQUIRE(feq(c[0], 0.1f) && feq(c[1], 0.7f) && feq(c[2], 0.3f) &&
+            feq(c[3], 1.0f), "clear color not stored");
     end_js();
     return 0;
 }
 
 /* default camera: frame == viewport, identity view */
 static int default_camera(void) {
-    if (ok_js("efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });")) {
-        end_js();
-        return fail("snippet");
-    }
+    REQUIRE(!ok_js("efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"),
+            "snippet");
     const efx_record *r = efx_render_records(NULL);
-    if (r[0].u.quad.frame_w != 1024 || r[0].u.quad.frame_h != 600 || !feq(r[0].u.quad.m.a, 1) ||
-        !feq(r[0].u.quad.m.tx, 0) || !feq(r[0].u.quad.m.ty, 0)) {
-        end_js();
-        return fail("default camera");
-    }
+    REQUIRE(r[0].u.quad.frame_w == 1024 && r[0].u.quad.frame_h == 600 &&
+            feq(r[0].u.quad.m.a, 1) && feq(r[0].u.quad.m.tx, 0) &&
+            feq(r[0].u.quad.m.ty, 0), "default camera");
     end_js();
     return 0;
 }
@@ -420,31 +343,19 @@ static int hooks_registration(void) {
         "globalThis.update = function (dt) {"
         "  __hooksLog.push('gU:' + (typeof dt === 'number' && isFinite(dt))); };"
         "globalThis.render = function () { __hooksLog.push('gR'); };";
-    if (ok_js(code)) {
-        end_js();
-        return fail("hooks snippet");
-    }
+    REQUIRE(!ok_js(code), "hooks snippet");
     int has_update = 0;
     int has_render = 0;
     efx_runtime_pick_hooks(g_rt, &has_update, &has_render);
-    if (!has_update || !has_render) {
-        end_js();
-        return fail("sugar hooks not picked up");
-    }
-    if (efx_runtime_call_hook(g_rt, 1, 0.5) != EFX_HOOK_OK ||
-        efx_runtime_call_hook(g_rt, 0, 0.5) != EFX_HOOK_OK) {
-        end_js();
-        return fail("hook dispatch returned an error");
-    }
+    REQUIRE(has_update && has_render, "sugar hooks not picked up");
+    REQUIRE(efx_runtime_call_hook(g_rt, 1, 0.5) == EFX_HOOK_OK &&
+            efx_runtime_call_hook(g_rt, 0, 0.5) == EFX_HOOK_OK,
+            "hook dispatch returned an error");
     /* unsubscribe is idempotent and removes the first hook */
-    if (efx_runtime_eval_string(g_rt, "unsub", "__off(); __off();") != 0) {
-        end_js();
-        return fail("unsubscribe snippet");
-    }
-    if (efx_runtime_call_hook(g_rt, 1, 0.25) != EFX_HOOK_OK) {
-        end_js();
-        return fail("post-unsubscribe dispatch");
-    }
+    REQUIRE(efx_runtime_eval_string(g_rt, "unsub", "__off(); __off();") == 0,
+            "unsubscribe snippet");
+    REQUIRE(efx_runtime_call_hook(g_rt, 1, 0.25) == EFX_HOOK_OK,
+            "post-unsubscribe dispatch");
     const char *want =
         "typeerror:true|uA:true|uB|gU:true|r|gR|uB|gU:true";
     char verify[512];
@@ -452,10 +363,8 @@ static int hooks_registration(void) {
              "if (__hooksLog.join('|') !== '%s')"
              "  throw new Error('hook order: ' + __hooksLog.join('|'));",
              want);
-    if (efx_runtime_eval_string(g_rt, "verify", verify) != 0) {
-        end_js();
-        return fail("hook order/dt mismatch");
-    }
+    REQUIRE(efx_runtime_eval_string(g_rt, "verify", verify) == 0,
+            "hook order/dt mismatch");
     end_js();
     return 0;
 }
@@ -477,13 +386,7 @@ static int meshdata_js(void) {
         "if (md.surfaceCount !== 2) throw new Error('surfaceCount');"
         "const one = efx.createMeshData({ positions: P, indices: [0,1,2] });"
         "if (one.surfaceCount !== 1) throw new Error('shorthand');"
-        "function t(fn, kind) {"
-        "  try { fn(); throw new Error('did not throw'); }"
-        "  catch (e) {"
-        "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(() => efx.createMeshData({}), TypeError);"
         "t(() => efx.createMeshData({ surfaces: [], positions: P }), TypeError);"
         "t(() => efx.createMeshData({ surfaces: [] }), RangeError);"
@@ -499,10 +402,7 @@ static int meshdata_js(void) {
         "one.destroy();"
         "try { one.surfaceCount; throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("meshdata js");
-    }
+    REQUIRE(!ok_js(code), "meshdata js");
     end_js();
     return 0;
 }
@@ -518,10 +418,7 @@ static int meshdata_cap_js(void) {
         "S.pop();"
         "if (efx.createMeshData({ surfaces: S }).surfaceCount !== 16)"
         "  throw new Error('16 must be accepted');";
-    if (ok_js(code)) {
-        end_js();
-        return fail("meshdata cap");
-    }
+    REQUIRE(!ok_js(code), "meshdata cap");
     end_js();
     return 0;
 }
@@ -538,13 +435,7 @@ static int mesh_js(void) {
         "efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });"
         "efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,1],"
         "  color: [0.5, 0.25, 1, 1] });"
-        "function t(fn, kind) {"
-        "  try { fn(); throw new Error('did not throw'); }"
-        "  catch (e) {"
-        "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(() => efx.drawMesh(), TypeError);"
         "t(() => efx.drawMesh({}), TypeError);"
         "t(() => efx.drawMesh(null), TypeError);"
@@ -562,45 +453,25 @@ static int mesh_js(void) {
         "t(() => efx.drawMesh(mesh), TypeError);"
         "try { mesh.surfaceCount; throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("mesh js");
-    }
+    REQUIRE(!ok_js(code), "mesh js");
     /* records: first drawMesh with explicit args, throws record nothing,
        second with defaults */
     const efx_record *r = efx_render_records(NULL);
     int n = rec_count();
-    if (n != 2) {
-        end_js();
-        return fail("mesh record count");
-    }
-    if (r[0].type != EFX_RECORD_MESH || r[1].type != EFX_RECORD_MESH) {
-        end_js();
-        return fail("mesh record type");
-    }
-    if (!feq(r[0].u.mesh.transform[12], 1) || !feq(r[0].u.mesh.transform[13], 2) ||
-        !feq(r[0].u.mesh.transform[14], 3)) {
-        end_js();
-        return fail("mesh transform");
-    }
-    if (!feq(r[0].u.mesh.color[1], 0.25f)) {
-        end_js();
-        return fail("mesh tint");
-    }
+    REQUIRE(n == 2, "mesh record count");
+    REQUIRE(r[0].type == EFX_RECORD_MESH && r[1].type == EFX_RECORD_MESH,
+            "mesh record type");
+    REQUIRE(feq(r[0].u.mesh.transform[12], 1) &&
+            feq(r[0].u.mesh.transform[13], 2) &&
+            feq(r[0].u.mesh.transform[14], 3), "mesh transform");
+    REQUIRE(feq(r[0].u.mesh.color[1], 0.25f), "mesh tint");
     float pos[3], target[3], fov, nearz, farz;
     efx_render_camera3d(pos, target, &fov, &nearz, &farz);
-    if (!feq(r[0].u.mesh.camera.pos[2], 5) || !feq(r[0].u.mesh.camera.fov, 60)) {
-        end_js();
-        return fail("mesh camera snapshot");
-    }
-    if (!feq(r[1].u.mesh.transform[0], 1) || !feq(r[1].u.mesh.transform[12], 0)) {
-        end_js();
-        return fail("mesh default identity");
-    }
-    if (!feq(r[1].u.mesh.color[3], 1)) {
-        end_js();
-        return fail("mesh default tint");
-    }
+    REQUIRE(feq(r[0].u.mesh.camera.pos[2], 5) && feq(r[0].u.mesh.camera.fov, 60),
+            "mesh camera snapshot");
+    REQUIRE(feq(r[1].u.mesh.transform[0], 1) &&
+            feq(r[1].u.mesh.transform[12], 0), "mesh default identity");
+    REQUIRE(feq(r[1].u.mesh.color[3], 1), "mesh default tint");
     end_js();
     return 0;
 }
@@ -609,13 +480,7 @@ static int mesh_js(void) {
 static int camera3d_js(void) {
     const char *code =
         "efx.setCamera3D({ pos: [0, 1, 4], target: [0, 0, 0], fov: 90 });"
-        "function t(fn, kind) {"
-        "  try { fn(); throw new Error('did not throw'); }"
-        "  catch (e) {"
-        "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(() => efx.setCamera3D(), TypeError);"
         "t(() => efx.setCamera3D({ target: [0,0,0], fov: 60 }), TypeError);"
         "t(() => efx.setCamera3D({ pos: [0,0,0], target: [0,0,0], fov: 'wide' }), TypeError);"
@@ -623,20 +488,11 @@ static int camera3d_js(void) {
         "efx.setCamera3D({ pos: [0, 0, 2], target: [0, 0, 0], fov: 45 });"
         /* defaults accepted for near/far */
         "efx.setCamera3D({ pos: [0, 0, 2], target: [0, 0, 0], fov: 45, near: 0.5, far: 50 });";
-    if (ok_js(code)) {
-        end_js();
-        return fail("camera3d js");
-    }
+    REQUIRE(!ok_js(code), "camera3d js");
     float pos[3], target[3], fov, nearz, farz;
     efx_render_camera3d(pos, target, &fov, &nearz, &farz);
-    if (!feq(pos[2], 2) || !feq(fov, 45)) {
-        end_js();
-        return fail("camera3d state");
-    }
-    if (!feq(nearz, 0.5f) || !feq(farz, 50.0f)) {
-        end_js();
-        return fail("camera3d near/far");
-    }
+    REQUIRE(feq(pos[2], 2) && feq(fov, 45), "camera3d state");
+    REQUIRE(feq(nearz, 0.5f) && feq(farz, 50.0f), "camera3d near/far");
     end_js();
     return 0;
 }
@@ -657,12 +513,7 @@ static int f4a_js(void) {
         "efx.setMeshSurfaceMaterial(mesh, 0, { diffuse:{color:[0.1,0.2,0.3,1]} });"
         "efx.setCamera3D({pos:[0,2,5], target:[0,0,0], fov:60});"
         "efx.drawMesh(mesh);"
-        "function t(fn, kind){"
-        "  try{fn();throw new Error('no');}catch(e){"
-        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(()=>efx.setLight(4,{pos:[0,0,0],color:[1,1,1,1]}), RangeError);"
         "t(()=>efx.setLight(0,{color:[1,1,1,1]}), TypeError);"
         "t(()=>efx.setLight(0,{pos:[0,0,0],color:[1,1,1,1],range:-1}), RangeError);"
@@ -672,28 +523,14 @@ static int f4a_js(void) {
         "t(()=>efx.createMeshData({positions:P, materials:[]}), RangeError);"
         "t(()=>efx.createMeshData({positions:P, materials:[{specular:{color:[1,1,1,1],shininess:0}}]}), RangeError);"
         "mesh.destroy(); md.destroy();";
-    if (ok_js(code)) {
-        end_js();
-        return fail("f4a js");
-    }
+    REQUIRE(!ok_js(code), "f4a js");
     const efx_record *r = efx_render_records(NULL);
     int n = rec_count();
-    if (n != 1 || r[0].type != EFX_RECORD_MESH) {
-        end_js();
-        return fail("f4a record");
-    }
-    if (!r[0].u.mesh.lights.points[0].enabled) {
-        end_js();
-        return fail("point light snapshot");
-    }
-    if (!feq(r[0].u.mesh.lights.points[0].range, 20)) {
-        end_js();
-        return fail("light range snapshot");
-    }
-    if (!r[0].u.mesh.lights.directional.enabled) {
-        end_js();
-        return fail("directional snapshot");
-    }
+    REQUIRE(n == 1 && r[0].type == EFX_RECORD_MESH, "f4a record");
+    REQUIRE(r[0].u.mesh.lights.points[0].enabled, "point light snapshot");
+    REQUIRE(feq(r[0].u.mesh.lights.points[0].range, 20),
+            "light range snapshot");
+    REQUIRE(r[0].u.mesh.lights.directional.enabled, "directional snapshot");
     end_js();
     return 0;
 }
@@ -717,26 +554,15 @@ static int f4b_js(void) {
         "efx.drawMesh(mesh);"
         "tex.destroy();"                 /* retained by the bound map */
         "efx.drawMesh(mesh);"        /* still renders (no throw) */
-        "function t(fn,kind){"
-        "  try{fn();throw new Error('no');}catch(e){"
-        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:tex}}), TypeError);"
         "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
         "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{alphaMask:5}), TypeError);"
         "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],frob:1}}), TypeError);"
         "efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1]}});" /* release */
         "mesh.destroy(); md.destroy();";
-    if (ok_js(code)) {
-        end_js();
-        return fail("f4b js");
-    }
-    if (rec_count() < 2) {
-        end_js();
-        return fail("f4b records");
-    }
+    REQUIRE(!ok_js(code), "f4b js");
+    REQUIRE(rec_count() >= 2, "f4b records");
     end_js();
     return 0;
 }
@@ -745,12 +571,7 @@ static int f4b_js(void) {
  * redirection errors, texture coercion in drawQuad and material maps */
 static int f5a_js(void) {
     const char *code =
-        "function t(fn,kind){"
-        "  try{fn();throw new Error('no');}catch(e){"
-        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
-        "  }"
-        "}"
+        T_HELPER
         /* validation matrix */
         "t(()=>efx.createRenderTarget({height:8}), TypeError);"
         "t(()=>efx.createRenderTarget({width:0,height:8}), RangeError);"
@@ -790,53 +611,33 @@ static int f5a_js(void) {
         "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:dead}}), TypeError);"
         "t(()=>efx.beginRenderTarget(dead), TypeError);"
         "mesh.destroy(); live.destroy();";
-    if (ok_js(code)) {
-        end_js();
-        return fail("f5a js");
-    }
+    REQUIRE(!ok_js(code), "f5a js");
     /* records: drawQuad(rt) x2, BEGIN, white quad, END, mesh, BEGIN, END */
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
-    if (count < 6) {
-        end_js();
-        return fail("f5a record count");
-    }
+    REQUIRE(count >= 6, "f5a record count");
     /* size derivation from the target extent (64x32) */
-    if (!feq(recs[0].u.quad.w, 64) || !feq(recs[0].u.quad.h, 32)) {
-        end_js();
-        return fail("rt size derivation");
-    }
-    if (!feq(recs[1].u.quad.w, 16) || !feq(recs[1].u.quad.h, 16)) {
-        end_js();
-        return fail("src extent derivation");
-    }
+    REQUIRE(feq(recs[0].u.quad.w, 64) && feq(recs[0].u.quad.h, 32),
+            "rt size derivation");
+    REQUIRE(feq(recs[1].u.quad.w, 16) && feq(recs[1].u.quad.h, 16),
+            "src extent derivation");
     /* each BEGIN record snapshots the frame's clear color (default black) */
     int begins = 0;
     for (int i = 0; i < count; i++) {
         if (recs[i].type == EFX_RECORD_BEGIN_TARGET) {
-            if (!feq(recs[i].u.begin_target.clear[3], 1.0f)) {
-                end_js();
-                return fail("clear snapshot alpha");
-            }
+            REQUIRE(feq(recs[i].u.begin_target.clear[3], 1.0f),
+                    "clear snapshot alpha");
             begins++;
         }
     }
-    if (begins != 2) {
-        end_js();
-        return fail("begin record count");
-    }
+    REQUIRE(begins == 2, "begin record count");
     end_js();
     return 0;
 }
 
 static int f5b_js(void) {
     const char *matrix =
-        "function t(fn,kind){"
-        "  try{fn();throw new Error('no');}catch(e){"
-        "    if(e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if(!(e instanceof kind)) throw new Error('wrong: '+e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(()=>efx.setPostEffects('x'), TypeError);"
         "t(()=>efx.setPostEffects([1]), TypeError);"
         "t(()=>efx.setPostEffects([{effect:'vortex'}]), TypeError);"
@@ -861,10 +662,7 @@ static int f5b_js(void) {
         "const entry={effect:'blur',radius:3,mix:0.5};"
         "efx.setPostEffects([entry]);"
         "entry.radius=60; entry.mix=0.1; entry.effect='bloom';";
-    if (ok_js(matrix)) {
-        end_js();
-        return fail("f5b js matrix");
-    }
+    REQUIRE(!ok_js(matrix), "f5b js matrix");
     efx_post_entry got[EFX_POST_MAX_ENTRIES];
     int n = 0;
     efx_render_post_effects(got, &n);
@@ -875,10 +673,8 @@ static int f5b_js(void) {
     end_js();
 
     /* defaults are neutral and the chain persists across frames */
-    if (ok_js("efx.setPostEffects([{effect:'colorFilter'}]);")) {
-        end_js();
-        return fail("f5b js defaults");
-    }
+    REQUIRE(!ok_js("efx.setPostEffects([{effect:'colorFilter'}]);"),
+            "f5b js defaults");
     efx_render_post_effects(got, &n);
     if (n != 1 || got[0].effect != EFX_POST_COLOR_FILTER)
         return fail("colorFilter stored");
@@ -895,27 +691,20 @@ static int f5b_js(void) {
     end_js();
 
     /* null and [] both clear */
-    if (ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects(null);")) {
-        end_js();
-        return fail("f5b js null clear");
-    }
+    REQUIRE(!ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects(null);"),
+            "f5b js null clear");
     efx_render_post_effects(got, &n);
     if (n != 0) return fail("null did not clear");
     end_js();
-    if (ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects([]);")) {
-        end_js();
-        return fail("f5b js empty clear");
-    }
+    REQUIRE(!ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects([]);"),
+            "f5b js empty clear");
     efx_render_post_effects(got, &n);
     if (n != 0) return fail("[] did not clear");
     end_js();
 
     /* render scale persists and a rejected call leaves it in effect */
-    if (ok_js("efx.setRenderScale(0.5,{filter:'nearest'});"
-              "try{efx.setRenderScale(0);}catch(e){}")) {
-        end_js();
-        return fail("f5b js scale");
-    }
+    REQUIRE(!ok_js("efx.setRenderScale(0.5,{filter:'nearest'});"
+                   "try{efx.setRenderScale(0);}catch(e){}"), "f5b js scale");
     float sc = 0;
     int f = -1;
     efx_render_render_scale(&sc, &f);
@@ -935,10 +724,7 @@ static int resource_js(void) {
     if (!g_rt) return fail("runtime");
     int err = EFX_RESOURCE_OK;
     efx_resource *res = efx_resource_open(EFX_RES_FIXTURES, &err);
-    if (!res) {
-        end_js();
-        return fail("open fixtures");
-    }
+    REQUIRE(res, "open fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
         "if (efx.loadText('hello.txt') !== 'hello efx\\n') throw new Error('text');"
@@ -976,10 +762,7 @@ static int audio_js(void) {
     if (!g_rt) return fail("runtime");
     int err = EFX_RESOURCE_OK;
     efx_resource *res = efx_resource_open(EFX_AUDIO_FIXTURES, &err);
-    if (!res) {
-        end_js();
-        return fail("open audio fixtures");
-    }
+    REQUIRE(res, "open audio fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
         "var data = efx.audio.loadAudioData('tone.wav');"
@@ -1045,10 +828,7 @@ static int createTexture_js(void) {
         "if (boom(function () { efx.createTexture(img, { mipmaps: 'yes' }); }) !== 1)"
         "  throw new Error('non-boolean mipmaps');";
     g_seq_n = 0;
-    if (ok_js(code)) {
-        end_js();
-        return fail("createTexture options snippet");
-    }
+    REQUIRE(!ok_js(code), "createTexture options snippet");
     int ok = g_seq_n == 5 &&
              g_seq_wrap[0] == EFX_TEX_WRAP_REPEAT &&
              g_seq_filter[0] == EFX_FILTER_LINEAR &&
@@ -1075,10 +855,7 @@ static int font_js(void) {
     if (!g_rt) return fail("runtime");
     int err = EFX_RESOURCE_OK;
     efx_resource *res = efx_resource_open(EFX_RES_FIXTURES, &err);
-    if (!res) {
-        end_js();
-        return fail("open fixtures");
-    }
+    REQUIRE(res, "open fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
         "var fd = efx.loadFontData('font.ttf');"
@@ -1139,10 +916,7 @@ static int gltf_js(void) {
     if (!g_rt) return fail("runtime");
     int err = EFX_RESOURCE_OK;
     efx_resource *res = efx_resource_open(EFX_RES_FIXTURES "/gltf", &err);
-    if (!res) {
-        end_js();
-        return fail("open gltf fixtures");
-    }
+    REQUIRE(res, "open gltf fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
         "var md = efx.loadMeshData('triangle.gltf');"
@@ -1204,13 +978,7 @@ static int skin_js(void) {
         "    efx.blendAnimations !== undefined)"
         "  throw new Error('no playback helper');"
         "md.destroy(); mesh.destroy();"
-        "function t(fn, kind) {"
-        "  try { fn(); throw new Error('did not throw'); }"
-        "  catch (e) {"
-        "    if (e instanceof Error && !(e instanceof TypeError) && !(e instanceof RangeError)) throw e;"
-        "    if (!(e instanceof kind)) throw new Error('wrong kind: ' + e);"
-        "  }"
-        "}"
+        T_HELPER
         "t(() => efx.createMeshData({ positions: P, joints: J }), RangeError);"
         "t(() => efx.createMeshData({ positions: P, weights: W }), RangeError);"
         "t(() => efx.createMeshData({ positions: P, joints: J, weights: [1,0,0,0] }), RangeError);"
@@ -1219,10 +987,7 @@ static int skin_js(void) {
         "t(() => efx.createMeshData({ positions: P, joints: [0.5,0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), RangeError);"
         "t(() => efx.createMeshData({ positions: P, joints: J, weights: ['x',0,0,0, 0,0,0,0, 0,0,0,0] }), TypeError);"
         "t(() => efx.createMeshData({ positions: P, joints: J, weights: W, bogus: 1 }), TypeError);";
-    if (ok_js(code)) {
-        end_js();
-        return fail("skin js");
-    }
+    REQUIRE(!ok_js(code), "skin js");
     end_js();
     return 0;
 }
@@ -1237,10 +1002,7 @@ static int pose_js(void) {
     if (!g_rt) return fail("runtime");
     int err = EFX_RESOURCE_OK;
     efx_resource *res = efx_resource_open(EFX_RES_FIXTURES "/gltf", &err);
-    if (!res) {
-        end_js();
-        return fail("open gltf fixtures");
-    }
+    REQUIRE(res, "open gltf fixtures");
     efx_runtime_set_resource(g_rt, res);
     const char *code =
         "function kind(fn) { try { fn(); } catch (e) {"
@@ -1602,10 +1364,7 @@ static int module_js(void) {
     }
     int err = EFX_RESOURCE_OK;
     efx_resource *res = efx_resource_open(EFX_MOD_FIXTURES, &err);
-    if (!res) {
-        end_js();
-        return fail("open module fixtures");
-    }
+    REQUIRE(res, "open module fixtures");
     efx_runtime_set_resource(g_rt, res);
     const char *entry =
         "var m1 = require('./lib/math.js');"
@@ -1820,27 +1579,15 @@ static int billboard_js(void) {
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
         "try { efx.drawBillboard([0,0,0], { texture: t, size: [0,1] }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof RangeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("billboard js snippet");
-    }
-    if (rec_count() != 1) {
-        end_js();
-        return fail("billboard record count");
-    }
+    REQUIRE(!ok_js(code), "billboard js snippet");
+    REQUIRE(rec_count() == 1, "billboard record count");
     int n = 0;
     const efx_record *r = efx_render_records(&n);
-    if (r[0].type != EFX_RECORD_BILLBOARD) {
-        end_js();
-        return fail("billboard record type");
-    }
+    REQUIRE(r[0].type == EFX_RECORD_BILLBOARD, "billboard record type");
     const efx_billboard_record *b = &r[0].u.billboard;
-    if (!feq(b->pos[0], 1) || !feq(b->pos[2], 3) || !feq(b->w, 2) ||
-        b->facing != EFX_FACING_Y || b->blend != EFX_BLEND_ADDITIVE ||
-        !feq(b->camera.pos[2], 5)) {
-        end_js();
-        return fail("billboard record fields");
-    }
+    REQUIRE(feq(b->pos[0], 1) && feq(b->pos[2], 3) && feq(b->w, 2) &&
+            b->facing == EFX_FACING_Y && b->blend == EFX_BLEND_ADDITIVE &&
+            feq(b->camera.pos[2], 5), "billboard record fields");
     end_js();
     return 0;
 }
@@ -1871,20 +1618,11 @@ static int particles_js(void) {
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
         "try { efx.createParticleSystem({ texture: t, max: 0, lifetime: 1 }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof RangeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("particles js snippet");
-    }
-    if (rec_count() != 1) {
-        end_js();
-        return fail("particle record count");
-    }
+    REQUIRE(!ok_js(code), "particles js snippet");
+    REQUIRE(rec_count() == 1, "particle record count");
     int n = 0;
     const efx_record *r = efx_render_records(&n);
-    if (r[0].type != EFX_RECORD_PARTICLES) {
-        end_js();
-        return fail("particle record type");
-    }
+    REQUIRE(r[0].type == EFX_RECORD_PARTICLES, "particle record type");
     end_js();
     return 0;
 }
@@ -1899,15 +1637,9 @@ static int sprites_js(void) {
         "try { efx.drawSprites(t, [{ x: 0, y: 0 }, { x: 1, y: 1, size: [0, 5] }]);"
         "  throw new Error('no'); } catch (e) {"
         "  if (!(e instanceof RangeError)) throw e; }";
-    if (ok_js(code)) {
-        end_js();
-        return fail("sprites js snippet");
-    }
+    REQUIRE(!ok_js(code), "sprites js snippet");
     /* two valid sprites recorded; the failed call recorded none */
-    if (rec_count() != 2) {
-        end_js();
-        return fail("drawSprites atomicity / count");
-    }
+    REQUIRE(rec_count() == 2, "drawSprites atomicity / count");
     end_js();
     return 0;
 }
@@ -1960,10 +1692,7 @@ static int physics_js(void) {
         "try { box.position; throw new Error('no'); } catch(e){ if(!(e instanceof TypeError)) throw e; }"
         "ch.destroy();"
         "efx.physics.clear();";
-    if (ok_js(code)) {
-        end_js();
-        return fail("physics js snippet");
-    }
+    REQUIRE(!ok_js(code), "physics js snippet");
     end_js();
     return 0;
 }
