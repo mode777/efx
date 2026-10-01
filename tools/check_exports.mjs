@@ -42,8 +42,9 @@ const stripComments = (s) =>
 
 /* ---- 1. unused EMSCRIPTEN_KEEPALIVE exports ---------------------------- */
 
-const bridgePath = path.join(ROOT, 'src/web/bridge.c');
-const bridge = read(bridgePath);
+const bridgePaths = walk(path.join(ROOT, 'src/web'), ['.c'])
+    .filter((p) => /bridge_.*\.c$/.test(p));
+const bridge = bridgePaths.map(read).join('\n');
 
 const keepalive = [];
 for (const line of bridge.split('\n')) {
@@ -53,7 +54,7 @@ for (const line of bridge.split('\n')) {
 }
 
 const webRefFiles = walk(path.join(ROOT, 'src/web'), ['.js', '.c', '.h'])
-    .filter((p) => p !== bridgePath)
+    .filter((p) => !bridgePaths.includes(p))
     .concat(walk(path.join(ROOT, 'tools'), ['.mjs', '.js', '.cjs']));
 const webRefText = webRefFiles.map(read).join('\n');
 
