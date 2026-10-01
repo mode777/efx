@@ -17,8 +17,4 @@ void efx_audio_backend_frame(void);
 
 void efx_audio_backend_shutdown(void);
 
-/* Explicit web autoplay unlock (script `efx.audio.resume()`); no-op elsewhere.
- * Matches efx_audio_resume_fn so it can be registered as the resume callback. */
-void efx_audio_backend_resume(void *ud);
-
 #endif

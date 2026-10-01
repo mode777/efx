@@ -57,7 +57,6 @@ void efx_audio_request_resume(void);
 /* ---- static sound data (fully in memory, source rate, stereo) ---- */
 efx_audio_data *efx_audio_data_load(const uint8_t *bytes, size_t size,
                                     int *err);
-void efx_audio_data_retain(efx_audio_data *d);
 void efx_audio_data_release(efx_audio_data *d);
 int efx_audio_data_rate(const efx_audio_data *d);
 uint64_t efx_audio_data_frames(const efx_audio_data *d);
@@ -65,7 +64,6 @@ uint64_t efx_audio_data_frames(const efx_audio_data *d);
 /* ---- streamed source (compressed bytes; decoded per playhead) ---- */
 efx_audio_stream *efx_audio_stream_load(const uint8_t *bytes, size_t size,
                                         int *err);
-void efx_audio_stream_retain(efx_audio_stream *s);
 void efx_audio_stream_release(efx_audio_stream *s);
 
 /* ---- unified playback (fixed bank of voices) ----

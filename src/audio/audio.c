@@ -271,7 +271,7 @@ efx_audio_data *efx_audio_data_load(const uint8_t *bytes, size_t size,
     return d;
 }
 
-void efx_audio_data_retain(efx_audio_data *d) {
+static void efx_audio_data_retain(efx_audio_data *d) {
     if (d) {
         d->refs++;
     }
@@ -339,7 +339,7 @@ efx_audio_stream *efx_audio_stream_load(const uint8_t *bytes, size_t size,
     return s;
 }
 
-void efx_audio_stream_retain(efx_audio_stream *s) {
+static void efx_audio_stream_retain(efx_audio_stream *s) {
     if (s) {
         s->refs++;
     }

@@ -56,6 +56,25 @@ static void update_availability(void) {
     efx_audio_set_available(avail);
 }
 
+/* explicit web autoplay unlock (script `efx.audio.resume()`); no-op elsewhere.
+ * Matches efx_audio_resume_fn so it is registered as the resume callback. */
+static void efx_audio_backend_resume(void *ud) {
+    (void)ud;
+#if defined(__EMSCRIPTEN__)
+    EM_ASM({
+        try {
+            var c = Module['_saudio_context'];
+            if (c && (c.state === 'suspended' || c.state === 'interrupted')) {
+                c.resume().catch(function () {});
+            }
+        } catch (e) {
+            /* no context yet: sokol_audio resumes on the first DOM gesture */
+        }
+    });
+#endif
+    update_availability();
+}
+
 void efx_audio_backend_init(void) {
     if (g_up) {
         return;
@@ -100,23 +119,6 @@ void efx_audio_backend_frame(void) {
             break;
         }
     }
-}
-
-void efx_audio_backend_resume(void *ud) {
-    (void)ud;
-#if defined(__EMSCRIPTEN__)
-    EM_ASM({
-        try {
-            var c = Module['_saudio_context'];
-            if (c && (c.state === 'suspended' || c.state === 'interrupted')) {
-                c.resume().catch(function () {});
-            }
-        } catch (e) {
-            /* no context yet: sokol_audio resumes on the first DOM gesture */
-        }
-    });
-#endif
-    update_availability();
 }
 
 void efx_audio_backend_shutdown(void) {
