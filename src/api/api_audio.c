@@ -211,6 +211,8 @@ static JSValue audio_handle_set_loop(JSContext *ctx, JSValueConst this_val,
 }
 
 
+_Static_assert(sizeof(audio_proto_funcs) / sizeof((audio_proto_funcs)[0]) == 9,
+                "audio_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry audio_proto_funcs[] = {
     JS_CFUNC_DEF("stop", 0, audio_handle_stop),
     JS_CFUNC_DEF("pause", 0, audio_handle_pause),
@@ -222,6 +224,7 @@ const JSCFunctionListEntry audio_proto_funcs[] = {
     JS_CGETSET_DEF("pitch", audio_handle_get_pitch, audio_handle_set_pitch),
     JS_CGETSET_DEF("loop", audio_handle_get_loop, audio_handle_set_loop),
 };
+
 
 
 /* ---- namespace entry points ---- */

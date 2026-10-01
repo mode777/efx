@@ -184,7 +184,7 @@ extern JSClassID character_class_id;
  * CLASS_SPECS) */
 extern const JSCFunctionListEntry body_proto_funcs[7];
 extern const JSCFunctionListEntry character_proto_funcs[5];
-extern const JSCFunctionListEntry particlesystem_proto_funcs[8];
+extern const JSCFunctionListEntry particlesystem_proto_funcs[7];
 extern const JSCFunctionListEntry audio_proto_funcs[9];
 extern void efx_api_collider_release(void *p);
 

@@ -203,11 +203,36 @@
        runtime): the same embedded source the desktop quickjs runtime
        evaluates (ADR 0022). The IIFE returns the module-runtime factory,
        which is instantiated per entry below with the web host-global
-       shadow. The second wrapper parameter carries the binding-provided
-       natives object (R22 spike, design D1); the web binding passes none
-       yet, so the shared validators stay dormant here. */
+       shadow. The second parameter is the binding-provided natives object
+       (ADR 0049): the shared prelude validators call these to resolve
+       resources and marshal normalized forms. */
+    var natives = {
+        liveSample: liveSample,
+        psProto: EfxParticleSystem.prototype,
+        createParticleSystemWire: function (wire, texHandle) {
+            var ptr = mallocCopyF32(wire);
+            var handle = bridge['_efx_bridge_particles_create'](ptr, texHandle);
+            bridge['_free'](ptr);
+            if (!handle) {
+                throw new RangeError('invalid particle configuration');
+            }
+            return new EfxParticleSystem(handle);
+        },
+        psSet: function (v, wire, texHandle) {
+            if (!v.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+            var ptr = mallocCopyF32(wire);
+            var rc = bridge['_efx_bridge_particles_set'](v.__handle, ptr,
+                                                         texHandle);
+            bridge['_free'](ptr);
+            if (rc !== 0) {
+                throw new RangeError('invalid particle configuration');
+            }
+        },
+    };
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
-    st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, undefined);
+    st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, natives);
 
     globalThis['efx'] = api;
     st.api = api;

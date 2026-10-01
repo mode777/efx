@@ -203,7 +203,7 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
     JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
     JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
-    JS_CFUNC_DEF("createParticleSystem", 1, efx_js_createParticleSystem),
+    /* createParticleSystem is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
 };
 
@@ -270,8 +270,12 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JSValue live = JS_NewCFunction(rt->ctx, efx_js_live_sample, "liveSample", 1);
     JS_SetPropertyStr(rt->ctx, natives, "liveSample", live);
     JSValue wire = JS_NewCFunction(rt->ctx, efx_js_create_particle_system_wire,
-                                   "createParticleSystemWire", 3);
+                                   "createParticleSystemWire", 2);
     JS_SetPropertyStr(rt->ctx, natives, "createParticleSystemWire", wire);
+    JSValue psset = JS_NewCFunction(rt->ctx, efx_js_ps_set_wire, "psSet", 3);
+    JS_SetPropertyStr(rt->ctx, natives, "psSet", psset);
+    JSValue psproto = JS_NewCFunction(rt->ctx, efx_js_ps_proto, "psProto", 0);
+    JS_SetPropertyStr(rt->ctx, natives, "psProto", psproto);
     return natives;
 }
 

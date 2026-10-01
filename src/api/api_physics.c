@@ -406,6 +406,8 @@ static JSValue body_get_transform(JSContext *ctx, JSValueConst this_val) {
 }
 
 
+_Static_assert(sizeof(body_proto_funcs) / sizeof((body_proto_funcs)[0]) == 7,
+                "body_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry body_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("destroy", 0, collider_destroy, EFX_COLLIDER_BODY),
     JS_CFUNC_DEF("applyImpulse", 1, body_applyImpulse),
@@ -417,6 +419,7 @@ const JSCFunctionListEntry body_proto_funcs[] = {
     JS_CGETSET_DEF("contacts", body_get_contacts, NULL),
     JS_CGETSET_DEF("transform", body_get_transform, NULL),
 };
+
 
 
 /* ---- Character methods / properties ---- */
@@ -470,6 +473,8 @@ static JSValue character_moveAndSlide(JSContext *ctx, JSValueConst this_val,
 }
 
 
+_Static_assert(sizeof(character_proto_funcs) / sizeof((character_proto_funcs)[0]) == 5,
+                "character_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry character_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("destroy", 0, collider_destroy, EFX_COLLIDER_CHARACTER),
     JS_CFUNC_DEF("moveAndSlide", 1, character_moveAndSlide),
@@ -479,6 +484,7 @@ const JSCFunctionListEntry character_proto_funcs[] = {
                          collider_set_velocity, EFX_COLLIDER_CHARACTER),
     JS_CGETSET_DEF("onFloor", character_get_onFloor, NULL),
 };
+
 
 
 /* ================================================= F12 physics namespace */

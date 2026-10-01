@@ -164,13 +164,13 @@
 9.mouse-onwheel-nonfn: TypeError: hook must be a function
 11.ps-missing-texture: TypeError: createParticleSystem requires a texture
 11.ps-missing-max: TypeError: createParticleSystem requires max
-11.ps-max-range: KNOWN-DIVERGENCE
+11.ps-max-range: RangeError: max must be in 1..65536
 11.ps-missing-lifetime: TypeError: createParticleSystem requires lifetime
 11.ps-lifetime-order: RangeError: invalid particle configuration
 11.ps-unknown-field: TypeError: unknown createParticleSystem option 'bogus'
-11.ps-bad-facing: KNOWN-DIVERGENCE
+11.ps-bad-facing: TypeError: facing must be 'view', 'y', or 'plane'
 11.ps-plane-screen: TypeError: facing must be 'view' for screen space
-11.ps-set-max: KNOWN-DIVERGENCE
+11.ps-set-max: RangeError: max must be in 1..65536
 11.ps-destroyed-emit: TypeError: using a destroyed resource
 11.billboard-no-texture: TypeError: drawBillboard requires a texture
 11.billboard-pos: KNOWN-DIVERGENCE

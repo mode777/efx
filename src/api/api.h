@@ -59,8 +59,9 @@ JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc, JSVa
 /* F11 — billboards + CPU particles */
 JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawSprites(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_createParticleSystem(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_particle_system_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_ps_set_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_ps_proto(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawParticles(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* prelude natives (ADR 0049): binding-provided entry points passed to the

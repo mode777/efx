@@ -649,12 +649,12 @@ function __efxPartRange(v, what) {
     return [d, d];
 }
 
-function __efxPartEnum(v, map, dflt, what) {
+function __efxPartEnum(v, map, dflt, what, msg) {
     if (v === undefined) {
         return dflt;
     }
     if (typeof v !== 'string' || !Object.prototype.hasOwnProperty.call(map, v)) {
-        throw new TypeError(what + ' has an unknown value');
+        throw new TypeError(msg || (what + ' has an unknown value'));
     }
     return map[v];
 }
@@ -662,6 +662,23 @@ function __efxPartEnum(v, map, dflt, what) {
 /* particle wire layout (floats); kept in sync with the desktop wire native
  * (api_particles.c) and src/web/bridge_particles.c */
 var EFX_PART_WIRE_LEN = 352;
+
+/* per-system option snapshots for ParticleSystem.set's merge (web parity:
+ * set re-validates the merged bag; keyed weakly so wrappers stay
+ * GC-finalized, ADR 0011) */
+var __efxPsBags = new WeakMap();
+
+/* shallow copy of a bag's own properties (the create snapshot must not
+ * alias the caller's object) */
+function __efxSnapshotOpts(opts) {
+    var out = {};
+    for (var k in opts) {
+        if (Object.prototype.hasOwnProperty.call(opts, k)) {
+            out[k] = opts[k];
+        }
+    }
+    return out;
+}
 
 /* spike probe: the wire is written and consumed synchronously by the native,
  * so one reusable buffer serves every call (single-threaded runtimes) */
@@ -713,15 +730,19 @@ function __efxParticleWire(opts, liveSample) {
     }
     w[0] = opts['max'];
 
-    w[1] = __efxPartEnum(opts['space'], { world: 0, screen: 1 }, 0, 'space');
+    /* enum messages follow the canonical desktop texts (ADR 0049 D5) */
+    w[1] = __efxPartEnum(opts['space'], { world: 0, screen: 1 }, 0, 'space',
+                         "space must be 'world' or 'screen'");
     w[2] = __efxPartEnum(opts['facing'],
-                         { view: 0, y: 1, plane: 2 }, 0, 'facing');
+                         { view: 0, y: 1, plane: 2 }, 0, 'facing',
+                         "facing must be 'view', 'y', or 'plane'");
     if (w[1] === 1 && w[2] !== 0) {
         throw new TypeError("facing must be 'view' for screen space");
     }
     w[3] = __efxPartEnum(opts['blend'],
                          { alpha: 0, additive: 1, subtractive: 2 }, 0,
-                         'blend');
+                         'blend',
+                         "blend must be 'alpha', 'additive', or 'subtractive'");
     if (opts['normal'] !== undefined) {
         var n = __efxPartVec(opts['normal'], 'normal', false);
         w[343] = n[0]; w[344] = n[1]; w[345] = n[2];
@@ -793,8 +814,10 @@ function __efxParticleWire(opts, liveSample) {
         w[11] = __efxFinite(opts['sizeVariation'], 'sizeVariation must be a finite number');
     }
     if (opts['colors'] !== undefined) {
-        var cols = (Array.isArray(opts['colors']) && opts['colors'].length &&
-                    Array.isArray(opts['colors'][0]))
+        if (!Array.isArray(opts['colors'])) {
+            throw new TypeError('colors must be a color or an array of colors');
+        }
+        var cols = (opts['colors'].length && Array.isArray(opts['colors'][0]))
             ? opts['colors'] : [opts['colors']];
         if (cols.length < 1 || cols.length > 8) {
             throw new RangeError('colors must hold 1..8 entries');
@@ -833,7 +856,7 @@ function __efxParticleWire(opts, liveSample) {
         __efxCheckKnown(es, ekn, 'emissionShape');
         w[14] = __efxPartEnum(es['shape'],
             { point: 0, box: 1, sphere: 2, sphereSurface: 3, disc: 4 }, 0,
-            'emissionShape.shape');
+            'emissionShape.shape', 'unknown emission shape');
         if (es['size'] !== undefined) {
             var ss = __efxPartVec(es['size'], 'emissionShape.size', false);
             w[84] = ss[0]; w[85] = ss[1]; w[86] = ss[2];
@@ -870,7 +893,8 @@ function __efxParticleWire(opts, liveSample) {
     }
     if (opts['insertMode'] !== undefined) {
         w[346] = __efxPartEnum(opts['insertMode'],
-            { top: 0, bottom: 1, random: 2 }, 0, 'insertMode');
+            { top: 0, bottom: 1, random: 2 }, 0, 'insertMode',
+            "insertMode must be 'top', 'bottom', or 'random'");
     }
     return { wire: w, texture: texHandle };
 }
@@ -928,9 +952,55 @@ function __efxPreludeInstall(efx, natives) {
     if (natives && natives.createParticleSystemWire) {
         efx.createParticleSystem = function (opts) {
             var parsed = __efxParticleWire(opts, natives.liveSample);
-            return natives.createParticleSystemWire(parsed.wire, parsed.texture,
-                                                    opts);
+            var ps = natives.createParticleSystemWire(parsed.wire,
+                                                      parsed.texture);
+            __efxPsBags.set(ps, __efxSnapshotOpts(opts));
+            return ps;
         };
+        var psProto = natives.psProto();
+        if (psProto) {
+            /* set: merge over the create snapshot, re-validate the whole
+             * bag through the wire, then hand the native the result */
+            psProto.set = function (opts) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('set requires an options object');
+                }
+                var merged = {};
+                var k;
+                var prev = __efxPsBags.get(this);
+                if (prev) {
+                    for (k in prev) {
+                        if (Object.prototype.hasOwnProperty.call(prev, k)) {
+                            merged[k] = prev[k];
+                        }
+                    }
+                }
+                for (k in opts) {
+                    if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                        merged[k] = opts[k];
+                    }
+                }
+                var parsed = __efxParticleWire(merged, natives.liveSample);
+                natives.psSet(this, parsed.wire, parsed.texture);
+                __efxPsBags.set(this, merged);
+            };
+            /* speedScale writes must reach the snapshot too, or a later
+             * set() would resurrect the creation-time value */
+            var sd = Object.getOwnPropertyDescriptor(psProto, 'speedScale');
+            if (sd && sd.set) {
+                var nativeSetSpeed = sd.set;
+                Object.defineProperty(psProto, 'speedScale', {
+                    get: sd.get,
+                    set: function (v) {
+                        nativeSetSpeed.call(this, v);
+                        var bag = __efxPsBags.get(this);
+                        if (bag) {
+                            bag['speedScale'] = v;
+                        }
+                    },
+                });
+            }
+        }
     }
 }
 

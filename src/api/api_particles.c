@@ -1,451 +1,59 @@
 #include "api/api_internal.h"
 
+/* desktop twin of the web wire reader (src/web/bridge_particles.c); the
+ * layout comment there applies here too */
+#define EFX_PART_WIRE_LEN 352
 
-/* read a value as an [x,y] or [x,y,z] float vector; 0 absent, 1 set, -1 err */
-static int vec_from_value(JSContext *ctx, JSValueConst v, float out[3],
-                          int allow2) {
-    float tmp[3] = {0, 0, 0};
-    int n = 3;
-    if (!JS_IsArray(v)) {
-        efx_api_type_error(ctx, "expected an array");
-        return -1;
+static void wire_particle_config(const float *w, uint64_t texture,
+                                 efx_particle_config *c) {
+    memset(c, 0, sizeof(*c));
+    c->texture = texture;
+    c->max = (int)w[0];
+    c->space = (int)w[1];
+    c->facing = (int)w[2];
+    c->blend = (int)w[3];
+    c->life_min = w[4];
+    c->life_max = w[5];
+    c->emission_rate = w[6];
+    c->emitter_lifetime = w[7];
+    c->speed_scale = w[8];
+    c->spread = w[9];
+    c->size_count = (int)w[10];
+    c->size_variation = w[11];
+    c->color_count = (int)w[12];
+    c->relative_rotation = (int)w[13];
+    c->shape = (int)w[14];
+    c->quad_count = (int)w[15];
+    c->rotation_min = w[16];
+    c->rotation_max = w[17];
+    c->spin_start = w[18];
+    c->spin_end = w[19];
+    c->spin_variation = w[20];
+    for (int i = 0; i < 3; i++) c->position[i] = w[21 + i];
+    for (int i = 0; i < 3; i++) c->direction[i] = w[24 + i];
+    c->speed_min = w[27];
+    c->speed_max = w[28];
+    for (int i = 0; i < 3; i++) c->gravity[i] = w[29 + i];
+    for (int i = 0; i < 3; i++) c->lin_acc_min[i] = w[32 + i];
+    for (int i = 0; i < 3; i++) c->lin_acc_max[i] = w[35 + i];
+    c->radial_acc_min = w[38];
+    c->radial_acc_max = w[39];
+    c->tangential_acc_min = w[40];
+    c->tangential_acc_max = w[41];
+    c->damping_min = w[42];
+    c->damping_max = w[43];
+    for (int i = 0; i < 8; i++) c->sizes[i] = w[44 + i];
+    for (int i = 0; i < 8; i++) {
+        for (int k = 0; k < 4; k++) c->colors[i][k] = w[52 + i * 4 + k];
     }
-    JSValue lv = JS_GetPropertyStr(ctx, v, "length");
-    int32_t len = -1;
-    JS_ToInt32(ctx, &len, lv);
-    JS_FreeValue(ctx, lv);
-    if (allow2 && len == 2) {
-        n = 2;
-    } else if (len != 3) {
-        efx_api_type_error(ctx, "expected a [x,y] or [x,y,z] array");
-        return -1;
+    for (int i = 0; i < 3; i++) c->shape_size[i] = w[84 + i];
+    for (int i = 0; i < 64; i++) {
+        for (int k = 0; k < 4; k++) c->quads[i][k] = w[87 + i * 4 + k];
     }
-    if (efx_api_get_float_array(ctx, v, tmp, n) != 0) {
-        return -1;
-    }
-    for (int i = 0; i < n; i++) out[i] = tmp[i];
-    return 1;
+    for (int i = 0; i < 3; i++) c->normal[i] = w[343 + i];
+    c->insert_mode = (int)w[346];
 }
 
-
-/* optional vector field: 0 absent, 1 set, -1 error */
-static int pcfg_vec(JSContext *ctx, JSValueConst o, const char *k, float out[3],
-                    int allow2) {
-    JSValue v = JS_GetPropertyStr(ctx, o, k);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    int r = vec_from_value(ctx, v, out, allow2);
-    JS_FreeValue(ctx, v);
-    return r;
-}
-
-
-/* scalar field: 0 absent, 1 set, -1 error */
-static int pcfg_num(JSContext *ctx, JSValueConst o, const char *k, float *out) {
-    double d;
-    int r = efx_api_opt_number(ctx, o, k, &d, 0, "option must be a finite number");
-    if (r == 1) {
-        *out = (float)d;
-    }
-    return r;
-}
-
-
-/* number or [min,max]: 0 absent, 1 set, -1 error */
-static int pcfg_range(JSContext *ctx, JSValueConst o, const char *k, float *lo,
-                      float *hi) {
-    JSValue v = JS_GetPropertyStr(ctx, o, k);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (JS_IsArray(v)) {
-        float t[2];
-        if (efx_api_get_float_array(ctx, v, t, 2) != 0) {
-            JS_FreeValue(ctx, v);
-            return -1;
-        }
-        *lo = t[0];
-        *hi = t[1];
-    } else {
-        double d;
-        if (JS_ToFloat64(ctx, &d, v) < 0 || !isfinite(d)) {
-            JS_FreeValue(ctx, v);
-            efx_api_type_error(ctx, "expected a number or [min,max]");
-            return -1;
-        }
-        *lo = *hi = (float)d;
-    }
-    JS_FreeValue(ctx, v);
-    return 1;
-}
-
-
-static int pcfg_sizes(JSContext *ctx, JSValueConst o,
-                      efx_particle_config *c) {
-    JSValue v = JS_GetPropertyStr(ctx, o, "sizes");
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (JS_IsArray(v)) {
-        JSValue lv = JS_GetPropertyStr(ctx, v, "length");
-        int32_t n = -1;
-        JS_ToInt32(ctx, &n, lv);
-        JS_FreeValue(ctx, lv);
-        if (n < 1 || n > 8) {
-            JS_FreeValue(ctx, v);
-            efx_api_range_error(ctx, "sizes must hold 1..8 entries");
-            return -1;
-        }
-        for (int i = 0; i < n; i++) {
-            JSValue e = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
-            double d;
-            if (JS_ToFloat64(ctx, &d, e) < 0 || !isfinite(d) || d <= 0) {
-                JS_FreeValue(ctx, e);
-                JS_FreeValue(ctx, v);
-                efx_api_range_error(ctx, "sizes must be finite and > 0");
-                return -1;
-            }
-            JS_FreeValue(ctx, e);
-            c->sizes[i] = (float)d;
-        }
-        c->size_count = n;
-    } else {
-        double d;
-        if (JS_ToFloat64(ctx, &d, v) < 0 || !isfinite(d) || d <= 0) {
-            JS_FreeValue(ctx, v);
-            efx_api_range_error(ctx, "size must be finite and > 0");
-            return -1;
-        }
-        c->sizes[0] = (float)d;
-        c->size_count = 1;
-    }
-    JS_FreeValue(ctx, v);
-    return 1;
-}
-
-
-static int pcfg_colors(JSContext *ctx, JSValueConst o,
-                       efx_particle_config *c) {
-    JSValue v = JS_GetPropertyStr(ctx, o, "colors");
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (!JS_IsArray(v)) {
-        JS_FreeValue(ctx, v);
-        efx_api_type_error(ctx, "colors must be a color or an array of colors");
-        return -1;
-    }
-    JSValue first = JS_GetPropertyUint32(ctx, v, 0);
-    int is_list = JS_IsArray(first);
-    JS_FreeValue(ctx, first);
-    if (is_list) {
-        JSValue lv = JS_GetPropertyStr(ctx, v, "length");
-        int32_t n = -1;
-        JS_ToInt32(ctx, &n, lv);
-        JS_FreeValue(ctx, lv);
-        if (n < 1 || n > 8) {
-            JS_FreeValue(ctx, v);
-            efx_api_range_error(ctx, "colors must hold 1..8 entries");
-            return -1;
-        }
-        for (int i = 0; i < n; i++) {
-            JSValue e = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
-            if (efx_api_get_float_array(ctx, e, c->colors[i], 4) != 0) {
-                JS_FreeValue(ctx, e);
-                JS_FreeValue(ctx, v);
-                return -1;
-            }
-            JS_FreeValue(ctx, e);
-        }
-        c->color_count = n;
-    } else {
-        if (efx_api_get_float_array(ctx, v, c->colors[0], 4) != 0) {
-            JS_FreeValue(ctx, v);
-            return -1;
-        }
-        c->color_count = 1;
-    }
-    JS_FreeValue(ctx, v);
-    return 1;
-}
-
-
-static int pcfg_quads(JSContext *ctx, JSValueConst o,
-                      efx_particle_config *c) {
-    JSValue v = JS_GetPropertyStr(ctx, o, "quads");
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (!JS_IsArray(v)) {
-        JS_FreeValue(ctx, v);
-        efx_api_type_error(ctx, "quads must be an array");
-        return -1;
-    }
-    JSValue lv = JS_GetPropertyStr(ctx, v, "length");
-    int32_t n = -1;
-    JS_ToInt32(ctx, &n, lv);
-    JS_FreeValue(ctx, lv);
-    if (n < 0 || n > 64) {
-        JS_FreeValue(ctx, v);
-        efx_api_range_error(ctx, "quads must hold at most 64 entries");
-        return -1;
-    }
-    for (int i = 0; i < n; i++) {
-        JSValue e = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
-        float rect[4];
-        if (JS_IsArray(e)) {
-            if (efx_api_get_float_array(ctx, e, rect, 4) != 0) {
-                JS_FreeValue(ctx, e);
-                JS_FreeValue(ctx, v);
-                return -1;
-            }
-        } else if (JS_IsObject(e)) {
-            static const char *rk[] = {"x", "y", "w", "h"};
-            for (int k = 0; k < 4; k++) {
-                JSValue f = JS_GetPropertyStr(ctx, e, rk[k]);
-                double d;
-                if (JS_ToFloat64(ctx, &d, f) < 0 || !isfinite(d)) {
-                    JS_FreeValue(ctx, f);
-                    JS_FreeValue(ctx, e);
-                    JS_FreeValue(ctx, v);
-                    efx_api_type_error(ctx, "quad rect fields must be finite numbers");
-                    return -1;
-                }
-                JS_FreeValue(ctx, f);
-                rect[k] = (float)d;
-            }
-        } else {
-            JS_FreeValue(ctx, e);
-            JS_FreeValue(ctx, v);
-            efx_api_type_error(ctx, "each quad must be an object or [x,y,w,h]");
-            return -1;
-        }
-        JS_FreeValue(ctx, e);
-        for (int k = 0; k < 4; k++) c->quads[i][k] = rect[k];
-    }
-    c->quad_count = n;
-    JS_FreeValue(ctx, v);
-    return 1;
-}
-
-
-static int pcfg_shape(JSContext *ctx, JSValueConst o,
-                      efx_particle_config *c) {
-    JSValue v = JS_GetPropertyStr(ctx, o, "emissionShape");
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (!JS_IsObject(v)) {
-        JS_FreeValue(ctx, v);
-        efx_api_type_error(ctx, "emissionShape must be an object");
-        return -1;
-    }
-    static const char *known[] = {"shape", "size"};
-    if (efx_api_check_known_fields(ctx, v, known, 2, "emissionShape") != 0) {
-        JS_FreeValue(ctx, v);
-        return -1;
-    }
-    JSValue sv = JS_GetPropertyStr(ctx, v, "shape");
-    if (!JS_IsUndefined(sv)) {
-        const char *s = JS_ToCString(ctx, sv);
-        int ok = 0;
-        if (s) {
-            if (!strcmp(s, "point")) { c->shape = EFX_SHAPE_POINT; ok = 1; }
-            else if (!strcmp(s, "box")) { c->shape = EFX_PHYS_SHAPE_BOX; ok = 1; }
-            else if (!strcmp(s, "sphere")) { c->shape = EFX_PHYS_SHAPE_SPHERE; ok = 1; }
-            else if (!strcmp(s, "sphereSurface")) {
-                c->shape = EFX_SHAPE_SPHERE_SURFACE; ok = 1;
-            } else if (!strcmp(s, "disc")) { c->shape = EFX_SHAPE_DISC; ok = 1; }
-            JS_FreeCString(ctx, s);
-        }
-        if (!ok) {
-            JS_FreeValue(ctx, sv);
-            JS_FreeValue(ctx, v);
-            efx_api_type_error(ctx, "unknown emission shape");
-            return -1;
-        }
-    }
-    JS_FreeValue(ctx, sv);
-    int r = pcfg_vec(ctx, v, "size", c->shape_size, 0);
-    JS_FreeValue(ctx, v);
-    return r < 0 ? -1 : 1;
-}
-
-
-/* parse the particle options over `c` (which the caller pre-fills). Unknown
- * fields throw; absent fields keep their current value. Returns 0/-1. */
-/* optional string enum field: absent leaves *out; unknown value -> TypeError */
-static int read_enum_field(JSContext *ctx, JSValueConst opts, const char *key,
-                           const char *const *names, const int *vals, int n,
-                           int *out, const char *errmsg) {
-    JSValue v = JS_GetPropertyStr(ctx, opts, key);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    const char *s = JS_ToCString(ctx, v);
-    int matched = 0;
-    if (s) {
-        for (int i = 0; i < n; i++) {
-            if (strcmp(s, names[i]) == 0) {
-                *out = vals[i];
-                matched = 1;
-                break;
-            }
-        }
-        JS_FreeCString(ctx, s);
-    }
-    JS_FreeValue(ctx, v);
-    if (!matched) {
-        efx_api_type_error(ctx, errmsg);
-        return -1;
-    }
-    return 0;
-}
-
-static int read_particle_config(JSContext *ctx, JSValueConst opts,
-                                efx_particle_config *c) {
-    static const char *known[] = {
-        "texture", "max", "space", "facing", "normal", "blend", "lifetime",
-        "emissionRate", "emitterLifetime", "position", "direction", "spread",
-        "speed", "gravity", "linearAcceleration", "radialAcceleration",
-        "tangentialAcceleration", "linearDamping", "sizes", "sizeVariation",
-        "colors", "rotation", "spin", "spinVariation", "relativeRotation",
-        "emissionShape", "quads", "insertMode", "speedScale"};
-    if (efx_api_check_known_fields(ctx, opts, known,
-                           (int)(sizeof(known) / sizeof(known[0])),
-                           "createParticleSystem") != 0) {
-        return -1;
-    }
-
-    JSValue tv = JS_GetPropertyStr(ctx, opts, "texture");
-    if (!JS_IsUndefined(tv)) {
-        if (efx_api_get_live_sample(ctx, tv, &c->texture) != 0) {
-            JS_FreeValue(ctx, tv);
-            return -1;
-        }
-    }
-    JS_FreeValue(ctx, tv);
-
-    JSValue mv = JS_GetPropertyStr(ctx, opts, "max");
-    if (!JS_IsUndefined(mv)) {
-        int32_t n = 0;
-        if (JS_ToInt32(ctx, &n, mv) < 0) {
-            JS_FreeValue(ctx, mv);
-            efx_api_type_error(ctx, "max must be an integer");
-            return -1;
-        }
-        c->max = n;
-    }
-    JS_FreeValue(ctx, mv);
-
-    static const char *space_names[] = {"screen", "world"};
-    static const int space_vals[] = {EFX_SPACE_SCREEN, EFX_SPACE_WORLD};
-    if (read_enum_field(ctx, opts, "space", space_names, space_vals, 2,
-                        &c->space,
-                        "space must be 'world' or 'screen'") != 0) {
-        return -1;
-    }
-
-    static const char *facing_names[] = {"view", "y", "plane"};
-    static const int facing_vals[] = {EFX_FACING_VIEW, EFX_FACING_Y,
-                                      EFX_FACING_PLANE};
-    if (read_enum_field(ctx, opts, "facing", facing_names, facing_vals, 3,
-                        &c->facing,
-                        "facing must be 'view', 'y', or 'plane'") != 0) {
-        return -1;
-    }
-
-    if (c->space == EFX_SPACE_SCREEN && c->facing != EFX_FACING_VIEW) {
-        efx_api_type_error(ctx, "facing must be 'view' for screen space");
-        return -1;
-    }
-
-    if (pcfg_vec(ctx, opts, "normal", c->normal, 0) < 0) return -1;
-
-    static const char *blend_names[] = {"alpha", "additive", "subtractive"};
-    static const int blend_vals[] = {EFX_BLEND_ALPHA, EFX_BLEND_ADDITIVE,
-                                     EFX_BLEND_SUBTRACTIVE};
-    if (read_enum_field(ctx, opts, "blend", blend_names, blend_vals, 3,
-                        &c->blend,
-                        "blend must be 'alpha', 'additive', or 'subtractive'") != 0) {
-        return -1;
-    }
-
-    if (pcfg_range(ctx, opts, "lifetime", &c->life_min, &c->life_max) < 0)
-        return -1;
-    float f = 0;
-    int r;
-    if ((r = pcfg_num(ctx, opts, "emissionRate", &f)) < 0) return -1;
-    if (r > 0) c->emission_rate = f;
-    if ((r = pcfg_num(ctx, opts, "emitterLifetime", &f)) < 0) return -1;
-    if (r > 0) c->emitter_lifetime = f;
-    if (pcfg_vec(ctx, opts, "position", c->position, 1) < 0) return -1;
-    if (pcfg_vec(ctx, opts, "direction", c->direction, 1) < 0) return -1;
-    if ((r = pcfg_num(ctx, opts, "spread", &f)) < 0) return -1;
-    if (r > 0) c->spread = f;
-    if (pcfg_range(ctx, opts, "speed", &c->speed_min, &c->speed_max) < 0)
-        return -1;
-    if (pcfg_vec(ctx, opts, "gravity", c->gravity, 1) < 0) return -1;
-    if (pcfg_range(ctx, opts, "radialAcceleration", &c->radial_acc_min,
-                   &c->radial_acc_max) < 0)
-        return -1;
-    if (pcfg_range(ctx, opts, "tangentialAcceleration", &c->tangential_acc_min,
-                   &c->tangential_acc_max) < 0)
-        return -1;
-    if (pcfg_range(ctx, opts, "linearDamping", &c->damping_min,
-                   &c->damping_max) < 0)
-        return -1;
-    if (pcfg_sizes(ctx, opts, c) < 0) return -1;
-    if ((r = pcfg_num(ctx, opts, "sizeVariation", &f)) < 0) return -1;
-    if (r > 0) c->size_variation = f;
-    if (pcfg_colors(ctx, opts, c) < 0) return -1;
-    if (pcfg_range(ctx, opts, "rotation", &c->rotation_min, &c->rotation_max) < 0)
-        return -1;
-    if (pcfg_range(ctx, opts, "spin", &c->spin_start, &c->spin_end) < 0)
-        return -1;
-    if ((r = pcfg_num(ctx, opts, "spinVariation", &f)) < 0) return -1;
-    if (r > 0) c->spin_variation = f;
-    JSValue rrv = JS_GetPropertyStr(ctx, opts, "relativeRotation");
-    if (!JS_IsUndefined(rrv)) {
-        if (!JS_IsBool(rrv)) {
-            JS_FreeValue(ctx, rrv);
-            efx_api_type_error(ctx, "relativeRotation must be a boolean");
-            return -1;
-        }
-        c->relative_rotation = JS_ToBool(ctx, rrv);
-    }
-    JS_FreeValue(ctx, rrv);
-    if (pcfg_shape(ctx, opts, c) < 0) return -1;
-    if (pcfg_quads(ctx, opts, c) < 0) return -1;
-
-    static const char *insert_names[] = {"top", "bottom", "random"};
-    static const int insert_vals[] = {EFX_INSERT_TOP, EFX_INSERT_BOTTOM,
-                                      EFX_INSERT_RANDOM};
-    if (read_enum_field(ctx, opts, "insertMode", insert_names, insert_vals, 3,
-                        &c->insert_mode,
-                        "insertMode must be 'top', 'bottom', or 'random'") != 0) {
-        return -1;
-    }
-
-    if ((r = pcfg_num(ctx, opts, "speedScale", &f)) < 0) return -1;
-    if (r > 0) c->speed_scale = f;
-
-    /* gravity/linear acceleration are the same concept for a particle */
-    r = pcfg_vec(ctx, opts, "linearAcceleration", c->lin_acc_min, 0);
-    if (r < 0) return -1;
-    if (r > 0) {
-        for (int i = 0; i < 3; i++) c->lin_acc_max[i] = c->lin_acc_min[i];
-    }
-    return 0;
-}
 
 
 static JSValue efx_js_ps_emit(JSContext *ctx, JSValueConst this_val, int argc,
@@ -503,23 +111,57 @@ static JSValue efx_js_ps_reset(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
-static JSValue efx_js_ps_set(JSContext *ctx, JSValueConst this_val, int argc,
-                             JSValueConst *argv) {
-    efxjs_particlesystem *p = efx_api_get_live_ps(ctx, this_val);
-    if (!p) return JS_EXCEPTION;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "set requires an options object");
+/* native set from the prelude's normalized wire (ADR 0049): the merged bag
+ * was validated and marshalled by the shared prelude validator */
+JSValue efx_js_ps_set_wire(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 3) {
+        return efx_api_type_error(ctx, "particle wire set native requires (system, wire, texture)");
     }
-    efx_particle_config cfg;
-    efx_render_particles_config(p->handle, &cfg);
-    if (read_particle_config(ctx, argv[0], &cfg) != 0) {
+    efxjs_particlesystem *p = efx_api_get_live_ps(ctx, argv[0]);
+    if (!p) {
         return JS_EXCEPTION;
     }
-    int rc = efx_render_particles_set(p->handle, &cfg);
-    if (rc == EFX_RENDER_ERR_HANDLE) return efx_api_type_error(ctx, "expected a live ParticleSystem");
-    if (rc == EFX_RENDER_ERR_SIZE) return efx_api_range_error(ctx, "invalid particle configuration");
-    if (rc != EFX_RENDER_OK) return efx_api_generic_error(ctx, "set failed");
+    size_t blen = 0;
+    uint8_t *bytes = NULL;
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, argv[1], NULL, NULL, NULL);
+    if (JS_IsException(ab)) {
+        return ab;
+    }
+    bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+    JS_FreeValue(ctx, ab);
+    if (!bytes || blen < EFX_PART_WIRE_LEN * sizeof(float)) {
+        return efx_api_type_error(ctx, "particle wire must be a Float32Array(352)");
+    }
+    double tex = 0;
+    if (JS_ToFloat64(ctx, &tex, argv[2]) < 0) {
+        return JS_EXCEPTION;
+    }
+    efx_particle_config c;
+    wire_particle_config((const float *)bytes, (uint64_t)tex, &c);
+    int rc = efx_render_particles_set(p->handle, &c);
+    if (rc == EFX_RENDER_ERR_HANDLE) {
+        return efx_api_type_error(ctx, "expected a live ParticleSystem");
+    }
+    if (rc == EFX_RENDER_ERR_SIZE) {
+        return efx_api_range_error(ctx, "invalid particle configuration");
+    }
+    if (rc != EFX_RENDER_OK) {
+        return efx_api_generic_error(ctx, "set failed");
+    }
     return JS_UNDEFINED;
+}
+
+
+/* the ParticleSystem prototype, so the prelude can install its shared
+ * `set` wrapper over it (ADR 0049) */
+JSValue efx_js_ps_proto(JSContext *ctx, JSValueConst this_val,
+                        int argc, JSValueConst *argv) {
+    (void)this_val;
+    (void)argc;
+    (void)argv;
+    return JS_GetClassProto(ctx, particlesystem_class_id);
 }
 
 
@@ -550,78 +192,25 @@ static JSValue efx_js_ps_setSpeedScale(JSContext *ctx, JSValueConst this_val,
 }
 
 
+_Static_assert(sizeof(particlesystem_proto_funcs) / sizeof((particlesystem_proto_funcs)[0]) == 7,
+                "particlesystem_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry particlesystem_proto_funcs[] = {
     JS_CFUNC_DEF("emit", 1, efx_js_ps_emit),
     JS_CFUNC_DEF("start", 0, efx_js_ps_start),
     JS_CFUNC_DEF("stop", 0, efx_js_ps_stop),
     JS_CFUNC_DEF("pause", 0, efx_js_ps_pause),
     JS_CFUNC_DEF("reset", 0, efx_js_ps_reset),
-    JS_CFUNC_DEF("set", 1, efx_js_ps_set),
     JS_CGETSET_DEF("count", efx_js_ps_getCount, NULL),
     JS_CGETSET_DEF("speedScale", efx_js_ps_getSpeedScale,
                    efx_js_ps_setSpeedScale),
 };
 
 
+
 /* --------------------------------------------------- F11 particle/billboard bindings */
 
-/* desktop twin of the web wire reader (src/web/bridge_particles.c); the
- * layout comment there applies here too */
-#define EFX_PART_WIRE_LEN 352
-
-static void wire_particle_config(const float *w, uint64_t texture,
-                                 efx_particle_config *c) {
-    memset(c, 0, sizeof(*c));
-    c->texture = texture;
-    c->max = (int)w[0];
-    c->space = (int)w[1];
-    c->facing = (int)w[2];
-    c->blend = (int)w[3];
-    c->life_min = w[4];
-    c->life_max = w[5];
-    c->emission_rate = w[6];
-    c->emitter_lifetime = w[7];
-    c->speed_scale = w[8];
-    c->spread = w[9];
-    c->size_count = (int)w[10];
-    c->size_variation = w[11];
-    c->color_count = (int)w[12];
-    c->relative_rotation = (int)w[13];
-    c->shape = (int)w[14];
-    c->quad_count = (int)w[15];
-    c->rotation_min = w[16];
-    c->rotation_max = w[17];
-    c->spin_start = w[18];
-    c->spin_end = w[19];
-    c->spin_variation = w[20];
-    for (int i = 0; i < 3; i++) c->position[i] = w[21 + i];
-    for (int i = 0; i < 3; i++) c->direction[i] = w[24 + i];
-    c->speed_min = w[27];
-    c->speed_max = w[28];
-    for (int i = 0; i < 3; i++) c->gravity[i] = w[29 + i];
-    for (int i = 0; i < 3; i++) c->lin_acc_min[i] = w[32 + i];
-    for (int i = 0; i < 3; i++) c->lin_acc_max[i] = w[35 + i];
-    c->radial_acc_min = w[38];
-    c->radial_acc_max = w[39];
-    c->tangential_acc_min = w[40];
-    c->tangential_acc_max = w[41];
-    c->damping_min = w[42];
-    c->damping_max = w[43];
-    for (int i = 0; i < 8; i++) c->sizes[i] = w[44 + i];
-    for (int i = 0; i < 8; i++) {
-        for (int k = 0; k < 4; k++) c->colors[i][k] = w[52 + i * 4 + k];
-    }
-    for (int i = 0; i < 3; i++) c->shape_size[i] = w[84 + i];
-    for (int i = 0; i < 64; i++) {
-        for (int k = 0; k < 4; k++) c->quads[i][k] = w[87 + i * 4 + k];
-    }
-    for (int i = 0; i < 3; i++) c->normal[i] = w[343 + i];
-    c->insert_mode = (int)w[346];
-}
-
 /* native create from the prelude's normalized wire (ADR 0049): the option
- * bag was validated and marshalled by the shared prelude validator. argv[2]
- * carries the original bag for the wrapper's snapshot (see ps set). */
+ * bag was validated and marshalled by the shared prelude validator */
 JSValue efx_js_create_particle_system_wire(JSContext *ctx, JSValueConst this_val,
                                            int argc, JSValueConst *argv) {
     (void)this_val;
@@ -645,72 +234,6 @@ JSValue efx_js_create_particle_system_wire(JSContext *ctx, JSValueConst this_val
     }
     efx_particle_config c;
     wire_particle_config((const float *)bytes, (uint64_t)tex, &c);
-    int err = 0;
-    uint64_t h = efx_render_particles_create(&c, &err);
-    if (!h) {
-        if (err == EFX_RENDER_ERR_SIZE) {
-            return efx_api_range_error(ctx, "invalid particle configuration");
-        }
-        return efx_api_generic_error(ctx, "createParticleSystem failed");
-    }
-    efxjs_particlesystem *p = calloc(1, sizeof(*p));
-    if (!p) {
-        efx_render_particles_destroy(h);
-        return efx_api_generic_error(ctx, "out of memory");
-    }
-    p->handle = h;
-    p->alive = 1;
-    JSValue obj = JS_NewObjectClass(ctx, particlesystem_class_id);
-    JS_SetOpaque(obj, p);
-    return obj;
-}
-
-
-JSValue efx_js_createParticleSystem(JSContext *ctx, JSValueConst this_val,
-                                    int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "createParticleSystem requires an options object");
-    }
-    /* required fields throw TypeError when absent (web-binding parity);
-       range problems are raised by the engine validation below */
-    JSValue rq = JS_GetPropertyStr(ctx, argv[0], "max");
-    int has_max = !JS_IsUndefined(rq);
-    JS_FreeValue(ctx, rq);
-    if (!has_max) {
-        return efx_api_type_error(ctx, "createParticleSystem requires max");
-    }
-    rq = JS_GetPropertyStr(ctx, argv[0], "lifetime");
-    int has_life = !JS_IsUndefined(rq);
-    JS_FreeValue(ctx, rq);
-    if (!has_life) {
-        return efx_api_type_error(ctx, "createParticleSystem requires lifetime");
-    }
-    efx_particle_config c;
-    memset(&c, 0, sizeof(c));
-    c.space = EFX_SPACE_WORLD;
-    c.facing = EFX_FACING_VIEW;
-    c.blend = EFX_BLEND_ALPHA;
-    c.normal[1] = 1.0f;
-    c.life_min = c.life_max = 1.0f;
-    c.emitter_lifetime = -1.0f;
-    c.direction[1] = 1.0f;
-    c.size_count = 1;
-    c.sizes[0] = 1.0f;
-    c.color_count = 1;
-    c.colors[0][0] = c.colors[0][1] = c.colors[0][2] = c.colors[0][3] = 1.0f;
-    c.shape = EFX_SHAPE_POINT;
-    c.insert_mode = EFX_INSERT_TOP;
-    c.speed_scale = 1.0f;
-    if (read_particle_config(ctx, argv[0], &c) != 0) {
-        return JS_EXCEPTION;
-    }
-    if (!c.texture) {
-        return efx_api_type_error(ctx, "createParticleSystem requires a texture");
-    }
-    if (c.max <= 0) {
-        return efx_api_range_error(ctx, "createParticleSystem requires a positive max");
-    }
     int err = 0;
     uint64_t h = efx_render_particles_create(&c, &err);
     if (!h) {
