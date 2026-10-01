@@ -71,6 +71,6 @@
 - [x] 6.2 Run `python3 tools/verify_remote.py all <branch>` (native ctest incl.
   all goldens, Emscripten ctest, web goldens, `run_web_compare.mjs`); verify
   green before dispatching CI
-- [ ] 6.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
+- [x] 6.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
   Linux → Windows → macOS gate is green; then merge to `main` and push per
   `AGENTS.md`
