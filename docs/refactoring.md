@@ -1,592 +1,697 @@
-# Refactoring plan
+# Volume-reduction refactoring plan (YAGNI + DRY)
 
-Status: **implemented through Checkpoint 3.** Snapshot taken 2026-09-30 against
-`main` after F14 (all milestones F1–F14 implemented, four-target gate green).
-Re-verified 2026-09-30 against `main` at `9435f8c` (after `curated-sample-dirs`,
-`web-keyboard-focus`, `physics-tunneling`, the physics-GC fix and
-`audio-source-model`); line numbers below reflect that revision.
+Status: **proposed** — snapshot taken 2026-10-01 against `main` at `cdf1c67`
+(after `refactor-safety-net`, `refactor-split-modules` and
+`refactor-long-functions`). The previous plan — split and decompose, implemented
+through its Checkpoint 3 — is in git history (`git show cdf1c67:docs/refactoring.md`).
+Archived changes cite its section numbers.
 
-This plan is **behavior-preserving only**. No script-facing API change, no
-`js-api` spec delta, no `efx.d.ts` change, no golden re-baseline. Anything that
-would change observable behavior (including error *messages*) is out of scope
-and is listed under [Deferred: behavior changes](#deferred-behavior-changes)
-so it can go through its own OpenSpec change.
+The goal is **fewer hand-maintained lines** while keeping the same verification
+strength, the same architecture and the same ADR invariants. The plan has two
+parts:
 
-**Progress.** Phase A–B (P0, P0b, P1, P2) is implemented by the OpenSpec change
-`refactor-safety-net` — **Checkpoint 1 reached**. The error catalog
-(`tests/scripts/s_error_catalog.js` + `.expected.txt`) and the dead-export
-guard (`tools/check_exports.mjs`) landed, and every dead symbol in §1.2 was
-removed (`tools/check_exports.mjs` now reports zero). Phases C–F (P3–P14) are
-implemented by the OpenSpec change `refactor-split-modules` — **Checkpoint 2
-reached**: the duplicated helpers were consolidated in place (P3–P6 desktop,
-P8–P9 web, P11–P13 render) and the four large files split by domain
-(P7 `src/api/api*.c`, P10 `src/web/js/*.js` + `src/web/bridge_*.c`,
-P14 `src/render/render_*.c`). Phases G–I (P15–P21) are implemented by the
-OpenSpec change `refactor-long-functions` — **Checkpoint 3 reached**: the long
-functions are decomposed (P15–P16), the web runners share `tools/lib/web-host.mjs`
-(P17), the CMake vendor targets share `efx_add_vendor_library` with
-`compile_commands.json` unchanged (P18), the input files are renamed (P19), and
-the API-reference ADR is renumbered to 0048 (P20). P21 (slimming `AGENTS.md`
-"Current state") was dropped: it requires owner sign-off, which was not
-obtained. The
-catalog also found that desktop/web error messages drift more widely than §4.1
-assumed: `s_error_catalog.js`'s `DIVERGENT` map lists the 18 known
-divergences, recorded (not fixed) per §4.1.
+- **Part 1 (R0–R21): behavior-preserving.** No script-facing API change, no
+  `js-api` delta, no `efx.d.ts` change, no golden re-baseline. The error catalog
+  (`tests/scripts/s_error_catalog.expected.txt`) stays byte-identical. The only
+  test-inventory change is R1, which registers four cases that exist today but
+  never run.
+- **Part 2 (R22+): architectural, ADR-gated.** Option-bag validation is
+  currently written twice, once in each binding. Part 2 moves it into the shared
+  prelude. This changes error *text* where the two bindings disagree today, so it
+  needs its own OpenSpec change, an ADR and a `js-api` delta. It starts only
+  after an owner decision.
 
 ---
 
-## 1. Findings
+## 1. Baseline
 
-### 1.1 Oversized modules
+Non-blank lines of hand-maintained code, from `git ls-files`. Excluded: `vendor/`,
+generated committed files (`shaders/*.h` per ADR 0021, `src/prelude/prelude.h`,
+`docs/api/` per ADR 0048), fixtures, goldens, and gallery samples.
 
-Non-blank line counts (vendored code and generated headers excluded).
+| Area | Non-blank lines |
+|------|----------------:|
+| `src/api` (desktop quickjs binding) | 6 257 |
+| `src/web/js` (web binding, `--post-js` fragments) | 3 638 |
+| `src/web/*.c,*.h` (wasm bridge) | 1 926 |
+| `src/render` | 5 082 |
+| `src/physics` | 3 086 |
+| `src/platform` | 2 384 |
+| `src/resource` | 1 630 |
+| `src/runtime` + `src/player` + `main.c` | 1 510 |
+| `src/input` | 1 399 |
+| `src/audio` | 905 |
+| `src/prelude/prelude.js` | 552 |
+| `src/math` | 145 |
+| `tests/` (C, CMake, portable scripts) | 9 670 |
+| `tools/` | 1 775 |
+| root `CMakeLists.txt` | 601 |
+| **Total** | **40 560** |
 
-| File | Lines | Problem |
-|------|------:|---------|
-| [src/api/api.c](../src/api/api.c) | ~5 970 | Whole quickjs binding in one TU; feature sections are **split and interleaved** (F11 at L1351 *and* L4466, F12 at L543 *and* L5838, F14 at L237 *and* L2572), held together by forward declarations (L85, L90, L671). |
-| [src/web/entry.js](../src/web/entry.js) | ~3 790 | Whole web binding in one `--post-js`; only three section markers (L927, L2843, L3415). |
-| [src/render/render.c](../src/render/render.c) | ~2 820 | Textures, targets, meshes, materials, post chain, records, particles and frame-end in one TU sharing the global `R`. |
-| [src/web/bridge.c](../src/web/bridge.c) | ~1 900 | 179 `EMSCRIPTEN_KEEPALIVE` exports for every domain in one file. |
-| [src/platform/pipeline.c](../src/platform/pipeline.c) | ~1 440 | `efx_pipeline_play` alone is 299 lines (L1181–L1479). |
+Measurement command. Every pass reports its Δ with it (evidence E4):
 
-Long functions (≥ 120 lines, heuristic scan):
+```bash
+git ls-files src tests tools CMakeLists.txt \
+  | grep -E '\.(c|h|cpp|js|mjs|py|cmake|txt)$' \
+  | grep -vE 'prelude\.h$|fixtures/|goldens/|expected\.txt$' \
+  | xargs grep -cv '^\s*$' | awk -F: '{s+=$2} END {print s}'
+```
 
-| Function | Location | Lines |
-|----------|----------|------:|
-| `efx_pipeline_play` | pipeline.c L1181 | 299 |
-| `efx_text_font_create` | text.c L282 | 281 |
-| `build_surface` | gltf.c L510 | 197 |
-| `efx_js_drawQuad` | api.c L3566 | 188 |
-| `efx_js_createFont` | api.c L2296 | 183 |
-| `efx_js_drawBillboard` | api.c L4559 | 177 |
-| `efx_gltf_load_meshdata` | gltf.c L942 | 168 |
-| `read_particle_config` | api.c L1646 | 164 |
-| `efx_pipeline_install` | pipeline.c L438 | 151 |
-| `parse_sprite` | api.c L4749 | 147 |
-| `efx_runtime_new` | runtime.c L171 | 143 |
-| `efx_render_mesh_create` | render.c L1468 | 141 |
-| `efx_js_createMeshData` | api.c L4177 | 140 |
-| `efx_skin_evaluate` | skin.c L384 | 134 |
-| `efx_js_createImageData` | api.c L3200 | 129 |
-
-### 1.2 Dead code (verified by cross-reference scan)
-
-> **Resolved by `refactor-safety-net` (P1 + P2).** Every symbol listed below
-> was removed, with its header declaration; `tools/check_exports.mjs` now
-> reports zero dead exports. The two gamepad seam symbols were kept and are
-> now exercised by the `gp_seams` input test (design D6). The list is kept
-> here as the historical record of what P1/P2 removed.
-
-No `#if 0`, `TODO`, `FIXME` or references to removed APIs (`loadTexture`,
-`drawModel`, global `setMaterial`) were found anywhere in `src/`.
-
-**Unused web bridge exports** — exported from `bridge.c` but never called from
-`entry.js`, tools, tests or the gallery (entry.js tracks liveness itself):
-
-- `efx_bridge_texture_alive` (L214), `efx_bridge_fontdata_alive` (L386),
-  `efx_bridge_font_alive` (L442), `efx_bridge_target_alive` (L533),
-  `efx_bridge_particles_alive` (L658), `efx_bridge_mesh_alive` (L1018),
-  `efx_bridge_physics_body_alive` (L1883),
-  `efx_bridge_physics_character_alive` (L1968).
-
-**Unused C exports** — defined + declared in a header, never referenced from
-`src/` or `tests/`:
-
-| Symbol | Definition |
-|--------|-----------|
-| `efx_log` | api.c L24 / api.h L88 |
-| `efx_audio_sample_rate`, `efx_audio_available` | audio.c L173, L194 |
-| `efx_audio_voice_looping` (added by `audio-source-model`) | audio.c L527 / audio.h L93 |
-| `efx_decoder_channels` | decode.c L91 |
-| `efx_input_gamepad_load_mappings` (plural) | efx_gamepad.c L358 |
-| `efx_input_gamepad_inject_clear` | efx_gamepad.c L841 |
-| `efx_physics_body_is_dynamic` / `_is_sensor` / `_is_mesh` | world.c L300–L310 |
-| `efx_physics_shape_is_mesh` | world.c L950 |
-| `efx_resource_root` | resource.c L143 |
-| `efx_text_font_alive` | text.c L571 |
-
-Also dangling: `efx_character_move` is declared in `world.h` L157 but has no
-definition and no caller (pre-existing; caught on re-verification).
-
-### 1.3 Duplicated paths
-
-**Desktop binding (`api.c`)**
-
-- *Two optional-field reader families with identical shape:* `phys_opt_number`
-  / `_bool` / `_vec3` / `_mask` (L734–L790) and `pcfg_num` / `pcfg_vec` /
-  `pcfg_range` (L1393–L1450). They differ only in error message and
-  `double` vs `float`.
-- *Four array readers:* `get_float_array` (fixed n, accepts `Uint8Array`,
-  L151), `read_number_array` (variable n, malloc, L3785), `read_index_array`
-  (L3835), `read_vec3` (malloc for three floats, L3924), `vec_from_value`
-  (L1367). Their element loops are copies of each other, but their
-  TypeError/RangeError rules are **different on purpose**.
-- *`get_live_*` resolvers:* seven copies of "`JS_GetOpaque2` → 'expected a X' →
-  'using a destroyed …'" (`get_live_body` L681, `get_live_character` L694,
-  `get_live_ps` L1353, `get_live_imagedata` L3330, `get_live_render_target`
-  L3343, `get_live_meshdata` L4318, `get_live_mesh` L671).
-- *Read-only property getters:* about 12 near-identical getters
-  (Texture/ImageData/RenderTarget width/height, surfaceCount, Font metrics).
-- *Class plumbing:* 13 finalizers with the same shape and 13
-  `JS_NewClassID`/`JS_NewClass`/`JS_SetClassProto` triples in `efx_api_init`.
-
-**Web binding (`entry.js`)**
-
-- *Known-field check:* the "enumerate own names → throw `unknown … option`"
-  loop is written inline **25 times** (L595, L708, L732, L830, L970, L1059,
-  L1206, L1499, L1554, …, L2670). F12 has its own helper `__physKeys` (L2849),
-  which uses `Object.keys` where the others use `Object.getOwnPropertyNames`.
-- *Resource classes:* 13 wrapper classes each hand-roll `__alive`, `destroy()`,
-  and guarded getters.
-
-**Render core (`render.c`)**
-
-- *Slot lookup:* `slot_get` / `mesh_get` / `rt_get` / `ps_get` (L355–L415) all
-  decode `gen<<32 | idx` and check `used && gen`, differing only in the
-  pool and the render-target tag bits.
-- *Pool growth:* the same "double capacity + realloc" block appears for
-  textures (**twice inside `efx_render_texture_create`**, L474 and L519),
-  targets (L740), meshes (L1485), particle systems (L2362), records (L1923),
-  and four deferred-release queues (L555, L775, L1668, L2426).
-- *Texture creation:* the queued (no-sink) path and the live path in
-  `efx_render_texture_create` (L455–L545) each initialise every `tex_slot`
-  field separately.
-- *Material maps:* retain/release call the same helper once per map channel
-  (ambient/diffuse/specular/emissive/alphaMask), written out by hand.
-
-**Pipeline (`pipeline.c`)**
-
-- In `efx_pipeline_play`, three copies of "apply pipeline → bind vbuf + view +
-  sampler → draw" (the quad-run, billboard and particle branches), two copies
-  of "grow a pair of parallel `int` arrays", and inline particle depth-sort code.
-
-**Tools**
-
-- `run_web_goldens.mjs`, `run_web_harness.mjs`, `run_gallery_smoke.mjs` (and
-  the server half of `test_web_assets.mjs`) each duplicate the
-  `puppeteer-core` dynamic import, the static `http.createServer`, and the
-  browser launch/page wiring.
-
-### 1.4 Legacy / structural patterns
-
-- **Validation lives in three places** for most option bags: the desktop C
-  binding, `entry.js`, and (for particles/post) the core itself
-  (`ps_config_valid` render.c L2068, `post_entry_valid` L946). Parity depends
-  on `tools/run_web_compare.mjs`.
-- **The parity net checks error kinds, not messages.** The `s_*_validation.js`
-  scripts only assert `instanceof TypeError/RangeError`. The compare diffs
-  stdout, but those scripts don't print messages. So today a message drift in
-  one binding goes unnoticed, and so would a drift made during refactoring.
-- Forward declarations are used to reach helpers defined thousands of lines
-  later (api.c L85, L90, L671). This is a symptom of the ordering by milestone.
-- File naming is inconsistent: `src/input/efx_input.c` and `efx_gamepad.c`
-  have an `efx_` prefix, but every other module does not.
-- ADR number collision: `0042-audio-mixing-and-vendoring.md` and
-  `0042-api-reference-generated-from-type-doc.md`. The next free number is now
-  **0048** (0043–0047 landed after this snapshot: `web-pointer-focus-default`,
-  `curated-sample-dirs`, `physics-substepping`,
-  `physics-world-holds-live-bodies`, `audio-source-model`).
-- The "Current state" section of `AGENTS.md` repeats the roadmap table and
-  specs (CI run IDs, per-milestone API lists). This goes against its own rule
-  that the file "points rather than restates".
-
-### 1.5 Intentional duplication (keep)
-
-- `src/physics/efx_phys_vec.h` vs `src/math/` (GLM) — the physics core is
-  dependency-free by design (ADR 0040).
-- Core-side re-validation in `render.c` of values the bindings already
-  validated. This is defense in depth at the C ABI boundary and is kept.
+```powershell
+git ls-files src tests tools CMakeLists.txt |
+  Where-Object { $_ -match '\.(c|h|cpp|js|mjs|py|cmake|txt)$' -and
+                 $_ -notmatch 'prelude\.h$|fixtures/|goldens/|expected\.txt$' } |
+  ForEach-Object { (Get-Content $_ | Where-Object { $_.Trim() }).Count } |
+  Measure-Object -Sum
+```
 
 ---
 
-## 2. Validation ladder
+## 2. Findings
 
-Every pass names the minimum rung it must reach before it merges. Rungs are
-cumulative.
+### 2.1 The dominant duplication: two bindings validate everything
+
+ADR 0022 implements the `efx` API twice: once for desktop quickjs
+(`src/api/*.c`) and once for the browser engine (`src/web/js/*.js` over
+`src/web/bridge_*.c`). Each binding has its own option-bag validation:
+
+- **391** throw sites in `src/api/*.c` and **323** in `src/web/js/*.js`
+  (**246** unique web messages).
+- The catalog pins 208 lines, and its `DIVERGENT` map lists **18** cases where
+  the two copies already disagree.
+- Every new option is written, reviewed and tested twice.
+
+Part 1 can only remove duplication *inside* each binding. Part 2 removes the
+duplication *between* them.
+
+### 2.2 Desktop binding (`src/api`)
+
+- **Destroy/finalize written three times per class.**
+  [`js_destroy_resource`](../src/api/api.c#L421) is a 118-line chain of
+  `JS_GetOpaque2` probes, one per class. It repeats what the 11 `*_release`
+  helpers and 11 one-line `*_finalizer` shims ([api.c L335–L592](../src/api/api.c#L335))
+  already express. **Latent issue (suspected):** `JS_GetOpaque2` *throws* on a
+  class mismatch (`vendor/quickjs-ng/quickjs.c` L12125). So `destroy()` on any
+  non-Texture leaves pending TypeErrors behind while it returns `undefined`.
+- **Body/Character are twins.** `efxjs_body` and `efxjs_character` have the same
+  layout, and both handles are `uint32_t`. `wrap_body`/`wrap_character`
+  ([api_physics.c L201–L253](../src/api/api_physics.c#L201)), the finalizers, the
+  unpin helpers, the live resolvers, the teardown loops and the
+  position/velocity accessors all come in pairs.
+- **Domain reader wrappers survived P3.** `audio_opt_number`/`audio_opt_bool`
+  ([api_audio.c L6](../src/api/api_audio.c#L6)), `phys_opt_*`
+  ([api_physics.c L50](../src/api/api_physics.c#L50)) and `get_opt_number`
+  ([api_text.c L14](../src/api/api_text.c#L14)) re-implement
+  `efx_api_opt_*`. They differ only in policy (whether null counts as absent,
+  strict vs coercing, message format).
+- **Misplaced code from the byte-slice split.** `drawQuad`/`setBlendMode` live in
+  `api_target_post.c`, and `poseMesh`/`setCamera3D` live in `api_particles.c`.
+
+### 2.3 Web binding (`src/web`)
+
+- **Return-code ladders:** 27 `if (rc === N) throw …` blocks. Codes 1, 4 and 9
+  map to the same three messages everywhere.
+- **Heap clean-up ladders:** 63 explicit `_efx_bridge_mem_free` calls.
+  `createFont` alone frees `glyphsPtr` by hand before **10** different throws
+  ([text.js L13–L120](../src/web/js/text.js#L13)).
+- **Duplicated helpers:** `__efxAllocCStr` is defined twice
+  ([core.js L41](../src/web/js/core.js#L41), [L784](../src/web/js/core.js#L784)).
+  `__physNumber` ([physics.js L1](../src/web/js/physics.js#L1)) and
+  `__efxAudioNum` ([audio.js L20](../src/web/js/audio.js#L20)) are identical.
+  `sourceRect` validation is written out 3 times. `efx_bridge_mem_free` wraps
+  `free`, which is already exported as `_free`.
+- **Bridge surface:** 171 exports. **31** of them are pure one-line passthroughs
+  to a core `efx_*` function. About 20 more are per-field getters, e.g. 11
+  `efx_bridge_input_*` event-field reads in
+  [bridge_input.c](../src/web/bridge_input.c).
+
+### 2.4 Core modules
+
+- **Render defaults are written twice, field by field.** `ensure_state` and
+  `efx_render_reset_state` repeat the same block, and the camera, camera3d and
+  material defaults are assigned one field at a time
+  ([render_records.c L28–L99](../src/render/render_records.c#L28)).
+- **Record header stamped 6 times.** All 6 record producers set
+  `target = R.active_target` and `sort_key = record_count` before calling
+  [`record_push`](../src/render/render_records.c#L241). The
+  "color or white" loop appears 3 times.
+- **Single-use wrappers:** `texture_bind_retain`/`_release` only forward to
+  `map_bind_retain`/`_release`
+  ([render_texture.c L155–L194](../src/render/render_texture.c#L155)).
+- **Pipeline:** the quad and billboard pipeline descriptors differ only in
+  `depth.compare` ([pipeline.c L471–L503](../src/platform/pipeline.c#L471)).
+  `post_draw` takes the same sampler twice in every call, plus a `has_fs` flag
+  that just means `fs != NULL`. The two-pass separable blur is written out 3
+  times in `run_post_entry`. `emit_quad`/`emit_quad_bridged` are near copies.
+- **Input/audio/gamepad:** each input feeder repeats
+  `memset` → assign fields → edge update → push
+  ([input.c L263–L368](../src/input/input.c#L263)). The five audio voice
+  setters repeat the same bounds and active guard
+  ([audio.c L455–L498](../src/audio/audio.c#L455)). The gamepad accessors and
+  the four name↔id tables have the same shape.
+- **Runtime/player:** `efx_runtime_destroy` frees 11 hook lists by hand, even
+  though `efx_host_hook_list(h, which)` exists. `run_root_mode`
+  ([player.c L190](../src/player/player.c#L190)) and `efx_repl_run`
+  ([repl.c L227](../src/player/repl.c#L227)) duplicate the run-entry,
+  exit-code and teardown sequence.
+
+### 2.5 Dead or over-exported code
+
+- `src/physics/efx_phys_vec.h` declares `efx_quat`, `efx_mat3` and 8 inline
+  helpers that nothing uses (`efx_quat_identity`, `efx_mat3_*`, `efx_v3_mul`,
+  `efx_v3_min_component`, `efx_aabb_contains`). Physics is linear-only
+  (ADR 0040). `check_exports.mjs` cannot see these because it only scans
+  non-inline declarations.
+- About 35 header-declared `efx_*` functions are referenced only inside their
+  defining TU (no other TU, no test). Examples: `efx_skin_mat_inverse`,
+  `efx_rig_clone`, `efx_hooks_free_all`, `efx_api_read_channel_color`,
+  `efx_world_generate_contacts`, the `efx_narrow_closest_*` family,
+  `efx_web_start_loop`.
+
+### 2.6 Tests and build
+
+- **Case names are kept in two places, and they have already drifted.** Each
+  suite has a C dispatch table and a CMake `foreach(CASE …)` list. Four cases
+  are compiled but **never registered with ctest**:
+  - `t_thin_floor_large_dt`, `t_fast_body_thin_floor` and `t_force_substep`
+    ([tests/physics/main.c L25–L27](../tests/physics/main.c#L25)) — the ADR 0045
+    tunneling tests.
+  - `clear_color_js` (api_tests).
+- 7 copies of `fail()` (5 also with `feq()`), and 7 hand-written `strcmp`
+  dispatch `main`s. `tests/physics/main.c` already uses a `CASE` table.
+- `api_tests.c` has 89 four-line `{ end_js(); return fail(…); }` blocks, and the
+  JS helper `function t(fn, kind)` is pasted into 6 snippets.
+- Root `CMakeLists.txt`: 8 test executables repeat the same include, `-lm`,
+  memory-growth and warning-flag boilerplate. The render-core source list is
+  spelled out 4×. The `efx_core` source list is duplicated between the web and
+  desktop variants.
+- `tests/CMakeLists.txt`: `add_player_test`/`add_web_test` duplicate their
+  argument plumbing, and the `smoke_*`/`web_*` case lists mirror each other.
+
+### 2.7 Comments
+
+There are 1 737 comment-only lines in `src/`. **101** of them point at
+`design D#` and **16** at refactor pass ids `P#`. Those ids only resolve inside
+archived change folders. A few others describe history ("formerly
+`bridge.c`", "`entry.js`").
+
+### 2.8 Kept intentionally
+
+| Item | Why it stays |
+|------|--------------|
+| Two bindings | ADR 0022. Part 1 shrinks each one; only Part 2 shares code between them. |
+| `shaders/*.h`, `prelude.h`, `docs/api/` | Generated and committed by design (ADR 0021, `gen_prelude.py --check`, ADR 0048). |
+| `efx_phys_vec.h` vs GLM | Dependency-free physics core (ADR 0040). Only the unused parts go (R5). |
+| `efx_input_inject_*` aliases | ADR 0036 names the seam. Gamepad inject/`load_mappings` are covered by `gp_seams`. |
+| Core re-validation (`ps_config_valid`, `post_entry_valid`) | Defense in depth at the C ABI boundary. |
+| Narrow-phase pairs, world query loops | Determinism (ADR 0040/0045). The savings would be a handful of lines. |
+| `makeCube`/`makePlane`/`makeSphere`/`makeCapsule` | Different topologies. A shared generator would be harder to read than four loops. |
+| `tools/gen_gltf_fixtures.py`, `gallery/scripts/gen-audio-assets.py` | Keep the committed fixtures reproducible. |
+| Repetition in `.github/workflows/*.yml` | About 25 lines, but every edit costs a full V5 cycle. |
+
+---
+
+## 3. Validation ladder
+
+Rungs are cumulative. Every pass names the minimum rung it must reach.
 
 | Rung | Check | Where |
 |------|-------|-------|
-| **V1** | `cmake -B build-h -DEFX_HEADLESS=ON` + `ctest --test-dir build-h` (unit suites: api, render, text, input, audio, physics, math) | local |
-| **V2** | Full Windows build with goldens: `cmake -B build -DEFX_BUILD_GOLDEN_TESTS=ON …` + `ctest --test-dir build -C Release` (smoke + unit + goldens on D3D11) | local |
-| **V3** | Generated-file checks: `python tools/gen_prelude.py --check`, `npm --prefix gallery run docs:check` | local |
-| **V4** | `python3 tools/verify_remote.py all <branch>` — native ctest incl. goldens on llvmpipe, Emscripten ctest, web goldens, `run_web_compare.mjs` | SSH server |
-| **V5** | `gh workflow run ci.yml --ref <branch>` in the order Linux → Windows → macOS (Metal catches clip-depth/attachment regressions, ADR 0025) | CI |
+| **V1** | `cmake -B build-h -DEFX_HEADLESS=ON`, `cmake --build build-h`, `ctest --test-dir build-h` (unit suites) | local |
+| **V2** | Full build with goldens: `cmake -B build -DEFX_BUILD_DEV_HARNESS=ON -DEFX_BUILD_GOLDEN_TESTS=ON -DCMAKE_BUILD_TYPE=Release`, `cmake --build build --config Release -j8`, `ctest --test-dir build -C Release` | local (Windows/D3D11) |
+| **V3** | Generated files: `python tools/gen_prelude.py --check`; `npm --prefix gallery run docs:markdown` then `git diff --exit-code docs/api` (`docs:check` fails locally on Windows/Node 26) | local |
+| **V4** | `python3 tools/verify_remote.py all <branch>`: native ctest incl. goldens on llvmpipe, Emscripten ctest, web goldens, `run_web_compare.mjs`, `run_web_harness.mjs`, gallery smoke | SSH server |
+| **V5** | `gh workflow run ci.yml --ref <branch>`, run in the order Linux → Windows → macOS | CI |
 
-Extra evidence per pass:
+Evidence attached to a pass's PR:
 
-- **Move-only diffs** are reviewed with `git diff -M --color-moved=dimmed-zebra`.
-  The only non-dimmed lines should be includes, `static` → internal-header
-  declarations, and section headers.
-- **Symbol stability:** before and after the pass, compare
-  `nm -g --defined-only` (or `dumpbin /symbols`) of `efx_core` for passes
-  that must not change the exported surface.
-- **Error catalog** (added in P0): its expected-output file must stay
-  byte-identical unless the pass explicitly targets it (none do).
+- **E1 Error catalog:** `smoke_error_catalog` and `web_error_catalog` stay
+  byte-identical to `s_error_catalog.expected.txt`. The file itself must not
+  change anywhere in Part 1.
+- **E2 Test inventory:** `ctest -N` lists from the V1, V2 and Emscripten (V4)
+  builds. Names must match the post-R1 inventory exactly.
+- **E3 Symbol surface:** `nm -g --defined-only` (or `dumpbin /symbols`) of
+  `efx_core` shows only the intended removals.
+- **E4 Volume:** the §1 command, before and after.
+- **E5 Build flags:** for CMake-only passes, `compile_commands.json`
+  (Ninja, `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`) is identical after sorting.
+- **E6 Web surface:** `node tools/check_exports.mjs` reports zero, and the
+  `Module._*` export list differs only by the intended renames.
+- **E7 Comment-only proof:** for each touched C/C++ file,
+  `cc -fpreprocessed -dD -E` output is identical before and after.
 
 ---
 
-## 3. Passes
+## 4. Part 1 passes (behavior-preserving)
 
-Each pass is one reviewable commit or PR on its own branch. Passes inside a
-phase are independent unless noted. Phases are ordered so that later
-restructuring works on code that is already smaller.
+Each pass is one reviewable commit or PR. Phases are listed in execution order.
+Phase A comes first because it makes the safety net stronger before any
+production code moves.
 
-### Phase A — Safety net
+### Phase A — Safety net and test harness
 
-#### P0. Error-message characterization catalog
+#### R0. Record the baseline
 
-- **Current behavior:** the validation scripts assert only the error class,
-  and `run_web_compare.mjs` compares stdout, which those scripts leave mostly
-  empty. The messages themselves (`"unknown particle option 'x'"`,
-  `"numeric option fields must be finite numbers"`, …) are not pinned.
-- **Structural improvement:** add `tests/scripts/s_error_catalog.js`. It walks
-  every option bag and resource-liveness path (2D, 3D, lighting, targets,
-  post, resources, text, particles/billboards/sprites, input, physics,
-  gamepad, audio) and prints `Kind: message` per case. Commit its expected
-  output as `tests/scripts/s_error_catalog.expected.txt`. Add an
-  `EXPECT_OUT_FILE` mode to `tests/run_test.cmake` / `add_player_test`, and a
-  `error_catalog` case to `run_web_compare.mjs`. Add a probe for the
-  suspected coercion divergence (see §4) but record, don't fix.
-- **Validation:** V4. The new case passes on desktop and web. Known
-  differences between the two are recorded as `// KNOWN-DIVERGENCE` lines in
-  the script so the compare stays green, and are listed in §4.
+- **Current behavior:** there is no volume metric and no recorded test
+  inventory.
+- **Structural improvement:** none to the code. Record the §1 numbers, the
+  three `ctest -N` lists and the `efx_core` symbol list in the change's
+  `design.md`. This adds no tool (YAGNI) — the commands live in §1 and §3.
+- **Validation:** the numbers can be reproduced on a clean checkout.
+- **Est. Δ:** 0.
 
-#### P0b. Dead-export guard script
+#### R1. Register the orphaned unit cases
 
-- **Current behavior:** nothing detects unused exports; this plan's §1.2 list
-  was built by hand.
-- **Structural improvement:** add `tools/check_exports.mjs`. It lists
-  `EMSCRIPTEN_KEEPALIVE` functions in `bridge.c` not referenced as `_name`
-  from `src/web/**` or `tools/**`, and public `efx_*` definitions referenced
-  nowhere else. It is advisory and not part of the gate.
-- **Validation:** running it reproduces the §1.2 list exactly.
+- **Current behavior:** `t_thin_floor_large_dt`, `t_fast_body_thin_floor`,
+  `t_force_substep` and `clear_color_js` compile but are never run by ctest.
+- **Structural improvement:** add the four names to the CMake case lists. This
+  is a stopgap; R3 makes this kind of drift impossible. If any of them fails,
+  stop and fix it under its own change — that would be a behavior bug, not
+  refactoring.
+- **Validation:** V1 + V2. E2 shows exactly +4 names.
+- **Est. Δ:** +4.
 
-### Phase B — Delete dead code
+#### R2. One test-support header and `CASE` tables
 
-#### P1. Remove unused bridge liveness exports
+- **Current behavior:** 7 suites each define `fail()` (5 also define `feq()`)
+  and a hand-written `strcmp` chain in `main`. Physics already uses a `CASE`
+  table and runs every case when given no argument.
+- **Structural improvement:** promote `tests/physics/test_support.h` to
+  `tests/test_support.h`. It gains `fail`, `feq`, `EFX_CASE(fn)` and
+  `efx_test_main(cases, n, argc, argv)`, with the physics behavior (no argument
+  runs all; unknown case exits 2). Each suite's `main` becomes a `CASE` table.
+- **Validation:** V1 + V2. E2 identical. An unknown case still exits 2.
+- **Est. Δ:** −150.
 
-- **Current behavior:** eight `efx_bridge_*_alive` functions are exported and
-  kept alive in the wasm, but entry.js never calls them.
-- **Structural improvement:** delete them from `bridge.c`. This shrinks the
-  export table and the wasm size.
-- **Validation:** V4 (Emscripten ctest, web goldens, compare,
-  `run_web_harness.mjs`), plus P0b reports none.
+#### R3. One source of truth for case names
 
-#### P2. Remove unused C exports
+- **Current behavior:** the case names live both in the C tables and in the
+  CMake `foreach(CASE …)` lists ([tests/CMakeLists.txt L176–L248](../tests/CMakeLists.txt#L176)).
+  R1 shows these already drifted.
+- **Structural improvement:** add `efx_register_unit_cases(target source)`.
+  It reads the `EFX_CASE(name)` tokens with `file(STRINGS … REGEX)`, puts the
+  source in `CMAKE_CONFIGURE_DEPENDS`, and replaces the hand-written lists.
+- **Validation:** V1 + V2 + V4 (the Emscripten ctest registers the same names).
+  E2 is identical to the post-R1 inventory.
+- **Est. Δ:** −70.
 
-- **Current behavior:** the §1.2 C functions are compiled and declared but
-  never called.
-- **Structural improvement:** delete each one with its header declaration.
-  Split into one commit per module (api, audio, input, physics, resource,
-  text). Before each deletion, grep `openspec/specs/` and `docs/decisions/` —
-  if a spec names the symbol as a C-level contract, keep it and drop it from
-  this list instead. Candidates for "keep as test seam" rather than delete:
-  `efx_input_gamepad_inject_clear` and `efx_input_gamepad_load_mappings`. If
-  kept, add a unit test so they stop being dead.
-- **Validation:** V1 + V2. The `nm` diff shows only the removed symbols.
+#### R4. `REQUIRE` and a shared JS assertion helper in `api_tests.c`
 
-### Phase C — Consolidate helpers inside the desktop binding
+- **Current behavior:** 89 four-line clean-up-and-fail blocks, plus 6 pasted
+  copies of the JS `t(fn, kind)` helper inside C string snippets.
+  `resource_tests.c` has 9 similar blocks.
+- **Structural improvement:**
+  `#define REQUIRE(c, msg) do { if (!(c)) { end_js(); return fail(msg); } } while (0)`.
+  Add a `T_HELPER` string literal that snippets concatenate at compile time.
+  Prepending it at runtime was rejected: it would shift line numbers in error
+  output.
+- **Validation:** V1 + V2. E2 identical. Flip one assertion locally once to
+  confirm the failure path still prints its message and cleans up.
+- **Est. Δ:** −300.
 
-All Phase C passes are in-place (no file moves yet), so reviewers see real
-diffs rather than moves.
+### Phase B — Delete dead code and unused surface
 
-#### P3. One optional-field reader family — **done**
+#### R5. Remove the unused physics math
 
-- **Current behavior:** `phys_opt_*` and `pcfg_*` implement the same
-  "absent = 0 / set = 1 / error = −1, throws" contract with different
-  messages and float widths.
-- **Structural improvement:** add one family, for example
-  `opt_number(ctx, obj, key, &double, msg)`, `opt_bool`, `opt_vec3`,
-  `opt_u32`, placed with the other helpers near L69. Rewrite `phys_opt_*`
-  and `pcfg_num` as thin wrappers that pass their *existing* message string,
-  then inline the wrappers at call sites. Do not merge the messages.
-- **Validation:** V1 + V2, and the P0 catalog is byte-identical.
+- **Current behavior:** `efx_quat`, `efx_mat3` and 8 inline helpers in
+  [efx_phys_vec.h](../src/physics/efx_phys_vec.h#L28) have no users.
+- **Structural improvement:** delete them. Change ADR 0040's "own
+  vec3/quat/mat3" to "own vector math" in the same commit.
+- **Validation:** V1 (`efx_physics_tests`), plus V5 compile on all four
+  toolchains. A grep for the names finds zero references.
+- **Est. Δ:** −45.
 
-#### P4. Share the numeric element loop across array readers — **done**
+#### R6. Internal linkage for single-TU functions
 
-- **Current behavior:** `get_float_array`, `read_number_array`,
-  `read_index_array`, `read_vec3` and `vec_from_value` each loop over
-  elements with slightly different rules. For non-numbers,
-  `get_float_array` coerces and throws a RangeError, while
-  `read_number_array` throws a TypeError. `get_float_array` also accepts
-  `Uint8Array` bytes.
-- **Structural improvement:** extract one internal
-  `read_elements(ctx, v, len, policy, sink)`. Here `policy` encodes the
-  existing per-reader rules (coerce vs strict, integer range, error class),
-  and each public reader becomes a few lines. `read_vec3` stops mallocing.
-  The rule differences stay; they are now named in one place instead of
-  being implicit.
-- **Validation:** V1 + V2 + V4, and the P0 catalog is byte-identical.
-  Reviewers check a table in the PR description that maps each old reader to
-  its policy.
+- **Current behavior:** about 35 `efx_*` functions are declared in a header but
+  used only by the TU that defines them (§2.5).
+- **Structural improvement:** make them `static` and drop the declarations. One
+  commit per module. Exclusions: anything named by a spec or ADR, test seams,
+  and anything the web build exports (see R14). With `-Werror`/`/WX`, a function
+  that turns out to be unused breaks the build — delete it.
+- **Validation:** V1 + V5 compile on MSVC, Clang, GCC and emcc. E3 shows
+  removals only. E6 is zero.
+- **Est. Δ:** −70.
 
-#### P5. Generic live-opaque resolver and getter — **done**
+#### R7. Remove duplicate web helpers
 
-- **Current behavior:** seven `get_live_*` functions and about 12 read-only
-  getters repeat the same unwrap/throw sequence.
-- **Structural improvement:** add
-  `live_opaque(ctx, v, class_id, "expected a X", "using a destroyed …", alive_fn)`.
-  Build getters from a `JS_CGETSET_MAGIC_DEF` table that dispatches on
-  `magic`. Keep message strings exactly as-is per class; some classes say
-  "using a destroyed resource" and others name the class.
-- **Validation:** V1 + V2 + V4, and the P0 catalog is byte-identical
-  (destroyed-resource cases are in the catalog).
+- **Current behavior:** the second `__efxAllocCStr`, the identical
+  `__physNumber`/`__efxAudioNum`, and the `efx_bridge_mem_free` wrapper around
+  the already-exported `_free`.
+- **Structural improvement:** keep one of each and point the call sites at it
+  (the 63 `mem_free` sites become `_free`).
+- **Validation:** V4. E1 is identical on web. E6.
+- **Est. Δ:** −20.
 
-#### P6. Table-driven class registration and finalizers — **done**
+### Phase C — Simplify control flow in core modules
 
-- **Current behavior:** `efx_api_init` spells out 13 class registrations, and
-  13 finalizers share one shape.
-- **Structural improvement:** add a static `class_spec[]`
-  `{ &id, name, finalizer, proto_funcs, n }` that is looped in
-  `efx_api_init`. Finalizers stay per-class, because release functions
-  differ, but share a `finalize_common` for the `alive`/`free` skeleton.
-- **Validation:** V1 + V2. `api_tests` GC/finalizer cases and
-  `s_resource_lifecycle.js` pass.
+#### R8. Render: constant defaults, stamped record header, no single-use wrappers
 
-### Phase D — Split the desktop binding (move-only)
+- **Current behavior:** see §2.4 (defaults written twice and field by field,
+  6 header stamps, 3 color loops, 2 forwarding wrappers).
+- **Structural improvement:**
+  - `static const` designated-initializer defaults for camera2d, camera3d and
+    material.
+  - One `apply_default_state()` shared by `ensure_state` and
+    `efx_render_reset_state`.
+  - `record_push` stamps `target` and `sort_key` itself.
+  - One `color_or_white()` helper.
+  - Inline `map_bind_retain`/`_release` into their only callers.
+- **Validation:** V1 (`render_tests` `default_camera_viewport`,
+  `lights_state`, `material_binding`, `record_fields`,
+  `mesh_record_fields`, `billboard_record_fields`, `segmentation`;
+  `api_tests` `default_camera`), plus V2 goldens.
+- **Est. Δ:** −85.
 
-#### P7. Split `api.c` by domain — **done**
+#### R9. Input, audio and gamepad accessors
 
-- **Current behavior:** one ~5 970-line TU. Sections for F11, F12 and F14 are
-  each split in two, and forward declarations bridge the gaps.
-- **Structural improvement:** add `src/api/api_internal.h`, holding the
-  class IDs, wrapper structs, error helpers and the P3–P5 readers. Split
-  into `api.c` (init, lifecycle hooks, `efx` object assembly), `api_2d.c`,
-  `api_3d.c` (mesh data, mesh, camera, pose), `api_lighting.c`,
-  `api_target_post.c`, `api_resource.c`, `api_text.c`, `api_particles.c`
-  (both halves merged), `api_input.c` (keyboard/mouse/window/gamepad),
-  `api_physics.c` (both halves merged), and `api_audio.c` (both halves
-  merged). Remove the forward declarations. Do this as a sequence of
-  commits, one domain per commit, each move-only.
-- **Validation:** V1 + V2 + V5 (compile on MSVC/Clang/GCC). The
-  `--color-moved` review shows only moves, and the `nm -g` diff is empty.
+- **Current behavior:** see §2.4.
+- **Structural improvement:**
+  - Input feeders push compound literals and share one
+    `set_level(down, pressed, released, i, is_down)` edge helper.
+  - `live_voice(voice)` returns NULL when the voice is out of range or
+    inactive, so each setter is three lines.
+  - `live_slot(slot)` does the same for the gamepad accessors.
+  - One `name_lookup(table, n, name)` serves the four name↔id pairs.
+  - `efx_input_inject_*` stay (ADR 0036).
+- **Validation:** V1 (`efx_input_tests` all cases incl. `gp_*`,
+  `efx_audio_tests`, `api_tests` `input_js`/`gamepad_js`/`audio_js`), plus
+  V4 (`web_9_input`, `web_13_gamepad`, `web_14_audio`, compare).
+- **Est. Δ:** −80.
+
+#### R10. Runtime and player lifecycle
+
+- **Current behavior:** 11 hand-written `efx_hooks_free_all` calls. Player root
+  mode and the REPL duplicate run-entry → error/quit check → exit code →
+  teardown.
+- **Structural improvement:**
+  - Loop over `efx_host_hook_list(h, which)`.
+  - Add `player_run_entry(rt, res)` (returns "continue" or an exit code) and
+    `player_exit_code(rt)`. Both `player.c` and `repl.c` use them.
+  - The teardown order (runtime → render end/shutdown → platform → resource)
+    does not change.
+- **Validation:** V2: the `smoke_*` exit-code cases (ADR 0007), `smoke_quit3`,
+  `smoke_root_*`, `smoke_repl_*`, and `api_tests` `repl_eval`/`hooks_registration`.
+- **Est. Δ:** −50.
+
+### Phase D — Desktop binding
+
+#### R11. Table-driven destroy and finalize
+
+- **Current behavior:** the 118-line probe chain, plus 11 release helpers and
+  11 finalizer shims (§2.2).
+- **Structural improvement:**
+  - Each `CLASS_SPECS` row gains `destroy(ctx, p)` (what script `destroy()`
+    does) and `release(p)` (what the finalizer does). These stay separate per
+    class because the semantics differ: ImageData frees its pixels only in the
+    finalizer, and Audio stops its voice only in `destroy()`.
+  - One generic finalizer and one `destroy()` dispatch through
+    `JS_GetAnyOpaque`.
+  - Messages stay the same (`"not a resource object"`,
+    `"cannot destroy an engine-owned texture"`).
+  - **Before the change**, add an `api_tests` case that destroys a Mesh and then
+    asserts no exception is pending. If it fails today, the suspected
+    pending-exception leak is real. Record it in the PR as the one intended fix;
+    no script-visible message changes.
+- **Validation:** V1 (`texture_lifecycle`, `mesh_js`, `f5a_js`, `font_js`,
+  `audio_js`, `particles_js`, the new case), V2 (`smoke_resource_lifecycle`),
+  E1 (the catalog's destroyed/permanent cases), and V4.
+- **Est. Δ:** −150.
+
+#### R12. One collider wrapper and policy-based option readers
+
+- **Current behavior:** paired Body/Character code, plus the
+  `audio_opt_*`/`phys_opt_*`/`get_opt_number` wrappers (§2.2).
+- **Structural improvement:**
+  - One `efxjs_collider { kind; handle; … }` with one pin list. Wrap, unpin,
+    finalize, live-resolve and teardown are shared. The accessors dispatch on
+    `kind`.
+  - The pinning semantics of ADR 0046 do not change: wrappers are held until
+    `destroy()`, `clear()` or teardown.
+  - Extend the `efx_api_opt_*` policy enum (null-as-absent, strict number, key
+    in the message) and delete the domain wrappers, passing the existing message
+    strings.
+- **Validation:** V1 (`physics_js`, `audio_js`, `font_js`), V2
+  (`smoke_12_physics`, `smoke_showcase_physics` — including the unreferenced
+  static-collider case from ADR 0046), E1, and V4 (`web_12_physics` compare).
+- **Est. Δ:** −140.
 
 ### Phase E — Web binding
 
-#### P8. `entry.js`: one known-field helper — **done**
+#### R13. Return-code, heap and `sourceRect` helpers
 
-- **Current behavior:** 25 inline loops plus `__physKeys`. Message
-  formats vary: `"unknown option 'x'"` vs `"unknown <where> option 'x'"`.
-  Enumeration also varies: `getOwnPropertyNames` vs `Object.keys`, which
-  treat non-enumerable properties differently.
-- **Structural improvement:** add
-  `__efxCheckKnown(obj, knownList, where, enumerate)`, where `where` may be
-  empty, to produce each existing format. Pass `enumerate` explicitly where
-  a site uses `Object.keys`. Replace all sites.
-- **Validation:** V4, and the P0 catalog compare is identical on web.
+- **Current behavior:** 27 rc ladders, hand-freed heap pointers on every error
+  path, and 3 `sourceRect` validators (§2.3).
+- **Structural improvement:**
+  - `__efxRc(rc, where, extra)`: a shared table for codes 1/4/9, per-site
+    `extra` entries (e.g. code 2/10 messages), and `"<where> failed"` as the
+    default.
+  - Validate-then-marshal: move every `__efxAllocCStr`/`mallocCopy*` after the
+    last check that can throw, or wrap the allocation and the call in
+    `try/finally`.
+  - `__efxSourceRect(tex, v)` shared by `drawQuad`, `drawBillboard` and sprites.
+  - The order of checks is preserved: allocation never throws, so moving it
+    later does not change which error a bad input produces.
+- **Validation:** V4 (`web_*` ctest, compare, `run_web_harness.mjs`, gallery
+  smoke). E1 is identical on web.
+- **Est. Δ:** −150.
 
-#### P9. `entry.js`: resource-class factory — **done**
+#### R14. Export core functions directly
 
-- **Current behavior:** 13 hand-written wrapper classes duplicate liveness,
-  idempotent `destroy()`, and guarded getters.
-- **Structural improvement:** add
-  `__efxResourceClass(name, { destroy, getters, methods })`. It keeps
-  `instanceof` identity, prototype method names, and class `name` (the
-  gallery type doc and the catalog both observe these).
-- **Validation:** V4 (`run_web_harness.mjs`, gallery smoke, catalog).
+- **Current behavior:** 31 `efx_bridge_*` functions only forward to a core
+  `efx_*` function with the same signature.
+- **Structural improvement:**
+  - Delete them. List the core symbols in an `EFX_WEB_CORE_EXPORTS` CMake list
+    appended to `-sEXPORTED_FUNCTIONS` (in `EFX_WEB_COMMON`).
+  - Rename the JS call sites, e.g. `_efx_bridge_key_down` →
+    `_efx_input_key_is_down`.
+  - Teach `check_exports.mjs` to read that list.
+  - The core stays free of Emscripten macros (ADR 0003).
+- **Validation:** V4 + V5 (Emscripten job). E6 shows renames only.
+- **Est. Δ:** −100.
 
-#### P10. Split `entry.js` and `bridge.c` by domain (move-only) — **done**
+#### R15. Batched input getters
 
-- **Current behavior:** single `--post-js=src/web/entry.js`, single
-  `bridge.c`.
-- **Structural improvement:** move to `src/web/js/*.js` fragments
-  (`core`, `render2d`, `render3d`, `resource`, `text`, `particles`, `input`,
-  `physics`, `audio`, `boot`). Either concatenate them in fixed order at
-  build time into a generated `entry.js`, or pass them as ordered
-  `--post-js` flags; the second option needs no generator. Update
-  `LINK_DEPENDS`. Split `bridge.c` into `bridge_*.c` along the same domains,
-  with a private `bridge_internal.h` for slot tables.
-- **Validation:** V4 + V5 (Emscripten job). The concatenated output must be
-  byte-identical to the pre-split `entry.js` apart from whitespace at
-  fragment seams; check with `diff`.
+- **Current behavior:** 11 per-field event getters plus 9 pointer, wheel and
+  window getters. Each call is one wasm round trip.
+- **Structural improvement:**
+  `efx_bridge_input_event(i, double out[10])` and
+  `efx_bridge_input_state(double out[9])`, written into the existing draw
+  scratch buffer. `double` keeps codepoints and ints exact.
+- **Validation:** V4 (`web_9_input`, `run_web_harness.mjs` input scenarios,
+  gallery smoke click-to-focus key delivery per ADR 0043).
+- **Est. Δ:** −80.
 
-### Phase F — Render core
+### Phase F — Platform pipeline
 
-#### P11. Generic pool helpers in `render.c` — **done**
+#### R16. Pipeline and post-chain helpers
 
-- **Current behavior:** four handle decoders and nine "double + realloc"
-  growth blocks. Each has slightly different failure handling: the
-  live-texture path destroys the native object on OOM, while the queues are
-  best-effort.
-- **Structural improvement:** add `pool_grow(void **arr, int *cap, int need, size_t elem, int initial)`
-  and `handle_decode(h, tag, &idx, &gen)`. The four `*_get` functions become
-  two-line wrappers. Keep each call site's OOM branch unchanged.
-- **Validation:** V1 (render_tests lifecycle/generation cases) + V2 goldens.
+- **Current behavior:** see §2.4 (two near-identical pipeline descriptors, a
+  redundant `post_draw` signature, 3 copies of the blur, two `emit_quad`
+  variants).
+- **Structural improvement:**
+  - Build the quad descriptor once and derive the billboard pipeline by
+    changing `depth.compare`.
+  - `post_draw(prog, dst, a, b, smp, fs, fs_size)`.
+  - `blur_two_pass(src, t0, t1, dx, dy)`.
+  - `emit_quad(v, r, flip, bridge)`.
+  - `play_mesh_record` and the clip-depth fold are **not touched** (ADR 0025).
+- **Validation:** V2 (all goldens: quads, billboards/particles, post,
+  render targets), V4 (web goldens), and **V5 through macOS** (Metal/D3D11
+  pipeline state).
+- **Est. Δ:** −45.
 
-#### P12. Unify texture-slot initialisation — **done**
+### Phase G — Build, tools and comments
 
-- **Current behavior:** `efx_render_texture_create` initialises a `tex_slot`
-  twice (queued and live paths). The queued path **always appends and never
-  reuses** freed slots; the live path scans for a free slot first.
-- **Structural improvement:** add
-  `tex_slot_init(s, w, h, wrap, filter, mipmaps, native, pending)`, called by
-  both paths. **Preserve the append-vs-reuse difference.** Handle values are
-  observable to the core tests, and changing reuse belongs in §4.
-- **Validation:** V1 + V2. Add a unit test that pins current handle
-  sequencing for queued creation before the change.
+#### R17. Root CMake: one test-executable helper and shared source lists
 
-#### P13. Material-map loops — **done**
+- **Current behavior:** 8 test executables repeat the same boilerplate. The
+  render-core list appears 4×, the physics list 2×, and the `efx_core` list is
+  duplicated for web and desktop.
+- **Structural improvement:**
+  - `efx_add_test_exe(name SOURCES … LIBS … DEFS … [MSVC_WARN /W3] [DESKTOP_ONLY])`.
+  - `set(EFX_RENDER_CORE_SOURCES …)`, `EFX_PHYSICS_SOURCES` and
+    `EFX_API_SOURCES`, reused by `efx_core` and the test executables.
+  - Per-target differences are kept as explicit arguments: `/W3` for math,
+    `_CRT_SECURE_NO_WARNINGS`, `_POSIX_C_SOURCE`, and `EFX_*_FIXTURES`.
+- **Validation:** E5 identical. E2 identical. V5 configures on all four
+  targets.
+- **Est. Δ:** −150.
 
-- **Current behavior:** retain and release each list five map fields by hand.
-- **Structural improvement:** add a `static const size_t MAP_OFFSETS[]` (or
-  an accessor returning the five handles) and loop over it.
-- **Validation:** V1 (F4b retention tests) + V2 (map goldens).
+#### R18. `tests/CMakeLists.txt`: one row per portable case
 
-#### P14. Split `render.c` (move-only) — **done**
+- **Current behavior:** `add_player_test` and `add_web_test` duplicate their
+  argument escaping, and the portable `smoke_*`/`web_*` rows mirror each other.
+- **Structural improvement:**
+  - One internal `efx_add_run_test()` holds the escaping.
+  - `efx_portable_case(name SCRIPT|ROOT … EXPECT … OUT …)` registers
+    `smoke_<name>` on desktop and `web_<name>` on Emscripten.
+  - Cases that genuinely differ (`web_pose`, the probe fixtures, the
+    root-mode-only cases) stay explicit.
+- **Validation:** E2 identical on desktop and on Emscripten (V4).
+- **Est. Δ:** −50.
 
-- **Current behavior:** one TU owning global `R`.
-- **Structural improvement:** add `src/render/render_internal.h` (the `R`
-  state struct, pool helpers, slot types). Split into `render_texture.c`,
-  `render_target.c`, `render_mesh.c` (mesh data, meshes, materials, rig),
-  `render_post.c`, `render_records.c` (record push, runs, frame
-  begin/end, deferred release), and `render_particles.c`. `render.h` stays
-  the public API, unchanged.
-- **Validation:** V1 + V2 + V5, with a move-only review and an empty `nm -g`
-  diff.
+#### R19. Shared host page for the web runners
 
-### Phase G — Long functions
+- **Current behavior:** `run_web_goldens.mjs` and `run_web_harness.mjs` embed
+  near-identical `PAGE_HTML` templates (rAF shim, animation keep-alive).
+- **Structural improvement:** add `hostPage({ title, script, verbose })` to
+  `tools/lib/web-host.mjs`.
+- **Validation:** V4. Runner output and exit codes are unchanged.
+- **Est. Δ:** −15.
 
-#### P15. Decompose `efx_pipeline_play` — **done**
+#### R20. Comment hygiene
 
-- **Current behavior:** 299 lines covering scratch sizing, quad-run emission,
-  billboard/particle emission with the alpha depth sort, the VBO upload,
-  pass switching for render targets, per-record draws, and the post chain.
-- **Structural improvement:** extract, in call order,
-  `ensure_scratch(quad_count)`, `emit_quad_runs(...)`,
-  `emit_billboards_and_particles(...)` (with
-  `sort_particles_back_to_front(...)`), `upload_vertices(total)`, and
-  `play_records(...)`. Also extract
-  `draw_textured(pip, handle, first, count)` to replace the three bind/draw
-  copies, and `grow_int_pair(...)` for the two parallel-array growths. Do not
-  touch the depth-remap fold in `play_mesh_record` (ADR 0025).
-- **Validation:** V2 + V4 (all goldens incl. particles/billboards/targets/
-  post) + **V5 through macOS** (Metal/D3D11 flip and depth paths).
+- **Current behavior:** 101 `design D#` and 16 `P#` pointers, history
+  narration, and comments that restate the next line.
+- **Structural improvement:**
+  - Replace process pointers with the ADR number when one exists; otherwise
+    delete them.
+  - Delete comments that restate the code.
+  - Keep invariants and the non-obvious "why" (e.g. the clip-depth fold, the
+    pinning).
+  - `prelude.js` edits require regenerating `prelude.h`.
+- **Validation:** E7 for C/C++, V3, and review for JS. No code token may
+  change.
+- **Est. Δ:** −150.
 
-#### P16. Decompose the remaining long functions (one PR per module) — **done**
+#### R21. Re-home misplaced desktop functions (optional, move-only)
 
-| Function | Extract into |
-|----------|--------------|
-| `efx_text_font_create` (text.c) | glyph-set resolution → pack → rasterize (+ outline/shadow) → atlas build |
-| `build_surface`, `efx_gltf_load_meshdata` (gltf.c) | per-attribute accessor import, index import, material conversion, rig attach |
-| `efx_js_drawQuad`, `efx_js_drawBillboard`, `parse_sprite` (api) | option parsing (`read_quad_opts`, …) separate from recording |
-| `efx_js_createFont`, `read_particle_config`, `efx_js_createMeshData`, `efx_js_createImageData` (api) | one reader per sub-object (outline/shadow, sizes/colors/quads/shape, surfaces) |
-| `efx_render_mesh_create` (render.c) | surface copy, material bind/retain, rig/skin state init |
-| `efx_skin_evaluate` (skin.c) | clip sampling, blend, FK/palette, skinning |
-| `efx_runtime_new` (runtime.c) | context setup, class/API install, prelude eval |
+- **Current behavior:** see §2.2.
+- **Structural improvement:** move `drawQuad`/`read_quad_opts`/`setBlendMode`
+  to `api_2d.c`, and `poseMesh`/`read_pose_sample`/`setCamera3D` to `api_3d.c`.
+  The web fragments are left alone, because moving methods between them could
+  change `efx` key order.
+- **Validation:** `git diff -M --color-moved=dimmed-zebra` shows only moves.
+  V1 + V2.
+- **Est. Δ:** 0.
 
-- **Current behavior:** unchanged per function.
-- **Structural improvement:** each function becomes an orchestration of named
-  steps under ~60 lines. Error-return order stays identical, so the first
-  failing check still throws the same message.
-- **Validation:** V1 + V2 + P0 catalog byte-identical. For text/glTF/skin,
-  the corresponding goldens and `text_tests`/`resource_tests`/`render_tests`
-  skin cases pass.
+### Part 1 totals
 
-### Phase H — Tools and build
-
-#### P17. Shared web test runner library — **done**
-
-- **Current behavior:** three puppeteer runners and one asset test each
-  hand-roll the dynamic import, static server and browser launch.
-- **Structural improvement:** add `tools/lib/web-host.mjs` exporting
-  `loadPuppeteer()`, `serveStatic(root, routes)`, and
-  `launchBrowser(opts)`. The runners keep their CLI, env vars and exit codes.
-- **Validation:** V4 (`run_web_goldens`, `run_web_harness`), plus
-  `run_gallery_smoke.mjs` and `test_web_assets.mjs` run locally with
-  unchanged output.
-
-#### P18. CMake vendor-target helper (optional) — **done**
-
-- **Current behavior:** the miniz/cgltf/dr_libs targets repeat
-  include/warning-relaxation boilerplate.
-- **Structural improvement:** add
-  `efx_add_vendor_library(name SOURCES … INCLUDES …)`.
-- **Validation:** V2 + V5 (all four toolchains configure and build). The
-  flags in `compile_commands.json` are identical before and after.
-
-### Phase I — Naming and documentation hygiene
-
-#### P19. Consistent input file names — **done**
-
-- **Current behavior:** `src/input/efx_input.{c,h}` and `efx_gamepad.{c,h}`
-  are the only prefixed module files.
-- **Structural improvement:** rename them to `input.{c,h}` and
-  `gamepad.{c,h}` with `git mv`, and update includes and CMake. Symbol names
-  are unchanged.
-- **Validation:** V1 + V5.
-
-#### P20. Resolve the ADR 0042 collision — **done**
-
-- **Current behavior:** two ADRs are numbered 0042. `AGENTS.md` cites 0042
-  for audio.
-- **Structural improvement:** renumber
-  `0042-api-reference-generated-from-type-doc.md` to **0048** (0043–0047 are
-  now taken), and update
-  `docs/decisions/README.md` and any citations (`grep -r "0042"`).
-- **Validation:** every link in `docs/decisions/README.md` resolves, and a
-  grep finds no stale "0042 — The API reference" citations.
-
-#### P21. Slim `AGENTS.md` "Current state" (needs owner sign-off) — **dropped** (no sign-off)
-
-- **Current behavior:** about 430 lines (lines 8–441) restating per-milestone
-  API surfaces, CI run IDs, and the roadmap table.
-- **Structural improvement:** replace it with a short status list per
-  milestone that links to the roadmap spec, the archived change, and the
-  ADR. Keep the operational rules (verification order, server pre-check,
-  merge/push policy) verbatim.
-- **Validation:** review by the repo owner. Every fact removed is reachable
-  from `openspec/specs/feature-roadmap`, `docs/decisions/` or
-  `openspec/changes/archive/`.
+| Phase | Passes | Est. Δ (non-blank lines) |
+|-------|--------|-------------------------:|
+| A — safety net + test harness | R0–R4 | −516 |
+| B — dead code | R5–R7 | −135 |
+| C — core control flow | R8–R10 | −215 |
+| D — desktop binding | R11–R12 | −290 |
+| E — web binding | R13–R15 | −330 |
+| F — pipeline | R16 | −45 |
+| G — build, tools, comments | R17–R21 | −365 |
+| **Part 1** | | **≈ −1 900 (≈ 4.7 %)** |
 
 ---
 
-## 4. Deferred: behavior changes
+## 5. Part 2 — validate once (ADR-gated, behavior-changing)
 
-These came up during the analysis but change observable behavior. Each needs
-its own OpenSpec change (and a `js-api` delta where script-visible). They
-must **not** be folded into the passes above.
+Part 1 trims each binding, but the binding layer stays about 11 800 lines that
+implement one API twice. The largest remaining saving is to validate option bags
+**once**, in the shared pure-JS prelude that both runtimes already evaluate.
+Both bindings would then only marshal a normalized form. The web binding already
+uses such forms: `__efxParticleWire` and the 9-float post-entry wire.
 
-1. **Numeric-coercion divergence — confirmed.** On desktop, `phys_opt_number`
-   and `pcfg_num` call `JS_ToFloat64`, which coerces `'0.5'` → 0.5 (and
-   `true` → 1); on web, `__physNumber` requires `typeof v === 'number'`. The
-   P0 catalog's `coercion.phys-number-string` case records it (desktop accepts,
-   web throws `TypeError`). Fixing it means picking one rule in a spec delta.
-   The catalog also found **17 further message-text divergences** across 2D/3D,
-   lighting, resources, particles, billboards, physics and audio; they are
-   listed in the `DIVERGENT` map in `tests/scripts/s_error_catalog.js`. All are
-   recorded (canonical `KNOWN-DIVERGENCE` lines), not fixed.
-2. **Single source of truth for validation.** Today's three-way validation
-   (C binding, entry.js, core) could collapse by moving option-bag validation
-   into the shared C core behind a binding-neutral "option reader" interface,
-   or into the shared prelude. This is an architectural decision and would
-   need an ADR.
-3. **Queued textures never reuse freed slots** (`efx_render_texture_create`
-   no-sink path). Harmless at current scales but asymmetric with the live
-   path.
-4. **O(n) free-slot scans** in the render pools. A free list would change
+What this means for the architecture:
+
+- **Layering:** `AGENTS.md` says "low/mid-level in C". The functionality stays
+  in C; only argument parsing for *cold-path* APIs moves to the prelude. This
+  needs **ADR 0049** and an `AGENTS.md` amendment.
+- **Single namespace (ADR 0004):** the natives reach the prelude through an
+  internal object passed to `__efxPreludeInstall(efx, natives)`. They never
+  appear on `efx`, so `efx.d.ts` and `docs/api/` stay unchanged.
+- **Error text:** the 18 `DIVERGENT` entries converge to one message each. The
+  catalog's expected file changes deliberately, domain by domain, and each
+  change is listed in a `js-api` delta. Error *kinds* do not change. The
+  desktop numeric-coercion divergence (`'0.5'` accepted on desktop) is settled
+  here.
+- **Hot paths stay native:** `drawQuad`, `drawSprites`, `drawBillboard`,
+  `drawMesh`, `drawText` and the input queries keep their C validation on
+  desktop, unless R22 shows the quickjs cost is negligible.
+
+#### R22. Spike and ADR 0049
+
+- **Current behavior:** the duplication is accepted by default; no decision
+  record exists.
+- **Structural improvement:**
+  - Prototype the particles domain: `__efxParticleWire` moves into
+    `prelude.js`, and the desktop `createParticleSystem` accepts the wire array.
+  - Measure the quickjs cost of `createParticleSystem ×1000` (cold) and of
+    `drawQuad`-with-options ×10k (hot) against the C path.
+  - Write ADR 0049 with the numbers, the cold/hot boundary and the message
+    rule (which side's text wins per divergence).
+- **Validation:** the numbers are recorded. No code merges unless the ADR is
+  accepted.
+
+#### R23–R29. Domain migrations (one OpenSpec change each, or one change with per-domain tasks)
+
+Order, from coldest and largest to warmest:
+
+1. particles config (`createParticleSystem`, `set`)
+2. post effects (`setPostEffects`)
+3. fonts (`createFont`)
+4. physics creation (`createBody`, `createCharacter`, `createStaticMesh`)
+5. audio (`playAudio`, loaders)
+6. resource construction (`createImageData`, `createTexture`,
+   `createRenderTarget`, `createMeshData` + materials, `loadMeshData`)
+7. lights and cameras
+
+For each domain:
+
+- **Current behavior:** a C reader in `src/api/api_<domain>.c` and a JS reader
+  in `src/web/js/<domain>.js` enforce the same contract with separate code.
+- **Structural improvement:** one prelude validator produces the normalized
+  form. The desktop native drops its reader and only unpacks the form; the web
+  fragment drops its reader. Core re-validation stays (§2.8).
+- **Validation:** V1 + V4. The domain's `DIVERGENT` entries are removed. The
+  expected-file diff is limited to that domain and matches the `js-api` delta.
+  `run_web_compare.mjs` stays green. Each domain's perf stays within the
+  ADR 0049 budget.
+- **Est. Δ (all domains):** ≈ −1 000 to −1 800 net. That is about 2 000
+  desktop and 1 500 web lines today, becoming one ~1 100-line prelude validator
+  plus ~1 000 lines of marshalling across both bindings. R22 confirms the
+  number.
+
+---
+
+## 6. Deferred: behavior changes (not folded into any pass)
+
+1. Message and coercion divergences between the bindings: Part 2 resolves them.
+   Until then they stay recorded in `DIVERGENT`.
+2. Queued textures never reuse freed slots (`efx_render_texture_create`, no-sink
+   path).
+3. O(n) free-slot scans in the render pools. A free list would change the
    handle-allocation order.
+4. If R11's new test confirms the pending-exception leak in
+   `js_destroy_resource`, the fix lands with R11 as a recorded bug fix.
 
 ---
 
-## 5. Suggested order and checkpoints
+## 7. Order and checkpoints
 
 ```mermaid
 flowchart LR
-  P0 --> P0b --> P1 --> P2
-  P2 --> P3 --> P4 --> P5 --> P6 --> P7
-  P2 --> P8 --> P9 --> P10
-  P2 --> P11 --> P12 --> P13 --> P14
-  P7 --> P16
-  P14 --> P15 --> P16
-  P2 --> P17 --> P18
-  P2 --> P19
-  P20
-  P21
+  R0 --> R1 --> R2 --> R3 --> R4
+  R4 --> R5 & R6 & R7
+  R7 --> R8 & R9 & R10
+  R10 --> R11 --> R12
+  R7 --> R13 --> R14 --> R15
+  R8 --> R16
+  R12 & R15 & R16 --> R17 --> R18 --> R19 --> R20 --> R21
+  R21 -. owner decision .-> R22 --> R23[R23–R29]
 ```
 
-- **Checkpoint 1** (after P2): dead code is gone. Run the full V5 gate once.
-- **Checkpoint 2** (after P7, P10 and P14): every large file is split. Run V5.
-- **Checkpoint 3** (after P16): the long functions are decomposed. Run V5,
-  then merge to `main` per `AGENTS.md`.
+- **Checkpoint 1** (after R7): the test net is stronger, with +4 cases and no
+  drift, and the dead code is gone. Run V4, then V5.
+- **Checkpoint 2** (after R16): the core, binding and pipeline passes are done.
+  Run V4, then **V5 through macOS**.
+- **Checkpoint 3** (after R21): build, tools and comments are done. Run V5,
+  merge to `main` per `AGENTS.md`, and archive.
+- **Part 2** starts only after ADR 0049 is accepted. It runs as its own OpenSpec
+  change, with spec deltas.
 
-P20 and P21 are documentation-only and can land at any time.
+Suggested OpenSpec grouping, following the previous refactor:
+
+- `refactor-volume-tests` (R0–R7)
+- `refactor-volume-core` (R8–R16)
+- `refactor-volume-build` (R17–R21)
+
+All three use `skip_specs`, since they are behavior-preserving. Part 2 becomes
+`shared-option-validation` (ADR 0049 + `js-api` delta).
