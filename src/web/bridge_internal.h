@@ -1,5 +1,5 @@
 /*
- * Private contract shared by the src/web/bridge_*.c fragments (P10). The
+ * Private contract shared by the src/web/bridge_*.c fragments. The
  * public surface is web/web.h; this header holds the process-wide bridge
  * state and the one helper that crosses fragment boundaries.
  */
@@ -30,7 +30,7 @@
 
 #define EFX_WEB_ROOT_MAX 512
 
-/* process-wide bridge state (formerly the anonymous `W` in bridge.c) */
+/* process-wide bridge state */
 typedef struct {
     int quit_requested;
     int quit_code;
