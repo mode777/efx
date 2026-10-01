@@ -173,81 +173,30 @@ function(add_unit_test TARGET CASE)
     endif()
 endfunction()
 
-foreach(CASE
-    identity perspective_values ortho_values look_at_values mul_order
-    translate_rotate_scale vec3_ops mvp_compose)
-    add_unit_test(efx_math_tests ${CASE})
-endforeach()
+# one ctest per EFX_CASE(name) entry in the suite source — its only case list
+function(efx_register_unit_cases TARGET SOURCE)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SOURCE})
+    file(STRINGS ${SOURCE} LINES REGEX "EFX_CASE\\(")
+    foreach(LINE IN LISTS LINES)
+        string(REGEX MATCHALL "EFX_CASE\\([A-Za-z0-9_]+\\)" HITS "${LINE}")
+        foreach(HIT IN LISTS HITS)
+            string(REGEX REPLACE "EFX_CASE\\(([A-Za-z0-9_]+)\\)" "\\1" CASE "${HIT}")
+            add_unit_test(${TARGET} ${CASE})
+        endforeach()
+    endforeach()
+endfunction()
 
-foreach(CASE names level_edge repeat ordering deltas mouse focus chars window mods
-              gp_names gp_edges gp_hotplug gp_mapping gp_half_invert gp_hat
-              gp_dpad_buttons gp_ranges gp_raw gp_guid_fallback gp_full gp_seams)
-    add_unit_test(efx_input_tests ${CASE})
-endforeach()
-
-# F12 physics core (pure C, display-free)
-foreach(CASE
-    t_support_basic t_shapes t_narrow_triangle t_narrow_pairs t_ray_shapes
-    t_sweep_shapes t_bvh_query t_world_registry t_broadphase_filter
-    t_determinism t_integrate t_contact_manifold t_restitution_friction
-    t_settle t_step_dt t_thin_floor_large_dt t_fast_body_thin_floor
-    t_force_substep t_stress t_sensors t_contact_report t_raycast_query
-    t_overlap_query t_shapecast_query t_character_create t_move_slide
-    t_floor_classify t_floor_snap t_step_up t_character_push)
-    add_unit_test(efx_physics_tests ${CASE})
-endforeach()
-
-# F14 audio core (pure C, display-free, device-free; embedded fixtures)
-foreach(CASE decode_wav decode_mp3 mix_matches resample_pitch mix_determinism
-              errors voices_steal stream_plays stream_controls stream_cap
-              source_lifetime master_gain unavailable)
-    add_unit_test(efx_audio_tests ${CASE})
-endforeach()
-
-foreach(CASE
-    compose_camera compose_quad value_snapshot default_camera_viewport
-    blend_snapshot record_budget texture_lifecycle record_fields batching
-    texture_mipmaps texture_queued_handles
-    meshdata_validation meshdata_skinning mesh_lifecycle mesh_pending_upload
-    mesh_record_fields mesh_record_order mesh_record_budget
-    lights_state light_snapshot material_binding lighting_reference
-    material_maps map_retention lighting_maps
-    render_target_lifecycle target_deferred_release segmentation
-    target_redirection feedback_guard
-    post_registry post_fast_path post_render_scale post_surface_size
-    post_user_target_raw
-    skin_bind_local skin_sampling skin_lbs skin_pose_blend
-    mesh_skin_buffers mesh_pose_repose mesh_skinned_flag mesh_skin_lifecycle
-    billboard_basis particle_config_validation particle_emit_step
-    particle_interpolation billboard_record_fields)
-    add_unit_test(efx_render_tests ${CASE})
-endforeach()
+set(U ${CMAKE_CURRENT_SOURCE_DIR}/unit)
+efx_register_unit_cases(efx_math_tests ${U}/math_tests.c)
+efx_register_unit_cases(efx_input_tests ${U}/input_tests.c)
+efx_register_unit_cases(efx_physics_tests ${CMAKE_CURRENT_SOURCE_DIR}/physics/main.c)
+efx_register_unit_cases(efx_audio_tests ${U}/audio_tests.c)
+efx_register_unit_cases(efx_render_tests ${U}/render_tests.c)
+# desktop-only: resource/text read the filesystem; api needs quickjs (ADR 0022)
 if(NOT EMSCRIPTEN)
-foreach(CASE dir_read dir_nested dir_missing dir_traversal dir_bad_root
-              image_png image_jpeg image_corrupt
-              zip_read zip_nested zip_image zip_missing zip_bad_root
-              gltf_triangle gltf_zip gltf_transform gltf_materials
-              gltf_accessors gltf_glb gltf_dedup gltf_errors
-              gltf_skin gltf_skin_u8 gltf_skin_errors
-              skin_pose_reference)
-    add_unit_test(efx_resource_tests ${CASE})
-endforeach()
-foreach(CASE fontdata_load font_bake font_bake_errors layout_cases
-              measure_draw_agree draw_records)
-    add_unit_test(efx_text_tests ${CASE})
-endforeach()
-endif()
-if(NOT EMSCRIPTEN)
-foreach(CASE
-    white quad_record size_derivation origin_pivot quad_validation
-    texture_size_getters camera_snapshot src_oob budget texture_lifecycle
-    blend_snapshot default_camera clear_color_js hooks_registration meshdata_js
-    meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
-    resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
-    gamepad_js module_js module_hooks_js font_js
-    billboard_js particles_js sprites_js physics_js audio_js)
-    add_unit_test(efx_api_tests ${CASE})
-endforeach()
+    efx_register_unit_cases(efx_resource_tests ${U}/resource_tests.c)
+    efx_register_unit_cases(efx_text_tests ${U}/text_tests.c)
+    efx_register_unit_cases(efx_api_tests ${U}/api_tests.c)
 endif()
 
 # golden-image tests (require a GPU/display; enable in CI or locally with a

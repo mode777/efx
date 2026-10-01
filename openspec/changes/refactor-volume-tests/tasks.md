@@ -22,25 +22,25 @@
 
 ## 3. Shared test support and `CASE` tables (R2)
 
-- [ ] 3.1 Add `tests/test_support.h` with `fail`, `feq` (0.001 tolerance),
+- [x] 3.1 Add `tests/test_support.h` with `fail`, `feq` (0.001 tolerance),
   `EFX_CASE(fn)` and `efx_test_main(cases, n, argc, argv)` (D1/D3). Make
   `tests/physics/test_support.h` include it, and switch `tests/physics/main.c`
   to `EFX_CASE`/`efx_test_main`. Verify: `efx_physics_tests` passes every
   case, with and without an argument.
-- [ ] 3.2 Convert `math_tests.c`, `input_tests.c`, `audio_tests.c` and
+- [x] 3.2 Convert `math_tests.c`, `input_tests.c`, `audio_tests.c` and
   `text_tests.c` to the shared header and a `CASE` table, deleting their local
   `fail`/`feq`/`strcmp` mains. Verify: V1; an unknown case exits 2.
-- [ ] 3.3 Convert `render_tests.c`, `resource_tests.c` and `api_tests.c` the
+- [x] 3.3 Convert `render_tests.c`, `resource_tests.c` and `api_tests.c` the
   same way. Verify: V1 + V2, and `ctest -N` equals the post-2.1 inventory.
 
 ## 4. One source of truth for case names (R3)
 
-- [ ] 4.1 Add `efx_register_unit_cases(target source)` to
+- [x] 4.1 Add `efx_register_unit_cases(target source)` to
   `tests/CMakeLists.txt` (D2), with `CMAKE_CONFIGURE_DEPENDS` on the source.
   Replace every hand-written `foreach(CASE …)` list, keeping the
   desktop-only guards for `resource`/`text`/`api`. Verify: the V1 and V2
   `ctest -N` lists equal the post-2.1 inventory.
-- [ ] 4.2 Verify on the server (V4) that the Emscripten build's ctest
+- [x] 4.2 Verify on the server (V4) that the Emscripten build's ctest
   registers the same unit-case names as before for its suites.
 
 ## 5. Shorter assertions (R4)
