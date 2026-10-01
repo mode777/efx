@@ -11,7 +11,7 @@
 - [x] 1.3 Extract `upload_vertices(total)` and `play_records(...)`; verify
   `efx_pipeline_play` is under ~60 lines of orchestration and the `error_catalog`
   is byte-identical
-- [ ] 1.4 Verify the render/particle goldens on Linux (V4) and dispatch V5
+- [x] 1.4 Verify the render/particle goldens on Linux (V4) and dispatch V5
   through **macOS** (Metal/D3D11 flip and depth paths); confirm green
 
 ## 2. Decompose the remaining long functions (P16)
