@@ -319,18 +319,10 @@ JSClassID audiostream_class_id;
 JSClassID audio_class_id;
 
 
-/* shared finalizer skeleton: unwrap the class's wrapper, run the per-class
- * release step, then free the wrapper. Classes whose finalizer must also
- * unlink host bookkeeping (Body/Character) keep their own finalizer. */
-static void finalize_common(JSValue val, JSClassID id,
-                            void (*release)(void *)) {
-    void *p = JS_GetOpaque(val, id);
-    if (p) {
-        release(p);
-        free(p);
-    }
-}
-
+/* Per-class hooks, dispatched through CLASS_SPECS: `destroy` is what a script
+ * destroy() does (idempotent), `release` what the GC finalizer does before the
+ * wrapper is freed. They differ on purpose: ImageData frees its pixels only in
+ * the finalizer, and Audio stops its voice only in destroy(). */
 
 static void texture_release(void *p) {
     efxjs_texture *t = (efxjs_texture *)p;
@@ -339,14 +331,41 @@ static void texture_release(void *p) {
     }
 }
 
+static JSValue texture_destroy(JSContext *ctx, void *p) {
+    efxjs_texture *t = (efxjs_texture *)p;
+    if (t->alive && t->permanent) {
+        return efx_api_type_error(ctx, "cannot destroy an engine-owned texture");
+    }
+    texture_release(p);
+    t->alive = 0;
+    return JS_UNDEFINED;
+}
+
 
 static void imagedata_release(void *p) {
     free(((efxjs_imagedata *)p)->pixels);
 }
 
+static JSValue imagedata_destroy(JSContext *ctx, void *p) {
+    (void)ctx;
+    ((efxjs_imagedata *)p)->alive = 0;
+    return JS_UNDEFINED;
+}
+
 
 static void meshdata_release(void *p) {
     efx_meshdata_destroy(((efxjs_meshdata *)p)->md);
+}
+
+static JSValue meshdata_destroy(JSContext *ctx, void *p) {
+    efxjs_meshdata *d = (efxjs_meshdata *)p;
+    (void)ctx;
+    if (d->alive) {
+        d->alive = 0;
+        meshdata_release(p);
+        d->md = NULL;
+    }
+    return JS_UNDEFINED;
 }
 
 
@@ -357,6 +376,13 @@ static void mesh_release(void *p) {
     }
 }
 
+static JSValue mesh_destroy(JSContext *ctx, void *p) {
+    (void)ctx;
+    mesh_release(p);
+    ((efxjs_mesh *)p)->alive = 0;
+    return JS_UNDEFINED;
+}
+
 
 static void rendertarget_release(void *p) {
     efxjs_rendertarget *t = (efxjs_rendertarget *)p;
@@ -365,9 +391,27 @@ static void rendertarget_release(void *p) {
     }
 }
 
+static JSValue rendertarget_destroy(JSContext *ctx, void *p) {
+    (void)ctx;
+    rendertarget_release(p);
+    ((efxjs_rendertarget *)p)->alive = 0;
+    return JS_UNDEFINED;
+}
+
 
 static void fontdata_release(void *p) {
     efx_text_fontdata_destroy(((efxjs_fontdata *)p)->fd);
+}
+
+static JSValue fontdata_destroy(JSContext *ctx, void *p) {
+    efxjs_fontdata *d = (efxjs_fontdata *)p;
+    (void)ctx;
+    if (d->alive) {
+        d->alive = 0;
+        fontdata_release(p);
+        d->fd = NULL;
+    }
+    return JS_UNDEFINED;
 }
 
 
@@ -375,166 +419,15 @@ static void font_release(void *p) {
     efx_text_font_destroy(((efxjs_font *)p)->font);
 }
 
-
-static void texture_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, texture_class_id, texture_release);
-}
-
-
-static void imagedata_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, imagedata_class_id, imagedata_release);
-}
-
-
-static void meshdata_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, meshdata_class_id, meshdata_release);
-}
-
-
-static void mesh_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, mesh_class_id, mesh_release);
-}
-
-
-static void rendertarget_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, rendertarget_class_id, rendertarget_release);
-}
-
-
-static void fontdata_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, fontdata_class_id, fontdata_release);
-}
-
-
-static void font_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, font_class_id, font_release);
-}
-
-
-static JSValue js_destroy_resource(JSContext *ctx, JSValueConst this_val,
-                                   int argc, JSValueConst *argv) {
-    (void)argc;
-    (void)argv;
-    efxjs_texture *t = JS_GetOpaque2(ctx, this_val, texture_class_id);
-    if (t) {
-        if (!t->alive) {
-            return JS_UNDEFINED; /* destroy() is idempotent */
-        }
-        if (t->permanent) {
-            return efx_api_type_error(ctx, "cannot destroy an engine-owned texture");
-        }
-        t->alive = 0;
-        efx_render_texture_destroy(t->handle);
-        return JS_UNDEFINED;
+static JSValue font_destroy(JSContext *ctx, void *p) {
+    efxjs_font *f = (efxjs_font *)p;
+    (void)ctx;
+    if (f->alive) {
+        f->alive = 0;
+        font_release(p);
+        f->font = NULL;
     }
-    efxjs_imagedata *d = JS_GetOpaque2(ctx, this_val, imagedata_class_id);
-    if (d) {
-        d->alive = 0; /* native bytes released by the GC finalizer */
-        return JS_UNDEFINED;
-    }
-    efxjs_meshdata *md = JS_GetOpaque2(ctx, this_val, meshdata_class_id);
-    if (md) {
-        if (!md->alive) {
-            return JS_UNDEFINED;
-        }
-        md->alive = 0;
-        efx_meshdata_destroy(md->md);
-        md->md = NULL;
-        return JS_UNDEFINED;
-    }
-    efxjs_mesh *m = JS_GetOpaque2(ctx, this_val, mesh_class_id);
-    if (m) {
-        if (!m->alive) {
-            return JS_UNDEFINED;
-        }
-        m->alive = 0;
-        efx_render_mesh_destroy(m->handle);
-        return JS_UNDEFINED;
-    }
-    efxjs_rendertarget *tgt = JS_GetOpaque2(ctx, this_val, rendertarget_class_id);
-    if (tgt) {
-        if (!tgt->alive) {
-            return JS_UNDEFINED;
-        }
-        tgt->alive = 0;
-        efx_render_target_destroy(tgt->handle);
-        return JS_UNDEFINED;
-    }
-    efxjs_fontdata *fd = JS_GetOpaque2(ctx, this_val, fontdata_class_id);
-    if (fd) {
-        if (!fd->alive) {
-            return JS_UNDEFINED;
-        }
-        fd->alive = 0;
-        efx_text_fontdata_destroy(fd->fd);
-        fd->fd = NULL;
-        return JS_UNDEFINED;
-    }
-    efxjs_font *font = JS_GetOpaque2(ctx, this_val, font_class_id);
-    if (font) {
-        if (!font->alive) {
-            return JS_UNDEFINED;
-        }
-        font->alive = 0;
-        efx_text_font_destroy(font->font);
-        font->font = NULL;
-        return JS_UNDEFINED;
-    }
-    efxjs_particlesystem *ps =
-        JS_GetOpaque2(ctx, this_val, particlesystem_class_id);
-    if (ps) {
-        if (!ps->alive) {
-            return JS_UNDEFINED;
-        }
-        ps->alive = 0;
-        efx_render_particles_destroy(ps->handle);
-        return JS_UNDEFINED;
-    }
-    efxjs_audiodata *ad = JS_GetOpaque2(ctx, this_val, audiodata_class_id);
-    if (ad) {
-        if (!ad->alive) {
-            return JS_UNDEFINED;
-        }
-        ad->alive = 0;
-        if (ad->data) {
-            efx_audio_data_release(ad->data);
-            ad->data = NULL;
-        }
-        return JS_UNDEFINED;
-    }
-    efxjs_audiostream *as = JS_GetOpaque2(ctx, this_val, audiostream_class_id);
-    if (as) {
-        if (!as->alive) {
-            return JS_UNDEFINED;
-        }
-        as->alive = 0;
-        if (as->stream) {
-            efx_audio_stream_release(as->stream);
-            as->stream = NULL;
-        }
-        return JS_UNDEFINED;
-    }
-    efxjs_audio *aud = JS_GetOpaque2(ctx, this_val, audio_class_id);
-    if (aud) {
-        if (!aud->alive) {
-            return JS_UNDEFINED;
-        }
-        aud->alive = 0;
-        if (aud->voice >= 0 &&
-            efx_audio_voice_serial(aud->voice) == aud->serial) {
-            efx_audio_stop_voice(aud->voice);
-        }
-        aud->voice = -1;
-        return JS_UNDEFINED;
-    }
-    return efx_api_type_error(ctx, "not a resource object");
+    return JS_UNDEFINED;
 }
 
 
@@ -545,12 +438,30 @@ static void particlesystem_release(void *p) {
     }
 }
 
+static JSValue particlesystem_destroy(JSContext *ctx, void *p) {
+    (void)ctx;
+    particlesystem_release(p);
+    ((efxjs_particlesystem *)p)->alive = 0;
+    return JS_UNDEFINED;
+}
+
 
 static void audiodata_release(void *p) {
     efxjs_audiodata *d = (efxjs_audiodata *)p;
     if (d->data) {
         efx_audio_data_release(d->data);
     }
+}
+
+static JSValue audiodata_destroy(JSContext *ctx, void *p) {
+    efxjs_audiodata *d = (efxjs_audiodata *)p;
+    (void)ctx;
+    if (d->alive) {
+        d->alive = 0;
+        audiodata_release(p);
+        d->data = NULL;
+    }
+    return JS_UNDEFINED;
 }
 
 
@@ -561,90 +472,61 @@ static void audiostream_release(void *p) {
     }
 }
 
-
-static void audio_release(void *p) {
-    (void)p; /* dropping the handle never cuts off a fire-and-forget sound */
+static JSValue audiostream_destroy(JSContext *ctx, void *p) {
+    efxjs_audiostream *s = (efxjs_audiostream *)p;
+    (void)ctx;
+    if (s->alive) {
+        s->alive = 0;
+        audiostream_release(p);
+        s->stream = NULL;
+    }
+    return JS_UNDEFINED;
 }
 
 
-static void particlesystem_finalizer(JSRuntime *rt, JSValue val) {
+/* Audio has no release: dropping the handle never cuts off a
+ * fire-and-forget sound */
+static JSValue audio_destroy(JSContext *ctx, void *p) {
+    efxjs_audio *a = (efxjs_audio *)p;
+    (void)ctx;
+    if (a->alive) {
+        a->alive = 0;
+        if (a->voice >= 0 && efx_audio_voice_serial(a->voice) == a->serial) {
+            efx_audio_stop_voice(a->voice);
+        }
+        a->voice = -1;
+    }
+    return JS_UNDEFINED;
+}
+
+
+/* the CLASS_SPECS row for an object's class (with its wrapper in *out), or
+ * NULL; never throws */
+static const efx_class_spec *class_spec_of(JSValueConst v, void **out);
+
+static void class_finalizer(JSRuntime *rt, JSValueConst val) {
     (void)rt;
-    finalize_common(val, particlesystem_class_id, particlesystem_release);
+    void *p = NULL;
+    const efx_class_spec *s = class_spec_of(val, &p);
+    if (s && p) {
+        if (s->release) {
+            s->release(p);
+        }
+        free(p);
+    }
 }
 
-
-static void audiodata_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, audiodata_class_id, audiodata_release);
+static JSValue js_destroy_resource(JSContext *ctx, JSValueConst this_val,
+                                   int argc, JSValueConst *argv) {
+    (void)argc;
+    (void)argv;
+    void *p = NULL;
+    const efx_class_spec *s = class_spec_of(this_val, &p);
+    if (!s || !p || !s->destroy) {
+        return efx_api_type_error(ctx, "not a resource object");
+    }
+    return s->destroy(ctx, p);
 }
-
-
-static void audiostream_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, audiostream_class_id, audiostream_release);
-}
-
-
-static void audio_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    finalize_common(val, audio_class_id, audio_release);
-}
-
-
-static JSClassDef texture_class_def = {
-    "Texture",
-    .finalizer = texture_finalizer,
-};
-
-static JSClassDef imagedata_class_def = {
-    "ImageData",
-    .finalizer = imagedata_finalizer,
-};
-
-static JSClassDef meshdata_class_def = {
-    "MeshData",
-    .finalizer = meshdata_finalizer,
-};
-
-static JSClassDef mesh_class_def = {
-    "Mesh",
-    .finalizer = mesh_finalizer,
-};
-
-static JSClassDef rendertarget_class_def = {
-    "RenderTarget",
-    .finalizer = rendertarget_finalizer,
-};
-
-static JSClassDef fontdata_class_def = {
-    "FontData",
-    .finalizer = fontdata_finalizer,
-};
-
-static JSClassDef font_class_def = {
-    "Font",
-    .finalizer = font_finalizer,
-};
-
-static JSClassDef particlesystem_class_def = {
-    "ParticleSystem",
-    .finalizer = particlesystem_finalizer,
-};
-
-static JSClassDef audiodata_class_def = {
-    "AudioData",
-    .finalizer = audiodata_finalizer,
-};
-
-static JSClassDef audiostream_class_def = {
-    "AudioStream",
-    .finalizer = audiostream_finalizer,
-};
-
-static JSClassDef audio_class_def = {
-    "Audio",
-    .finalizer = audio_finalizer,
-};
 
 
 JSClassID body_class_id;
@@ -712,10 +594,8 @@ static int character_alive(const void *p) {
 }
 
 
-static void body_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    efxjs_body *b = JS_GetOpaque(val, body_class_id);
-    if (!b) return;
+static void body_release(void *p) {
+    efxjs_body *b = (efxjs_body *)p;
     if (b->host) {
         struct efx_host_state *h = b->host;
         efxjs_body **pp = (efxjs_body **)&h->physics_bodies;
@@ -730,14 +610,11 @@ static void body_finalizer(JSRuntime *rt, JSValue val) {
     if (b->alive && b->w) {
         efx_physics_destroy_body(b->w, b->handle);
     }
-    free(b);
 }
 
 
-static void character_finalizer(JSRuntime *rt, JSValue val) {
-    (void)rt;
-    efxjs_character *c = JS_GetOpaque(val, character_class_id);
-    if (!c) return;
+static void character_release(void *p) {
+    efxjs_character *c = (efxjs_character *)p;
     if (c->host) {
         struct efx_host_state *h = c->host;
         efxjs_character **pp = (efxjs_character **)&h->physics_characters;
@@ -752,19 +629,7 @@ static void character_finalizer(JSRuntime *rt, JSValue val) {
     if (c->alive && c->w) {
         efx_physics_destroy_character(c->w, c->handle);
     }
-    free(c);
 }
-
-
-static JSClassDef body_class_def = {
-    "Body",
-    .finalizer = body_finalizer,
-};
-
-static JSClassDef character_class_def = {
-    "Character",
-    .finalizer = character_finalizer,
-};
 
 
 /* drop the world's reference; this may finalize and free `b` */
@@ -1002,31 +867,50 @@ JSValue efx_api_plain_error(JSContext *ctx, const char *msg) {
 
 
 static const efx_class_spec CLASS_SPECS[] = {
-    { &texture_class_id, &texture_class_def, texture_proto_funcs,
-      EFX_ARRAY_COUNT(texture_proto_funcs), 1 },
-    { &imagedata_class_id, &imagedata_class_def, imagedata_proto_funcs,
-      EFX_ARRAY_COUNT(imagedata_proto_funcs), 1 },
-    { &meshdata_class_id, &meshdata_class_def, meshdata_proto_funcs,
-      EFX_ARRAY_COUNT(meshdata_proto_funcs), 1 },
-    { &mesh_class_id, &mesh_class_def, mesh_proto_funcs,
-      EFX_ARRAY_COUNT(mesh_proto_funcs), 1 },
-    { &rendertarget_class_id, &rendertarget_class_def,
-      rendertarget_proto_funcs, EFX_ARRAY_COUNT(rendertarget_proto_funcs), 1 },
-    { &fontdata_class_id, &fontdata_class_def, NULL, 0, 1 },
-    { &font_class_id, &font_class_def, font_proto_funcs,
-      EFX_ARRAY_COUNT(font_proto_funcs), 1 },
-    { &particlesystem_class_id, &particlesystem_class_def,
-      particlesystem_proto_funcs,
-      EFX_ARRAY_COUNT(particlesystem_proto_funcs), 1 },
-    { &body_class_id, &body_class_def, body_proto_funcs,
-      EFX_ARRAY_COUNT(body_proto_funcs), 0 },
-    { &character_class_id, &character_class_def, character_proto_funcs,
-      EFX_ARRAY_COUNT(character_proto_funcs), 0 },
-    { &audiodata_class_id, &audiodata_class_def, NULL, 0, 1 },
-    { &audiostream_class_id, &audiostream_class_def, NULL, 0, 1 },
-    { &audio_class_id, &audio_class_def, audio_proto_funcs,
-      EFX_ARRAY_COUNT(audio_proto_funcs), 1 },
+    { &texture_class_id, "Texture", texture_proto_funcs,
+      EFX_ARRAY_COUNT(texture_proto_funcs), texture_destroy, texture_release },
+    { &imagedata_class_id, "ImageData", imagedata_proto_funcs,
+      EFX_ARRAY_COUNT(imagedata_proto_funcs), imagedata_destroy,
+      imagedata_release },
+    { &meshdata_class_id, "MeshData", meshdata_proto_funcs,
+      EFX_ARRAY_COUNT(meshdata_proto_funcs), meshdata_destroy,
+      meshdata_release },
+    { &mesh_class_id, "Mesh", mesh_proto_funcs,
+      EFX_ARRAY_COUNT(mesh_proto_funcs), mesh_destroy, mesh_release },
+    { &rendertarget_class_id, "RenderTarget", rendertarget_proto_funcs,
+      EFX_ARRAY_COUNT(rendertarget_proto_funcs), rendertarget_destroy,
+      rendertarget_release },
+    { &fontdata_class_id, "FontData", NULL, 0, fontdata_destroy,
+      fontdata_release },
+    { &font_class_id, "Font", font_proto_funcs,
+      EFX_ARRAY_COUNT(font_proto_funcs), font_destroy, font_release },
+    { &particlesystem_class_id, "ParticleSystem", particlesystem_proto_funcs,
+      EFX_ARRAY_COUNT(particlesystem_proto_funcs), particlesystem_destroy,
+      particlesystem_release },
+    { &body_class_id, "Body", body_proto_funcs,
+      EFX_ARRAY_COUNT(body_proto_funcs), NULL, body_release },
+    { &character_class_id, "Character", character_proto_funcs,
+      EFX_ARRAY_COUNT(character_proto_funcs), NULL, character_release },
+    { &audiodata_class_id, "AudioData", NULL, 0, audiodata_destroy,
+      audiodata_release },
+    { &audiostream_class_id, "AudioStream", NULL, 0, audiostream_destroy,
+      audiostream_release },
+    { &audio_class_id, "Audio", audio_proto_funcs,
+      EFX_ARRAY_COUNT(audio_proto_funcs), audio_destroy, NULL },
 };
+
+
+static const efx_class_spec *class_spec_of(JSValueConst v, void **out) {
+    JSClassID id = 0;
+    void *p = JS_GetAnyOpaque(v, &id); /* meaningful only for our classes */
+    for (int i = 0; id && i < EFX_ARRAY_COUNT(CLASS_SPECS); i++) {
+        if (*CLASS_SPECS[i].id == id) {
+            *out = p;
+            return &CLASS_SPECS[i];
+        }
+    }
+    return NULL;
+}
 
 
 int efx_api_init(JSContext *ctx) {
@@ -1038,7 +922,9 @@ int efx_api_init(JSContext *ctx) {
         }
     }
     for (int i = 0; i < nclasses; i++) {
-        if (JS_NewClass(rt, *CLASS_SPECS[i].id, CLASS_SPECS[i].def) < 0) {
+        JSClassDef def = { .class_name = CLASS_SPECS[i].name,
+                           .finalizer = class_finalizer };
+        if (JS_NewClass(rt, *CLASS_SPECS[i].id, &def) < 0) {
             return -1;
         }
     }
@@ -1048,7 +934,7 @@ int efx_api_init(JSContext *ctx) {
     JSValue destroy_fn = JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0);
     for (int i = 0; i < nclasses; i++) {
         JSValue proto = JS_NewObject(ctx);
-        if (CLASS_SPECS[i].shared_destroy) {
+        if (CLASS_SPECS[i].destroy) {
             JS_SetPropertyStr(ctx, proto, "destroy",
                               JS_DupValue(ctx, destroy_fn));
         }

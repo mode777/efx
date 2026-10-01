@@ -45,7 +45,7 @@
   AudioData, AudioStream and Audio, and asserts `!JS_HasException(ctx)` after
   each. Run it on the old code and record the result per class in
   `design.md` → "Findings during apply".
-- [ ] 4.2 Add `destroy`/`release` hooks to `CLASS_SPECS`. Replace
+- [x] 4.2 Add `destroy`/`release` hooks to `CLASS_SPECS`. Replace
   `js_destroy_resource` and the per-class finalizers with
   `JS_GetAnyOpaque`-based dispatch (D5), keeping every message. Verify: the
   new case passes; V1 `texture_lifecycle`, `mesh_js`, `f5a_js`, `font_js`,

@@ -129,16 +129,17 @@ typedef struct parsed_shape {
 } parsed_shape;
 
 
-/* one row per script-facing class: class-id allocation, class registration and
- * prototype wiring are looped in efx_api_init so the three parallel 13-entry
- * blocks collapse to one table. */
+/* one row per script-facing class: class-id allocation, class registration,
+ * prototype wiring, destroy() and finalization are all driven by this table */
 typedef struct {
     JSClassID *id;
-    const JSClassDef *def;
+    const char *name;
     const JSCFunctionListEntry *funcs;
     int nfuncs;
-    int shared_destroy; /* attach the shared destroy(); Body/Character have
-                           their own (they need extra teardown) */
+    /* script destroy(); NULL when the class defines its own (Body/Character) */
+    JSValue (*destroy)(JSContext *ctx, void *p);
+    /* GC finalizer step before the wrapper is freed; may be NULL */
+    void (*release)(void *p);
 } efx_class_spec;
 
 /* buffers extracted from JS for one createMeshData call; every allocation
