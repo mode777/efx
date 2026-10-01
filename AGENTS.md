@@ -7,378 +7,79 @@ OpenSpec SDD flow — the `opsx-*` / `openspec-*` commands and skills
 
 ## Current state
 
-- F6a (resource loading) is **implemented** — a pure-C directory/zip provider
-  (`src/resource/`, vendored miniz), synchronous `loadText` / `loadImage` /
-  `loadTexture` (PNG/JPEG via the vendored `stb_image`), `player <dir|zip>`
-  and `--script <file> [--root <dir|zip>]`, and a web boot that fetches one
-  host-provided zip (`__efx_assets` / `?assets=`) and mounts it before
-  `main.js` so the script API stays synchronous (ADR 0031). Change
-  `f6a-resource-loading`. The four-target gate is **green** (ci run
-  36338597814: native suites incl. all goldens on Linux/Windows/macOS,
-  Emscripten ctest + web goldens + browser harness + cross-runtime compare).
-  F6b (glTF static import) is **implemented** — `loadMeshData(path, opts?)`
-  built on vendored cgltf (`vendor/cgltf/`), primitive→surface mapping with
-  accessor normalization, the pinned PBR→Phong conversion, per-texture
-  samplers on `createTexture`, and the glTF profile pinned in ADR 0032
-  (change `f6b-gltf-import`, archived at
-  `openspec/changes/archive/2026-09-27-f6b-gltf-import`); its four-target gate
-  is **green** (ci run 36344464419: native suites incl. all goldens on
-  Linux/Windows/macOS, Emscripten ctest + web goldens + cross-runtime
-  compare). F6c (rig import) is **implemented** — `loadMeshData` imports
-  `JOINTS_0`/`WEIGHTS_0` into per-surface `joints`/`weights` and bundles the
-  skin (joint hierarchy + inverse bind matrices) and every `animations[]`
-  clip into the `MeshData` as an opaque rig payload carried onto the `Mesh`
-  by `createMesh` (LINEAR/STEP exact, CUBICSPLINE→LINEAR); `createMeshData`
-  accepts `joints`/`weights`; no script rig API (change `f6c-rig-import`,
-  ADR 0033). Its four-target gate is **green** (ci run 36347575565: native
-  suites incl. all goldens on Linux/Windows/macOS, Emscripten ctest + web
-  goldens + cross-runtime compare). F6d (interactive console) is
-  **implemented** — `player --repl [<root>]` opens the normal window/frame
-  loop and evaluates stdin lines in the persistent context (optional root
-  runs its `main.js`, `.help`/`.exit` are host commands, errors recover,
-  EOF/`.exit` exit 0, `efx.quit(n)` exits n; no new script API; change
-  `f6d-repl`, ADR 0007 amended). Its four-target gate is **green** (ci run
-  36367478373: native suites incl. all goldens + the REPL ctest cases on
-  Linux/Windows/macOS, Emscripten ctest incl. the web-unavailable case +
-  web goldens + cross-runtime compare). F6e (texture creation options) is
-  **implemented** — the `loadTexture` convenience is removed (so a loaded
-  texture goes through the composed `createTexture(loadImage(path),
-  opts?)` flow) and `createTexture` gains a boolean `mipmaps` option
-  (deterministic CPU 2×2 box-filter chain, sampler mipmap filter driven by
-  `filter`; change `f6e-texture-creation-options`, ADR 0034); its
-  four-target gate is **green** (ci run 36392688547: native suites incl.
-  all goldens on Linux/Windows/macOS, Emscripten ctest + web goldens +
-  cross-runtime compare).
-- F7 (skinning + animation) is **implemented** — `efx.poseMesh(mesh, pose)`
-  CPU-poses an imported rig in place (a single `{ clip, time, weight? }`
-  sample or a weighted array; clip by glTF name/`clipN` or index; time wraps
-  modulo the clip length; weights normalized, negatives rejected), and
-  `efx.drawMesh(mesh, { skinned })` selects the current posed buffer over the
-  retained bind pose. `skinned: true` on a rig-less Mesh, and posing one,
-  throw `TypeError`; an unknown clip name throws `Error` and a bad index or
-  negative weight `RangeError`. The F6c rig payload stays implicit `Mesh`
-  data (no clip/joint query, no playback helper); `src/render/skin.c` holds
-  the bind-local derivation, clip sampling, joint-space FK/palette, and
-  linear-blend skinning (change `f7-skinning-animation`, ADR 0035). Its
-  four-target gate is **green** (ci run 36443794987: native suites incl. all
-  goldens on Linux/Windows/macOS, Emscripten ctest + web goldens + browser
-  harness + cross-runtime compare, and the gallery smoke).
-- F9 (input — keyboard + mouse) is **implemented** as an orthogonal milestone
-  (predecessor gate: F2; independent of F3–F8) — one pure-C core
-  (`src/input/`) owns frame-staged keyboard/mouse state, fed by the platform's
-  `sapp_desc.event_cb` and consumed identically by both bindings; scripts get
-  the `efx.keyboard` / `efx.mouse` / `efx.window` sub-namespaces (queries plus
-  unsubscribe-returning event callbacks, surface-pixel coordinates) and no new
-  resource types. Its non-visual gate is headless unit tests plus an injected
-  script-level harness on all four targets (change `f9-input`, ADR 0036).
-  Its four-target gate is **green** (ci run 36448429521: native suites incl.
-  all goldens + the new input cases on Linux/Windows/macOS, Emscripten ctest
-  incl. `web_9_input` + web goldens + cross-runtime compare `9_input`). A
-  follow-up fix makes keyboard input work in an iframe embed: the web
-  platform layer bubbles mouse events so a click can focus the player's
-  document (Sokol's key listeners live on the embedding window), with the
-  gallery smoke asserting click-to-focus-to-key delivery (change
-  `web-keyboard-focus`, ADR 0043).
-- F10 (script modules — CommonJS) is **implemented** as the second orthogonal
-  milestone (predecessors: the F1–F2 dual script bindings and the F6a dir/zip
-  resource provider) — one shared pure-JS `require` runtime in
-  `src/prelude/prelude.js` (shipped identically to both bindings) loads modules
-  synchronously through `efx.loadText`, with a restricted resolver
-  (relative/root-relative, exact then `.js` fallback, `.json` modules, escape
-  rejection, no bare/`node_modules` specifiers), resolved-path caching,
-  circular-require partial exports, `__esModule` interop, and `main.js`
-  evaluated as the entry module on both bindings (change `f10-commonjs-modules`,
-  ADR 0037). `require`/`module`/`exports` stay module-scoped; the entry's
-  `module.exports.update`/`render` join the global sugar without double
-  registration. Its non-visual gate is portable module smoke tests on all four
-  targets (no golden image); the four-target gate is **green** (ci run
-  36463101573: native suites incl. the module cases on Linux/Windows/macOS,
-  Emscripten ctest incl. `web_10_modules` + web goldens + cross-runtime compare
-  `10_modules`/`10_nohost` + the browser harness module scenarios).
-- F8a (font + text) is **implemented** — `loadFontData(path)` returns a
-  native `FontData` (parsed `.ttf`/`.otf`); `createFont(fontData, { size,
-  glyphs?, padding?, filter?, outline?, shadow? })` bakes a **fixed** RGBA8
-  glyph atlas (default printable Latin-1, optional baked outline/shadow) and
-  returns a native `Font` (read-only `size`/`lineHeight`/`ascent`/`descent`);
-  `drawText(text, font, x, y, opts?)` and `measureText(text, font, opts?)`
-  are C-implemented mid-level facilities that lay out and record 2D quads
-  (newlines, greedy word wrap, `left`/`center`/`right`/`justify`,
-  `top`/`middle`/`bottom`; no rich text/3D text) and return
-  `{ width, height, lines }`. The module is `src/render/text.c` over the
-  vendored `stb_truetype`/`stb_rect_pack` (change `f8a-font-typesetting`,
-  ADR 0038, which supersedes ADR 0013's pure-JS-font clause); the former
-  F8b slice (`drawModel` + demo pack) is retired as obsolete, superseded by
-  F3's multi-surface meshes (ADR 0024). Its gate is the text
-  golden scenes plus headless layout/measure unit tests and the portable
-  `web_8a_text`/`smoke_8a_text` script cases; the four-target gate is
-  **green** (ci run 36486291011: native suites incl. the text goldens on
-  Linux/Windows/macOS, Emscripten ctest incl. `web_8a_text` + web goldens +
-  cross-runtime compare `8a_text`).
-- F11 (particles + billboards) is **implemented** as an orthogonal milestone
-  (predecessors F2 + F3; F6a for file textures; independent of F4/F5/F7/F8) —
-  `drawBillboard(pos, opts)` records one world-space quad auto-faced from the
-  recorded 3D camera (`facing: 'view'|'y'`, depth test/no write),
-  `drawSprites(texture, sprites)` is an atomic batched 2D sprite draw over the
-  existing quad records, and `createParticleSystem(opts)` returns a
-  native-backed `ParticleSystem`: a CPU-simulated, engine-owned pool (3D
-  `space: 'world'` or 2D `'screen'`, per-system render mode `facing`:
-  `'view'|'y'|'plane'` with an orientation `normal`), one options object
-  (Löve-style parameters folded in), `emit`/`start`/`stop`/`pause`/`reset`/
-  `set`/`count`/`speedScale`/`destroy`, auto-advanced by `dt × speedScale`.
-  `drawParticles(sys)` records one batch; particles depth-test without writing
-  depth and alpha batches sort back-to-front within the batch. The module is
-  `src/render/render.c` (simulation + records) over the new depth-test/no-write
-  billboard pipeline variant in `src/platform/pipeline.c`; the shared `quad`
-  shader now takes a 3-component NDC position (`z = 0` for 2D quads)
-  (change `f11-particles-billboards`, ADR 0039). Its gate is a deterministic
-  billboard/particle golden scene, headless simulation/billboard unit tests,
-  the portable `web_11_particles`/`smoke_11_particles` script cases, and two
-  curated gallery showcases (effects + water plane).
-- F12 (collision + character + impulse dynamics) is **implemented** as an
-  orthogonal milestone (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8)
-  — a bespoke, dependency-free C11 core (`src/physics/`: its own
-  `vec3`/`quat`/`mat3`, no GLM, no renderer/platform/script deps) owns one
-  world of colliders (`efx.physics.clear`), stepped by the script
-  (`efx.physics.step(dt)`; the engine never steps — a `dt` larger than 1/60 s
-  is internally sub-divided into bounded substeps so a low frame rate cannot
-  skip thin static geometry). Shapes are plain option
-  bags (sphere, box, vertical capsule, static triangle mesh). Dynamic bodies
-  are linear-only (no rotation) with `mass`/`velocity`/`friction`/
-  `restitution`, `applyImpulse`/`applyForce`, per-body `layer`/`mask`, sensors
-  (never resolve, but reported), and a deterministic per-body `contacts` list
-  `{ body, sensor, normal, point, depth, impulse }` reset each step. A
-  sequential-impulse solver (fixed restitution target, clamped friction, slop
-  position correction) plus conservative-advancement sweeps back the capsule
-  `Character` (`createCharacter` → `moveAndSlide(motion)`: swept slide,
-  floor/wall/ceiling classification, floor snapping, step-up, `maxSlides`,
-  `safeMargin`) and the queries `raycast`/`overlap`/`shapeCast`. Characters
-  push dynamic bodies one-way (immovable during `step`; never blocked by
-  dynamics/sensors in `moveAndSlide`). `Body` and `Character` are native-backed
-  classes with idempotent `destroy()`, held by the world while live (never
-  GC-removed; released by `destroy()`/`clear()`/teardown — ADR 0046), registered
-  identically by both bindings. Storage is dynamic (no fixed cap). Its gate is
-  the headless `efx_physics_tests` suite (narrowphase, invariants, scenarios,
-  determinism, stress), the portable `smoke_12_physics`/`web_12_physics` script
-  case through both runtimes, and the cross-runtime compare — no golden image
-  (change `f12-collision-physics`, ADR 0040, recorded in AGENTS.md). The
-  frame-rate tunneling hardening landed as change `physics-tunneling`
-  (`step(dt)` sub-divides into <= 1/60 s substeps; ADR 0045); its four-target
-  gate is **green** (ci run 36721212393: native suites incl. the new
-  thin-floor/large-`dt` cases on Linux/Windows/macOS, Emscripten ctest incl.
-  `web_12_physics` + web goldens + cross-runtime compare `12_physics`). The
-  desktop "bodies fall through the floor" bug was the `Body` GC finalizer
-  destroying unreferenced module-local colliders, not tunneling (ADR 0046).
-- F13 (gamepad input) is **implemented** as an orthogonal milestone
-  (predecessor F9; independent of F3–F8 and F10–F12) — a pinned vendored
-  minigamepad poll backend confined to `efx_platform`
-  (`src/platform/gamepad_backend.c`), a pure-C fixed pad bank and portable
-  SDL-mapping evaluator in `src/input/efx_gamepad.{c,h}` (frame-begin polling,
-  one-frame edges, GUID selection with permissive fallback, half-axis/
-  inversion/hat handling, canonical stick −1..1 and trigger 0..1 ranges with a
-  0.5 digital-trigger threshold, raw fallback for unmapped pads), and the
-  `efx.gamepad` namespace (`count`, `get(index)`, the pad view, and
-  `onConnect`/`onDisconnect` returning unsubscribe functions) mirrored by both
-  bindings; no new resource type. Its gate is the headless `efx_input_tests`
-  gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator
-  with synthetic descriptors, the portable `smoke_13_gamepad`/`web_13_gamepad`
-  script case through both runtimes, and the cross-runtime compare — no golden
-  image (change `gamepad-input`, ADR 0041). Its four-target gate is **green**
-  (ci run 36597602782: native suites incl. all goldens + the gamepad cases on
-  Linux/Windows/macOS, Emscripten ctest incl. `web_13_gamepad` + web goldens +
-  cross-runtime compare `13_gamepad`, and the no-Asyncify web build).
-- F14 (audio playback) is **implemented** as an orthogonal milestone
-  (predecessors F1–F2 + F6a; independent of F3–F13) — a pinned vendored
-  `sokol_audio` (push mode) + `dr_libs` (`dr_wav`/`dr_mp3`) stack confined to
-  `efx_platform` (`src/platform/audio_backend.c`), and a dependency-free pure-C
-  source/voice-bank core in `src/audio/` (float32 stereo, a fixed 32-voice
-  playback bank with a deterministic steal policy, at most 4 concurrent
-  streamed voices, linear-interpolation resampling that doubles as pitch,
-  WAV/MP3, decoded-PCM only). A follow-up revision (`audio-source-model`,
-  ADR 0047) replaced the music/effect split with two source kinds —
-  `AudioData` (fully-decoded, re-playable) and `AudioStream` (incremental) —
-  loaded separately from playback and started through one `efx.audio.playAudio`
-  verb that returns a single `Audio` handle (read-only `playing`/`paused`,
-  read-write `volume`/`pan`/`pitch`/`loop`, `stop`/`pause`/`resume`), plus a
-  read-write `efx.audio.volume` master gain and `efx.audio.resume`. No
-  script-visible channels/buses: fades are plain handle writes. Both bindings
-  mirror the namespace, with no-device soft-fail and web autoplay unlock. Its
-  gate is the headless
-  `efx_audio_tests` over the pure-C core (embedded WAV/MP3 fixtures) +
-  `efx_api_tests audio_js`, the portable `smoke_14_audio`/`web_14_audio`
-  script case through both runtimes, and the cross-runtime compare — no golden
-  image. The original F14 four-target gate was **green**
-  (ci run 36698288071: native suites incl. all goldens + the audio cases on
-  Linux/Windows/macOS, Emscripten ctest incl. `web_14_audio` + web goldens +
-  cross-runtime compare `14_audio`). The `audio-source-model` revision's
-  four-target gate is **green** (ci run 36739154522: Linux/Windows/macOS +
-  Emscripten build+test and the Emscripten golden suite all passed).
-- F5 (render targets + post FX) is **done** — the four-target gate is
-  green (ci run 36313950553: native suites incl. all forty goldens on
-  Linux/Windows/macOS, Emscripten ctest + cross-runtime compare + web
-  goldens; the change `f5b-post-fx` is archived at
-  `openspec/changes/archive/2026-09-27-f5b-post-fx`, specs synced:
-  `openspec/specs/post-fx` plus a delta to `js-api`). F5b delivers the
-  declarative post-effect chain `setPostEffects` (≤ 8 entries,
-  eager-atomic validation, value-snapshotted; v1 effects `colorFilter`,
-  `blur`, `bloom`, each with per-entry `mix`) and `setRenderScale` (scene
-  resolution vs surface, nearest/linear blit) — a no-chain fast path that
-  stays byte-identical, an engine-owned implicit scene target +
-  ping-pong temporaries, and an engine-owned non-script-visible effect
-  registry (ADR 0029). F5a (render targets) is **done** — four-target
-  gate green (ci run 36309953607: native suites incl. all thirty goldens
-  on Linux/Windows/macOS, Emscripten ctest + web goldens); the change is
-  archived at `openspec/changes/archive/2026-09-27-f5a-render-targets`
-  (specs synced: `openspec/specs/render-targets`, plus deltas to
-  `2d-layer`, `3d-core`, `lighting`, `js-api`). F5a delivers
-  `createRenderTarget` / `beginRenderTarget` / `endRenderTarget`, a live
-  RenderTarget accepted wherever a live Texture is (drawQuad, material
-  maps, alphaMask — no alias object, ADR 0028), display-list
-  segmentation with value-snapshotted clear-per-begin, the active target
-  driving the default 2D frame and 3D aspect, and the Texture lifecycle
-  (deferred release, map retention) extended to targets. F4 (lighting +
-  Phong, split F4a/F4b)
-  is **done**: F4b's four-target gate
-  is green (ci run 36284454599: native suites incl. all twenty-six
-  goldens on Linux/Windows/macOS, Emscripten ctest + cross-runtime
-  compare + web goldens). F4b delivers per-channel Phong maps
-  (`ambient`/`diffuse`/`specular`/`emissive` `map`), a material-level
-  binary `alphaMask` (discard when sampled alpha < 0.5), `uv` consumption,
-  and the retained bound-map texture lifetime — all through the same
-  single uniform-driven mesh shader (five always-bound samplers with a
-  white-texture fallback, no permutations; ADR 0027). F4a delivers the
-  fixed light bank (`setLight` / `setDirectionalLight`), per-surface
-  Phong materials (`setMeshSurfaceMaterial` + `createMeshData`'s
-  `materials` array; no global material state — ADR 0024), world-space
-  lit `drawMesh` (ADR 0026), and the CPU lighting reference. F4a's
-  four-target gate is green (ci run 36271736775: native suites incl. all
-  nineteen goldens on Linux/Windows/macOS, Emscripten ctest + cross-runtime
-  compare + web goldens). F3's four-target gate is also
-  green (ci run 36122872839: native suites incl. all
-  twelve goldens on Linux/Windows/macOS, Emscripten ctest + web goldens)
-  after the D3D11/Metal clip-depth fix recorded in ADR 0025. F3 delivers
-  multi-surface meshes
-  (Godot-style, ADR 0024), `setCamera3D`, depth-tested `drawMesh`, the GLM
-  wrapper (`src/math`, ADR 0005), the shared pure-JS prelude (mat4/vec3/
-  quat + makeCube/makePlane/makeSphere), and per-surface material bindings
-  as the F4 contract (no global setMaterial). The F3 change is archived at
-  `openspec/changes/archive/2026-09-25-f3-3d-core` (specs synced:
-  `openspec/specs/3d-core`, `js-api`). The F2 follow-ups are
-  archived: `f2a-sokol-shdc` (ADR 0021) and `f2b-web-native-runtime`
-  (ADR 0022); the F2 change is archived at
-  `openspec/changes/archive/2026-09-22-f2-2d-layer`.
+**Summary.** Every roadmap milestone F1–F14 is implemented and passed its
+verification gate on all four targets (Windows, Linux, macOS, Emscripten).
+Status per milestone: the Roadmap table below and the normative spec
+`openspec/specs/feature-roadmap`. Durable decisions: `docs/decisions/README.md`.
+Per-change design/process records and gate run ids:
+`openspec/changes/archive/<date>-<change>/`. The script-facing API:
+the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
+
+**Milestones** — one line each; the archived change folder (under
+`openspec/changes/archive/`) followed by its ADR(s):
+
+- F1 player skeleton — `2026-09-19-f1-player-skeleton`
+- F2 2D layer — `2026-09-22-f2-2d-layer`; follow-ups
+  `2026-09-22-f2a-sokol-shdc` (ADR 0021) and
+  `2026-09-22-f2b-web-native-runtime` (ADR 0022)
+- F3 3D core — `2026-09-25-f3-3d-core` (ADR 0024, ADR 0025)
+- F4a/F4b lighting + maps — `2026-09-26-f4a-lighting-phong` (ADR 0026),
+  `2026-09-27-f4b-maps-alpha-masks` (ADR 0027)
+- F5a/F5b render targets + post FX — `2026-09-27-f5a-render-targets`
+  (ADR 0028), `2026-09-27-f5b-post-fx` (ADR 0029)
+- F6a–F6e resource packaging — `2026-09-27-f6a-resource-loading` (ADR 0031),
+  `2026-09-27-f6b-gltf-import` (ADR 0032), `2026-09-27-f6c-rig-import`
+  (ADR 0033), `2026-09-28-f6d-repl` (ADR 0007 amended),
+  `2026-09-28-f6e-texture-creation-options` (ADR 0034)
+- F7 skinning + animation — `2026-09-28-f7-skinning-animation` (ADR 0035)
+- F8a font + text — `2026-09-28-f8a-font-typesetting` (ADR 0038; the former
+  F8b slice is retired, superseded by ADR 0024)
+- F9 input — `2026-09-28-f9-input` (ADR 0036); iframe-focus follow-up
+  `openspec/changes/web-keyboard-focus` (ADR 0043)
+- F10 CommonJS modules — `2026-09-28-f10-commonjs-modules` (ADR 0037)
+- F11 particles + billboards — `2026-09-29-f11-particles-billboards`
+  (ADR 0039)
+- F12 physics — `2026-09-29-f12-collision-physics` (ADR 0040); hardening
+  `2026-09-30-physics-tunneling` (ADR 0045); live-body ownership ADR 0046
+- F13 gamepad — `2026-09-29-gamepad-input` (ADR 0041)
+- F14 audio — `2026-09-30-f14-audio` (ADR 0042); source-model revision
+  `2026-09-30-audio-source-model` (ADR 0047)
+- Gallery — `2026-09-27-web-gallery` (ADR 0030); curated sample directories
+  `openspec/changes/curated-sample-dirs` (ADR 0044)
+
+**Codebase map:**
+
 - `src/` is a single core static library (`platform`, `runtime`, `api`,
-  `player`, `render`, `physics`) plus a thin `main.c` (ADR 0003). Sokol and
-  quickjs-ng are vendored pinned snapshots under `vendor/`
-  (`vendor/README.md`, ADR 0006); stb is vendored for golden-image I/O.
-- The `efx` player binary has two run modes (ADR 0007): windowed
-  (`player <resource-root>`, runs `main.js`'s `update`/`render` hooks)
-  and headless (`player --script <file> [args…]`, exit-code contract),
-  plus a capture mode for golden images (`--capture-frame N
-  --capture-output file`, ADR 0020).
-- `src/` gains two modules in F3: `src/math/` (GLM behind a plain C API,
-  ADR 0005 — the only C++ TUs) and `src/prelude/` (the engine-bundled
-  pure-JS layer — mat4/vec3/quat, procedural primitives — embedded from
-  one source via `tools/gen_prelude.py` and evaluated by both the desktop
-  runtime and the web bridge; `src/prelude/prelude.h` is committed and
-  the Linux gate job fails on drift via `gen_prelude.py --check`, so
-  regenerate after every `prelude.js` edit). Local headless iteration:
-  `cmake -B build -DEFX_HEADLESS=ON` builds the unit-test targets only
-  (no X11 needed); display-required builds run on the verification
-  server.
-- The script-facing API: F1's `efx.log`, `efx.quit`, `efx.args`, and
-  lifecycle `efx.registerUpdateHook` / `efx.registerRenderHook` (stacking,
-  `dt`, unsubscribe; global `update`/`render` remain load-time sugar), plus
-  F2's 2D layer — `setCamera2D` (virtual frame), `drawQuad`, `setBlendMode`,
-  `setClearColor`, `createImageData`, `createTexture`, `whiteTexture` —
-  and F3's 3D core — `setCamera3D`, multi-surface `createMeshData` /
-  `createMesh` / `drawMesh(mesh, opts?)` (the mesh is a required positional
-  argument; `mesh` is not an option), `efx.mat4`/`efx.vec3`/`efx.quat`,
-  `makeCube`/`makePlane`/`makeSphere` (each taking an optional `material`
-  bound to its single surface) — plus F4's lighting and materials —
-  `setLight`, `setDirectionalLight`, `setMeshSurfaceMaterial`, and
-  `createMeshData`'s `materials` array (F4a), whose channels take optional
-  per-channel `map` textures and a material-level `alphaMask` (F4b) — plus
-  F6's resource layer — `loadText`, `loadImage`, `loadMeshData` (F6a/F6b),
-  with a texture composed as `createTexture(loadImage(path), opts?)` and
-  `createTexture` taking `wrap`/`filter`/`mipmaps` (F6e; no `loadTexture`) —
-  plus F7's skinning — `poseMesh(mesh, pose)` and the `drawMesh(mesh,
-  { skinned })` option (rig data stays implicit `Mesh` payload) —
-  plus F8a's font + text — `loadFontData` → `createFont(fontData, { size,
-  glyphs?, padding?, filter?, outline?, shadow? })` (a fixed C-baked atlas)
-  → `drawText(text, font, x, y, opts?)` / `measureText(text, font, opts?)`
-  (wrap + `left`/`center`/`right`/`justify` + `top`/`middle`/`bottom`, baked
-  outline/shadow; both return `{ width, height, lines }`) —
-  plus F9's input sub-namespaces — `efx.keyboard` (isDown/isPressed/isReleased,
-  onDown/onUp/onChar), `efx.mouse` (the same queries plus onMove/onWheel;
-  read-only `position`/`x`/`y`/`delta`/`wheel`), and `efx.window` (read-only
-  `size`/`width`/`height`/`dpiScale`) —
-  plus F10's CommonJS module facilities — `require`/`module`/`exports` are
-  module-scoped authoring facilities, not members of `efx` and not free
-  globals; `main.js` is the entry module and its `module.exports.update`/
-  `.render` join the global `update`/`render` load-time sugar (registered once)
-  —
-  plus F12's physics sub-namespace — `efx.physics` (`gravity`/`iterations`,
-  `step`, `clear`, `createBody`, `createCharacter`, `createStaticMesh`,
-  `raycast`, `overlap`, `shapeCast`) with the native-backed `Body`/`Character`
-  classes (`destroy`, read-only `position`/`contacts`/`transform`/`onFloor`,
-  read-write `velocity`, `applyImpulse`/`applyForce`, `moveAndSlide`) —
-  plus F13's gamepad sub-namespace — `efx.gamepad` (`count`, `get(index)`, and
-  `onConnect`/`onDisconnect` returning unsubscribe functions; the pad view's
-  `connected`/`name`/`mapped`, `isDown`/`isPressed`/`isReleased`, `axis`, and
-  the `rawButton`/`rawAxis` fallback; no resource type) —
-  plus F14's audio sub-namespace — `efx.audio` (`loadAudioData`/
-  `loadAudioStream`/`playAudio` plus the `volume` master gain and `resume`,
-  and the native-backed `AudioData`/`AudioStream`/`Audio` classes; WAV/MP3,
-  decoded-PCM only, engine-owned mixing) —
-  documented in the generated reference `docs/api/` (with the script-facing
-  API design guidelines in `docs/js-api.md`;
-  materials bind per surface — ADR 0024 — there is no global setMaterial).
-  The gallery type document `gallery/src/api/efx.d.ts` types `createMeshData`'s
-  batch and shorthand forms as an exclusive union (the batch form does not
-  require `positions`, and mixing the forms is rejected).
-- `gallery/` is the public sample gallery (Vite + TypeScript + Svelte)
-  deployed to GitHub Pages: a left sample list, an iframe-per-run engine
-  host, and a Monaco (CDN) editor with the API type document
-  (`gallery/src/api/efx.d.ts`). Samples are the committed golden scenes
-  plus a curated showcase set; the catalog is generated from
-  `tests/goldens/` and `gallery/samples/curated/` by
-  `gallery/scripts/gen-catalog.mjs`. Each curated sample is a
-  self-contained directory under `gallery/samples/curated/<name>/` holding
-  its `main.js` plus its resources — the directory is the player's resource
-  root (`player <name>`) — and the build derives that sample's mountable
-  pack from the directory (only when it has resources besides `main.js`);
-  see `gallery/samples/curated/CREDITS.md` for provenance.
-  `gallery/scripts/pack-samples.mjs` derives the release
-  `emotion-fx-<version>-samples.zip` from the same directories (each
-  `<name>/` folder plus a root `CREDITS.md`), attached to a tag's GitHub
-  Release by the CI `samples` job. The
-  curated set includes an interactive `input-playground` demo (F9:
-  mouse/keyboard events + queries, self-playing until interacted with) and a
-  `modules-showcase` demo (F10: a scene split across files composed with
-  synchronous `require` — relative/extension-less specifiers and a JSON
-  module — from the sample's authored pack), a `text-showcase` demo (F8a:
-  a typing playground exercising the baked atlas, wrapping, alignment, and
-  baked outline/shadow from the sample's CC0 font pack), and an
-  `audio-showcase` demo (F14: a streamed track faded through handle writes
-  plus a 32-voice effect sound board with pan/pitch, from the sample's authored
-  audio pack).
-  Build
-  with `npm --prefix gallery ci && npm --prefix gallery run build` → `gallery/dist/`
-  (copy the Emscripten player in first, `gallery/scripts/prepare-player.mjs`).
-  See ADR 0030 for the host↔engine embedding contract and ADR 0044 for the
-  sample-directory/derived-pack contract.
-- Verification: ctest runs smoke + headless display-list/JS-API unit tests
-  everywhere (on Emscripten the smoke suite runs the same portable scripts
-  through the native bridge with the host JS engine as the runtime, plus
-  `tools/run_web_compare.mjs` diffs desktop vs web output); golden-image
-  tests (the committed golden scenes under `tests/goldens/`; the public
-  sample gallery in `gallery/` generates its catalog from them, so a new
-  golden scene appears in the gallery without a manual edit)
-  run where a display exists — Linux CI under `xvfb-run` + llvmpipe,
-  Emscripten in pinned headless Chrome (ADR 0020). Local builds without a display configure with
-  `-DEFX_BUILD_GOLDEN_TESTS=OFF` (the default); if a local build dir was
-  configured with `ON`, exclude them (`ctest -E golden`) — goldens fail
-  without a display.
+  `player`, `render`, `physics`, `input`, `audio`, `resource`, `math`,
+  `web`, `prelude`) plus a thin `main.c` (ADR 0003).
+- Vendored pinned snapshots under `vendor/` (`vendor/README.md`,
+  ADR 0006): Sokol, quickjs-ng, stb, miniz, cgltf, dr_libs, minigamepad.
+- The `efx` player run modes (ADR 0007): windowed
+  (`player <resource-root>`, runs `main.js`'s `update`/`render` hooks),
+  headless (`--script <file> [args…]`, exit-code contract), interactive
+  console (`--repl [<root>]`), and golden capture
+  (`--capture-frame N --capture-output file`, ADR 0020).
+- `src/prelude/prelude.js` (the engine-bundled pure-JS layer) is embedded
+  via `tools/gen_prelude.py`; `src/prelude/prelude.h` is committed and the
+  Linux gate job fails on drift (`gen_prelude.py --check`) — regenerate
+  after every `prelude.js` edit.
+- Local headless iteration: `cmake -B build -DEFX_HEADLESS=ON` builds the
+  unit-test targets only (no X11 needed); display-required builds run on
+  the verification server and CI.
+- Golden-image tests need a display (ADR 0020): local builds keep the
+  default `-DEFX_BUILD_GOLDEN_TESTS=OFF`; if a build dir was configured
+  `ON`, exclude them (`ctest -E golden`). Emscripten goldens run in pinned
+  headless Chrome; `tools/run_web_compare.mjs` diffs desktop vs web output.
+- Gallery: `npm --prefix gallery ci && npm --prefix gallery run build` →
+  `gallery/dist/` (copy the Emscripten player in first via
+  `gallery/scripts/prepare-player.mjs`). The catalog is generated from
+  `tests/goldens/` + `gallery/samples/curated/` by
+  `gallery/scripts/gen-catalog.mjs`; a curated sample is a
+  self-contained resource-root directory (ADR 0044); the host↔engine
+  embedding contract is ADR 0030.
+
+**Operational rules:**
+
 - **CI runs on tags and manually, never per push (ADR 0023).**
   `.github/workflows/ci.yml` triggers only on `v*` tags and
   `workflow_dispatch` (`gh workflow run ci.yml`); ordinary branch pushes
@@ -480,7 +181,7 @@ independently of the remaining F3–F8 milestones.
 | F10 | Script modules (CommonJS) | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F9): synchronous provider-backed `require` in the shared pure-JS prelude, restricted resolver, module caching/cycles, `__esModule` interop, JSON modules, `main.js` as a module, TypeScript `import`→CommonJS authoring | Script-level module tests on all four targets (ctest + Emscripten ctest + cross-runtime compare; no golden image) | implemented — change `f10-commonjs-modules`, ADR 0037; four-target gate green (run 36463101573) |
 | F11 | Particles + billboards | **Orthogonal** (predecessors F2 + F3, F6a for file textures; independent of F4/F5/F7/F8): CPU-simulated engine-owned particle systems (`createParticleSystem`/`emit`/`drawParticles`, 3D world or 2D screen, `facing` `view`/`y`/`plane`), world-space `drawBillboard`, batched 2D `drawSprites`, a depth-test/no-write billboard pipeline, and curated gallery showcases | Golden image + headless simulation/billboard unit tests + portable script case + curated showcases, all four targets | implemented — change `f11-particles-billboards`, ADR 0039; four-target gate green (run 36563480277) |
 | F12 | Collision + character + impulse dynamics | **Orthogonal** (predecessors F3 + F6a/F6b; independent of F4/F5/F7/F8): a bespoke dependency-free C11 core (`src/physics/`) — sphere/box/capsule/triangle-mesh colliders, one script-stepped world, linear-only sequential-impulse dynamics, sensors, `Body`/`Character` native-backed classes, the `moveAndSlide` capsule controller, and the `raycast`/`overlap`/`shapeCast` queries — plus a curated gallery showcase | Headless `efx_physics_tests` (narrowphase, invariants, scenarios, determinism, stress) + portable script case through both runtimes + cross-runtime compare (no golden image) | implemented — change `f12-collision-physics`, ADR 0040; `step(dt)` sub-stepping hardening in `physics-tunneling`, ADR 0045 |
-| F13 | Gamepad input | **Orthogonal** (predecessor F9; independent of F3–F8 and F10–F12): a vendored pinned minigamepad poll backend confined to the platform layer, a pure-C fixed pad bank (`src/input/efx_gamepad.c`) with frame-begin polling and F9-style one-frame edges, a portable SDL-mapping evaluator (GUID selection, half-axis/inversion/hat handling), canonical ranges + trigger threshold, a raw fallback for unmapped pads, and the `efx.gamepad` namespace (no new resource type) | Headless `efx_input_tests` gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator with synthetic descriptors, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `gamepad-input`, ADR 0041; four-target gate green (run 36597602782) |
+| F13 | Gamepad input | **Orthogonal** (predecessor F9; independent of F3–F8 and F10–F12): a vendored pinned minigamepad poll backend confined to the platform layer, a pure-C fixed pad bank (`src/input/gamepad.c`) with frame-begin polling and F9-style one-frame edges, a portable SDL-mapping evaluator (GUID selection, half-axis/inversion/hat handling), canonical ranges + trigger threshold, a raw fallback for unmapped pads, and the `efx.gamepad` namespace (no new resource type) | Headless `efx_input_tests` gamepad cases + `efx_api_tests gamepad_js` over the pure-C model/evaluator with synthetic descriptors, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `gamepad-input`, ADR 0041; four-target gate green (run 36597602782) |
 | F14 | Audio playback | **Orthogonal** (predecessors F1–F2 + F6a; independent of F3–F13): a vendored `sokol_audio` (push mode) + `dr_libs` decoder stack confined to the platform layer, a dependency-free pure-C source/voice-bank core in `src/audio/` (static `AudioData` + streamed `AudioStream`, a fixed 32-voice playback bank, a 4-stream cap, WAV/MP3, linear-interpolation resampling/pitch, decoded-PCM only), and the `efx.audio` namespace (`loadAudioData`/`loadAudioStream`/`playAudio` with `volume`/`resume`, native-backed `AudioData`/`AudioStream`/`Audio`; no-device soft-fail, web autoplay unlock); the music/effect split was replaced by the two source kinds in `audio-source-model`, ADR 0047 | Headless `efx_audio_tests` over the pure-C core (embedded WAV/MP3 fixtures) + `efx_api_tests audio_js`, a portable script case through both runtimes, and a cross-runtime compare (no golden image) | implemented — change `f14-audio`, ADR 0042, revised by `audio-source-model`, ADR 0047 |
 
 Deferred cross-cutting decisions settle inside specific milestones, not
@@ -562,8 +263,6 @@ rayjs (QuickJS integration + stripping QuickJS for cross-platform).
 Golden-image tolerance and CI determinism are settled (F2, ADR 0020),
 as is the canned-shader strategy (settled early in F2 via
 `f2a-sokol-shdc`, ADR 0021 — canned shaders are single-source GLSL in
-`shaders/*.glsl`, compiled with pinned sokol-shdc). The glTF import
-profile (F6) remains open — settle it via an OpenSpec proposal, not by
-silently picking defaults. The Roadmap section assigns each deferred
-decision a latest-settling milestone. The glTF 2.0 import format itself is pinned
-in the roadmap; only the profile remains open.
+`shaders/*.glsl`, compiled with pinned sokol-shdc), and the glTF import
+profile (settled in F6b, ADR 0032). The Roadmap section assigns each
+deferred decision a latest-settling milestone.

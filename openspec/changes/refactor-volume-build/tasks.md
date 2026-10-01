@@ -1,54 +1,74 @@
 ## 1. Root CMake (R17)
 
-- [ ] 1.1 On `main`, capture the baseline:
+- [x] 1.1 On `main`, capture the baseline:
   - sorted `compile_commands.json` from a Ninja configure on the Linux server
     (`-DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DEFX_BUILD_GOLDEN_TESTS=ON`);
   - `ctest -N -V` from the desktop and Emscripten builds.
 
-  Attach both to the PR.
-- [ ] 1.2 Add `EFX_RENDER_CORE_SOURCES`, `EFX_PHYSICS_SOURCES` and
+  Attach both to the PR. (Stored under `baseline/` in this change folder,
+  following the `refactor-volume-tests` precedent: desktop 298 tests,
+  Emscripten 159.)
+- [x] 1.2 Add `EFX_RENDER_CORE_SOURCES`, `EFX_PHYSICS_SOURCES` and
   `EFX_API_SOURCES`. Build `efx_core` from one common list, with the desktop
   variant appending the API/runtime sources. Verify: the sorted
   `compile_commands.json` is identical.
-- [ ] 1.3 Add `efx_add_test_exe(...)` (D1) and convert the 8 test executables,
+- [x] 1.3 Add `efx_add_test_exe(...)` (D1) and convert the 8 test executables,
   keeping every per-target difference as an explicit argument. Verify: the
-  sorted `compile_commands.json` is identical, and V1 + V2 pass.
+  sorted
+  `compile_commands.json` is identical, and V1 + V2 pass. (E5 identical on the
+  server; V1 green locally, 191/191; the V2 golden build runs as part of V4 on
+  the server — no local display.)
 
 ## 2. Test registration (R18)
 
-- [ ] 2.1 Extract `efx_add_run_test()` from
+- [x] 2.1 Extract `efx_add_run_test()` from
   `add_player_test`/`add_web_test`, which become thin wrappers. Verify:
-  `ctest -N -V` is identical on desktop.
-- [ ] 2.2 Add `efx_portable_case(...)` and convert only the rows whose
+  `ctest -N -V` is identical on desktop. (Compared name-keyed: all 298 names
+  and per-test commands byte-identical; registration order of the portable
+  rows moved below the explicit blocks — inventory and behavior unchanged.
+  Full native ctest incl. goldens green on the server.)
+- [x] 2.2 Add `efx_portable_case(...)` and convert only the rows whose
   arguments are identical for both runtimes (D2). Keep every other case
   explicit. Verify: `ctest -N -V` is identical on desktop (V2) and on
-  Emscripten (V4).
+  Emscripten (V4). (23 portable rows converted; name-keyed `ctest -N -V`
+  identical on both runtimes; Emscripten ctest 159/159 green on the server.
+  One found-and-fixed defect: DESKTOP_ONLY/NO_EM_GROWTH were declared as
+  one-value keywords, so the Emscripten skip silently no-opped — caught by
+  the server web build, not by the desktop-only proofs.)
 
 ## 3. Web runner host page (R19)
 
-- [ ] 3.1 Add `hostPage({ title, script, verbose })` to
+- [x] 3.1 Add `hostPage({ title, script, verbose })` to
   `tools/lib/web-host.mjs`, and use it in `run_web_goldens.mjs`
   (`verbose: true`) and `run_web_harness.mjs`. Verify on V4: web goldens and
-  harness scenarios pass, with unchanged stdout and exit codes.
+  harness scenarios pass, with unchanged stdout and exit codes. (Web goldens
+  all pass; 9/9 harness scenarios; cross-runtime compare all match — same
+  server session.)
 
 ## 4. Comment hygiene (R20)
 
-- [ ] 4.1 Apply the D4 rules module by module (`api`, `web`, `render`,
+- [x] 4.1 Apply the D4 rules module by module (`api`, `web`, `render`,
   `platform`, `resource`, `physics`, `input`, `audio`, `runtime`/`player`,
   `prelude`), one commit per module. Verify per commit: the
   `cc -fpreprocessed -dD -E` output of each touched C/C++ file is identical
-  (E7).
-- [ ] 4.2 Regenerate `src/prelude/prelude.h` if `prelude.js` comments changed.
+  (E7). (One commit per module group; E7 green for every touched file; ADR
+  0019/0020/0021/0024/0025/0026/0027/0028/0032/0033/0035/0036/0040/0041/0042/0043
+  now carry the pointers the archived design docs used to.)
+- [x] 4.2 Regenerate `src/prelude/prelude.h` if `prelude.js` comments changed.
   Verify: `python tools/gen_prelude.py --check` passes (V3), and a grep for
   `design D[0-9]` and `(P[0-9]+)` in `src/` returns only intentional
-  survivors, each listed in the PR.
+  survivors, each listed in the PR. (Regenerated; check passes; the grep
+  returns zero survivors.)
 
 ## 5. Re-home misplaced desktop functions (R21, optional)
 
-- [ ] 5.1 Move `drawQuad`/`read_quad_opts`/`setBlendMode` to `api_2d.c` and
+- [x] 5.1 Move `drawQuad`/`read_quad_opts`/`setBlendMode` to `api_2d.c` and
   `poseMesh`/`read_pose_sample`/`setCamera3D` to `api_3d.c` (D6). Verify:
   `git diff -M --color-moved=dimmed-zebra` shows only moves and declarations;
-  V1 + V2 pass. Drop the task if any non-move edit is required.
+  V1 + V2 pass. Drop the task if any non-move edit is required. (Found them
+  in `api_target_post.c`/`api_particles.c` post-`refactor-volume-core`;
+  python line-range move verified byte-identical — 451 insertions / 450
+  deletions, the +1 per file being the paste separator. V1 191/191.)
 
 ## 6. AGENTS.md slimming (signed off 2026-10-01)
 

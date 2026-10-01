@@ -1,0 +1,647 @@
+configure: cmake -B build-web-golden -DEFX_BUILD_GOLDEN_TESTS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/opt/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_CROSSCOMPILING_EMULATOR=/opt/emsdk/node/24.19.0_64bit/bin/node
+Internal ctest changing into directory: /home/devuser/emotion-fx/build-web-golden
+UpdateCTestConfiguration  from :/home/devuser/emotion-fx/build-web-golden/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/devuser/emotion-fx/build-web-golden/DartConfiguration.tcl
+Test project /home/devuser/emotion-fx/build-web-golden
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+
+1: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_ok" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/root_ok" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=entry-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+1: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #1: web_root_ok
+
+2: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_no_entry" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/root_no_entry" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=no main.js in resource root" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+2: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #2: web_root_no_entry
+
+3: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_missing_dir" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/no_such_dir" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=not a directory" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+3: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #3: web_root_missing_dir
+
+4: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_frame" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/root_frame" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=frame-1" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+4: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #4: web_root_frame
+
+5: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_hooks_order" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/root_hooks_order" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=u1.*r1.*u2" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+5: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #5: web_root_hooks_order
+
+6: Test command: /usr/bin/cmake "-DTEST_NAME=web_explicit_hooks" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/root_explicit_hooks" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=u1.*u2.*r1.*u2.*r2.*done" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+6: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #6: web_explicit_hooks
+
+7: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_hook_throw" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/root_hook_throw" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=uncaught exception: hook boom" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+7: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #7: web_root_hook_throw
+
+8: Test command: /usr/bin/cmake "-DTEST_NAME=web_root_eval_throw" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/root_eval_throw" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=intentional-smoke-throw" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+8: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #8: web_root_eval_throw
+
+9: Test command: /usr/bin/cmake "-DTEST_NAME=web_log" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_log.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=smoke-log-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+9: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test   #9: web_log
+
+10: Test command: /usr/bin/cmake "-DTEST_NAME=web_quit3" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_quit3.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=3" "-DEXPECT_OUT=before-quit" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+10: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #10: web_quit3
+
+11: Test command: /usr/bin/cmake "-DTEST_NAME=web_args" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_args.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=one;two" "-DEXPECT=0" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+11: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #11: web_args
+
+12: Test command: /usr/bin/cmake "-DTEST_NAME=web_portable" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_portable.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+12: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #12: web_portable
+
+13: Test command: /usr/bin/cmake "-DTEST_NAME=web_throw" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_throw.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=intentional-smoke-throw" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+13: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #13: web_throw
+
+14: Test command: /usr/bin/cmake "-DTEST_NAME=web_2d_validation" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_2d_validation.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+14: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #14: web_2d_validation
+
+15: Test command: /usr/bin/cmake "-DTEST_NAME=web_resource_lifecycle" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_resource_lifecycle.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+15: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #15: web_resource_lifecycle
+
+16: Test command: /usr/bin/cmake "-DTEST_NAME=web_3d_validation" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_3d_validation.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-3d-validation-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+16: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #16: web_3d_validation
+
+17: Test command: /usr/bin/cmake "-DTEST_NAME=web_3d_math" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_3d_math.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-3d-math-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+17: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #17: web_3d_math
+
+18: Test command: /usr/bin/cmake "-DTEST_NAME=web_4a_validation" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_4a_validation.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-4a-validation-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+18: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #18: web_4a_validation
+
+19: Test command: /usr/bin/cmake "-DTEST_NAME=web_4b_validation" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_4b_validation.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-4b-validation-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+19: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #19: web_4b_validation
+
+20: Test command: /usr/bin/cmake "-DTEST_NAME=web_5a_validation" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_5a_validation.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-5a-validation-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+20: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #20: web_5a_validation
+
+21: Test command: /usr/bin/cmake "-DTEST_NAME=web_5b_validation" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_5b_validation.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-5b-validation-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+21: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #21: web_5b_validation
+
+22: Test command: /usr/bin/cmake "-DTEST_NAME=web_6b_gltf" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/gltf_probe" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-6b-gltf-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+22: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #22: web_6b_gltf
+
+23: Test command: /usr/bin/cmake "-DTEST_NAME=web_6c_skin" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_6c_skin.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-6c-skin-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+23: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #23: web_6c_skin
+
+24: Test command: /usr/bin/cmake "-DTEST_NAME=web_pose" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/skin_probe" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-7-skin-pose-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+24: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #24: web_pose
+
+25: Test command: /usr/bin/cmake "-DTEST_NAME=web_9_input" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_9_input.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-9-input-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+25: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #25: web_9_input
+
+26: Test command: /usr/bin/cmake "-DTEST_NAME=web_10_modules" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/modules" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-10-modules-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+26: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #26: web_10_modules
+
+27: Test command: /usr/bin/cmake "-DTEST_NAME=web_10_module_throw" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/modules_error" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=intentional-module-throw" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+27: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #27: web_10_module_throw
+
+28: Test command: /usr/bin/cmake "-DTEST_NAME=web_10_missing" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_10_missing.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=cannot find module" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+28: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #28: web_10_missing
+
+29: Test command: /usr/bin/cmake "-DTEST_NAME=web_10_escape" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_10_escape.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=escapes the resource root" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+29: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #29: web_10_escape
+
+30: Test command: /usr/bin/cmake "-DTEST_NAME=web_10_unsupported" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_10_unsupported.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+30: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #30: web_10_unsupported
+
+31: Test command: /usr/bin/cmake "-DTEST_NAME=web_10_nohost" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_10_nohost.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-10-nohost-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+31: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #31: web_10_nohost
+
+32: Test command: /usr/bin/cmake "-DTEST_NAME=web_11_particles" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_11_particles.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-11-particles-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+32: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #32: web_11_particles
+
+33: Test command: /usr/bin/cmake "-DTEST_NAME=web_12_physics" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/physics_smoke.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-12-physics-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+33: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #33: web_12_physics
+
+34: Test command: /usr/bin/cmake "-DTEST_NAME=web_13_gamepad" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_13_gamepad.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-13-gamepad-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+34: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #34: web_13_gamepad
+
+35: Test command: /usr/bin/cmake "-DTEST_NAME=web_14_audio" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/audio" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-14-audio-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+35: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #35: web_14_audio
+
+36: Test command: /usr/bin/cmake "-DTEST_NAME=web_error_catalog" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=/home/devuser/emotion-fx/tests/scripts/s_error_catalog.js" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=/home/devuser/emotion-fx/tests/scripts/skin.gltf;/home/devuser/emotion-fx/tests/scripts/skin.bin" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=/home/devuser/emotion-fx/tests/scripts/s_error_catalog.expected.txt" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+36: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #36: web_error_catalog
+
+37: Test command: /usr/bin/cmake "-DTEST_NAME=web_8a_text" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DROOT_PATH=/home/devuser/emotion-fx/tests/fixtures/web/text_root" "-DSTAGE_ASSETS=" "-DARG_LINE=" "-DEXPECT=0" "-DEXPECT_OUT=s-8a-text-ok" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+37: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #37: web_8a_text
+
+38: Test command: /usr/bin/cmake "-DTEST_NAME=web_repl_unavailable" "-DPLAYER_COMMAND=/home/devuser/emotion-fx/build-web-golden/player.js" "-DPLAYER_UNDER_NODE=ON" "-DSTAGE_SCRIPT=" "-DBINARY_DIR=/home/devuser/emotion-fx/build-web-golden" "-DSTAGE_ASSETS=" "-DARG_LINE=--repl" "-DEXPECT=nonzero" "-DEXPECT_OUT=" "-DEXPECT_OUT_FILE=" "-DEXPECT_ERR=repl mode is unavailable" "-P" "/home/devuser/emotion-fx/tests/run_test.cmake"
+38: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #38: web_repl_unavailable
+
+39: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "identity"
+39: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #39: efx_math_tests_identity
+
+40: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "perspective_values"
+40: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #40: efx_math_tests_perspective_values
+
+41: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "ortho_values"
+41: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #41: efx_math_tests_ortho_values
+
+42: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "look_at_values"
+42: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #42: efx_math_tests_look_at_values
+
+43: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "mul_order"
+43: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #43: efx_math_tests_mul_order
+
+44: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "translate_rotate_scale"
+44: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #44: efx_math_tests_translate_rotate_scale
+
+45: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "vec3_ops"
+45: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #45: efx_math_tests_vec3_ops
+
+46: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_math_tests.js" "mvp_compose"
+46: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #46: efx_math_tests_mvp_compose
+
+47: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "names"
+47: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #47: efx_input_tests_names
+
+48: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "level_edge"
+48: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #48: efx_input_tests_level_edge
+
+49: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "repeat"
+49: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #49: efx_input_tests_repeat
+
+50: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "ordering"
+50: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #50: efx_input_tests_ordering
+
+51: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "deltas"
+51: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #51: efx_input_tests_deltas
+
+52: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "mouse"
+52: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #52: efx_input_tests_mouse
+
+53: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "focus"
+53: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #53: efx_input_tests_focus
+
+54: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "chars"
+54: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #54: efx_input_tests_chars
+
+55: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "window"
+55: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #55: efx_input_tests_window
+
+56: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "mods"
+56: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #56: efx_input_tests_mods
+
+57: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_names"
+57: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #57: efx_input_tests_gp_names
+
+58: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_edges"
+58: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #58: efx_input_tests_gp_edges
+
+59: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_hotplug"
+59: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #59: efx_input_tests_gp_hotplug
+
+60: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_mapping"
+60: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #60: efx_input_tests_gp_mapping
+
+61: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_half_invert"
+61: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #61: efx_input_tests_gp_half_invert
+
+62: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_hat"
+62: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #62: efx_input_tests_gp_hat
+
+63: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_dpad_buttons"
+63: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #63: efx_input_tests_gp_dpad_buttons
+
+64: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_ranges"
+64: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #64: efx_input_tests_gp_ranges
+
+65: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_raw"
+65: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #65: efx_input_tests_gp_raw
+
+66: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_guid_fallback"
+66: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #66: efx_input_tests_gp_guid_fallback
+
+67: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_full"
+67: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #67: efx_input_tests_gp_full
+
+68: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_input_tests.js" "gp_seams"
+68: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #68: efx_input_tests_gp_seams
+
+69: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_support_basic"
+69: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #69: efx_physics_tests_t_support_basic
+
+70: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_shapes"
+70: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #70: efx_physics_tests_t_shapes
+
+71: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_narrow_triangle"
+71: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #71: efx_physics_tests_t_narrow_triangle
+
+72: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_narrow_pairs"
+72: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #72: efx_physics_tests_t_narrow_pairs
+
+73: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_ray_shapes"
+73: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #73: efx_physics_tests_t_ray_shapes
+
+74: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_sweep_shapes"
+74: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #74: efx_physics_tests_t_sweep_shapes
+
+75: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_bvh_query"
+75: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #75: efx_physics_tests_t_bvh_query
+
+76: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_world_registry"
+76: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #76: efx_physics_tests_t_world_registry
+
+77: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_broadphase_filter"
+77: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #77: efx_physics_tests_t_broadphase_filter
+
+78: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_determinism"
+78: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #78: efx_physics_tests_t_determinism
+
+79: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_integrate"
+79: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #79: efx_physics_tests_t_integrate
+
+80: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_contact_manifold"
+80: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #80: efx_physics_tests_t_contact_manifold
+
+81: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_restitution_friction"
+81: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #81: efx_physics_tests_t_restitution_friction
+
+82: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_settle"
+82: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #82: efx_physics_tests_t_settle
+
+83: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_step_dt"
+83: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #83: efx_physics_tests_t_step_dt
+
+84: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_thin_floor_large_dt"
+84: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #84: efx_physics_tests_t_thin_floor_large_dt
+
+85: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_fast_body_thin_floor"
+85: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #85: efx_physics_tests_t_fast_body_thin_floor
+
+86: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_force_substep"
+86: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #86: efx_physics_tests_t_force_substep
+
+87: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_stress"
+87: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #87: efx_physics_tests_t_stress
+
+88: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_sensors"
+88: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #88: efx_physics_tests_t_sensors
+
+89: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_contact_report"
+89: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #89: efx_physics_tests_t_contact_report
+
+90: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_raycast_query"
+90: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #90: efx_physics_tests_t_raycast_query
+
+91: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_overlap_query"
+91: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #91: efx_physics_tests_t_overlap_query
+
+92: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_shapecast_query"
+92: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #92: efx_physics_tests_t_shapecast_query
+
+93: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_character_create"
+93: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #93: efx_physics_tests_t_character_create
+
+94: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_move_slide"
+94: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #94: efx_physics_tests_t_move_slide
+
+95: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_floor_classify"
+95: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #95: efx_physics_tests_t_floor_classify
+
+96: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_floor_snap"
+96: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #96: efx_physics_tests_t_floor_snap
+
+97: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_step_up"
+97: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #97: efx_physics_tests_t_step_up
+
+98: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_physics_tests.js" "t_character_push"
+98: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #98: efx_physics_tests_t_character_push
+
+99: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "decode_wav"
+99: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test  #99: efx_audio_tests_decode_wav
+
+100: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "decode_mp3"
+100: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #100: efx_audio_tests_decode_mp3
+
+101: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "mix_matches"
+101: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #101: efx_audio_tests_mix_matches
+
+102: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "resample_pitch"
+102: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #102: efx_audio_tests_resample_pitch
+
+103: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "mix_determinism"
+103: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #103: efx_audio_tests_mix_determinism
+
+104: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "errors"
+104: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #104: efx_audio_tests_errors
+
+105: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "voices_steal"
+105: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #105: efx_audio_tests_voices_steal
+
+106: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "stream_plays"
+106: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #106: efx_audio_tests_stream_plays
+
+107: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "stream_controls"
+107: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #107: efx_audio_tests_stream_controls
+
+108: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "stream_cap"
+108: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #108: efx_audio_tests_stream_cap
+
+109: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "source_lifetime"
+109: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #109: efx_audio_tests_source_lifetime
+
+110: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "master_gain"
+110: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #110: efx_audio_tests_master_gain
+
+111: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_audio_tests.js" "unavailable"
+111: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #111: efx_audio_tests_unavailable
+
+112: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "compose_camera"
+112: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #112: efx_render_tests_compose_camera
+
+113: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "compose_quad"
+113: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #113: efx_render_tests_compose_quad
+
+114: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "value_snapshot"
+114: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #114: efx_render_tests_value_snapshot
+
+115: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "default_camera_viewport"
+115: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #115: efx_render_tests_default_camera_viewport
+
+116: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "blend_snapshot"
+116: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #116: efx_render_tests_blend_snapshot
+
+117: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "record_budget"
+117: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #117: efx_render_tests_record_budget
+
+118: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "texture_lifecycle"
+118: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #118: efx_render_tests_texture_lifecycle
+
+119: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "texture_queued_handles"
+119: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #119: efx_render_tests_texture_queued_handles
+
+120: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "texture_mipmaps"
+120: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #120: efx_render_tests_texture_mipmaps
+
+121: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "record_fields"
+121: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #121: efx_render_tests_record_fields
+
+122: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "batching"
+122: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #122: efx_render_tests_batching
+
+123: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "meshdata_validation"
+123: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #123: efx_render_tests_meshdata_validation
+
+124: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "meshdata_skinning"
+124: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #124: efx_render_tests_meshdata_skinning
+
+125: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_lifecycle"
+125: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #125: efx_render_tests_mesh_lifecycle
+
+126: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_pending_upload"
+126: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #126: efx_render_tests_mesh_pending_upload
+
+127: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_record_fields"
+127: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #127: efx_render_tests_mesh_record_fields
+
+128: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_record_order"
+128: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #128: efx_render_tests_mesh_record_order
+
+129: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_record_budget"
+129: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #129: efx_render_tests_mesh_record_budget
+
+130: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "lights_state"
+130: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #130: efx_render_tests_lights_state
+
+131: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "light_snapshot"
+131: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #131: efx_render_tests_light_snapshot
+
+132: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "material_binding"
+132: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #132: efx_render_tests_material_binding
+
+133: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "lighting_reference"
+133: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #133: efx_render_tests_lighting_reference
+
+134: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "material_maps"
+134: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #134: efx_render_tests_material_maps
+
+135: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "map_retention"
+135: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #135: efx_render_tests_map_retention
+
+136: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "lighting_maps"
+136: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #136: efx_render_tests_lighting_maps
+
+137: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "render_target_lifecycle"
+137: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #137: efx_render_tests_render_target_lifecycle
+
+138: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "target_deferred_release"
+138: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #138: efx_render_tests_target_deferred_release
+
+139: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "segmentation"
+139: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #139: efx_render_tests_segmentation
+
+140: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "target_redirection"
+140: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #140: efx_render_tests_target_redirection
+
+141: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "feedback_guard"
+141: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #141: efx_render_tests_feedback_guard
+
+142: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "post_registry"
+142: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #142: efx_render_tests_post_registry
+
+143: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "post_fast_path"
+143: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #143: efx_render_tests_post_fast_path
+
+144: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "post_render_scale"
+144: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #144: efx_render_tests_post_render_scale
+
+145: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "post_surface_size"
+145: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #145: efx_render_tests_post_surface_size
+
+146: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "post_user_target_raw"
+146: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #146: efx_render_tests_post_user_target_raw
+
+147: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "skin_bind_local"
+147: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #147: efx_render_tests_skin_bind_local
+
+148: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "skin_sampling"
+148: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #148: efx_render_tests_skin_sampling
+
+149: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "skin_lbs"
+149: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #149: efx_render_tests_skin_lbs
+
+150: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "skin_pose_blend"
+150: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #150: efx_render_tests_skin_pose_blend
+
+151: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_skin_buffers"
+151: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #151: efx_render_tests_mesh_skin_buffers
+
+152: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_pose_repose"
+152: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #152: efx_render_tests_mesh_pose_repose
+
+153: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_skinned_flag"
+153: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #153: efx_render_tests_mesh_skinned_flag
+
+154: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "mesh_skin_lifecycle"
+154: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #154: efx_render_tests_mesh_skin_lifecycle
+
+155: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "billboard_basis"
+155: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #155: efx_render_tests_billboard_basis
+
+156: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "particle_config_validation"
+156: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #156: efx_render_tests_particle_config_validation
+
+157: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "particle_emit_step"
+157: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #157: efx_render_tests_particle_emit_step
+
+158: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "particle_interpolation"
+158: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #158: efx_render_tests_particle_interpolation
+
+159: Test command: /usr/bin/node "/home/devuser/emotion-fx/build-web-golden/efx_render_tests.js" "billboard_record_fields"
+159: Working Directory: /home/devuser/emotion-fx/build-web-golden/tests
+  Test #159: efx_render_tests_billboard_record_fields
+
+Total Tests: 159
