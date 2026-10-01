@@ -373,7 +373,7 @@ static int read_particle_config(JSContext *ctx, JSValueConst opts,
 
     if (pcfg_range(ctx, opts, "lifetime", &c->life_min, &c->life_max) < 0)
         return -1;
-    float f;
+    float f = 0;
     int r;
     if ((r = pcfg_num(ctx, opts, "emissionRate", &f)) < 0) return -1;
     if (r > 0) c->emission_rate = f;
