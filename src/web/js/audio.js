@@ -138,7 +138,9 @@
        resources and marshal normalized forms. */
     var natives = {
         liveSample: liveSample,
-        psProto: EfxParticleSystem.prototype,
+        psProto: function () {
+            return EfxParticleSystem.prototype;
+        },
         createParticleSystemWire: function (wire, texHandle) {
             var ptr = mallocCopyF32(wire);
             var handle = bridge['_efx_bridge_particles_create'](ptr, texHandle);
