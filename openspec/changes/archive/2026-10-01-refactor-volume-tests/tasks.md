@@ -88,5 +88,5 @@
 
 - [x] 8.1 Update `docs/refactoring.md`: mark R0–R7 done, note Checkpoint 1
   and the measured Δ. Verify: no R0–R7 pass is still marked pending.
-- [ ] 8.2 Merge to `main` and push (per `AGENTS.md`), then archive the change
+- [x] 8.2 Merge to `main` and push (per `AGENTS.md`), then archive the change
   (`skip_specs`).
