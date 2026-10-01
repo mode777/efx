@@ -304,12 +304,9 @@ char *efx_resource_read_text(efx_resource *r, const char *path, int *err) {
     return (char *)buf;
 }
 
-int efx_resource_exists(efx_resource *r, const char *path) {
-    size_t size = 0;
-    return efx_resource_size(r, path, &size) == EFX_RESOURCE_OK;
-}
-
-int efx_resource_size(efx_resource *r, const char *path, size_t *out_size) {
+/* Byte size of an entry. Returns EFX_RESOURCE_OK and sets *out_size, or an
+ * error code. */
+static int efx_resource_size(efx_resource *r, const char *path, size_t *out_size) {
     if (!r || !path_is_safe(path)) {
         return EFX_RESOURCE_ERR_PATH;
     }
@@ -319,6 +316,11 @@ int efx_resource_size(efx_resource *r, const char *path, size_t *out_size) {
     }
     efx_resource_free(buf);
     return EFX_RESOURCE_OK;
+}
+
+int efx_resource_exists(efx_resource *r, const char *path) {
+    size_t size = 0;
+    return efx_resource_size(r, path, &size) == EFX_RESOURCE_OK;
 }
 
 void efx_resource_free(void *bytes) {

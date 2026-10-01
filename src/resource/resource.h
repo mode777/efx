@@ -33,10 +33,6 @@ void efx_resource_close(efx_resource *r);
 /* 1 when path is a readable entry under the root, else 0. */
 int efx_resource_exists(efx_resource *r, const char *path);
 
-/* Byte size of an entry. Returns EFX_RESOURCE_OK and sets *out_size, or an
- * error code. */
-int efx_resource_size(efx_resource *r, const char *path, size_t *out_size);
-
 /* Reads an entry into a freshly malloc'd buffer (caller frees with
  * efx_resource_free). On success returns the buffer and sets *out_size (the
  * buffer is NUL-terminated one byte past *out_size for text convenience);
