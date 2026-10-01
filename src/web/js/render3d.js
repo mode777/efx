@@ -132,13 +132,13 @@
                     pPtr, pos.length, nPtr, nrm.length, uPtr, uvs.length,
                     cPtr, cols.length, jPtr, joints.length, wPtr, weights.length,
                     iPtr, idx.length);
-                bridge['_efx_bridge_mem_free'](pPtr);
-                bridge['_efx_bridge_mem_free'](nPtr);
-                bridge['_efx_bridge_mem_free'](uPtr);
-                bridge['_efx_bridge_mem_free'](cPtr);
-                bridge['_efx_bridge_mem_free'](jPtr);
-                bridge['_efx_bridge_mem_free'](wPtr);
-                bridge['_efx_bridge_mem_free'](iPtr);
+                bridge['_free'](pPtr);
+                bridge['_free'](nPtr);
+                bridge['_free'](uPtr);
+                bridge['_free'](cPtr);
+                bridge['_free'](jPtr);
+                bridge['_free'](wPtr);
+                bridge['_free'](iPtr);
                 if (rc !== 0) {
                     bridge['_efx_bridge_meshdata_destroy'](id);
                     throw new RangeError('invalid mesh data');
@@ -169,8 +169,8 @@
                     var mapsptr = mallocCopyF64(mf.maps);
                     bridge['_efx_bridge_meshdata_set_material'](id, mi, mptr,
                                                                 mapsptr, 1);
-                    bridge['_efx_bridge_mem_free'](mptr);
-                    bridge['_efx_bridge_mem_free'](mapsptr);
+                    bridge['_free'](mptr);
+                    bridge['_free'](mapsptr);
                 }
             }
             return new EfxMeshData(id);
@@ -278,7 +278,7 @@
                 if (typeof cv === 'string') {
                     var namePtr = __efxAllocCStr(cv);
                     clipIndex = bridge['_efx_bridge_find_clip'](m.__handle, namePtr);
-                    bridge['_efx_bridge_mem_free'](namePtr);
+                    bridge['_free'](namePtr);
                     if (clipIndex < 0) {
                         throw new Error('unknown clip name');
                     }
@@ -312,7 +312,7 @@
             var ptr = list.length ? mallocCopyF32(wire) : 0;
             var rc = bridge['_efx_bridge_pose_mesh'](m.__handle, ptr, list.length);
             if (ptr) {
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
             }
             if (rc === 2) {
                 throw new TypeError('poseMesh requires a Mesh with a rig');
@@ -420,8 +420,8 @@
             var mapsptr = mallocCopyF64(f.maps);
             bridge['_efx_bridge_mesh_set_material'](m.__handle, index, ptr,
                                                     mapsptr, 1);
-            bridge['_efx_bridge_mem_free'](ptr);
-            bridge['_efx_bridge_mem_free'](mapsptr);
+            bridge['_free'](ptr);
+            bridge['_free'](mapsptr);
         },
     };
 

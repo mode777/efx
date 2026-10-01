@@ -4,7 +4,7 @@
             }
             var p = __efxAllocCStr(path);
             var id = bridge['_efx_bridge_load_fontdata'](p);
-            bridge['_efx_bridge_mem_free'](p);
+            bridge['_free'](p);
             if (!id) {
                 throw new Error('font could not be loaded');
             }
@@ -44,7 +44,7 @@
             if (opts.padding !== undefined) {
                 var pv = __efxFinite(opts.padding, 'padding must be a finite number');
                 if (pv < 0 || pv !== Math.floor(pv)) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new RangeError('padding must be a non-negative integer');
                 }
                 padding = pv | 0;
@@ -56,31 +56,31 @@
                 } else if (opts.filter === 'nearest') {
                     filter = 0;
                 } else {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError("filter must be 'linear' or 'nearest'");
                 }
             }
             var hasOutline = 0, outlineWidth = 0;
             if (opts.outline !== undefined && opts.outline !== null) {
                 if (!__efxIsObject(opts.outline)) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('outline must be an object or null');
                 }
                 var oKnown = { width: 1 };
                 try {
                     __efxCheckKnown(opts.outline, oKnown, 'outline');
                 } catch (e) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw e;
                 }
                 if (opts.outline.width === undefined) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('outline requires a numeric width');
                 }
                 outlineWidth = __efxFinite(opts.outline.width,
                                            'outline width must be a finite number');
                 if (!(outlineWidth > 0)) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new RangeError('outline width must be > 0');
                 }
                 hasOutline = 1;
@@ -88,24 +88,24 @@
             var hasShadow = 0, shadowBlur = 0, offX = 0, offY = 0;
             if (opts.shadow !== undefined && opts.shadow !== null) {
                 if (!__efxIsObject(opts.shadow)) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('shadow must be an object or null');
                 }
                 var sKnown = { blur: 1, offset: 1 };
                 try {
                     __efxCheckKnown(opts.shadow, sKnown, 'shadow');
                 } catch (e) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw e;
                 }
                 if (opts.shadow.blur === undefined) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('shadow requires a numeric blur');
                 }
                 shadowBlur = __efxFinite(opts.shadow.blur,
                                          'shadow blur must be a finite number');
                 if (!(shadowBlur > 0)) {
-                    if (glyphsPtr) { bridge['_efx_bridge_mem_free'](glyphsPtr); }
+                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new RangeError('shadow blur must be > 0');
                 }
                 if (opts.shadow.offset !== undefined) {
@@ -119,7 +119,7 @@
                 fontData.__id, size, glyphsPtr, padding, filter, hasOutline,
                 outlineWidth, hasShadow, shadowBlur, offX, offY);
             if (glyphsPtr) {
-                bridge['_efx_bridge_mem_free'](glyphsPtr);
+                bridge['_free'](glyphsPtr);
             }
             if (!id) {
                 throw new Error('font could not be baked');
@@ -142,11 +142,11 @@
             var rc = bridge['_efx_bridge_text_measure'](
                 tptr, font.__id, lo.align, lo.valign, lo.hasWidth, lo.width,
                 lo.hasLh, lo.lh, lo.scale, lo.rotation, optr);
-            bridge['_efx_bridge_mem_free'](tptr);
+            bridge['_free'](tptr);
             var b = { width: HEAPF32[optr >> 2],
                       height: HEAPF32[(optr >> 2) + 1],
                       lines: HEAPF32[(optr >> 2) + 2] };
-            bridge['_efx_bridge_mem_free'](optr);
+            bridge['_free'](optr);
             if (rc !== 0) {
                 __efxTextError(rc);
             }
@@ -179,11 +179,11 @@
                 color[0], color[1], color[2], color[3],
                 oc[0], oc[1], oc[2], oc[3],
                 sc[0], sc[1], sc[2], sc[3], optr);
-            bridge['_efx_bridge_mem_free'](tptr);
+            bridge['_free'](tptr);
             var b = { width: HEAPF32[optr >> 2],
                       height: HEAPF32[(optr >> 2) + 1],
                       lines: HEAPF32[(optr >> 2) + 2] };
-            bridge['_efx_bridge_mem_free'](optr);
+            bridge['_free'](optr);
             if (rc !== 0) {
                 __efxTextError(rc);
             }

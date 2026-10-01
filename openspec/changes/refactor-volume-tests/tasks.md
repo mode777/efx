@@ -63,7 +63,7 @@
   their declarations, honoring the D7 exclusions. One commit per module.
   Delete any function the compiler reports as unused. Verify per commit: V1,
   plus `nm` (E3) showing removals only.
-- [ ] 6.3 (R7) Delete the inner `__efxAllocCStr` and merge
+- [x] 6.3 (R7) Delete the inner `__efxAllocCStr` and merge
   `__physNumber`/`__efxAudioNum` into `__efxFiniteNumber` in `core.js`.
   Switch every `bridge['_efx_bridge_mem_free']` call to `bridge['_free']` and
   delete `efx_bridge_mem_free` from `bridge_render2d.c` (D8). Verify:

@@ -48,10 +48,6 @@ EMSCRIPTEN_KEEPALIVE uint8_t *efx_bridge_imagedata_alloc(int bytes) {
     return (uint8_t *)malloc((size_t)bytes);
 }
 
-EMSCRIPTEN_KEEPALIVE void efx_bridge_mem_free(void *p) {
-    free(p);
-}
-
 EMSCRIPTEN_KEEPALIVE int efx_bridge_imagedata_commit(int w, int h, uint8_t *pixels) {
     if (IMG.count >= IMG.cap) {
         int cap = IMG.cap ? IMG.cap * 2 : 64;

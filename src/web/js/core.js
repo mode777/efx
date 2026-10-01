@@ -45,6 +45,13 @@ function __efxAllocCStr(s) {
     return ptr;
 }
 
+function __efxFiniteNumber(v, what) {
+    if (typeof v !== 'number' || !isFinite(v)) {
+        throw new TypeError(what + ' must be a finite number');
+    }
+    return v;
+}
+
 function __efxReportError(e) {
     var msg = (e && typeof e.message === 'string') ? e.message : null;
     var printed = null;
@@ -155,7 +162,7 @@ function __efxGamepadView(slot) {
         }
         var p = __efxAllocCStr(name);
         var id = bridge['_efx_bridge_gamepad_button_id'](p);
-        bridge['_efx_bridge_mem_free'](p);
+        bridge['_free'](p);
         if (id < 0) {
             throw new TypeError('unknown gamepad button');
         }
@@ -167,7 +174,7 @@ function __efxGamepadView(slot) {
         }
         var p = __efxAllocCStr(name);
         var id = bridge['_efx_bridge_gamepad_axis_id'](p);
-        bridge['_efx_bridge_mem_free'](p);
+        bridge['_free'](p);
         if (id < 0) {
             throw new TypeError('unknown gamepad axis');
         }
@@ -780,14 +787,6 @@ function __efxEnsureApi() {
         return ptr;
     }
 
-    /* allocate a NUL-terminated UTF-8 copy of a JS string in wasm memory */
-    function __efxAllocCStr(s) {
-        var len = lengthBytesUTF8(s) + 1;
-        var ptr = bridge['_malloc'](len);
-        stringToUTF8(s, ptr, len);
-        return ptr;
-    }
-
 
     /* F5b: parse one post-effect chain entry into the 9-float wire layout
        (desktop parity: unknown field -> TypeError, non-number -> TypeError,
@@ -1276,7 +1275,7 @@ function __efxEnsureApi() {
                 var ptr = mallocCopyF32(parsed.wire);
                 var rc = bridge['_efx_bridge_particles_set'](this.__handle, ptr,
                                                              parsed.texture);
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
                 if (rc !== 0) {
                     throw new RangeError('invalid particle configuration');
                 }

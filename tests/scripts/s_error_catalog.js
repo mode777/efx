@@ -401,7 +401,7 @@ C('12.shapecast-noopts', function () { efx.physics.shapeCast(); });
 C('12.step-nodt', function () { efx.physics.step(); });
 C('12.dt-nonfinite', function () { efx.physics.step(Infinity); });
 /* coercion probe (docs/refactoring.md section 4.1): desktop `phys_opt_number`
- * runs JS_ToFloat64 (coerces '0.5'), web `__physNumber` requires a number. */
+ * runs JS_ToFloat64 (coerces '0.5'), web `__efxFiniteNumber` requires a number. */
 C('coercion.phys-number-string', function () {
     efx.physics.createBody({ shape: { type: 'sphere', radius: 1 }, friction: '0.5' });
 });

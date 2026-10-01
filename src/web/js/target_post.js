@@ -78,7 +78,7 @@
             var ptr = wire.length ? mallocCopyF32(wire) : 0;
             var rc = bridge['_efx_bridge_set_post_effects'](ptr, list.length);
             if (ptr) {
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
             }
             if (rc === 1) {
                 throw new TypeError('unknown post effect');

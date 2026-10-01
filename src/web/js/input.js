@@ -17,7 +17,7 @@
         }
         var p = __efxAllocCStr(name);
         var id = bridge['_efx_bridge_key_id'](p);
-        bridge['_efx_bridge_mem_free'](p);
+        bridge['_free'](p);
         if (id < 0) {
             throw new TypeError('unknown key');
         }
@@ -29,7 +29,7 @@
         }
         var p = __efxAllocCStr(name);
         var id = bridge['_efx_bridge_button_id'](p);
-        bridge['_efx_bridge_mem_free'](p);
+        bridge['_free'](p);
         if (id < 0) {
             throw new TypeError('unknown mouse button');
         }

@@ -17,12 +17,6 @@
         }
         return out;
     }
-    function __efxAudioNum(v, name) {
-        if (typeof v !== 'number' || !isFinite(v)) {
-            throw new TypeError(name + ' must be a finite number');
-        }
-        return v;
-    }
 
     var EfxAudioData = __efxResourceClass('EfxAudioData', {
         init: function (id) {
@@ -85,7 +79,7 @@
                 raw: true,
                 get: function () { return this.__volume; },
                 set: function (v) {
-                    var n = __efxAudioNum(v, 'volume');
+                    var n = __efxFiniteNumber(v, 'volume');
                     if (n < 0) throw new RangeError('volume must be a non-negative number');
                     this.__volume = n;
                     bridge['_efx_bridge_audio_handle_set_volume'](this.__id, n);
@@ -95,7 +89,7 @@
                 raw: true,
                 get: function () { return this.__pan; },
                 set: function (v) {
-                    var n = __efxAudioNum(v, 'pan');
+                    var n = __efxFiniteNumber(v, 'pan');
                     this.__pan = n;
                     bridge['_efx_bridge_audio_handle_set_pan'](this.__id, n);
                 },
@@ -104,7 +98,7 @@
                 raw: true,
                 get: function () { return this.__pitch; },
                 set: function (v) {
-                    var n = __efxAudioNum(v, 'pitch');
+                    var n = __efxFiniteNumber(v, 'pitch');
                     if (n <= 0) throw new RangeError('pitch must be a positive number');
                     this.__pitch = n;
                     bridge['_efx_bridge_audio_handle_set_pitch'](this.__id, n);
@@ -125,12 +119,12 @@
         var o = __efxAudioOpts(opts, ['volume', 'pan', 'pitch', 'loop'],
                                'playAudio');
         var volume = (o.volume === undefined) ? 1
-            : __efxAudioNum(o.volume, 'volume');
+            : __efxFiniteNumber(o.volume, 'volume');
         if (volume < 0) {
             throw new RangeError('volume must be a non-negative number');
         }
-        var pan = (o.pan === undefined) ? 0 : __efxAudioNum(o.pan, 'pan');
-        var pitch = (o.pitch === undefined) ? 1 : __efxAudioNum(o.pitch, 'pitch');
+        var pan = (o.pan === undefined) ? 0 : __efxFiniteNumber(o.pan, 'pan');
+        var pitch = (o.pitch === undefined) ? 1 : __efxFiniteNumber(o.pitch, 'pitch');
         if (pitch <= 0) pitch = 1;
         var loop = o.loop ? 1 : 0;
         var id = playFn(src.__id, volume, pan, pitch, loop);
@@ -145,7 +139,7 @@
             }
             var p = __efxAllocCStr(path);
             var id = bridge['_efx_bridge_audio_load_data'](p);
-            bridge['_efx_bridge_mem_free'](p);
+            bridge['_free'](p);
             if (!id) {
                 throw new Error('cannot decode audio: ' + path);
             }
@@ -157,7 +151,7 @@
             }
             var p = __efxAllocCStr(path);
             var id = bridge['_efx_bridge_audio_load_stream'](p);
-            bridge['_efx_bridge_mem_free'](p);
+            bridge['_free'](p);
             if (!id) {
                 throw new Error('cannot decode audio: ' + path);
             }
@@ -185,7 +179,7 @@
             return bridge['_efx_bridge_audio_master_volume']();
         },
         set: function (v) {
-            var n = __efxAudioNum(v, 'volume');
+            var n = __efxFiniteNumber(v, 'volume');
             if (n < 0) throw new RangeError('volume must be a non-negative number');
             bridge['_efx_bridge_audio_set_master_volume'](n);
         },

@@ -4,12 +4,12 @@
             }
             var p = __efxAllocCStr(path);
             var ptr = bridge['_efx_bridge_load_text'](p);
-            bridge['_efx_bridge_mem_free'](p);
+            bridge['_free'](p);
             if (!ptr) {
                 throw new Error('resource not found');
             }
             var s = UTF8ToString(ptr);
-            bridge['_efx_bridge_mem_free'](ptr);
+            bridge['_free'](ptr);
             return s;
         },
         loadImage: function (path) {
@@ -18,7 +18,7 @@
             }
             var p = __efxAllocCStr(path);
             var id = bridge['_efx_bridge_load_image'](p);
-            bridge['_efx_bridge_mem_free'](p);
+            bridge['_free'](p);
             if (!id) {
                 throw new Error('image decode failed');
             }
@@ -80,14 +80,14 @@
             var pathPtr = __efxAllocCStr(path);
             if (opts !== undefined && opts !== null) {
                 if (!__efxIsObject(opts)) {
-                    bridge['_efx_bridge_mem_free'](pathPtr);
+                    bridge['_free'](pathPtr);
                     throw new TypeError('loadMeshData options must be an object');
                 }
                 var known = { mesh: 1 };
                 try {
                     __efxCheckKnown(opts, known, 'loadMeshData');
                 } catch (e) {
-                    bridge['_efx_bridge_mem_free'](pathPtr);
+                    bridge['_free'](pathPtr);
                     throw e;
                 }
                 if (opts['mesh'] !== undefined) {
@@ -100,16 +100,16 @@
                                mv === Math.floor(mv) && mv >= 0) {
                         index = mv | 0;
                     } else {
-                        bridge['_efx_bridge_mem_free'](pathPtr);
+                        bridge['_free'](pathPtr);
                         throw new TypeError('mesh must be a non-negative integer or a name');
                     }
                 }
             }
             var id = bridge['_efx_bridge_load_meshdata'](pathPtr, hasMesh, isName,
                                                          index, namePtr);
-            bridge['_efx_bridge_mem_free'](pathPtr);
+            bridge['_free'](pathPtr);
             if (namePtr) {
-                bridge['_efx_bridge_mem_free'](namePtr);
+                bridge['_free'](namePtr);
             }
             if (!id) {
                 throw new Error('glTF import failed');

@@ -172,8 +172,8 @@
                 size[0], size[1], color[0], color[1], color[2], color[3],
                 rotation, facing, nPtr, depth, src[0], src[1], src[2], src[3],
                 hasSrc);
-            bridge['_efx_bridge_mem_free'](pPtr);
-            bridge['_efx_bridge_mem_free'](nPtr);
+            bridge['_free'](pPtr);
+            bridge['_free'](nPtr);
             if (rc === 1) {
                 throw new RangeError('display list budget exceeded');
             }
@@ -220,7 +220,7 @@
             var parsed = __efxParticleWire(opts);
             var ptr = mallocCopyF32(parsed.wire);
             var handle = bridge['_efx_bridge_particles_create'](ptr, parsed.texture);
-            bridge['_efx_bridge_mem_free'](ptr);
+            bridge['_free'](ptr);
             if (!handle) {
                 throw new RangeError('invalid particle configuration');
             }

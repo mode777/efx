@@ -125,14 +125,14 @@
                     throw new TypeError('pixels must be an array or typed array');
                 }
             } catch (e) {
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
                 throw e;
             }
             var fmt = opts['format'];
             if (fmt !== undefined) {
                 var fs = __efxCStr(fmt);
                 if (fs === null || fs !== 'rgba8') {
-                    bridge['_efx_bridge_mem_free'](ptr);
+                    bridge['_free'](ptr);
                     throw new RangeError("unsupported image format (only 'rgba8')");
                 }
             }
@@ -145,12 +145,12 @@
                 }
             }
             if (unknown !== null) {
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
                 throw new TypeError("unknown option '" + unknown + "'");
             }
             var id = bridge['_efx_bridge_imagedata_commit'](w, h, ptr);
             if (!id) {
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
                 throw new Error('out of memory');
             }
             return new EfxImageData(id);

@@ -71,7 +71,7 @@ function __efxResolveAssets() {
         FS.writeFile('__efx_assets.zip', new Uint8Array(buf));
         var p = __efxAllocCStr('__efx_assets.zip');
         var ok = Module['_efx_bridge_set_root'](p);
-        Module['_efx_bridge_mem_free'](p);
+        Module['_free'](p);
         if (!ok) {
             throw new Error('asset archive could not be opened');
         }
@@ -177,13 +177,13 @@ function __efxEvaluateEntry() {
            identically (F6a) */
         var mp = __efxAllocCStr('main.js');
         var mptr = Module['_efx_bridge_load_text'](mp);
-        Module['_efx_bridge_mem_free'](mp);
+        Module['_free'](mp);
         if (!mptr) {
             __efxFail('player: no main.js in resource root: ' + root);
             return;
         }
         code = UTF8ToString(mptr);
-        Module['_efx_bridge_mem_free'](mptr);
+        Module['_free'](mptr);
     }
     var res;
     try {

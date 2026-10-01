@@ -1,9 +1,3 @@
-    function __physNumber(v, what) {
-        if (typeof v !== 'number' || !isFinite(v)) {
-            throw new TypeError(what + ' must be a finite number');
-        }
-        return v;
-    }
     function __physMask(v, what) {
         if (typeof v !== 'number' || !isFinite(v) || Math.floor(v) !== v ||
             v < 0 || v > 4294967295) {
@@ -57,7 +51,7 @@
         var base = ptr >> 2;
         fn(handle, ptr);
         var out = [HEAPF32[base], HEAPF32[base + 1], HEAPF32[base + 2]];
-        bridge['_efx_bridge_mem_free'](ptr);
+        bridge['_free'](ptr);
         return out;
     }
 
@@ -137,7 +131,7 @@
                                 impulse: HEAPF64[base + 7],
                             });
                         }
-                        bridge['_efx_bridge_mem_free'](ptr);
+                        bridge['_free'](ptr);
                     }
                     return out;
                 },
@@ -163,7 +157,7 @@
                 var base = ptr >> 3;
                 if (!bridge['_efx_bridge_physics_character_move'](
                         this.__handle, m[0], m[1], m[2], ptr)) {
-                    bridge['_efx_bridge_mem_free'](ptr);
+                    bridge['_free'](ptr);
                     throw new TypeError('moveAndSlide failed');
                 }
                 var pos = [HEAPF64[base], HEAPF64[base + 1], HEAPF64[base + 2]];
@@ -184,7 +178,7 @@
                         point: [HEAPF64[base + 4], HEAPF64[base + 5], HEAPF64[base + 6]],
                     });
                 }
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
                 return {
                     position: pos, onFloor: onFloor, onWall: onWall,
                     onCeiling: onCeiling, floorNormal: fn, collisions: cols,
@@ -223,10 +217,10 @@
     function __physBodyCommonOpts(opts) {
         var sensor = opts.sensor === undefined ? false : !!opts.sensor;
         var friction = opts.friction === undefined ? 0.5
-                                                   : __physNumber(opts.friction, 'friction');
+                                                   : __efxFiniteNumber(opts.friction, 'friction');
         var restitution = opts.restitution === undefined
                               ? 0
-                              : __physNumber(opts.restitution, 'restitution');
+                              : __efxFiniteNumber(opts.restitution, 'restitution');
         if (friction < 0) {
             throw new RangeError('friction must not be negative');
         }
@@ -260,7 +254,7 @@
             var sh = __physShape(opts.shape);
             var dynamic = !!opts.dynamic;
             var mass = opts.mass === undefined ? 1
-                                               : __physNumber(opts.mass, 'mass');
+                                               : __efxFiniteNumber(opts.mass, 'mass');
             if (dynamic && !(mass > 0)) {
                 throw new RangeError('dynamic bodies require a positive mass');
             }
@@ -336,19 +330,19 @@
             }
             var floorMaxAngle = opts.floorMaxAngle === undefined
                                     ? 45
-                                    : __physNumber(opts.floorMaxAngle, 'floorMaxAngle');
+                                    : __efxFiniteNumber(opts.floorMaxAngle, 'floorMaxAngle');
             var snap = opts.floorSnapLength === undefined
                            ? 0.1
-                           : __physNumber(opts.floorSnapLength, 'floorSnapLength');
+                           : __efxFiniteNumber(opts.floorSnapLength, 'floorSnapLength');
             var step = opts.stepHeight === undefined
                            ? 0.3
-                           : __physNumber(opts.stepHeight, 'stepHeight');
+                           : __efxFiniteNumber(opts.stepHeight, 'stepHeight');
             var safe = opts.safeMargin === undefined
                            ? 0.001
-                           : __physNumber(opts.safeMargin, 'safeMargin');
+                           : __efxFiniteNumber(opts.safeMargin, 'safeMargin');
             var maxSlides = opts.maxSlides === undefined
                                 ? 6
-                                : __physNumber(opts.maxSlides, 'maxSlides');
+                                : __efxFiniteNumber(opts.maxSlides, 'maxSlides');
             if (!(maxSlides >= 1) || Math.floor(maxSlides) !== maxSlides) {
                 throw new RangeError('maxSlides must be a positive integer');
             }
@@ -430,7 +424,7 @@
                     distance: HEAPF64[b0 + 6], body: body,
                 });
             }
-            bridge['_efx_bridge_mem_free'](ptr);
+            bridge['_free'](ptr);
             return all ? out : out[0];
         },
         overlap: function (shape, opts) {
@@ -472,7 +466,7 @@
                     }
                 }
             }
-            bridge['_efx_bridge_mem_free'](ptr);
+            bridge['_free'](ptr);
             return out;
         },
         shapeCast: function (shape, from, motion, opts) {
@@ -494,7 +488,7 @@
                 sh.t, sh.r, sh.hx, sh.hy, sh.hz, sh.height, meshHandle, f[0],
                 f[1], f[2], m[0], m[1], m[2], mask, sensors ? 1 : 0, ptr);
             if (!rc) {
-                bridge['_efx_bridge_mem_free'](ptr);
+                bridge['_free'](ptr);
                 return null;
             }
             var body = null;
@@ -508,7 +502,7 @@
                 normal: [HEAPF64[base + 3], HEAPF64[base + 4], HEAPF64[base + 5]],
                 fraction: HEAPF64[base + 6], body: body,
             };
-            bridge['_efx_bridge_mem_free'](ptr);
+            bridge['_free'](ptr);
             return out;
         },
     };

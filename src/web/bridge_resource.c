@@ -23,8 +23,8 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_set_root(const char *path) {
     return W.resource ? 1 : 0;
 }
 
-/* Returns a malloc'd NUL-terminated string the JS side frees with
- * _efx_bridge_mem_free, or NULL on failure. */
+/* Returns a malloc'd NUL-terminated string the JS side frees with _free, or
+ * NULL on failure. */
 EMSCRIPTEN_KEEPALIVE const char *efx_bridge_load_text(const char *path) {
     if (!W.resource) {
         return NULL;
