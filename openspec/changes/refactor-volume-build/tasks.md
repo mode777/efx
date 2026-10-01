@@ -101,8 +101,12 @@
   golden build runs on the server as part of V4, this container has no
   display. Volume Δ (E4): 39 439 → 39 349 non-blank lines, −90 for
   code+tools; plus AGENTS.md 569 → 268 lines, −301, outside the E4 paths.)
-- [ ] 7.2 Push and run V4
+- [x] 7.2 Push and run V4
   (`python3 tools/verify_remote.py all refactor-volume-build`). Verify: green.
+  (All three suites passed: native 298/298 incl. all golden scenes under
+  Xvfb+llvmpipe, web goldens, gallery smoke. The Emscripten ctest (159/159),
+  web harness and cross-runtime compare were additionally run on the server
+  during R18/R19.)
 - [ ] 7.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-build`)
   in the order Linux → Windows → macOS. Verify: green; record the run id.
 
