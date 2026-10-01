@@ -99,11 +99,11 @@
 
 ## 8. Checkpoint 2 verification
 
-- [ ] 8.1 Run the full local suite: V2 and V3. Confirm
+- [x] 8.1 Run the full local suite: V2 and V3. Confirm
   `s_error_catalog.expected.txt` is unchanged and the ctest inventory equals
   the post-`refactor-volume-tests` inventory plus `destroy_no_pending_exception`.
   Record the volume Δ (E4).
-- [ ] 8.2 Push and run V4
+- [x] 8.2 Push and run V4
   (`python3 tools/verify_remote.py all refactor-volume-core`). Verify: green.
 - [ ] 8.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-core`)
   in the order Linux → Windows → **macOS** (required for R16). Verify: green;

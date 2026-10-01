@@ -324,5 +324,26 @@ a call with its current policy and message.
 - **Local V4 note.** The first `run_web_goldens.mjs` run after rebuilding
   `player_web_golden` failed one scene twice. An immediate rerun passed every
   time, so it looks like a local cold-start effect, not a regression.
+- **Checkpoint 2 (local, 8.1).** V1 191/191 and V2 298/298 (all goldens,
+  Windows/D3D11): the post-`refactor-volume-tests` inventories (190/297) plus
+  `destroy_no_pending_exception`. Emscripten ctest 159/159, unchanged because
+  the new case is desktop-only. `gen_prelude.py --check` is current,
+  `docs/api` is unchanged, and `s_error_catalog.expected.txt` is
+  byte-identical to `c39dce1`. E4 volume: 40 062 → 39 439 (**−623**,
+  estimate −880). The shortfall comes from three things: the new regression
+  case (+55); only 10 web rc ladders instead of 27; and explicit
+  `EFX_WEB_CORE_EXPORTS` and policy arguments at each call site.
+- **V4 replaced by local runs (8.2).** No SSH server was available, so every
+  V4 suite ran on the Windows workstation at `fbdd914`, as in
+  `refactor-volume-tests` 7.2:
+  - native ctest incl. goldens;
+  - Emscripten ctest (local emsdk 5.0.5);
+  - `run_web_compare.mjs`;
+  - all web goldens and `run_web_harness.mjs` (chrome-headless-shell 131);
+  - `test_web_override.mjs` and `test_web_assets.mjs`;
+  - the gallery build and `run_gallery_smoke.mjs`, including click-to-focus
+    key delivery (ADR 0043).
+
+  All green. `check_exports.mjs` reports 0/0.
 
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->
