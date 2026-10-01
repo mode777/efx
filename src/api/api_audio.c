@@ -259,7 +259,7 @@ const JSCFunctionListEntry audio_proto_funcs[] = {
 
 /* ---- namespace entry points ---- */
 
-JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
+static JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
                                    int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
@@ -289,7 +289,7 @@ JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
 }
 
 
-JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val,
+static JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val,
                                      int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
@@ -320,7 +320,7 @@ JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val,
 }
 
 
-JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int argc,
+static JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int argc,
                                JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
@@ -421,7 +421,7 @@ static JSValue efx_js_audio_set_master(JSContext *ctx, JSValueConst this_val,
 }
 
 
-JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc,
+static JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc,
                             JSValueConst *argv) {
     (void)ctx;
     (void)this_val;

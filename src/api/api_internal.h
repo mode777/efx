@@ -205,16 +205,12 @@ extern int efx_api_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key, f
 extern void efx_api_physics_release_wrappers(JSContext *ctx);
 extern JSValue efx_api_plain_error(JSContext *ctx, const char *msg);
 extern JSValue efx_api_range_error(JSContext *ctx, const char *msg);
-extern int efx_api_read_channel_color(JSContext *ctx, JSValueConst channel, const char *name, float out[4]);
 extern int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len, efx_elem_policy policy, const char *msg_numbers, const char *msg_finite, const char *msg_int, void (*sink)(void *, int32_t, double), void *ud);
 extern int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out);
-extern int efx_api_read_material_map(JSContext *ctx, JSValueConst ch, const char *name, uint64_t *out);
 extern int efx_api_read_number_array(JSContext *ctx, JSValueConst v, float **out, int *out_len, const char *what);
 extern int efx_api_read_source_rect(JSContext *ctx, uint64_t tex, JSValueConst srcv, float src[4], int *has_src);
 extern int efx_api_read_vec3(JSContext *ctx, JSValueConst v, float out[3], const char *what);
 extern JSValue efx_api_register_hook(JSContext *ctx, JSValueConst fn, int which);
-extern void efx_api_sink_float(void *ud, int32_t i, double d);
-extern void efx_api_sink_float_cap3(void *ud, int32_t i, double d);
 extern void efx_api_sink_u32(void *ud, int32_t i, double d);
 extern JSValue efx_api_target_call_error(JSContext *ctx, int rc);
 extern JSValue efx_api_type_error(JSContext *ctx, const char *msg);

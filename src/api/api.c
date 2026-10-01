@@ -126,12 +126,12 @@ JSValue efx_js_registerRenderHook(JSContext *ctx, JSValueConst this_val,
 }
 
 
-void efx_api_sink_float(void *ud, int32_t i, double d) {
+static void efx_api_sink_float(void *ud, int32_t i, double d) {
     ((float *)ud)[i] = (float)d;
 }
 
 
-void efx_api_sink_float_cap3(void *ud, int32_t i, double d) {
+static void efx_api_sink_float_cap3(void *ud, int32_t i, double d) {
     if (i < 3) {
         ((float *)ud)[i] = (float)d;
     }
@@ -1287,7 +1287,7 @@ int efx_api_read_source_rect(JSContext *ctx, uint64_t tex, JSValueConst srcv,
 
 
 /* parse one Phong channel color: required 4-element array */
-int efx_api_read_channel_color(JSContext *ctx, JSValueConst channel,
+static int efx_api_read_channel_color(JSContext *ctx, JSValueConst channel,
                               const char *name, float out[4]) {
     JSValue cv = JS_GetPropertyStr(ctx, channel, "color");
     if (JS_IsUndefined(cv)) {
@@ -1303,7 +1303,7 @@ int efx_api_read_channel_color(JSContext *ctx, JSValueConst channel,
 
 /* parse a material map field (present = live Texture or RenderTarget, F5a;
  * null/omitted = none) */
-int efx_api_read_material_map(JSContext *ctx, JSValueConst ch, const char *name,
+static int efx_api_read_material_map(JSContext *ctx, JSValueConst ch, const char *name,
                              uint64_t *out) {
     JSValue mv = JS_GetPropertyStr(ctx, ch, "map");
     if (JS_IsUndefined(mv) || JS_IsNull(mv)) {
