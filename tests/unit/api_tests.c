@@ -2,7 +2,7 @@
  * Headless JS-API tests for the F2 2D layer: installs a mock GPU sink,
  * runs the real quickjs runtime + api bindings, and asserts semantics by
  * driving JS snippets and inspecting the display list from C.
- * Usage: efx_api_tests <case> ; exit 0 = pass.
+ * Usage: efx_api_tests [<case>] ; exit 0 = pass.
  */
 #include "render/render.h"
 #include "resource/resource.h"
@@ -10,9 +10,9 @@
 #include "input/input.h"
 #include "input/gamepad.h"
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+
+#include "../test_support.h"
 
 #ifndef EFX_RES_FIXTURES
 #define EFX_RES_FIXTURES "tests/fixtures/resource"
@@ -26,11 +26,6 @@
 #ifndef EFX_AUDIO_FIXTURES
 #define EFX_AUDIO_FIXTURES "tests/fixtures/audio"
 #endif
-
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
 
 #define GLTF_SEQ_MAX 8
 static int g_seq_wrap[GLTF_SEQ_MAX];
@@ -105,10 +100,6 @@ static int rec_count(void) {
     int n = 0;
     efx_render_records(&n);
     return n;
-}
-
-static int feq(float a, float b) {
-    return (a - b) < 0.001f && (b - a) < 0.001f;
 }
 
 /* white texture: exists, stable identity, destroy() throws */
@@ -1977,50 +1968,47 @@ static int physics_js(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(white),
+    EFX_CASE(quad_record),
+    EFX_CASE(size_derivation),
+    EFX_CASE(origin_pivot),
+    EFX_CASE(quad_validation),
+    EFX_CASE(texture_size_getters),
+    EFX_CASE(camera_snapshot),
+    EFX_CASE(src_oob),
+    EFX_CASE(budget),
+    EFX_CASE(texture_lifecycle),
+    EFX_CASE(blend_snapshot),
+    EFX_CASE(default_camera),
+    EFX_CASE(clear_color_js),
+    EFX_CASE(hooks_registration),
+    EFX_CASE(meshdata_js),
+    EFX_CASE(meshdata_cap_js),
+    EFX_CASE(mesh_js),
+    EFX_CASE(camera3d_js),
+    EFX_CASE(f4a_js),
+    EFX_CASE(f4b_js),
+    EFX_CASE(f5a_js),
+    EFX_CASE(f5b_js),
+    EFX_CASE(resource_js),
+    EFX_CASE(createTexture_js),
+    EFX_CASE(font_js),
+    EFX_CASE(gltf_js),
+    EFX_CASE(skin_js),
+    EFX_CASE(pose_js),
+    EFX_CASE(repl_eval),
+    EFX_CASE(input_js),
+    EFX_CASE(gamepad_js),
+    EFX_CASE(module_js),
+    EFX_CASE(module_hooks_js),
+    EFX_CASE(billboard_js),
+    EFX_CASE(particles_js),
+    EFX_CASE(sprites_js),
+    EFX_CASE(physics_js),
+    EFX_CASE(audio_js),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_api_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "white")) return white();
-    if (!strcmp(c, "quad_record")) return quad_record();
-    if (!strcmp(c, "size_derivation")) return size_derivation();
-    if (!strcmp(c, "origin_pivot")) return origin_pivot();
-    if (!strcmp(c, "quad_validation")) return quad_validation();
-    if (!strcmp(c, "texture_size_getters")) return texture_size_getters();
-    if (!strcmp(c, "camera_snapshot")) return camera_snapshot();
-    if (!strcmp(c, "src_oob")) return src_oob();
-    if (!strcmp(c, "budget")) return budget();
-    if (!strcmp(c, "texture_lifecycle")) return texture_lifecycle();
-    if (!strcmp(c, "blend_snapshot")) return blend_snapshot();
-    if (!strcmp(c, "default_camera")) return default_camera();
-    if (!strcmp(c, "clear_color_js")) return clear_color_js();
-    if (!strcmp(c, "hooks_registration")) return hooks_registration();
-    if (!strcmp(c, "meshdata_js")) return meshdata_js();
-    if (!strcmp(c, "meshdata_cap_js")) return meshdata_cap_js();
-    if (!strcmp(c, "mesh_js")) return mesh_js();
-    if (!strcmp(c, "camera3d_js")) return camera3d_js();
-    if (!strcmp(c, "f4a_js")) return f4a_js();
-    if (!strcmp(c, "f4b_js")) return f4b_js();
-    if (!strcmp(c, "f5a_js")) return f5a_js();
-    if (!strcmp(c, "f5b_js")) return f5b_js();
-    if (!strcmp(c, "resource_js")) return resource_js();
-    if (!strcmp(c, "createTexture_js")) return createTexture_js();
-    if (!strcmp(c, "font_js")) return font_js();
-    if (!strcmp(c, "gltf_js")) return gltf_js();
-    if (!strcmp(c, "skin_js")) return skin_js();
-    if (!strcmp(c, "pose_js")) return pose_js();
-    if (!strcmp(c, "repl_eval")) return repl_eval();
-    if (!strcmp(c, "input_js")) return input_js();
-    if (!strcmp(c, "gamepad_js")) return gamepad_js();
-    if (!strcmp(c, "module_js")) return module_js();
-    if (!strcmp(c, "module_hooks_js")) return module_hooks_js();
-    if (!strcmp(c, "billboard_js")) return billboard_js();
-    if (!strcmp(c, "particles_js")) return particles_js();
-    if (!strcmp(c, "sprites_js")) return sprites_js();
-    if (!strcmp(c, "physics_js")) return physics_js();
-    if (!strcmp(c, "audio_js")) return audio_js();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }

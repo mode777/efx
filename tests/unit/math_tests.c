@@ -1,22 +1,12 @@
 /*
  * Headless unit tests for the GLM wrapper (efx_math, ADR 0005) and the
  * F3 camera/MVP composition contract (design D3/D7).
- * Usage: efx_math_tests <case-name> ; exit 0 = pass.
+ * Usage: efx_math_tests [<case-name>] ; exit 0 = pass.
  */
 #include "math/efx_math.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
-
-static int feq(float a, float b) {
-    return fabsf(a - b) < 0.0001f;
-}
+#define EFX_TEST_FEQ_EPS 0.0001f
+#include "../test_support.h"
 
 static int m16eq(const float *a, const float *b) {
     for (int i = 0; i < 16; i++) {
@@ -207,20 +197,17 @@ static int mvp_compose(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(identity),
+    EFX_CASE(perspective_values),
+    EFX_CASE(ortho_values),
+    EFX_CASE(look_at_values),
+    EFX_CASE(mul_order),
+    EFX_CASE(translate_rotate_scale),
+    EFX_CASE(vec3_ops),
+    EFX_CASE(mvp_compose),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_math_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "identity")) return identity();
-    if (!strcmp(c, "perspective_values")) return perspective_values();
-    if (!strcmp(c, "ortho_values")) return ortho_values();
-    if (!strcmp(c, "look_at_values")) return look_at_values();
-    if (!strcmp(c, "mul_order")) return mul_order();
-    if (!strcmp(c, "translate_rotate_scale")) return translate_rotate_scale();
-    if (!strcmp(c, "vec3_ops")) return vec3_ops();
-    if (!strcmp(c, "mvp_compose")) return mvp_compose();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }

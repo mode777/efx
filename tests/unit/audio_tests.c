@@ -5,27 +5,20 @@
  * concurrent-stream cap, the master gain, source lifetime, and the no-device
  * soft-fail path.
  *
- * Usage: efx_audio_tests <case> ; exit 0 = pass.
+ * Usage: efx_audio_tests [<case>] ; exit 0 = pass.
  * The WAV/MP3 fixtures are embedded at configure time (efx_audio_fixtures.h)
  * so the suite is portable and needs no filesystem.
  */
 #include "audio/audio.h"
 #include "efx_audio_fixtures.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
+#include "../test_support.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 static float g_buf[8192 * 2];
-
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
 
 /* expected decoded value of the 800-frame 440 Hz / 0.5 amp sine fixture */
 static double expected_wav(double i) {
@@ -558,25 +551,22 @@ static int unavailable(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(decode_wav),
+    EFX_CASE(decode_mp3),
+    EFX_CASE(mix_matches),
+    EFX_CASE(resample_pitch),
+    EFX_CASE(mix_determinism),
+    EFX_CASE(errors),
+    EFX_CASE(voices_steal),
+    EFX_CASE(stream_plays),
+    EFX_CASE(stream_controls),
+    EFX_CASE(stream_cap),
+    EFX_CASE(source_lifetime),
+    EFX_CASE(master_gain),
+    EFX_CASE(unavailable),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_audio_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "decode_wav")) return decode_wav();
-    if (!strcmp(c, "decode_mp3")) return decode_mp3();
-    if (!strcmp(c, "mix_matches")) return mix_matches();
-    if (!strcmp(c, "resample_pitch")) return resample_pitch();
-    if (!strcmp(c, "mix_determinism")) return mix_determinism();
-    if (!strcmp(c, "errors")) return errors();
-    if (!strcmp(c, "voices_steal")) return voices_steal();
-    if (!strcmp(c, "stream_plays")) return stream_plays();
-    if (!strcmp(c, "stream_controls")) return stream_controls();
-    if (!strcmp(c, "stream_cap")) return stream_cap();
-    if (!strcmp(c, "source_lifetime")) return source_lifetime();
-    if (!strcmp(c, "master_gain")) return master_gain();
-    if (!strcmp(c, "unavailable")) return unavailable();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }

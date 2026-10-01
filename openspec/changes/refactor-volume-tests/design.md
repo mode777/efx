@@ -218,3 +218,20 @@ build. It is then deleted.
   (`clear_color_js` is desktop-only). Linux/GCC and macOS/Clang coverage of
   the four cases comes from the V5 gate. Inventories: headless 186 → 190,
   desktop 293 → 297, Emscripten 156 → 159 — exactly the R1 names.
+- **R2 / D3 — run-all exposed two fresh-process assumptions.** With no
+  argument, `efx_render_tests` failed `mesh_pending_upload` and
+  `efx_api_tests` crashed on its second case:
+  - `mesh_pending_upload` asserted the mock sink's process-wide create
+    counters were still 0. It now zeroes them at case start (test-only).
+  - `efx_api_init` (documented in `api.h` as per-context setup) skipped all
+    class registration after the first runtime in the process
+    (`static int registered`), so a second runtime's
+    `JS_NewObjectClass` hit an unregistered class and crashed. The guard is
+    deleted, so every runtime registers its classes (own commit). The player,
+    REPL and dev harness create one runtime per process, so their behavior
+    is unchanged; no spec or ADR describes the guard.
+  Every suite now passes in run-all mode on Windows/MSVC.
+- **R2 / D1 — `feq` tolerance.** `math_tests.c` compared with 0.0001, not
+  0.001. The header's tolerance is `EFX_TEST_FEQ_EPS` (default 0.001f), and
+  `math_tests.c` defines it as 0.0001f before including the header, so no
+  assertion is weakened.

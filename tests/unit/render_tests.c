@@ -1,23 +1,13 @@
 /*
  * Headless display-list unit tests (ADR 0019 record/assert gate).
- * Usage: efx_render_tests <case-name> ; exit 0 = pass.
+ * Usage: efx_render_tests [<case-name>] ; exit 0 = pass.
  */
 #include "render/render.h"
 #include "render/skin.h"
 
-#include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
-
-static int feq(float a, float b) {
-    return fabsf(a - b) < 0.001f;
-}
+#include "../test_support.h"
 
 /* mock sink --------------------------------------------------------- */
 
@@ -593,6 +583,7 @@ static int mesh_lifecycle(void) {
 static int mesh_pending_upload(void) {
     /* no sink: create queues; installing the sink flushes (headless
        parity with texture pending uploads) */
+    g_tex_created = g_mesh_created = 0;
     uint8_t px[4] = {255, 0, 0, 255};
     uint64_t t = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
     (void)t;
@@ -2206,60 +2197,57 @@ static int billboard_record_fields(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(compose_camera),
+    EFX_CASE(compose_quad),
+    EFX_CASE(value_snapshot),
+    EFX_CASE(default_camera_viewport),
+    EFX_CASE(blend_snapshot),
+    EFX_CASE(record_budget),
+    EFX_CASE(texture_lifecycle),
+    EFX_CASE(texture_queued_handles),
+    EFX_CASE(texture_mipmaps),
+    EFX_CASE(record_fields),
+    EFX_CASE(batching),
+    EFX_CASE(meshdata_validation),
+    EFX_CASE(meshdata_skinning),
+    EFX_CASE(mesh_lifecycle),
+    EFX_CASE(mesh_pending_upload),
+    EFX_CASE(mesh_record_fields),
+    EFX_CASE(mesh_record_order),
+    EFX_CASE(mesh_record_budget),
+    EFX_CASE(lights_state),
+    EFX_CASE(light_snapshot),
+    EFX_CASE(material_binding),
+    EFX_CASE(lighting_reference),
+    EFX_CASE(material_maps),
+    EFX_CASE(map_retention),
+    EFX_CASE(lighting_maps),
+    EFX_CASE(render_target_lifecycle),
+    EFX_CASE(target_deferred_release),
+    EFX_CASE(segmentation),
+    EFX_CASE(target_redirection),
+    EFX_CASE(feedback_guard),
+    EFX_CASE(post_registry),
+    EFX_CASE(post_fast_path),
+    EFX_CASE(post_render_scale),
+    EFX_CASE(post_surface_size),
+    EFX_CASE(post_user_target_raw),
+    EFX_CASE(skin_bind_local),
+    EFX_CASE(skin_sampling),
+    EFX_CASE(skin_lbs),
+    EFX_CASE(skin_pose_blend),
+    EFX_CASE(mesh_skin_buffers),
+    EFX_CASE(mesh_pose_repose),
+    EFX_CASE(mesh_skinned_flag),
+    EFX_CASE(mesh_skin_lifecycle),
+    EFX_CASE(billboard_basis),
+    EFX_CASE(particle_config_validation),
+    EFX_CASE(particle_emit_step),
+    EFX_CASE(particle_interpolation),
+    EFX_CASE(billboard_record_fields),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_render_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "compose_camera")) return compose_camera();
-    if (!strcmp(c, "compose_quad")) return compose_quad();
-    if (!strcmp(c, "value_snapshot")) return value_snapshot();
-    if (!strcmp(c, "default_camera_viewport")) return default_camera_viewport();
-    if (!strcmp(c, "blend_snapshot")) return blend_snapshot();
-    if (!strcmp(c, "record_budget")) return record_budget();
-    if (!strcmp(c, "texture_lifecycle")) return texture_lifecycle();
-    if (!strcmp(c, "texture_queued_handles")) return texture_queued_handles();
-    if (!strcmp(c, "texture_mipmaps")) return texture_mipmaps();
-    if (!strcmp(c, "record_fields")) return record_fields();
-    if (!strcmp(c, "batching")) return batching();
-    if (!strcmp(c, "meshdata_validation")) return meshdata_validation();
-    if (!strcmp(c, "meshdata_skinning")) return meshdata_skinning();
-    if (!strcmp(c, "mesh_lifecycle")) return mesh_lifecycle();
-    if (!strcmp(c, "mesh_pending_upload")) return mesh_pending_upload();
-    if (!strcmp(c, "mesh_record_fields")) return mesh_record_fields();
-    if (!strcmp(c, "mesh_record_order")) return mesh_record_order();
-    if (!strcmp(c, "mesh_record_budget")) return mesh_record_budget();
-    if (!strcmp(c, "lights_state")) return lights_state();
-    if (!strcmp(c, "light_snapshot")) return light_snapshot();
-    if (!strcmp(c, "material_binding")) return material_binding();
-    if (!strcmp(c, "lighting_reference")) return lighting_reference();
-    if (!strcmp(c, "material_maps")) return material_maps();
-    if (!strcmp(c, "map_retention")) return map_retention();
-    if (!strcmp(c, "lighting_maps")) return lighting_maps();
-    if (!strcmp(c, "render_target_lifecycle")) return render_target_lifecycle();
-    if (!strcmp(c, "target_deferred_release")) return target_deferred_release();
-    if (!strcmp(c, "segmentation")) return segmentation();
-    if (!strcmp(c, "target_redirection")) return target_redirection();
-    if (!strcmp(c, "feedback_guard")) return feedback_guard();
-    if (!strcmp(c, "post_registry")) return post_registry();
-    if (!strcmp(c, "post_fast_path")) return post_fast_path();
-    if (!strcmp(c, "post_render_scale")) return post_render_scale();
-    if (!strcmp(c, "post_surface_size")) return post_surface_size();
-    if (!strcmp(c, "post_user_target_raw")) return post_user_target_raw();
-    if (!strcmp(c, "skin_bind_local")) return skin_bind_local();
-    if (!strcmp(c, "skin_sampling")) return skin_sampling();
-    if (!strcmp(c, "skin_lbs")) return skin_lbs();
-    if (!strcmp(c, "skin_pose_blend")) return skin_pose_blend();
-    if (!strcmp(c, "mesh_skin_buffers")) return mesh_skin_buffers();
-    if (!strcmp(c, "mesh_pose_repose")) return mesh_pose_repose();
-    if (!strcmp(c, "mesh_skinned_flag")) return mesh_skinned_flag();
-    if (!strcmp(c, "mesh_skin_lifecycle")) return mesh_skin_lifecycle();
-    if (!strcmp(c, "billboard_basis")) return billboard_basis();
-    if (!strcmp(c, "particle_config_validation")) return particle_config_validation();
-    if (!strcmp(c, "particle_emit_step")) return particle_emit_step();
-    if (!strcmp(c, "particle_interpolation")) return particle_interpolation();
-    if (!strcmp(c, "billboard_record_fields")) return billboard_record_fields();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }

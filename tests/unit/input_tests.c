@@ -2,19 +2,12 @@
  * Headless unit tests for the F9 input core (no window, no script runtime):
  * name lookup, level/edge semantics, frame staging, arrival ordering,
  * per-frame deltas, focus clearing, and the injection seam.
- * Usage: efx_input_tests <case> ; exit 0 = pass.
+ * Usage: efx_input_tests [<case>] ; exit 0 = pass.
  */
 #include "input/input.h"
 #include "input/gamepad.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
+#include "../test_support.h"
 
 /* every documented key name resolves to an id that round-trips back */
 static int names(void) {
@@ -643,34 +636,31 @@ static int gp_seams(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(names),
+    EFX_CASE(level_edge),
+    EFX_CASE(repeat),
+    EFX_CASE(ordering),
+    EFX_CASE(deltas),
+    EFX_CASE(mouse),
+    EFX_CASE(focus),
+    EFX_CASE(chars),
+    EFX_CASE(window),
+    EFX_CASE(mods),
+    EFX_CASE(gp_names),
+    EFX_CASE(gp_edges),
+    EFX_CASE(gp_hotplug),
+    EFX_CASE(gp_mapping),
+    EFX_CASE(gp_half_invert),
+    EFX_CASE(gp_hat),
+    EFX_CASE(gp_dpad_buttons),
+    EFX_CASE(gp_ranges),
+    EFX_CASE(gp_raw),
+    EFX_CASE(gp_guid_fallback),
+    EFX_CASE(gp_full),
+    EFX_CASE(gp_seams),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_input_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "names")) return names();
-    if (!strcmp(c, "level_edge")) return level_edge();
-    if (!strcmp(c, "repeat")) return repeat();
-    if (!strcmp(c, "ordering")) return ordering();
-    if (!strcmp(c, "deltas")) return deltas();
-    if (!strcmp(c, "mouse")) return mouse();
-    if (!strcmp(c, "focus")) return focus();
-    if (!strcmp(c, "chars")) return chars();
-    if (!strcmp(c, "window")) return window();
-    if (!strcmp(c, "mods")) return mods();
-    if (!strcmp(c, "gp_names")) return gp_names();
-    if (!strcmp(c, "gp_edges")) return gp_edges();
-    if (!strcmp(c, "gp_hotplug")) return gp_hotplug();
-    if (!strcmp(c, "gp_mapping")) return gp_mapping();
-    if (!strcmp(c, "gp_half_invert")) return gp_half_invert();
-    if (!strcmp(c, "gp_hat")) return gp_hat();
-    if (!strcmp(c, "gp_dpad_buttons")) return gp_dpad_buttons();
-    if (!strcmp(c, "gp_ranges")) return gp_ranges();
-    if (!strcmp(c, "gp_raw")) return gp_raw();
-    if (!strcmp(c, "gp_guid_fallback")) return gp_guid_fallback();
-    if (!strcmp(c, "gp_full")) return gp_full();
-    if (!strcmp(c, "gp_seams")) return gp_seams();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }

@@ -1,24 +1,18 @@
 /*
- * Headless font/text unit tests (F8a). Usage: efx_text_tests <case>.
+ * Headless font/text unit tests (F8a). Usage: efx_text_tests [<case>].
  * Desktop-only: they read a TTF from the resource fixture directory.
  */
 #include "render/render.h"
 #include "render/text.h"
 #include "resource/resource.h"
 
-#include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+
+#include "../test_support.h"
 
 #ifndef EFX_FONT_FIXTURE_DIR
 #define EFX_FONT_FIXTURE_DIR "."
 #endif
-
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
 
 static efx_resource *open_root(void) {
     int err = 0;
@@ -232,18 +226,15 @@ static int draw_records(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(fontdata_load),
+    EFX_CASE(font_bake),
+    EFX_CASE(font_bake_errors),
+    EFX_CASE(layout_cases),
+    EFX_CASE(measure_draw_agree),
+    EFX_CASE(draw_records),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_text_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "fontdata_load")) return fontdata_load();
-    if (!strcmp(c, "font_bake")) return font_bake();
-    if (!strcmp(c, "font_bake_errors")) return font_bake_errors();
-    if (!strcmp(c, "layout_cases")) return layout_cases();
-    if (!strcmp(c, "measure_draw_agree")) return measure_draw_agree();
-    if (!strcmp(c, "draw_records")) return draw_records();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }

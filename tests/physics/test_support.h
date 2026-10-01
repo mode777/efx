@@ -7,11 +7,8 @@
  * `efx_physics_tests` binary builds without the engine.
  */
 
+#include "../test_support.h"
 #include "physics/physics.h"
-
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
 
 #define CHECK(cond)                                                          \
     do {                                                                     \

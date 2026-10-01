@@ -1,6 +1,6 @@
 /*
  * Headless unit tests for the F6a resource provider (directory backend and
- * path safety). Usage: efx_resource_tests <case-name> ; exit 0 = pass.
+ * path safety). Usage: efx_resource_tests [<case-name>] ; exit 0 = pass.
  */
 #include "resource/gltf.h"
 #include "resource/image.h"
@@ -8,18 +8,13 @@
 #include "render/render.h"
 #include "render/skin.h"
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+
+#include "../test_support.h"
 
 #ifndef EFX_RES_FIXTURES
 #define EFX_RES_FIXTURES "tests/fixtures/resource"
 #endif
-
-static int fail(const char *what) {
-    fprintf(stderr, "FAIL: %s\n", what);
-    return 1;
-}
 
 static int dir_read(void) {
     int err = -1;
@@ -260,10 +255,6 @@ static efx_meshdata *gltf_import(efx_resource *r, const char *file,
                                  const efx_gltf_mesh_opts *opts, int *err) {
     efx_render_install_sink(&gltf_sink);
     return efx_gltf_load_meshdata(r, file, opts, err);
-}
-
-static int feq(float a, float b) {
-    return (a - b) < 0.001f && (b - a) < 0.001f;
 }
 
 static int gltf_triangle(void) {
@@ -623,37 +614,34 @@ static int skin_pose_reference(void) {
     return 0;
 }
 
+static const efx_test_case cases[] = {
+    EFX_CASE(dir_read),
+    EFX_CASE(dir_nested),
+    EFX_CASE(dir_missing),
+    EFX_CASE(dir_traversal),
+    EFX_CASE(dir_bad_root),
+    EFX_CASE(image_png),
+    EFX_CASE(image_jpeg),
+    EFX_CASE(image_corrupt),
+    EFX_CASE(zip_read),
+    EFX_CASE(zip_nested),
+    EFX_CASE(zip_image),
+    EFX_CASE(zip_missing),
+    EFX_CASE(zip_bad_root),
+    EFX_CASE(gltf_triangle),
+    EFX_CASE(gltf_zip),
+    EFX_CASE(gltf_transform),
+    EFX_CASE(gltf_materials),
+    EFX_CASE(gltf_accessors),
+    EFX_CASE(gltf_glb),
+    EFX_CASE(gltf_dedup),
+    EFX_CASE(gltf_errors),
+    EFX_CASE(gltf_skin),
+    EFX_CASE(gltf_skin_u8),
+    EFX_CASE(gltf_skin_errors),
+    EFX_CASE(skin_pose_reference),
+};
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: efx_resource_tests <case>\n");
-        return 2;
-    }
-    const char *c = argv[1];
-    if (!strcmp(c, "dir_read")) return dir_read();
-    if (!strcmp(c, "dir_nested")) return dir_nested();
-    if (!strcmp(c, "dir_missing")) return dir_missing();
-    if (!strcmp(c, "dir_traversal")) return dir_traversal();
-    if (!strcmp(c, "dir_bad_root")) return dir_bad_root();
-    if (!strcmp(c, "image_png")) return image_png();
-    if (!strcmp(c, "image_jpeg")) return image_jpeg();
-    if (!strcmp(c, "image_corrupt")) return image_corrupt();
-    if (!strcmp(c, "zip_read")) return zip_read();
-    if (!strcmp(c, "zip_nested")) return zip_nested();
-    if (!strcmp(c, "zip_image")) return zip_image();
-    if (!strcmp(c, "zip_missing")) return zip_missing();
-    if (!strcmp(c, "zip_bad_root")) return zip_bad_root();
-    if (!strcmp(c, "gltf_triangle")) return gltf_triangle();
-    if (!strcmp(c, "gltf_zip")) return gltf_zip();
-    if (!strcmp(c, "gltf_transform")) return gltf_transform();
-    if (!strcmp(c, "gltf_materials")) return gltf_materials();
-    if (!strcmp(c, "gltf_accessors")) return gltf_accessors();
-    if (!strcmp(c, "gltf_glb")) return gltf_glb();
-    if (!strcmp(c, "gltf_dedup")) return gltf_dedup();
-    if (!strcmp(c, "gltf_errors")) return gltf_errors();
-    if (!strcmp(c, "gltf_skin")) return gltf_skin();
-    if (!strcmp(c, "gltf_skin_u8")) return gltf_skin_u8();
-    if (!strcmp(c, "gltf_skin_errors")) return gltf_skin_errors();
-    if (!strcmp(c, "skin_pose_reference")) return skin_pose_reference();
-    fprintf(stderr, "unknown case: %s\n", c);
-    return 2;
+    return efx_test_main(cases, sizeof(cases) / sizeof(cases[0]), argc, argv);
 }
