@@ -115,6 +115,22 @@ appending and the live path keeps scanning for a free slot.
   would alter them; the asymmetry is a known deferred behavior change.
 - **Alternatives**: unify reuse now (changes observable handles; out of scope).
 
+### D7 — Shared resolvers, not a magic getter table, for P5
+
+P5 adds `live_opaque(...)` plus per-class `*_alive` predicates and rewrites the
+seven `get_live_*` (plus new `get_live_texture`/`get_live_font`) as one-line
+resolvers. The ~12 read-only getters use those resolvers and a shared
+`font_metric` helper. The design originally suggested a
+`JS_CGETSET_MAGIC_DEF` table dispatching on `magic`; that was **not** adopted.
+
+- **Why**: the getters differ not only in field but in class id, type/dead
+  message and value extraction, so a magic table needs a large switch and
+  casts for no behavioral benefit while raising the risk of a message change
+  the byte-pinned catalog would (correctly) reject. The shared resolvers
+  remove the same duplication with a smaller, reviewable diff.
+- **Alternatives**: the magic table (rejected as above); leaving the getters
+  untouched (keeps six copies of the unwrap/alive preamble).
+
 ## Risks / Trade-offs
 
 - **A "move" silently changes initialization order or an include** → D4's

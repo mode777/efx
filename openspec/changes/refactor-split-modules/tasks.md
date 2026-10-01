@@ -2,18 +2,18 @@
 
 ## 1. Desktop-binding helper consolidation (P3–P6)
 
-- [ ] 1.1 (P3) Add `opt_number`/`opt_bool`/`opt_vec3`/`opt_u32` near the other
+- [x] 1.1 (P3) Add `opt_number`/`opt_bool`/`opt_vec3`/`opt_u32` near the other
   helpers; rewrite `phys_opt_*` and `pcfg_num`/`pcfg_vec`/`pcfg_range` as thin
   wrappers passing their existing messages, then inline them; verify the
   `error_catalog` case is byte-identical and `ctest --test-dir build-h` passes
-- [ ] 1.2 (P4) Extract `read_elements(ctx, v, len, policy, sink)` and rewrite
+- [x] 1.2 (P4) Extract `read_elements(ctx, v, len, policy, sink)` and rewrite
   `get_float_array`, `read_number_array`, `read_index_array`, `read_vec3`,
   `vec_from_value` on it (no `read_vec3` malloc); verify the catalog is
   byte-identical and record the old-reader→policy mapping table in the PR
-- [ ] 1.3 (P5) Add `live_opaque(...)` and a `JS_CGETSET_MAGIC_DEF` getter table;
+- [x] 1.3 (P5) Add `live_opaque(...)` and a `JS_CGETSET_MAGIC_DEF` getter table;
   migrate the seven `get_live_*` and the read-only getters; verify the catalog
   (including destroyed-resource cases) is byte-identical
-- [ ] 1.4 (P6) Add a static `class_spec[]` looped in `efx_api_init` plus
+- [x] 1.4 (P6) Add a static `class_spec[]` looped in `efx_api_init` plus
   `finalize_common`; verify `api_tests` GC/finalizer cases and
   `s_resource_lifecycle.js` pass and the catalog is byte-identical
 

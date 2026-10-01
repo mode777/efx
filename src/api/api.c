@@ -140,6 +140,79 @@ JSValue efx_js_registerRenderHook(JSContext *ctx, JSValueConst this_val,
     return register_hook(ctx, argv[0], EFX_HOOK_LIST_RENDER);
 }
 
+/* shared numeric element loop for the array readers. `policy` names the
+ * per-reader rule so the differences (coerce vs strict, integer range, error
+ * class) live in one place instead of five copies. Returns 0, or -1 with the
+ * error already thrown on the context. */
+typedef enum {
+    EFX_ELEM_COERCE, /* JS_ToFloat64; non-finite -> RangeError(msg_finite) */
+    EFX_ELEM_NUMBER, /* non-number -> TypeError(msg_numbers) */
+    EFX_ELEM_U32,    /* non-number -> TypeError; non-u32 -> RangeError(msg_int) */
+} efx_elem_policy;
+
+static void sink_float(void *ud, int32_t i, double d) {
+    ((float *)ud)[i] = (float)d;
+}
+
+static void sink_float_cap3(void *ud, int32_t i, double d) {
+    if (i < 3) {
+        ((float *)ud)[i] = (float)d;
+    }
+}
+
+static void sink_u32(void *ud, int32_t i, double d) {
+    ((uint32_t *)ud)[i] = (uint32_t)d;
+}
+
+static int read_elements(JSContext *ctx, JSValueConst v, int32_t len,
+                         efx_elem_policy policy, const char *msg_numbers,
+                         const char *msg_finite, const char *msg_int,
+                         void (*sink)(void *, int32_t, double), void *ud) {
+    for (int32_t i = 0; i < len; i++) {
+        JSValue ev = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
+        double d = 0;
+        if (policy == EFX_ELEM_COERCE) {
+            if (JS_ToFloat64(ctx, &d, ev) < 0) {
+                JS_FreeValue(ctx, ev);
+                return -1;
+            }
+            JS_FreeValue(ctx, ev);
+            if (!isfinite(d)) {
+                range_error(ctx, msg_finite);
+                return -1;
+            }
+        } else if (policy == EFX_ELEM_NUMBER) {
+            if (!JS_IsNumber(ev)) {
+                JS_FreeValue(ctx, ev);
+                type_error(ctx, msg_numbers);
+                return -1;
+            }
+            if (JS_ToFloat64(ctx, &d, ev) < 0) {
+                JS_FreeValue(ctx, ev);
+                return -1;
+            }
+            JS_FreeValue(ctx, ev);
+            if (!isfinite(d)) {
+                range_error(ctx, msg_finite);
+                return -1;
+            }
+        } else { /* EFX_ELEM_U32 */
+            int bad = !JS_IsNumber(ev) || JS_ToFloat64(ctx, &d, ev) < 0;
+            JS_FreeValue(ctx, ev);
+            if (bad) {
+                type_error(ctx, msg_numbers);
+                return -1;
+            }
+            if (!isfinite(d) || d < 0 || d > 4294967295.0 || d != floor(d)) {
+                range_error(ctx, msg_int);
+                return -1;
+            }
+        }
+        sink(ud, i, d);
+    }
+    return 0;
+}
+
 /* read a flat array (JS array or typed array) of exactly n floats;
    returns 0 ok, -1 wrong type (TypeError thrown), -2 wrong length or
    non-finite/out-of-range element (RangeError thrown) */
@@ -171,18 +244,71 @@ static int get_float_array(JSContext *ctx, JSValueConst v, float *out, int n) {
         range_error(ctx, "wrong array length");
         return -2;
     }
-    for (int i = 0; i < n; i++) {
-        double d;
-        JSValue ev = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
-        if (JS_ToFloat64(ctx, &d, ev) < 0 || !isfinite(d)) {
-            JS_FreeValue(ctx, ev);
-            range_error(ctx, "array elements must be finite numbers");
-            return -2;
-        }
-        JS_FreeValue(ctx, ev);
-        out[i] = (float)d;
+    if (read_elements(ctx, v, n, EFX_ELEM_COERCE, NULL,
+                      "array elements must be finite numbers", NULL,
+                      sink_float, out) != 0) {
+        return -2;
     }
     return 0;
+}
+
+/* generic optional-field readers: 1 present, 0 absent, -1 error (throws).
+ * The wording is passed in per call so every domain keeps its existing
+ * message text (the error catalog pins them). */
+
+static int opt_number(JSContext *ctx, JSValueConst obj, const char *key,
+                      double *out, const char *msg) {
+    JSValue v = JS_GetPropertyStr(ctx, obj, key);
+    if (JS_IsUndefined(v)) {
+        JS_FreeValue(ctx, v);
+        return 0;
+    }
+    if (JS_ToFloat64(ctx, out, v) < 0 || !isfinite(*out)) {
+        JS_FreeValue(ctx, v);
+        type_error(ctx, msg);
+        return -1;
+    }
+    JS_FreeValue(ctx, v);
+    return 1;
+}
+
+static int opt_bool(JSContext *ctx, JSValueConst obj, const char *key,
+                    int *out) {
+    JSValue v = JS_GetPropertyStr(ctx, obj, key);
+    if (JS_IsUndefined(v)) {
+        JS_FreeValue(ctx, v);
+        return 0;
+    }
+    *out = JS_ToBool(ctx, v) ? 1 : 0;
+    JS_FreeValue(ctx, v);
+    return 1;
+}
+
+static int opt_u32(JSContext *ctx, JSValueConst obj, const char *key,
+                   uint32_t *out, const char *msg_num, const char *msg_range) {
+    double d;
+    int r = opt_number(ctx, obj, key, &d, msg_num);
+    if (r <= 0) {
+        return r;
+    }
+    if (d < 0 || d > 4294967295.0 || floor(d) != d) {
+        range_error(ctx, msg_range);
+        return -1;
+    }
+    *out = (uint32_t)d;
+    return 1;
+}
+
+static int opt_vec3(JSContext *ctx, JSValueConst obj, const char *key,
+                    float out[3]) {
+    JSValue v = JS_GetPropertyStr(ctx, obj, key);
+    if (JS_IsUndefined(v)) {
+        JS_FreeValue(ctx, v);
+        return 0;
+    }
+    int r = get_float_array(ctx, v, out, 3);
+    JS_FreeValue(ctx, v);
+    return r == 0 ? 1 : -1;
 }
 
 /* ------------------------------------------------- resource classes */
@@ -261,73 +387,88 @@ static JSClassID audiodata_class_id;
 static JSClassID audiostream_class_id;
 static JSClassID audio_class_id;
 
+/* shared finalizer skeleton: unwrap the class's wrapper, run the per-class
+ * release step, then free the wrapper. Classes whose finalizer must also
+ * unlink host bookkeeping (Body/Character) keep their own finalizer. */
+static void finalize_common(JSValue val, JSClassID id,
+                            void (*release)(void *)) {
+    void *p = JS_GetOpaque(val, id);
+    if (p) {
+        release(p);
+        free(p);
+    }
+}
+
+static void texture_release(void *p) {
+    efxjs_texture *t = (efxjs_texture *)p;
+    if (t->alive && !t->permanent) {
+        efx_render_texture_destroy(t->handle);
+    }
+}
+
+static void imagedata_release(void *p) {
+    free(((efxjs_imagedata *)p)->pixels);
+}
+
+static void meshdata_release(void *p) {
+    efx_meshdata_destroy(((efxjs_meshdata *)p)->md);
+}
+
+static void mesh_release(void *p) {
+    efxjs_mesh *m = (efxjs_mesh *)p;
+    if (m->alive) {
+        efx_render_mesh_destroy(m->handle);
+    }
+}
+
+static void rendertarget_release(void *p) {
+    efxjs_rendertarget *t = (efxjs_rendertarget *)p;
+    if (t->alive) {
+        efx_render_target_destroy(t->handle);
+    }
+}
+
+static void fontdata_release(void *p) {
+    efx_text_fontdata_destroy(((efxjs_fontdata *)p)->fd);
+}
+
+static void font_release(void *p) {
+    efx_text_font_destroy(((efxjs_font *)p)->font);
+}
+
 static void texture_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_texture *t = JS_GetOpaque(val, texture_class_id);
-    if (t) {
-        if (t->alive && !t->permanent) {
-            efx_render_texture_destroy(t->handle);
-        }
-        free(t);
-    }
+    finalize_common(val, texture_class_id, texture_release);
 }
 
 static void imagedata_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_imagedata *d = JS_GetOpaque(val, imagedata_class_id);
-    if (d) {
-        free(d->pixels);
-        free(d);
-    }
+    finalize_common(val, imagedata_class_id, imagedata_release);
 }
 
 static void meshdata_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_meshdata *m = JS_GetOpaque(val, meshdata_class_id);
-    if (m) {
-        efx_meshdata_destroy(m->md);
-        free(m);
-    }
+    finalize_common(val, meshdata_class_id, meshdata_release);
 }
 
 static void mesh_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_mesh *m = JS_GetOpaque(val, mesh_class_id);
-    if (m) {
-        if (m->alive) {
-            efx_render_mesh_destroy(m->handle);
-        }
-        free(m);
-    }
+    finalize_common(val, mesh_class_id, mesh_release);
 }
 
 static void rendertarget_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_rendertarget *t = JS_GetOpaque(val, rendertarget_class_id);
-    if (t) {
-        if (t->alive) {
-            efx_render_target_destroy(t->handle);
-        }
-        free(t);
-    }
+    finalize_common(val, rendertarget_class_id, rendertarget_release);
 }
 
 static void fontdata_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_fontdata *d = JS_GetOpaque(val, fontdata_class_id);
-    if (d) {
-        efx_text_fontdata_destroy(d->fd);
-        free(d);
-    }
+    finalize_common(val, fontdata_class_id, fontdata_release);
 }
 
 static void font_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_font *f = JS_GetOpaque(val, font_class_id);
-    if (f) {
-        efx_text_font_destroy(f->font);
-        free(f);
-    }
+    finalize_common(val, font_class_id, font_release);
 }
 
 static JSValue js_destroy_resource(JSContext *ctx, JSValueConst this_val,
@@ -449,45 +590,49 @@ static JSValue js_destroy_resource(JSContext *ctx, JSValueConst this_val,
     return type_error(ctx, "not a resource object");
 }
 
+static void particlesystem_release(void *p) {
+    efxjs_particlesystem *s = (efxjs_particlesystem *)p;
+    if (s->alive) {
+        efx_render_particles_destroy(s->handle);
+    }
+}
+
+static void audiodata_release(void *p) {
+    efxjs_audiodata *d = (efxjs_audiodata *)p;
+    if (d->data) {
+        efx_audio_data_release(d->data);
+    }
+}
+
+static void audiostream_release(void *p) {
+    efxjs_audiostream *s = (efxjs_audiostream *)p;
+    if (s->stream) {
+        efx_audio_stream_release(s->stream);
+    }
+}
+
+static void audio_release(void *p) {
+    (void)p; /* dropping the handle never cuts off a fire-and-forget sound */
+}
+
 static void particlesystem_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_particlesystem *p = JS_GetOpaque(val, particlesystem_class_id);
-    if (p) {
-        if (p->alive) {
-            efx_render_particles_destroy(p->handle);
-        }
-        free(p);
-    }
+    finalize_common(val, particlesystem_class_id, particlesystem_release);
 }
 
 static void audiodata_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_audiodata *d = JS_GetOpaque(val, audiodata_class_id);
-    if (d) {
-        if (d->data) {
-            efx_audio_data_release(d->data);
-        }
-        free(d);
-    }
+    finalize_common(val, audiodata_class_id, audiodata_release);
 }
 
 static void audiostream_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_audiostream *s = JS_GetOpaque(val, audiostream_class_id);
-    if (s) {
-        if (s->stream) {
-            efx_audio_stream_release(s->stream);
-        }
-        free(s);
-    }
+    finalize_common(val, audiostream_class_id, audiostream_release);
 }
 
 static void audio_finalizer(JSRuntime *rt, JSValue val) {
     (void)rt;
-    efxjs_audio *a = JS_GetOpaque(val, audio_class_id);
-    if (a) {
-        free(a); /* dropping the handle never cuts off a fire-and-forget sound */
-    }
+    finalize_common(val, audio_class_id, audio_release);
 }
 
 static JSClassDef texture_class_def = {
@@ -562,6 +707,56 @@ typedef struct efxjs_character {
 
 static JSClassID body_class_id;
 static JSClassID character_class_id;
+
+/* generic live-opaque resolver: unwrap the wrapper for `id`, then check it is
+ * alive. Returns the wrapper or NULL with a TypeError thrown. The messages and
+ * the alive predicate are passed per class so every class keeps its existing
+ * wording (the error catalog pins them). */
+static void *live_opaque(JSContext *ctx, JSValueConst v, JSClassID id,
+                         const char *type_msg, const char *dead_msg,
+                         int (*alive)(const void *)) {
+    void *p = JS_GetOpaque2(ctx, v, id);
+    if (!p) {
+        type_error(ctx, type_msg);
+        return NULL;
+    }
+    if (!alive(p)) {
+        type_error(ctx, dead_msg);
+        return NULL;
+    }
+    return p;
+}
+
+static int texture_alive(const void *p) {
+    return ((const efxjs_texture *)p)->alive;
+}
+static int imagedata_alive(const void *p) {
+    return ((const efxjs_imagedata *)p)->alive;
+}
+static int meshdata_alive(const void *p) {
+    return ((const efxjs_meshdata *)p)->alive;
+}
+static int mesh_alive(const void *p) {
+    return ((const efxjs_mesh *)p)->alive;
+}
+static int target_alive(const void *p) {
+    return ((const efxjs_rendertarget *)p)->alive;
+}
+static int font_alive(const void *p) {
+    return ((const efxjs_font *)p)->alive;
+}
+static int ps_alive(const void *p) {
+    return ((const efxjs_particlesystem *)p)->alive;
+}
+static int body_alive(const void *p) {
+    const efxjs_body *b = (const efxjs_body *)p;
+    return b->alive && b->w && efx_physics_body_alive(b->w, b->handle);
+}
+static int character_alive(const void *p) {
+    const efxjs_character *c = (const efxjs_character *)p;
+    return c->alive && c->w &&
+           efx_physics_character_alive(c->w, c->handle);
+}
 
 static efx_physics_world *physics_world(JSContext *ctx) {
     struct efx_host_state *h = host_state(ctx);
@@ -663,7 +858,13 @@ void efx_api_physics_release(JSContext *ctx) {
 
 /* live Mesh resolution for static-mesh colliders (defined with the F3
  * bindings); on failure it throws and returns NULL */
+static efxjs_texture *get_live_texture(JSContext *ctx, JSValueConst v);
+static efxjs_imagedata *get_live_imagedata(JSContext *ctx, JSValueConst v);
+static efxjs_meshdata *get_live_meshdata(JSContext *ctx, JSValueConst v);
 static efxjs_mesh *get_live_mesh(JSContext *ctx, JSValueConst v);
+static efxjs_rendertarget *get_live_render_target(JSContext *ctx,
+                                                  JSValueConst v);
+static efxjs_font *get_live_font(JSContext *ctx, JSValueConst v);
 
 static JSValue vec3_to_js(JSContext *ctx, efx_vec3 v) {
     JSValue a = JS_NewArray(ctx);
@@ -674,30 +875,13 @@ static JSValue vec3_to_js(JSContext *ctx, efx_vec3 v) {
 }
 
 static efxjs_body *get_live_body(JSContext *ctx, JSValueConst v) {
-    efxjs_body *b = JS_GetOpaque2(ctx, v, body_class_id);
-    if (!b) {
-        type_error(ctx, "expected a Body");
-        return NULL;
-    }
-    if (!b->alive || !b->w || !efx_physics_body_alive(b->w, b->handle)) {
-        type_error(ctx, "using a destroyed Body");
-        return NULL;
-    }
-    return b;
+    return live_opaque(ctx, v, body_class_id, "expected a Body",
+                       "using a destroyed Body", body_alive);
 }
 
 static efxjs_character *get_live_character(JSContext *ctx, JSValueConst v) {
-    efxjs_character *c = JS_GetOpaque2(ctx, v, character_class_id);
-    if (!c) {
-        type_error(ctx, "expected a Character");
-        return NULL;
-    }
-    if (!c->alive || !c->w ||
-        !efx_physics_character_alive(c->w, c->handle)) {
-        type_error(ctx, "using a destroyed Character");
-        return NULL;
-    }
-    return c;
+    return live_opaque(ctx, v, character_class_id, "expected a Character",
+                       "using a destroyed Character", character_alive);
 }
 
 /* borrowed wrapper lookup by native id (a live wrapper is guaranteed to exist
@@ -728,60 +912,30 @@ static JSValue find_character_wrapper(JSContext *ctx, efx_phys_character id) {
 /* option readers: 1 present, 0 absent, -1 error (throws) */
 static int phys_opt_number(JSContext *ctx, JSValueConst obj, const char *key,
                           double *out) {
-    JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (JS_ToFloat64(ctx, out, v) < 0 || !isfinite(*out)) {
-        JS_FreeValue(ctx, v);
-        type_error(ctx, "numeric option fields must be finite numbers");
-        return -1;
-    }
-    JS_FreeValue(ctx, v);
-    return 1;
+    return opt_number(ctx, obj, key, out,
+                      "numeric option fields must be finite numbers");
 }
 
 static int phys_opt_bool(JSContext *ctx, JSValueConst obj, const char *key,
                         int *out) {
-    JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    *out = JS_ToBool(ctx, v) ? 1 : 0;
-    JS_FreeValue(ctx, v);
-    return 1;
+    return opt_bool(ctx, obj, key, out);
 }
 
 static int phys_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key,
                         efx_vec3 *out) {
-    JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
     float f[3];
-    if (get_float_array(ctx, v, f, 3) != 0) {
-        JS_FreeValue(ctx, v);
-        return -1;
+    int r = opt_vec3(ctx, obj, key, f);
+    if (r == 1) {
+        *out = efx_v3(f[0], f[1], f[2]);
     }
-    JS_FreeValue(ctx, v);
-    *out = efx_v3(f[0], f[1], f[2]);
-    return 1;
+    return r;
 }
 
 static int phys_opt_mask(JSContext *ctx, JSValueConst obj, const char *key,
                         uint32_t *out) {
-    double d;
-    int r = phys_opt_number(ctx, obj, key, &d);
-    if (r <= 0) return r;
-    if (d < 0 || d > 4294967295.0 || floor(d) != d) {
-        range_error(ctx, "layer/mask must be a 32-bit unsigned integer");
-        return -1;
-    }
-    *out = (uint32_t)d;
-    return 1;
+    return opt_u32(ctx, obj, key, out,
+                   "numeric option fields must be finite numbers",
+                   "layer/mask must be a 32-bit unsigned integer");
 }
 
 /* the parsed shape carries the source live Mesh for a mesh collider so the
@@ -1167,12 +1321,9 @@ static const JSCFunctionListEntry character_proto_funcs[] = {
 /* read-only query properties (Texture.width / Texture.height), resolved
  * through the render layer's texture registry at read time */
 static JSValue efx_js_texture_getWidth(JSContext *ctx, JSValueConst this_val) {
-    efxjs_texture *t = JS_GetOpaque2(ctx, this_val, texture_class_id);
+    efxjs_texture *t = get_live_texture(ctx, this_val);
     if (!t) {
-        return type_error(ctx, "expected a Texture");
-    }
-    if (!t->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     int w = 0, h = 0;
     efx_render_texture_size(t->handle, &w, &h);
@@ -1180,12 +1331,9 @@ static JSValue efx_js_texture_getWidth(JSContext *ctx, JSValueConst this_val) {
 }
 
 static JSValue efx_js_texture_getHeight(JSContext *ctx, JSValueConst this_val) {
-    efxjs_texture *t = JS_GetOpaque2(ctx, this_val, texture_class_id);
+    efxjs_texture *t = get_live_texture(ctx, this_val);
     if (!t) {
-        return type_error(ctx, "expected a Texture");
-    }
-    if (!t->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     int w = 0, h = 0;
     efx_render_texture_size(t->handle, &w, &h);
@@ -1200,23 +1348,17 @@ static const JSCFunctionListEntry texture_proto_funcs[] = {
 /* read-only ImageData dimensions (F6a: loadImage results expose the decoded
  * pixel size; createImageData results expose the built size) */
 static JSValue efx_js_imagedata_getWidth(JSContext *ctx, JSValueConst this_val) {
-    efxjs_imagedata *d = JS_GetOpaque2(ctx, this_val, imagedata_class_id);
+    efxjs_imagedata *d = get_live_imagedata(ctx, this_val);
     if (!d) {
-        return type_error(ctx, "expected an ImageData");
-    }
-    if (!d->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     return JS_NewInt32(ctx, d->w);
 }
 
 static JSValue efx_js_imagedata_getHeight(JSContext *ctx, JSValueConst this_val) {
-    efxjs_imagedata *d = JS_GetOpaque2(ctx, this_val, imagedata_class_id);
+    efxjs_imagedata *d = get_live_imagedata(ctx, this_val);
     if (!d) {
-        return type_error(ctx, "expected an ImageData");
-    }
-    if (!d->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     return JS_NewInt32(ctx, d->h);
 }
@@ -1229,24 +1371,18 @@ static const JSCFunctionListEntry imagedata_proto_funcs[] = {
 /* read-only query property surfaceCount (MeshData/Mesh, F3) */
 static JSValue efx_js_meshdata_getSurfaceCount(JSContext *ctx,
                                                JSValueConst this_val) {
-    efxjs_meshdata *m = JS_GetOpaque2(ctx, this_val, meshdata_class_id);
+    efxjs_meshdata *m = get_live_meshdata(ctx, this_val);
     if (!m) {
-        return type_error(ctx, "expected a MeshData");
-    }
-    if (!m->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     return JS_NewInt32(ctx, m->md->surface_count);
 }
 
 static JSValue efx_js_mesh_getSurfaceCount(JSContext *ctx,
                                            JSValueConst this_val) {
-    efxjs_mesh *m = JS_GetOpaque2(ctx, this_val, mesh_class_id);
+    efxjs_mesh *m = get_live_mesh(ctx, this_val);
     if (!m) {
-        return type_error(ctx, "expected a Mesh");
-    }
-    if (!m->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     return JS_NewInt32(ctx, efx_render_mesh_surface_count(m->handle));
 }
@@ -1261,12 +1397,9 @@ static const JSCFunctionListEntry mesh_proto_funcs[] = {
 
 /* read-only query properties width/height (RenderTarget, F5a) */
 static JSValue efx_js_target_getWidth(JSContext *ctx, JSValueConst this_val) {
-    efxjs_rendertarget *t = JS_GetOpaque2(ctx, this_val, rendertarget_class_id);
+    efxjs_rendertarget *t = get_live_render_target(ctx, this_val);
     if (!t) {
-        return type_error(ctx, "expected a RenderTarget");
-    }
-    if (!t->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     int w = 0, h = 0;
     efx_render_target_size(t->handle, &w, &h);
@@ -1274,12 +1407,9 @@ static JSValue efx_js_target_getWidth(JSContext *ctx, JSValueConst this_val) {
 }
 
 static JSValue efx_js_target_getHeight(JSContext *ctx, JSValueConst this_val) {
-    efxjs_rendertarget *t = JS_GetOpaque2(ctx, this_val, rendertarget_class_id);
+    efxjs_rendertarget *t = get_live_render_target(ctx, this_val);
     if (!t) {
-        return type_error(ctx, "expected a RenderTarget");
-    }
-    if (!t->alive) {
-        return type_error(ctx, "using a destroyed resource");
+        return JS_EXCEPTION;
     }
     int w = 0, h = 0;
     efx_render_target_size(t->handle, &w, &h);
@@ -1292,48 +1422,29 @@ static const JSCFunctionListEntry rendertarget_proto_funcs[] = {
 };
 
 /* read-only font metrics (F8a): Font.size / lineHeight / ascent / descent */
-static JSValue efx_js_font_getSize(JSContext *ctx, JSValueConst this_val) {
-    efxjs_font *f = JS_GetOpaque2(ctx, this_val, font_class_id);
+static JSValue font_metric(JSContext *ctx, JSValueConst this_val,
+                           float (*metric)(const efx_text_font *)) {
+    efxjs_font *f = get_live_font(ctx, this_val);
     if (!f) {
-        return type_error(ctx, "expected a Font");
+        return JS_EXCEPTION;
     }
-    if (!f->alive) {
-        return type_error(ctx, "using a destroyed resource");
-    }
-    return JS_NewFloat64(ctx, (double)efx_text_font_size(f->font));
+    return JS_NewFloat64(ctx, (double)metric(f->font));
+}
+
+static JSValue efx_js_font_getSize(JSContext *ctx, JSValueConst this_val) {
+    return font_metric(ctx, this_val, efx_text_font_size);
 }
 
 static JSValue efx_js_font_getLineHeight(JSContext *ctx, JSValueConst this_val) {
-    efxjs_font *f = JS_GetOpaque2(ctx, this_val, font_class_id);
-    if (!f) {
-        return type_error(ctx, "expected a Font");
-    }
-    if (!f->alive) {
-        return type_error(ctx, "using a destroyed resource");
-    }
-    return JS_NewFloat64(ctx, (double)efx_text_font_line_height(f->font));
+    return font_metric(ctx, this_val, efx_text_font_line_height);
 }
 
 static JSValue efx_js_font_getAscent(JSContext *ctx, JSValueConst this_val) {
-    efxjs_font *f = JS_GetOpaque2(ctx, this_val, font_class_id);
-    if (!f) {
-        return type_error(ctx, "expected a Font");
-    }
-    if (!f->alive) {
-        return type_error(ctx, "using a destroyed resource");
-    }
-    return JS_NewFloat64(ctx, (double)efx_text_font_ascent(f->font));
+    return font_metric(ctx, this_val, efx_text_font_ascent);
 }
 
 static JSValue efx_js_font_getDescent(JSContext *ctx, JSValueConst this_val) {
-    efxjs_font *f = JS_GetOpaque2(ctx, this_val, font_class_id);
-    if (!f) {
-        return type_error(ctx, "expected a Font");
-    }
-    if (!f->alive) {
-        return type_error(ctx, "using a destroyed resource");
-    }
-    return JS_NewFloat64(ctx, (double)efx_text_font_descent(f->font));
+    return font_metric(ctx, this_val, efx_text_font_descent);
 }
 
 static const JSCFunctionListEntry font_proto_funcs[] = {
@@ -1346,16 +1457,9 @@ static const JSCFunctionListEntry font_proto_funcs[] = {
 /* ------------------------------------------ F11 particle system bindings */
 
 static efxjs_particlesystem *get_live_ps(JSContext *ctx, JSValueConst v) {
-    efxjs_particlesystem *p = JS_GetOpaque2(ctx, v, particlesystem_class_id);
-    if (!p) {
-        type_error(ctx, "expected a ParticleSystem");
-        return NULL;
-    }
-    if (!p->alive) {
-        type_error(ctx, "using a destroyed resource");
-        return NULL;
-    }
-    return p;
+    return live_opaque(ctx, v, particlesystem_class_id,
+                       "expected a ParticleSystem",
+                       "using a destroyed resource", ps_alive);
 }
 
 /* read a value as an [x,y] or [x,y,z] float vector; 0 absent, 1 set, -1 err */
@@ -1399,20 +1503,12 @@ static int pcfg_vec(JSContext *ctx, JSValueConst o, const char *k, float out[3],
 
 /* scalar field: 0 absent, 1 set, -1 error */
 static int pcfg_num(JSContext *ctx, JSValueConst o, const char *k, float *out) {
-    JSValue v = JS_GetPropertyStr(ctx, o, k);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
     double d;
-    if (JS_ToFloat64(ctx, &d, v) < 0 || !isfinite(d)) {
-        JS_FreeValue(ctx, v);
-        type_error(ctx, "option must be a finite number");
-        return -1;
+    int r = opt_number(ctx, o, k, &d, "option must be a finite number");
+    if (r == 1) {
+        *out = (float)d;
     }
-    JS_FreeValue(ctx, v);
-    *out = (float)d;
-    return 1;
+    return r;
 }
 
 /* number or [min,max]: 0 absent, 1 set, -1 error */
@@ -2989,114 +3085,81 @@ int efx_api_register_audio(JSContext *ctx, JSValueConst efx) {
 }
 
 
+/* one row per script-facing class: class-id allocation, class registration and
+ * prototype wiring are looped in efx_api_init so the three parallel 13-entry
+ * blocks collapse to one table. */
+typedef struct {
+    JSClassID *id;
+    const JSClassDef *def;
+    const JSCFunctionListEntry *funcs;
+    int nfuncs;
+    int shared_destroy; /* attach the shared destroy(); Body/Character have
+                           their own (they need extra teardown) */
+} efx_class_spec;
+
+#define EFX_ARRAY_COUNT(a) ((int)(sizeof(a) / sizeof((a)[0])))
+
+static const efx_class_spec CLASS_SPECS[] = {
+    { &texture_class_id, &texture_class_def, texture_proto_funcs,
+      EFX_ARRAY_COUNT(texture_proto_funcs), 1 },
+    { &imagedata_class_id, &imagedata_class_def, imagedata_proto_funcs,
+      EFX_ARRAY_COUNT(imagedata_proto_funcs), 1 },
+    { &meshdata_class_id, &meshdata_class_def, meshdata_proto_funcs,
+      EFX_ARRAY_COUNT(meshdata_proto_funcs), 1 },
+    { &mesh_class_id, &mesh_class_def, mesh_proto_funcs,
+      EFX_ARRAY_COUNT(mesh_proto_funcs), 1 },
+    { &rendertarget_class_id, &rendertarget_class_def,
+      rendertarget_proto_funcs, EFX_ARRAY_COUNT(rendertarget_proto_funcs), 1 },
+    { &fontdata_class_id, &fontdata_class_def, NULL, 0, 1 },
+    { &font_class_id, &font_class_def, font_proto_funcs,
+      EFX_ARRAY_COUNT(font_proto_funcs), 1 },
+    { &particlesystem_class_id, &particlesystem_class_def,
+      particlesystem_proto_funcs,
+      EFX_ARRAY_COUNT(particlesystem_proto_funcs), 1 },
+    { &body_class_id, &body_class_def, body_proto_funcs,
+      EFX_ARRAY_COUNT(body_proto_funcs), 0 },
+    { &character_class_id, &character_class_def, character_proto_funcs,
+      EFX_ARRAY_COUNT(character_proto_funcs), 0 },
+    { &audiodata_class_id, &audiodata_class_def, NULL, 0, 1 },
+    { &audiostream_class_id, &audiostream_class_def, NULL, 0, 1 },
+    { &audio_class_id, &audio_class_def, audio_proto_funcs,
+      EFX_ARRAY_COUNT(audio_proto_funcs), 1 },
+};
+
 int efx_api_init(JSContext *ctx) {
     static int registered;
     if (registered) {
         return 0;
     }
     JSRuntime *rt = JS_GetRuntime(ctx);
-    if (JS_NewClassID(rt, &texture_class_id) != texture_class_id ||
-        JS_NewClassID(rt, &imagedata_class_id) != imagedata_class_id ||
-        JS_NewClassID(rt, &meshdata_class_id) != meshdata_class_id ||
-        JS_NewClassID(rt, &mesh_class_id) != mesh_class_id ||
-        JS_NewClassID(rt, &rendertarget_class_id) != rendertarget_class_id ||
-        JS_NewClassID(rt, &fontdata_class_id) != fontdata_class_id ||
-        JS_NewClassID(rt, &font_class_id) != font_class_id ||
-        JS_NewClassID(rt, &particlesystem_class_id) != particlesystem_class_id ||
-        JS_NewClassID(rt, &body_class_id) != body_class_id ||
-        JS_NewClassID(rt, &character_class_id) != character_class_id ||
-        JS_NewClassID(rt, &audiodata_class_id) != audiodata_class_id ||
-        JS_NewClassID(rt, &audiostream_class_id) != audiostream_class_id ||
-        JS_NewClassID(rt, &audio_class_id) != audio_class_id) {
-        return -1;
+    const int nclasses = EFX_ARRAY_COUNT(CLASS_SPECS);
+    for (int i = 0; i < nclasses; i++) {
+        if (JS_NewClassID(rt, CLASS_SPECS[i].id) != *CLASS_SPECS[i].id) {
+            return -1;
+        }
     }
-    if (JS_NewClass(rt, texture_class_id, &texture_class_def) < 0 ||
-        JS_NewClass(rt, imagedata_class_id, &imagedata_class_def) < 0 ||
-        JS_NewClass(rt, meshdata_class_id, &meshdata_class_def) < 0 ||
-        JS_NewClass(rt, mesh_class_id, &mesh_class_def) < 0 ||
-        JS_NewClass(rt, rendertarget_class_id, &rendertarget_class_def) < 0 ||
-        JS_NewClass(rt, fontdata_class_id, &fontdata_class_def) < 0 ||
-        JS_NewClass(rt, font_class_id, &font_class_def) < 0 ||
-        JS_NewClass(rt, particlesystem_class_id,
-                    &particlesystem_class_def) < 0 ||
-        JS_NewClass(rt, body_class_id, &body_class_def) < 0 ||
-        JS_NewClass(rt, character_class_id, &character_class_def) < 0 ||
-        JS_NewClass(rt, audiodata_class_id, &audiodata_class_def) < 0 ||
-        JS_NewClass(rt, audiostream_class_id, &audiostream_class_def) < 0 ||
-        JS_NewClass(rt, audio_class_id, &audio_class_def) < 0) {
-        return -1;
+    for (int i = 0; i < nclasses; i++) {
+        if (JS_NewClass(rt, *CLASS_SPECS[i].id, CLASS_SPECS[i].def) < 0) {
+            return -1;
+        }
     }
-    JSValue tex_proto = JS_NewObject(ctx);
-    JSValue img_proto = JS_NewObject(ctx);
-    JSValue md_proto = JS_NewObject(ctx);
-    JSValue mesh_proto = JS_NewObject(ctx);
-    JSValue rt_proto = JS_NewObject(ctx);
-    JSValue fd_proto = JS_NewObject(ctx);
-    JSValue font_proto = JS_NewObject(ctx);
-    JSValue ps_proto = JS_NewObject(ctx);
-    JSValue body_proto = JS_NewObject(ctx);
-    JSValue character_proto = JS_NewObject(ctx);
-    JSValue ad_proto = JS_NewObject(ctx);
-    JSValue as_proto = JS_NewObject(ctx);
-    JSValue audio_proto = JS_NewObject(ctx);
-    JSValue m = JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0);
-    JS_SetPropertyStr(ctx, tex_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, img_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, md_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, mesh_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, rt_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, fd_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, font_proto, "destroy", JS_DupValue(ctx, m));
-    JS_SetPropertyStr(ctx, ps_proto, "destroy", m);
-    JS_SetPropertyStr(ctx, ad_proto, "destroy",
-                      JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0));
-    JS_SetPropertyStr(ctx, as_proto, "destroy",
-                      JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0));
-    JS_SetPropertyStr(ctx, audio_proto, "destroy",
-                      JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0));
-    JS_SetPropertyFunctionList(ctx, tex_proto, texture_proto_funcs,
-                               (int)(sizeof(texture_proto_funcs) /
-                                     sizeof(texture_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, img_proto, imagedata_proto_funcs,
-                               (int)(sizeof(imagedata_proto_funcs) /
-                                     sizeof(imagedata_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, md_proto, meshdata_proto_funcs,
-                               (int)(sizeof(meshdata_proto_funcs) /
-                                     sizeof(meshdata_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, mesh_proto, mesh_proto_funcs,
-                               (int)(sizeof(mesh_proto_funcs) /
-                                     sizeof(mesh_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, rt_proto, rendertarget_proto_funcs,
-                               (int)(sizeof(rendertarget_proto_funcs) /
-                                     sizeof(rendertarget_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, font_proto, font_proto_funcs,
-                               (int)(sizeof(font_proto_funcs) /
-                                     sizeof(font_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, ps_proto, particlesystem_proto_funcs,
-                               (int)(sizeof(particlesystem_proto_funcs) /
-                                     sizeof(particlesystem_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, body_proto, body_proto_funcs,
-                               (int)(sizeof(body_proto_funcs) /
-                                     sizeof(body_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, character_proto, character_proto_funcs,
-                               (int)(sizeof(character_proto_funcs) /
-                                     sizeof(character_proto_funcs[0])));
-    JS_SetPropertyFunctionList(ctx, audio_proto, audio_proto_funcs,
-                               (int)(sizeof(audio_proto_funcs) /
-                                     sizeof(audio_proto_funcs[0])));
-    JS_SetClassProto(ctx, texture_class_id, tex_proto);
-    JS_SetClassProto(ctx, imagedata_class_id, img_proto);
-    JS_SetClassProto(ctx, meshdata_class_id, md_proto);
-    JS_SetClassProto(ctx, mesh_class_id, mesh_proto);
-    JS_SetClassProto(ctx, rendertarget_class_id, rt_proto);
-    JS_SetClassProto(ctx, fontdata_class_id, fd_proto);
-    JS_SetClassProto(ctx, font_class_id, font_proto);
-    JS_SetClassProto(ctx, particlesystem_class_id, ps_proto);
-    JS_SetClassProto(ctx, body_class_id, body_proto);
-    JS_SetClassProto(ctx, character_class_id, character_proto);
-    JS_SetClassProto(ctx, audiodata_class_id, ad_proto);
-    JS_SetClassProto(ctx, audiostream_class_id, as_proto);
-    JS_SetClassProto(ctx, audio_class_id, audio_proto);
+    /* Most classes share one destroy(); Body/Character define their own in
+     * their function list. The shared function is dup'd per prototype so each
+     * holds its own reference, then released once here. */
+    JSValue destroy_fn = JS_NewCFunction(ctx, js_destroy_resource, "destroy", 0);
+    for (int i = 0; i < nclasses; i++) {
+        JSValue proto = JS_NewObject(ctx);
+        if (CLASS_SPECS[i].shared_destroy) {
+            JS_SetPropertyStr(ctx, proto, "destroy",
+                              JS_DupValue(ctx, destroy_fn));
+        }
+        if (CLASS_SPECS[i].funcs && CLASS_SPECS[i].nfuncs > 0) {
+            JS_SetPropertyFunctionList(ctx, proto, CLASS_SPECS[i].funcs,
+                                       CLASS_SPECS[i].nfuncs);
+        }
+        JS_SetClassProto(ctx, *CLASS_SPECS[i].id, proto);
+    }
+    JS_FreeValue(ctx, destroy_fn);
     registered = 1;
     return 0;
 }
@@ -3323,30 +3386,25 @@ JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, 
 }
 
 static efxjs_imagedata *get_live_imagedata(JSContext *ctx, JSValueConst v) {
-    efxjs_imagedata *d = JS_GetOpaque2(ctx, v, imagedata_class_id);
-    if (!d) {
-        type_error(ctx, "expected an ImageData");
-        return NULL;
-    }
-    if (!d->alive) {
-        type_error(ctx, "using a destroyed resource");
-        return NULL;
-    }
-    return d;
+    return live_opaque(ctx, v, imagedata_class_id, "expected an ImageData",
+                       "using a destroyed resource", imagedata_alive);
 }
 
 static efxjs_rendertarget *get_live_render_target(JSContext *ctx,
                                                   JSValueConst v) {
-    efxjs_rendertarget *t = JS_GetOpaque2(ctx, v, rendertarget_class_id);
-    if (!t) {
-        type_error(ctx, "expected a RenderTarget");
-        return NULL;
-    }
-    if (!t->alive) {
-        type_error(ctx, "using a destroyed resource");
-        return NULL;
-    }
-    return t;
+    return live_opaque(ctx, v, rendertarget_class_id,
+                       "expected a RenderTarget",
+                       "using a destroyed resource", target_alive);
+}
+
+static efxjs_texture *get_live_texture(JSContext *ctx, JSValueConst v) {
+    return live_opaque(ctx, v, texture_class_id, "expected a Texture",
+                       "using a destroyed resource", texture_alive);
+}
+
+static efxjs_font *get_live_font(JSContext *ctx, JSValueConst v) {
+    return live_opaque(ctx, v, font_class_id, "expected a Font",
+                       "using a destroyed resource", font_alive);
 }
 
 /* F5a texture coercion: a live Texture or a live RenderTarget — either is
@@ -3797,28 +3855,12 @@ static int read_number_array(JSContext *ctx, JSValueConst v, float **out,
         generic_error(ctx, "out of memory");
         return -3;
     }
-    for (int32_t i = 0; i < len; i++) {
-        JSValue ev = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
-        if (!JS_IsNumber(ev)) {
-            JS_FreeValue(ctx, ev);
-            free(buf);
-            type_error(ctx, "array elements must be numbers");
-            return -1;
-        }
-        double d = 0;
-        if (JS_ToFloat64(ctx, &d, ev) < 0) {
-            /* exception already pending on the context */
-            JS_FreeValue(ctx, ev);
-            free(buf);
-            return -4;
-        }
-        JS_FreeValue(ctx, ev);
-        if (!isfinite(d)) {
-            free(buf);
-            range_error(ctx, "array elements must be finite numbers");
-            return -2;
-        }
-        buf[i] = (float)d;
+    if (read_elements(ctx, v, len, EFX_ELEM_NUMBER,
+                      "array elements must be numbers",
+                      "array elements must be finite numbers", NULL,
+                      sink_float, buf) != 0) {
+        free(buf);
+        return -2;
     }
     *out = buf;
     *out_len = (int)len;
@@ -3847,22 +3889,12 @@ static int read_index_array(JSContext *ctx, JSValueConst v, uint32_t **out,
         generic_error(ctx, "out of memory");
         return -3;
     }
-    for (int32_t i = 0; i < len; i++) {
-        JSValue ev = JS_GetPropertyUint32(ctx, v, (uint32_t)i);
-        double d = 0;
-        int bad = !JS_IsNumber(ev) || JS_ToFloat64(ctx, &d, ev) < 0;
-        JS_FreeValue(ctx, ev);
-        if (bad) {
-            free(buf);
-            type_error(ctx, "array elements must be numbers");
-            return -1;
-        }
-        if (!isfinite(d) || d < 0 || d > 4294967295.0 || d != floor(d)) {
-            free(buf);
-            range_error(ctx, "array elements must be integers in [0, 2^32-1]");
-            return -2;
-        }
-        buf[i] = (uint32_t)d;
+    if (read_elements(ctx, v, len, EFX_ELEM_U32,
+                      "array elements must be numbers", NULL,
+                      "array elements must be integers in [0, 2^32-1]",
+                      sink_u32, buf) != 0) {
+        free(buf);
+        return -2;
     }
     *out = buf;
     *out_len = (int)len;
@@ -3918,18 +3950,29 @@ static const char *MD_KEYS_MAT[] = {"positions", "normals", "uvs",
 /* read a [x,y,z] array (array or typed array) */
 static int read_vec3(JSContext *ctx, JSValueConst v, float out[3],
                      const char *what) {
-    float *buf = NULL;
-    int len = 0;
-    if (read_number_array(ctx, v, &buf, &len, what) != 0) {
+    int is_ta = JS_GetTypedArrayType(v);
+    if (!JS_IsArray(v) && is_ta < 0) {
+        type_error(ctx, what);
+        return -1;
+    }
+    JSValue lenv = JS_GetPropertyStr(ctx, v, "length");
+    int32_t len = -1;
+    JS_ToInt32(ctx, &len, lenv);
+    JS_FreeValue(ctx, lenv);
+    if (len < 0) {
+        range_error(ctx, what);
+        return -1;
+    }
+    if (read_elements(ctx, v, len, EFX_ELEM_NUMBER,
+                      "array elements must be numbers",
+                      "array elements must be finite numbers", NULL,
+                      sink_float_cap3, out) != 0) {
         return -1;
     }
     if (len != 3) {
-        free(buf);
         range_error(ctx, "expected 3 numbers");
         return -1;
     }
-    memcpy(out, buf, sizeof(float) * 3);
-    free(buf);
     return 0;
 }
 
@@ -4311,16 +4354,8 @@ fail:
 }
 
 static efxjs_meshdata *get_live_meshdata(JSContext *ctx, JSValueConst v) {
-    efxjs_meshdata *m = JS_GetOpaque2(ctx, v, meshdata_class_id);
-    if (!m) {
-        type_error(ctx, "expected a MeshData");
-        return NULL;
-    }
-    if (!m->alive) {
-        type_error(ctx, "using a destroyed resource");
-        return NULL;
-    }
-    return m;
+    return live_opaque(ctx, v, meshdata_class_id, "expected a MeshData",
+                       "using a destroyed resource", meshdata_alive);
 }
 
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val,
@@ -4350,16 +4385,8 @@ JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val,
 }
 
 static efxjs_mesh *get_live_mesh(JSContext *ctx, JSValueConst v) {
-    efxjs_mesh *m = JS_GetOpaque2(ctx, v, mesh_class_id);
-    if (!m) {
-        type_error(ctx, "expected a Mesh");
-        return NULL;
-    }
-    if (!m->alive) {
-        type_error(ctx, "using a destroyed resource");
-        return NULL;
-    }
-    return m;
+    return live_opaque(ctx, v, mesh_class_id, "expected a Mesh",
+                       "using a destroyed resource", mesh_alive);
 }
 
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
