@@ -39,42 +39,42 @@
   replace the 25 inline loops and `__physKeys`, preserving each message format
   and the enumeration difference; verify the catalog compare is identical on
   web and `run_web_harness.mjs` passes
-- [ ] 3.2 (P9) Add `__efxResourceClass(name, { destroy, getters, methods })`
+- [x] 3.2 (P9) Add `__efxResourceClass(name, { destroy, getters, methods })`
   and rebuild the 13 wrapper classes on it, preserving `instanceof`, method
   names and class `name`; verify `run_web_harness.mjs`, the gallery smoke and
   the catalog pass
 
 ## 4. Split the web binding (P10, move-only)
 
-- [ ] 4.1 (P10) Move `entry.js` into ordered `src/web/js/*.js` fragments and
+- [x] 4.1 (P10) Move `entry.js` into ordered `src/web/js/*.js` fragments and
   wire them as ordered `--post-js` flags (update `LINK_DEPENDS`); verify the
   concatenated output differs from the pre-split `entry.js` only by whitespace
   at seams (`diff`)
-- [ ] 4.2 (P10) Split `bridge.c` into `bridge_*.c` with a private
+- [x] 4.2 (P10) Split `bridge.c` into `bridge_*.c` with a private
   `bridge_internal.h`; verify the Emscripten build, web goldens,
   `run_web_harness.mjs` and `run_web_compare.mjs` pass
-- [ ] 4.3 (P10) Update `CMakeLists.txt` for the new bridge sources; verify the
+- [x] 4.3 (P10) Update `CMakeLists.txt` for the new bridge sources; verify the
   Emscripten job configures and builds
 
 ## 5. Render-core helper consolidation (P11–P13)
 
-- [ ] 5.1 (P11) Add `pool_grow(...)` and `handle_decode(...)`; rewrite the four
+- [x] 5.1 (P11) Add `pool_grow(...)` and `handle_decode(...)`; rewrite the four
   `*_get` decoders and nine growth blocks, keeping each OOM branch; verify
   render lifecycle/generation unit tests pass
-- [ ] 5.2 (P12) Add `tex_slot_init(...)` called by both texture paths,
+- [x] 5.2 (P12) Add `tex_slot_init(...)` called by both texture paths,
   preserving append-vs-reuse; add a unit test pinning current queued-creation
   handle sequencing *before* the change; verify it passes after
-- [ ] 5.3 (P13) Add `MAP_OFFSETS[]` and loop the per-channel material-map
+- [x] 5.3 (P13) Add `MAP_OFFSETS[]` and loop the per-channel material-map
   retain/release; verify the F4b retention tests and map goldens pass
 
 ## 6. Split the render core (P14, move-only)
 
-- [ ] 6.1 (P14) Add `src/render/render_internal.h` (the `R` state, pool helpers,
+- [x] 6.1 (P14) Add `src/render/render_internal.h` (the `R` state, pool helpers,
   slot types) and split into `render_texture.c`, `render_target.c`,
   `render_mesh.c`, `render_post.c`, `render_records.c`, `render_particles.c`
   (one commit per file); verify each is move-only under `--color-moved` and
   `nm -g --defined-only` of `efx_core` is unchanged
-- [ ] 6.2 (P14) Update `CMakeLists.txt`; verify the full native build and
+- [x] 6.2 (P14) Update `CMakeLists.txt`; verify the full native build and
   `render_tests` pass
 
 ## 7. Docs and verification

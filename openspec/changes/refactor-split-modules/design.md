@@ -69,9 +69,9 @@ Public `api.h`, `web.h`, `render.h` are unchanged.
 
 ### D3 — Web fragments via ordered `--post-js`, no generator
 
-Split `entry.js` into `src/web/js/{core,render2d,render3d,resource,text,
-particles,input,physics,audio,boot}.js` and pass them as ordered `--post-js`
-flags; update `LINK_DEPENDS`.
+Split `entry.js` into `src/web/js/{core,render2d,resource,text,target_post,
+particles,render3d,input,physics,audio,boot}.js` and pass them as ordered
+`--post-js` flags; update `LINK_DEPENDS`.
 
 - **Why**: no build-time concatenation step to maintain, and the seam order is
   explicit in CMake. The plan's stated preference.
@@ -79,6 +79,15 @@ flags; update `LINK_DEPENDS`.
   generator and a generated file to keep in sync — the plan's other option);
   ES modules in the post-js (the glue relies on shared top-level scope, not
   module imports).
+
+**Amended during apply:** the fragments are contiguous byte slices of the
+former `entry.js`, in file order, so concatenating them (and emcc's ordered
+`--post-js`) reproduces the file exactly. The former single file interleaves
+milestones inside `__efxEnsureApi` (2D and 3D API methods are split around the
+resource/text/target-post and particles blocks), so a domain-ordered
+reorganization was out of scope; the slices are grouped by the dominant
+contiguous domain and a separate `target_post.js` slice was added for the F5
+block, giving eleven fragments rather than the ten originally listed.
 
 ### D4 — Move-only passes prove equivalence mechanically
 
@@ -101,6 +110,17 @@ header. The `nm` criterion is therefore relaxed to: **the existing
 `efx_js_*` / public binding surface is unchanged**; the only additions are the
 new `efx_api_*` internal helpers. The public `api.h` / `web.h` / `render.h`
 stay byte-stable.
+
+**Amended during apply (P14):** the render split must share the engine-owned
+`R` and `POST` registries plus a dozen helpers (`ensure_state`,
+`flush_pending_uploads`, `record_push`, `pending_free`, the map/texture retain
+helpers, the post size/reset helpers, …) across the six fragments, so those
+become non-static and are declared in `render_internal.h`. A multi-TU split
+cannot keep them translation-unit-local, so the `nm` criterion is relaxed the
+same way as for P7: the public `efx_render_*` / `efx_meshdata_*` / `efx_rig_*`
+/ `efx_lighting_*` / `efx_affine_*` / `efx_material_*` surface is unchanged;
+the only additions are the internal state objects and helpers. `render.h`
+stays byte-stable.
 
 ### D5 — Policy objects, not merged behavior, for the readers
 

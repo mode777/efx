@@ -66,7 +66,12 @@ endif()
 
 if(EMSCRIPTEN)
     add_library(efx_core STATIC
-        src/render/render.c
+        src/render/render_records.c
+        src/render/render_texture.c
+        src/render/render_target.c
+        src/render/render_post.c
+        src/render/render_mesh.c
+        src/render/render_particles.c
         src/render/skin.c
         src/render/text.c
         src/input/efx_input.c
@@ -85,7 +90,16 @@ if(EMSCRIPTEN)
         src/resource/stb_image_impl.c
         src/render/stb_truetype_impl.c
         src/render/stb_rect_pack_impl.c
-        src/web/bridge.c
+        src/web/bridge_core.c
+        src/web/bridge_render2d.c
+        src/web/bridge_resource.c
+        src/web/bridge_text.c
+        src/web/bridge_target_post.c
+        src/web/bridge_particles.c
+        src/web/bridge_render3d.c
+        src/web/bridge_input.c
+        src/web/bridge_audio.c
+        src/web/bridge_physics.c
     )
 else()
     add_library(efx_core STATIC
@@ -101,7 +115,12 @@ else()
         src/api/api_physics.c
         src/api/api_audio.c
         src/runtime/runtime.c
-        src/render/render.c
+        src/render/render_records.c
+        src/render/render_texture.c
+        src/render/render_target.c
+        src/render/render_post.c
+        src/render/render_mesh.c
+        src/render/render_particles.c
         src/render/skin.c
         src/render/text.c
         src/input/efx_input.c
@@ -199,21 +218,43 @@ endif()
 target_link_libraries(player PRIVATE efx_core efx_platform)
 
 if(EMSCRIPTEN)
+    # P10: the web binding is split into ordered fragments that emcc appends
+    # as consecutive --post-js files; concatenated in order they reproduce
+    # the former single entry.js exactly.
+    set(EFX_WEB_JS
+        src/web/js/core.js
+        src/web/js/render2d.js
+        src/web/js/resource.js
+        src/web/js/text.js
+        src/web/js/target_post.js
+        src/web/js/particles.js
+        src/web/js/render3d.js
+        src/web/js/input.js
+        src/web/js/physics.js
+        src/web/js/audio.js
+        src/web/js/boot.js)
+    set(EFX_WEB_POST_JS "")
+    set(EFX_WEB_JS_PATHS "")
+    foreach(js ${EFX_WEB_JS})
+        list(APPEND EFX_WEB_POST_JS "--post-js=${CMAKE_CURRENT_SOURCE_DIR}/${js}")
+        list(APPEND EFX_WEB_JS_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/${js}")
+    endforeach()
+
     set(EFX_WEB_COMMON
         -sEXIT_RUNTIME=0 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=2MB
         -sEXPORTED_FUNCTIONS=_main,_malloc,_free
-        # the web bridge's JS (entry.js/boot_pre.js) uses the FS API at
+        # the web bridge's JS (js/*.js/boot_pre.js) uses the FS API at
         # runtime for resource roots; keep it linked even when no C code
         # touches files (nothing else forces FS inclusion on the node player)
         -sFORCE_FILESYSTEM=1
         "--pre-js=${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js"
-        "--post-js=${CMAKE_CURRENT_SOURCE_DIR}/src/web/entry.js")
+        ${EFX_WEB_POST_JS})
 
     # Node-runnable web player (host-engine smoke/comparison harness; the
     # desktop-style --script mode is a desktop-only run mode)
     set_target_properties(player PROPERTIES
         SUFFIX ".js"
-        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/web/entry.js;${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js")
+        LINK_DEPENDS "${EFX_WEB_JS_PATHS};${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js")
     target_link_options(player PRIVATE
         ${EFX_WEB_COMMON}
         -sMAX_WEBGL_VERSION=2
@@ -227,7 +268,7 @@ if(EMSCRIPTEN)
     target_link_libraries(player_web PRIVATE efx_core efx_platform)
     set_target_properties(player_web PROPERTIES
         SUFFIX ".html"
-        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/web/entry.js;${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js;${CMAKE_CURRENT_SOURCE_DIR}/src/platform/web_pre.js;${CMAKE_CURRENT_SOURCE_DIR}/examples/browser/main.js")
+        LINK_DEPENDS "${EFX_WEB_JS_PATHS};${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js;${CMAKE_CURRENT_SOURCE_DIR}/src/platform/web_pre.js;${CMAKE_CURRENT_SOURCE_DIR}/examples/browser/main.js")
     target_link_options(player_web PRIVATE
         ${EFX_WEB_COMMON}
         -sMAX_WEBGL_VERSION=2 -sENVIRONMENT=web
@@ -244,7 +285,7 @@ if(EMSCRIPTEN)
         target_compile_definitions(player_web_golden PRIVATE EFX_WEB_GOLDEN=1)
         set_target_properties(player_web_golden PROPERTIES
             SUFFIX ".js"
-            LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/web/entry.js;${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js")
+            LINK_DEPENDS "${EFX_WEB_JS_PATHS};${CMAKE_CURRENT_SOURCE_DIR}/src/web/boot_pre.js")
         target_link_options(player_web_golden PRIVATE
             ${EFX_WEB_COMMON}
             -sMAX_WEBGL_VERSION=2 -sENVIRONMENT=web -sSTACK_SIZE=4MB
@@ -323,7 +364,12 @@ endif()
 
 # headless display-list unit tests (ADR 0019 record/assert gate)
 add_executable(efx_render_tests
-    src/render/render.c
+    src/render/render_records.c
+    src/render/render_texture.c
+    src/render/render_target.c
+    src/render/render_post.c
+    src/render/render_mesh.c
+    src/render/render_particles.c
     src/render/skin.c
     tests/unit/render_tests.c
 )
@@ -423,7 +469,12 @@ endif()
 # desktop-only: they read the filesystem
 if(NOT EMSCRIPTEN)
 add_executable(efx_resource_tests
-    src/render/render.c
+    src/render/render_records.c
+    src/render/render_texture.c
+    src/render/render_target.c
+    src/render/render_post.c
+    src/render/render_mesh.c
+    src/render/render_particles.c
     src/render/skin.c
     src/resource/gltf.c
     src/resource/image.c
@@ -450,7 +501,12 @@ endif()
 # desktop-only: they read a TTF fixture from the filesystem
 if(NOT EMSCRIPTEN)
 add_executable(efx_text_tests
-    src/render/render.c
+    src/render/render_records.c
+    src/render/render_texture.c
+    src/render/render_target.c
+    src/render/render_post.c
+    src/render/render_mesh.c
+    src/render/render_particles.c
     src/render/skin.c
     src/render/text.c
     src/render/stb_truetype_impl.c
@@ -493,7 +549,12 @@ add_executable(efx_api_tests
     src/api/api_physics.c
     src/api/api_audio.c
     src/runtime/runtime.c
-    src/render/render.c
+    src/render/render_records.c
+    src/render/render_texture.c
+    src/render/render_target.c
+    src/render/render_post.c
+    src/render/render_mesh.c
+    src/render/render_particles.c
     src/render/skin.c
     src/render/text.c
     src/render/stb_truetype_impl.c
