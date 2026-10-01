@@ -91,7 +91,7 @@
 
 ## 7. Pipeline (R16)
 
-- [ ] 7.1 Derive the billboard pipeline from the quad descriptor. Change
+- [x] 7.1 Derive the billboard pipeline from the quad descriptor. Change
   `post_draw` to one sampler and `fs == NULL`, add `blur_two_pass`, and merge
   `emit_quad`/`emit_quad_bridged` (D11). Leave `play_mesh_record` untouched.
   Verify: V2, all goldens (quads, billboards/particles, post, render

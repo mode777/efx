@@ -412,23 +412,17 @@ static pipe_vertex emit_vert(const efx_quad_record *r, int i, int flip_y) {
     return v;
 }
 
+/* append one quad in strip order; `bridge` continues the previous quad's
+ * strip: duplicate its last vertex, then this quad's first vertex twice
+ * (two degenerate triangles) */
 static pipe_vertex *emit_quad(pipe_vertex *v, const efx_quad_record *r,
-                              int flip_y) {
-    for (int i = 0; i < 4; i++) {
-        *v++ = emit_vert(r, i, flip_y);
+                              int flip_y, int bridge) {
+    if (bridge) {
+        v[0] = v[-1];
+        v[1] = emit_vert(r, 0, flip_y);
+        v += 2;
     }
-    return v;
-}
-
-static pipe_vertex *emit_quad_bridged(pipe_vertex *v, const efx_quad_record *r,
-                                      int flip_y) {
-    /* continue a strip: duplicate last vertex, then first vertex of the new
-       quad twice, then the remaining three (two degenerate triangles) */
-    v[0] = v[-1];
-    v[1] = emit_vert(r, 0, flip_y);
-    v[2] = v[1];
-    v += 3;
-    for (int i = 1; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         *v++ = emit_vert(r, i, flip_y);
     }
     return v;
@@ -468,7 +462,7 @@ void efx_pipeline_install(void) {
     };
 
     for (int i = 0; i < 3; i++) {
-        P.quad_pip[i] = sg_make_pipeline(&(sg_pipeline_desc){
+        sg_pipeline_desc qd = {
             .shader = P.quad_shd,
             .primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP,
             .layout = {.buffers[0].stride = (int)sizeof(pipe_vertex),
@@ -481,24 +475,14 @@ void efx_pipeline_install(void) {
             .depth = {.compare = SG_COMPAREFUNC_ALWAYS, .write_enabled = false},
             .cull_mode = SG_CULLMODE_NONE,
             .sample_count = 1,
-        });
+        };
+        P.quad_pip[i] = sg_make_pipeline(&qd);
         /* F11 billboard/oriented-quad pipeline: the same shader and vertex
            layout, but depth-tested against opaque geometry with no depth
            write, so particles and sprites are occluded without occluding
            one another (ADR 0039) */
-        P.bill_pip[i] = sg_make_pipeline(&(sg_pipeline_desc){
-            .shader = P.quad_shd,
-            .primitive_type = SG_PRIMITIVETYPE_TRIANGLE_STRIP,
-            .layout = {.buffers[0].stride = (int)sizeof(pipe_vertex),
-                       .attrs = {[0] = {.format = SG_VERTEXFORMAT_FLOAT3},
-                                 [1] = {.format = SG_VERTEXFORMAT_FLOAT2, .offset = 12},
-                                 [2] = {.format = SG_VERTEXFORMAT_UBYTE4N, .offset = 20}}},
-            .colors[0] = {.blend = blends[i]},
-            .depth = {.compare = SG_COMPAREFUNC_LESS_EQUAL,
-                      .write_enabled = false},
-            .cull_mode = SG_CULLMODE_NONE,
-            .sample_count = 1,
-        });
+        qd.depth.compare = SG_COMPAREFUNC_LESS_EQUAL;
+        P.bill_pip[i] = sg_make_pipeline(&qd);
         /* mesh pipelines: indexed triangles, depth-tested and writing
            (design D4), backface culling on CCW front faces (design D6) */
         sg_pipeline_desc md = {
@@ -840,11 +824,11 @@ static void post_begin_pass(uint64_t dst, const float clear[4]) {
     });
 }
 
-/* one fullscreen post pass: bind up to two sources, apply the pass's
- * fragment uniforms, draw, end. y-flip follows the destination surface. */
+/* one fullscreen post pass: bind up to two sources (one sampler), apply the
+ * pass's fragment uniforms when `fs` is given, draw, end. y-flip follows the
+ * destination surface. */
 static void post_draw(int prog, uint64_t dst, uint64_t tex_a, uint64_t tex_b,
-                      sg_sampler smp_a, sg_sampler smp_b, int has_fs,
-                      const void *fs, size_t fs_size) {
+                      sg_sampler smp, const void *fs, size_t fs_size) {
     static const float clear[4] = {0, 0, 0, 0};
     post_begin_pass(dst, clear);
     sg_apply_pipeline(P.post_pip[prog]);
@@ -855,17 +839,29 @@ static void post_draw(int prog, uint64_t dst, uint64_t tex_a, uint64_t tex_b,
     sg_bindings bnd = {0};
     bnd.vertex_buffers[0] = P.post_vbuf;
     bnd.views[0] = view_for_handle(tex_a);
-    bnd.samplers[0] = smp_a;
+    bnd.samplers[0] = smp;
     if (tex_b) {
         bnd.views[1] = view_for_handle(tex_b);
-        bnd.samplers[1] = smp_b;
+        bnd.samplers[1] = smp;
     }
     sg_apply_bindings(&bnd);
-    if (has_fs) {
+    if (fs) {
         sg_apply_uniforms(1, &(sg_range){.ptr = fs, .size = fs_size});
     }
     sg_draw(0, 4, 1);
     sg_end_pass();
+}
+
+/* separable blur: horizontal `src` -> `t0`, then vertical `t0` -> `t1` */
+static void blur_two_pass(uint64_t src, uint64_t t0, uint64_t t1, float dx,
+                          float dy) {
+    post_blur_params_t bu;
+    memset(&bu, 0, sizeof(bu));
+    bu.blur_dir[0] = dx;
+    post_draw(POST_BLUR, t0, src, 0, P.smp, &bu, sizeof(bu));
+    memset(&bu, 0, sizeof(bu));
+    bu.blur_dir[1] = dy;
+    post_draw(POST_BLUR, t1, t0, 0, P.smp, &bu, sizeof(bu));
 }
 
 /* execute one chain entry: read `src` (src_w x src_h), write the mixed
@@ -882,11 +878,14 @@ static void run_post_entry(const efx_post_entry *e, uint64_t src, int src_w,
         u.color_params[2] = e->u.color_filter.saturation;
         u.color_params[3] = e->mix;
         memcpy(u.tint, e->u.color_filter.tint, sizeof(u.tint));
-        post_draw(POST_COLOR, dst, src, 0, P.smp, P.smp, 1, &u, sizeof(u));
+        post_draw(POST_COLOR, dst, src, 0, P.smp, &u, sizeof(u));
         break;
     }
     case EFX_POST_BLUR: {
         float radius = e->u.blur.radius;
+        post_mix_params_t mu;
+        memset(&mu, 0, sizeof(mu));
+        mu.mix_params[0] = e->mix;
         if (radius > 8.0f) {
             /* downsample chain: blur at half res, then upsample in the mix
                pass (bilinear sampling of the half-size result) */
@@ -896,35 +895,19 @@ static void run_post_entry(const efx_post_entry *e, uint64_t src, int src_w,
             if (!h0 || !h1) {
                 break;
             }
-            post_draw(POST_COPY, h0, src, 0, P.smp, P.smp, 0, NULL, 0);
-            post_blur_params_t bu;
-            memset(&bu, 0, sizeof(bu));
-            bu.blur_dir[0] = (radius * 0.5f) / (4.0f * (float)hw);
-            post_draw(POST_BLUR, h1, h0, 0, P.smp, P.smp, 1, &bu, sizeof(bu));
-            memset(&bu, 0, sizeof(bu));
-            bu.blur_dir[1] = (radius * 0.5f) / (4.0f * (float)hh);
-            post_draw(POST_BLUR, h0, h1, 0, P.smp, P.smp, 1, &bu, sizeof(bu));
-            post_mix_params_t mu;
-            memset(&mu, 0, sizeof(mu));
-            mu.mix_params[0] = e->mix;
-            post_draw(POST_MIX, dst, src, h0, P.smp, P.smp, 1, &mu, sizeof(mu));
+            post_draw(POST_COPY, h0, src, 0, P.smp, NULL, 0);
+            blur_two_pass(h0, h1, h0, (radius * 0.5f) / (4.0f * (float)hw),
+                          (radius * 0.5f) / (4.0f * (float)hh));
+            post_draw(POST_MIX, dst, src, h0, P.smp, &mu, sizeof(mu));
         } else {
             uint64_t t0 = efx_render_post_temp_target(2, src_w, src_h);
             uint64_t t1 = efx_render_post_temp_target(3, src_w, src_h);
             if (!t0 || !t1) {
                 break;
             }
-            post_blur_params_t bu;
-            memset(&bu, 0, sizeof(bu));
-            bu.blur_dir[0] = radius / (4.0f * (float)src_w);
-            post_draw(POST_BLUR, t0, src, 0, P.smp, P.smp, 1, &bu, sizeof(bu));
-            memset(&bu, 0, sizeof(bu));
-            bu.blur_dir[1] = radius / (4.0f * (float)src_h);
-            post_draw(POST_BLUR, t1, t0, 0, P.smp, P.smp, 1, &bu, sizeof(bu));
-            post_mix_params_t mu;
-            memset(&mu, 0, sizeof(mu));
-            mu.mix_params[0] = e->mix;
-            post_draw(POST_MIX, dst, src, t1, P.smp, P.smp, 1, &mu, sizeof(mu));
+            blur_two_pass(src, t0, t1, radius / (4.0f * (float)src_w),
+                          radius / (4.0f * (float)src_h));
+            post_draw(POST_MIX, dst, src, t1, P.smp, &mu, sizeof(mu));
         }
         break;
     }
@@ -939,19 +922,13 @@ static void run_post_entry(const efx_post_entry *e, uint64_t src, int src_w,
         post_bright_params_t bp;
         memset(&bp, 0, sizeof(bp));
         bp.bright_params[0] = e->u.bloom.threshold;
-        post_draw(POST_BRIGHT, h0, src, 0, P.smp, P.smp, 1, &bp, sizeof(bp));
-        post_blur_params_t bu;
-        memset(&bu, 0, sizeof(bu));
-        bu.blur_dir[0] = 2.0f / (float)hw;
-        post_draw(POST_BLUR, h1, h0, 0, P.smp, P.smp, 1, &bu, sizeof(bu));
-        memset(&bu, 0, sizeof(bu));
-        bu.blur_dir[1] = 2.0f / (float)hh;
-        post_draw(POST_BLUR, h0, h1, 0, P.smp, P.smp, 1, &bu, sizeof(bu));
+        post_draw(POST_BRIGHT, h0, src, 0, P.smp, &bp, sizeof(bp));
+        blur_two_pass(h0, h1, h0, 2.0f / (float)hw, 2.0f / (float)hh);
         post_composite_params_t cp;
         memset(&cp, 0, sizeof(cp));
         cp.comp_params[0] = e->u.bloom.strength;
         cp.comp_params[1] = e->mix;
-        post_draw(POST_COMPOSITE, dst, src, h0, P.smp, P.smp, 1, &cp, sizeof(cp));
+        post_draw(POST_COMPOSITE, dst, src, h0, P.smp, &cp, sizeof(cp));
         break;
     }
     default:
@@ -971,7 +948,7 @@ static void run_post_chain(uint64_t scene, int sw, int sh) {
         int filter = EFX_FILTER_LINEAR;
         efx_render_render_scale(&scale, &filter);
         sg_sampler smp = filter == EFX_FILTER_NEAREST ? P.smp_nearest : P.smp;
-        post_draw(POST_COPY, 0, scene, 0, smp, smp, 0, NULL, 0);
+        post_draw(POST_COPY, 0, scene, 0, smp, NULL, 0);
         return;
     }
     uint64_t src = scene;
@@ -1229,11 +1206,7 @@ static int emit_quad_runs(const efx_record *records, const efx_draw_run *runs,
             int flip = P.rt_flip &&
                        (use_post ||
                         records[runs[ri].start + q].target != 0);
-            if (q > 0) {
-                v = emit_quad_bridged(v, &records[runs[ri].start + q].u.quad, flip);
-            } else {
-                v = emit_quad(v, &records[runs[ri].start + q].u.quad, flip);
-            }
+            v = emit_quad(v, &records[runs[ri].start + q].u.quad, flip, q > 0);
         }
         run_verts[ri] = (int)(v - P.scratch) - start;
     }
