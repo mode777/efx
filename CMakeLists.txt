@@ -390,7 +390,7 @@ add_subdirectory(tests)
 # /W4-clean), DESKTOP_ONLY for the filesystem- or quickjs-bound suites, and
 # NO_EM_GROWTH where a suite deliberately keeps the fixed-heap link line.
 function(efx_add_test_exe name)
-    cmake_parse_arguments(TEST "" "MSVC_WARN;DESKTOP_ONLY;NO_EM_GROWTH"
+    cmake_parse_arguments(TEST "DESKTOP_ONLY;NO_EM_GROWTH" "MSVC_WARN"
         "SOURCES;LIBS;DEFS;MSVC_DEFS;POSIX_DEFS;INCLUDES;SYSTEM_INCLUDES" ${ARGN})
     if(TEST_DESKTOP_ONLY AND EMSCRIPTEN)
         return()
