@@ -90,6 +90,16 @@ if(EMSCRIPTEN)
 else()
     add_library(efx_core STATIC
         src/api/api.c
+        src/api/api_2d.c
+        src/api/api_3d.c
+        src/api/api_lighting.c
+        src/api/api_target_post.c
+        src/api/api_resource.c
+        src/api/api_text.c
+        src/api/api_particles.c
+        src/api/api_input.c
+        src/api/api_physics.c
+        src/api/api_audio.c
         src/runtime/runtime.c
         src/render/render.c
         src/render/skin.c
@@ -472,6 +482,16 @@ endif()
 # desktop-only: ADR 0022 keeps quickjs out of every Emscripten target
 add_executable(efx_api_tests
     src/api/api.c
+    src/api/api_2d.c
+    src/api/api_3d.c
+    src/api/api_lighting.c
+    src/api/api_target_post.c
+    src/api/api_resource.c
+    src/api/api_text.c
+    src/api/api_particles.c
+    src/api/api_input.c
+    src/api/api_physics.c
+    src/api/api_audio.c
     src/runtime/runtime.c
     src/render/render.c
     src/render/skin.c

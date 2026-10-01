@@ -82,16 +82,25 @@ flags; update `LINK_DEPENDS`.
 
 ### D4 — Move-only passes prove equivalence mechanically
 
-For P7/P10/P14, review with `--color-moved` (only includes, `static` →
-internal-header declarations, and section headers should be non-dimmed) and
-compare `nm -g --defined-only` of `efx_core` before/after; the diff must be
-empty. For P10 also `diff` the concatenated web output against the pre-split
-`entry.js`, allowing only whitespace at seams.
+For P7/P10/P14, review with `--color-moved` and compare `nm -g --defined-only`
+of `efx_core` before/after. For P10 also `diff` the concatenated web output
+against the pre-split `entry.js`, allowing only whitespace at seams.
 
 - **Why**: these are the strongest available evidence that a large move changed
   nothing, and the plan mandates them.
 - **Alternatives**: rely on tests alone (tests cannot prove the absence of an
   unintended export or a reordered initializer).
+
+**Amended during apply (option 2):** the splits must share helpers that are
+currently `static` (`type_error`, the `opt_*`/`read_*` readers, `live_opaque`,
+the `get_live_*` resolvers, `check_known_fields`, `vec3_to_js`, …). Keeping
+them `static inline` in the internal headers would preserve a literally-empty
+`nm -g` diff, but was rejected for review cost. Instead the shared helpers
+become **non-static with an `efx_api_` prefix**, declared in the internal
+header. The `nm` criterion is therefore relaxed to: **the existing
+`efx_js_*` / public binding surface is unchanged**; the only additions are the
+new `efx_api_*` internal helpers. The public `api.h` / `web.h` / `render.h`
+stay byte-stable.
 
 ### D5 — Policy objects, not merged behavior, for the readers
 

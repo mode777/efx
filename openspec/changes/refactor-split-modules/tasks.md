@@ -19,18 +19,18 @@
 
 ## 2. Split the desktop binding (P7, move-only)
 
-- [ ] 2.1 (P7) Add `src/api/api_internal.h` (class IDs, wrapper structs, error
+- [x] 2.1 (P7) Add `src/api/api_internal.h` (class IDs, wrapper structs, error
   helpers, P3–P5 readers) and move `efx_api_init`/lifecycle/`efx` assembly into
   `api.c`; verify `nm -g --defined-only` of `efx_core` is unchanged
-- [ ] 2.2 (P7) Move the 2D, 3D, lighting and target/post domains into
+- [x] 2.2 (P7) Move the 2D, 3D, lighting and target/post domains into
   `api_2d.c`, `api_3d.c`, `api_lighting.c`, `api_target_post.c` (one commit
   each); verify each is move-only under `--color-moved` and `nm` is unchanged
-- [ ] 2.3 (P7) Move the resource, text, particles, input (keyboard/mouse/
+- [x] 2.3 (P7) Move the resource, text, particles, input (keyboard/mouse/
   window/gamepad), physics and audio domains into `api_resource.c`,
   `api_text.c`, `api_particles.c`, `api_input.c`, `api_physics.c`,
   `api_audio.c`, merging each split half and removing the forward declarations;
   verify `--color-moved` shows only moves and `nm` is unchanged
-- [ ] 2.4 (P7) Update `CMakeLists.txt` for the new sources; verify the full
+- [x] 2.4 (P7) Update `CMakeLists.txt` for the new sources; verify the full
   native build links and `ctest --test-dir build` is green
 
 ## 3. Web-binding helper consolidation (P8–P9)
