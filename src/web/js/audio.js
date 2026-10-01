@@ -309,9 +309,14 @@
                     bridge['_free'](wPtr);
                     bridge['_free'](iPtr);
                     if (rc !== 0) {
-                        bad = 1; /* deferred: materials errors come first (D3) */
+                        bad = 1; /* deferred: geometry errors surface at commit */
                     }
                 }
+                var crc = bridge['_efx_bridge_meshdata_commit'](id);
+                if (bad || crc !== 0) {
+                    throw new RangeError('invalid mesh data');
+                }
+                /* set_material needs the committed meshdata (bridge contract) */
                 if (blocks) {
                     for (var mi = 0; mi < count; mi++) {
                         if (!matHas[mi]) {
@@ -326,10 +331,6 @@
                         bridge['_free'](mptr);
                         bridge['_free'](mapsptr);
                     }
-                }
-                var crc = bridge['_efx_bridge_meshdata_commit'](id);
-                if (bad || crc !== 0) {
-                    throw new RangeError('invalid mesh data');
                 }
                 return new EfxMeshData(id);
             } catch (e) {
