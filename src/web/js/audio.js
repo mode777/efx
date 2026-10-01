@@ -242,6 +242,28 @@
                 3: [RangeError, 'post-effect option out of range'],
             });
         },
+        checkFontData: function (v) {
+            if (!(v instanceof EfxFontData)) {
+                throw new TypeError('createFont requires a FontData');
+            }
+            if (!v.__alive) {
+                throw new TypeError('using a destroyed resource');
+            }
+        },
+        createFont: function (fontData, size, glyphs, padding, filter,
+                              hasOutline, outlineWidth, hasShadow,
+                              shadowBlur, offX, offY) {
+            var glyphsPtr = glyphs !== null && glyphs !== undefined
+                ? __efxAllocCStr(glyphs) : 0;
+            var id = bridge['_efx_bridge_create_font'](
+                fontData.__id, size, glyphsPtr, padding, filter, hasOutline,
+                outlineWidth, hasShadow, shadowBlur, offX, offY);
+            bridge['_free'](glyphsPtr);
+            if (!id) {
+                throw new Error('font could not be baked');
+            }
+            return new EfxFont(id);
+        },
     };
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
     st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, natives);

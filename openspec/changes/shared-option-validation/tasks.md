@@ -60,7 +60,7 @@
 
 ## 4. Post effects (R24)
 
-- [ ] 4.1 Migrate `setPostEffects` validation to the prelude (9-float entry
+- [x] 4.1 Migrate `setPostEffects` validation to the prelude (9-float entry
   wire), deleting `read_post_entry` (desktop) and `__efxPostEntry` (web).
 - [ ] 4.2 Verify: V1 `f5b_js`; V2 post goldens; V4 `web_5b_validation`,
   catalog, compare; timing within budget.

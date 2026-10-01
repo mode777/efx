@@ -52,7 +52,8 @@ JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc, JSV
 
 /* F8a — font + text */
 JSValue efx_js_loadFontData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_createFont(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_check_font_data(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_create_font_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 

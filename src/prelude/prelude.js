@@ -577,20 +577,16 @@ function __efxCheckKnown(obj, known, where, useKeys, noName) {
     }
 }
 
-function __efxNumber(v, typeMsg) {
-    try {
-        return Number(v);
-    } catch (e) {
-        throw new TypeError(typeMsg);
-    }
-}
-
 function __efxFinite(v, typeMsg) {
-    var d = __efxNumber(v, typeMsg);
-    if (!isFinite(d)) {
+    /* strict numbers (ADR 0049 D6): a number-typed field accepts only
+     * typeof === 'number'; non-finite values keep the documented class */
+    if (typeof v !== 'number') {
         throw new TypeError(typeMsg);
     }
-    return d;
+    if (!isFinite(v)) {
+        throw new TypeError(typeMsg);
+    }
+    return v;
 }
 
 /* throw for a non-zero native return code (ADR 0049 D4). `codes` maps each
@@ -1019,6 +1015,93 @@ function __efxPostEntry(v) {
     return out;
 }
 
+/* ------------------------------------------ fonts (F8a)
+ *
+ * The createFont option bag is validated once here (ADR 0049); the native
+ * bakes the atlas. Layout options for drawText/measureText stay native
+ * (hot path, ADR 0049). */
+
+function __efxCreateFontOpts(natives, fontData, opts) {
+    var known = { size: 1, glyphs: 1, padding: 1, filter: 1,
+                  outline: 1, shadow: 1 };
+    __efxCheckKnown(opts, known, 'createFont');
+    if (opts['size'] === undefined) {
+        throw new TypeError('createFont requires size');
+    }
+    var size = __efxFinite(opts['size'], 'size must be a finite number');
+    if (!(size > 0)) {
+        throw new RangeError('size must be > 0');
+    }
+    var glyphs = opts['glyphs'];
+    if (glyphs !== undefined) {
+        if (typeof glyphs !== 'string') {
+            throw new TypeError('glyphs must be a string');
+        }
+        if (glyphs.length === 0) {
+            throw new RangeError('glyphs must not be empty');
+        }
+    }
+    var padding = 1;
+    if (opts['padding'] !== undefined) {
+        var pv = __efxFinite(opts['padding'], 'padding must be a finite number');
+        if (pv < 0 || pv !== Math.floor(pv)) {
+            throw new RangeError('padding must be a non-negative integer');
+        }
+        padding = pv | 0;
+    }
+    var filter = 1;
+    if (opts['filter'] !== undefined) {
+        if (opts['filter'] === 'linear') {
+            filter = 1;
+        } else if (opts['filter'] === 'nearest') {
+            filter = 0;
+        } else {
+            throw new TypeError("filter must be 'linear' or 'nearest'");
+        }
+    }
+    var hasOutline = 0, outlineWidth = 0;
+    if (opts['outline'] !== undefined && opts['outline'] !== null) {
+        if (!__efxIsObject(opts['outline'])) {
+            throw new TypeError('outline must be an object or null');
+        }
+        __efxCheckKnown(opts['outline'], { width: 1 }, 'outline');
+        if (opts['outline']['width'] === undefined) {
+            throw new TypeError('outline requires a numeric width');
+        }
+        outlineWidth = __efxFinite(opts['outline']['width'],
+                                   'outline width must be a finite number');
+        if (!(outlineWidth > 0)) {
+            throw new RangeError('outline width must be > 0');
+        }
+        hasOutline = 1;
+    }
+    var hasShadow = 0, shadowBlur = 0, offX = 0, offY = 0;
+    if (opts['shadow'] !== undefined && opts['shadow'] !== null) {
+        if (!__efxIsObject(opts['shadow'])) {
+            throw new TypeError('shadow must be an object or null');
+        }
+        __efxCheckKnown(opts['shadow'], { blur: 1, offset: 1 }, 'shadow');
+        if (opts['shadow']['blur'] === undefined) {
+            throw new TypeError('shadow requires a numeric blur');
+        }
+        shadowBlur = __efxFinite(opts['shadow']['blur'],
+                                 'shadow blur must be a finite number');
+        if (!(shadowBlur > 0)) {
+            throw new RangeError('shadow blur must be > 0');
+        }
+        if (opts['shadow']['offset'] !== undefined) {
+            var off = __efxFloatArray(opts['shadow']['offset'], 2);
+            offX = off[0];
+            offY = off[1];
+        }
+        hasShadow = 1;
+    }
+    return natives.createFont(fontData, size,
+                              glyphs !== undefined ? glyphs : null,
+                              padding, filter, hasOutline, outlineWidth,
+                              hasShadow, shadowBlur, offX, offY);
+}
+
 function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -1047,6 +1130,18 @@ function __efxPreludeInstall(efx, natives) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.createFont) {
+        efx.createFont = function (fontData, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('createFont requires a FontData');
+            }
+            natives.checkFontData(fontData);
+            if (arguments.length < 2 || !__efxIsObject(opts)) {
+                throw new TypeError('createFont requires an options object');
+            }
+            return __efxCreateFontOpts(natives, fontData, opts);
+        };
+    }
     if (natives && natives.setPostEffects) {
         efx.setPostEffects = function (list) {
             if (arguments.length < 1) {

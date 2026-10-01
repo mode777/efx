@@ -198,7 +198,7 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
     JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
     JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
-    JS_CFUNC_DEF("createFont", 2, efx_js_createFont),
+    /* createFont is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
     JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
     JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
@@ -279,6 +279,12 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JSValue post = JS_NewCFunction(rt->ctx, efx_js_set_post_effects_wire,
                                    "setPostEffects", 2);
     JS_SetPropertyStr(rt->ctx, natives, "setPostEffects", post);
+    JSValue fd = JS_NewCFunction(rt->ctx, efx_js_check_font_data,
+                                 "checkFontData", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkFontData", fd);
+    JSValue font = JS_NewCFunction(rt->ctx, efx_js_create_font_wire,
+                                   "createFont", 11);
+    JS_SetPropertyStr(rt->ctx, natives, "createFont", font);
     return natives;
 }
 

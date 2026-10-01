@@ -171,179 +171,10 @@ JSValue efx_js_loadFontData(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
-static int read_font_size(JSContext *ctx, JSValueConst opts, efx_font_opts *fo) {
-    double d = 0;
-    int present = efx_api_opt_number(ctx, opts, "size", &d, EFX_OPT_KEY_MSG,
-                                     NUM_MSG);
-    if (present < 0) return -1;
-    if (!present) {
-        efx_api_type_error(ctx, "createFont requires size");
-        return -1;
-    }
-    if (!(d > 0)) {
-        efx_api_range_error(ctx, "size must be > 0");
-        return -1;
-    }
-    fo->size = (float)d;
-    return 0;
-}
-
-/* optional glyph string -> a malloc'd codepoint set on fo (caller frees) */
-static int read_font_glyphs(JSContext *ctx, JSValueConst opts,
-                            efx_font_opts *fo) {
-    JSValue glyphs = JS_GetPropertyStr(ctx, opts, "glyphs");
-    if (JS_IsUndefined(glyphs)) {
-        JS_FreeValue(ctx, glyphs);
-        return 0;
-    }
-    if (!JS_IsString(glyphs)) {
-        JS_FreeValue(ctx, glyphs);
-        efx_api_type_error(ctx, "glyphs must be a string");
-        return -1;
-    }
-    const char *gs = JS_ToCString(ctx, glyphs);
-    JS_FreeValue(ctx, glyphs);
-    if (!gs) return -1;
-    uint32_t *cps = NULL;
-    int ncp = efx_text_codepoints(gs, &cps);
-    JS_FreeCString(ctx, gs);
-    if (ncp < 0) {
-        efx_api_generic_error(ctx, "out of memory");
-        return -1;
-    }
-    if (ncp == 0) {
-        free(cps);
-        efx_api_range_error(ctx, "glyphs must not be empty");
-        return -1;
-    }
-    fo->codepoints = cps;
-    fo->codepoint_count = ncp;
-    return 0;
-}
-
-static int read_font_padding(JSContext *ctx, JSValueConst opts,
-                             efx_font_opts *fo) {
-    double d = 0;
-    int present = efx_api_opt_number(ctx, opts, "padding", &d,
-                                     EFX_OPT_KEY_MSG, NUM_MSG);
-    if (present < 0) return -1;
-    if (present) {
-        if (d < 0 || d != floor(d)) {
-            efx_api_range_error(ctx, "padding must be a non-negative integer");
-            return -1;
-        }
-        fo->padding = (int)d;
-    }
-    return 0;
-}
-
-static int read_font_filter(JSContext *ctx, JSValueConst opts,
-                            efx_font_opts *fo) {
-    JSValue filter = JS_GetPropertyStr(ctx, opts, "filter");
-    if (JS_IsUndefined(filter)) {
-        JS_FreeValue(ctx, filter);
-        return 0;
-    }
-    const char *fs = JS_ToCString(ctx, filter);
-    JS_FreeValue(ctx, filter);
-    if (!fs) return -1;
-    if (strcmp(fs, "linear") == 0) fo->filter = EFX_FILTER_LINEAR;
-    else if (strcmp(fs, "nearest") == 0) fo->filter = EFX_FILTER_NEAREST;
-    else {
-        JS_FreeCString(ctx, fs);
-        efx_api_type_error(ctx, "filter must be 'linear' or 'nearest'");
-        return -1;
-    }
-    JS_FreeCString(ctx, fs);
-    return 0;
-}
-
-static int read_font_outline(JSContext *ctx, JSValueConst opts,
-                             efx_font_opts *fo) {
-    JSValue outline = JS_GetPropertyStr(ctx, opts, "outline");
-    if (JS_IsUndefined(outline) || JS_IsNull(outline)) {
-        JS_FreeValue(ctx, outline);
-        return 0;
-    }
-    if (!JS_IsObject(outline)) {
-        JS_FreeValue(ctx, outline);
-        efx_api_type_error(ctx, "outline must be an object or null");
-        return -1;
-    }
-    static const char *ok[] = {"width"};
-    if (efx_api_check_known_fields(ctx, outline, ok, 1, "outline") != 0) {
-        JS_FreeValue(ctx, outline);
-        return -1;
-    }
-    double d = 0;
-    static const char need[] = "outline requires a numeric width";
-    int present = efx_api_opt_number(ctx, outline, "width", &d, 0, need);
-    if (present != 1) {
-        JS_FreeValue(ctx, outline);
-        if (present == 0) efx_api_type_error(ctx, need);
-        return -1;
-    }
-    if (!(d > 0)) {
-        JS_FreeValue(ctx, outline);
-        efx_api_range_error(ctx, "outline width must be > 0");
-        return -1;
-    }
-    fo->effects.has_outline = 1;
-    fo->effects.outline_width = (float)d;
-    JS_FreeValue(ctx, outline);
-    return 0;
-}
-
-static int read_font_shadow(JSContext *ctx, JSValueConst opts,
-                            efx_font_opts *fo) {
-    JSValue shadow = JS_GetPropertyStr(ctx, opts, "shadow");
-    if (JS_IsUndefined(shadow) || JS_IsNull(shadow)) {
-        JS_FreeValue(ctx, shadow);
-        return 0;
-    }
-    if (!JS_IsObject(shadow)) {
-        JS_FreeValue(ctx, shadow);
-        efx_api_type_error(ctx, "shadow must be an object or null");
-        return -1;
-    }
-    static const char *sk[] = {"blur", "offset"};
-    if (efx_api_check_known_fields(ctx, shadow, sk, 2, "shadow") != 0) {
-        JS_FreeValue(ctx, shadow);
-        return -1;
-    }
-    double d = 0;
-    static const char need[] = "shadow requires a numeric blur";
-    int present = efx_api_opt_number(ctx, shadow, "blur", &d, 0, need);
-    if (present != 1) {
-        JS_FreeValue(ctx, shadow);
-        if (present == 0) efx_api_type_error(ctx, need);
-        return -1;
-    }
-    if (!(d > 0)) {
-        JS_FreeValue(ctx, shadow);
-        efx_api_range_error(ctx, "shadow blur must be > 0");
-        return -1;
-    }
-    fo->effects.has_shadow = 1;
-    fo->effects.shadow_blur = (float)d;
-    JSValue off = JS_GetPropertyStr(ctx, shadow, "offset");
-    if (!JS_IsUndefined(off)) {
-        float o[2];
-        if (efx_api_get_float_array(ctx, off, o, 2) != 0) {
-            JS_FreeValue(ctx, off);
-            JS_FreeValue(ctx, shadow);
-            return -1;
-        }
-        fo->effects.shadow_offset[0] = o[0];
-        fo->effects.shadow_offset[1] = o[1];
-    }
-    JS_FreeValue(ctx, off);
-    JS_FreeValue(ctx, shadow);
-    return 0;
-}
-
-JSValue efx_js_createFont(JSContext *ctx, JSValueConst this_val, int argc,
-                          JSValueConst *argv) {
+/* natives for the shared createFont validator (ADR 0049): the option bag
+ * was validated and marshalled by the prelude */
+JSValue efx_js_check_font_data(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "createFont requires a FontData");
@@ -355,47 +186,72 @@ JSValue efx_js_createFont(JSContext *ctx, JSValueConst this_val, int argc,
     if (!fdw->alive) {
         return efx_api_type_error(ctx, "using a destroyed resource");
     }
-    if (argc < 2 || !JS_IsObject(argv[1])) {
-        return efx_api_type_error(ctx, "createFont requires an options object");
+    return JS_UNDEFINED;
+}
+
+
+/* (fontData, size, glyphs|null, padding, filter, hasOutline, outlineWidth,
+ * hasShadow, shadowBlur, offX, offY) — the desktop twin of the web bridge's
+ * efx_bridge_create_font */
+JSValue efx_js_create_font_wire(JSContext *ctx, JSValueConst this_val,
+                                int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 11) {
+        return efx_api_type_error(ctx, "font wire native requires 11 arguments");
     }
-    JSValueConst opts = argv[1];
-    static const char *known[] = {"size",   "glyphs", "padding",
-                                  "filter", "outline", "shadow"};
-    if (efx_api_check_known_fields(ctx, opts, known, 6, "createFont") != 0) {
-        return JS_EXCEPTION;
+    efxjs_fontdata *fdw = JS_GetOpaque2(ctx, argv[0], fontdata_class_id);
+    if (!fdw) {
+        return efx_api_type_error(ctx, "createFont requires a FontData");
+    }
+    if (!fdw->alive) {
+        return efx_api_type_error(ctx, "using a destroyed resource");
     }
     efx_font_opts fo;
     memset(&fo, 0, sizeof(fo));
-    fo.padding = 1;
-    fo.filter = EFX_FILTER_LINEAR;
-
-    if (read_font_size(ctx, opts, &fo) != 0) {
+    double d = 0;
+    if (JS_ToFloat64(ctx, &d, argv[1]) < 0) {
         return JS_EXCEPTION;
     }
-    if (read_font_glyphs(ctx, opts, &fo) != 0) {
-        free((void *)fo.codepoints);
+    fo.size = (float)d;
+    if (JS_ToInt32(ctx, &fo.padding, argv[3]) < 0 ||
+        JS_ToInt32(ctx, &fo.filter, argv[4]) < 0 ||
+        JS_ToInt32(ctx, &fo.effects.has_outline, argv[5]) < 0 ||
+        JS_ToInt32(ctx, &fo.effects.has_shadow, argv[7]) < 0) {
         return JS_EXCEPTION;
     }
-    if (read_font_padding(ctx, opts, &fo) != 0) {
-        free((void *)fo.codepoints);
+    double outline_width = 0, shadow_blur = 0, off_x = 0, off_y = 0;
+    if (JS_ToFloat64(ctx, &outline_width, argv[6]) < 0 ||
+        JS_ToFloat64(ctx, &shadow_blur, argv[8]) < 0 ||
+        JS_ToFloat64(ctx, &off_x, argv[9]) < 0 ||
+        JS_ToFloat64(ctx, &off_y, argv[10]) < 0) {
         return JS_EXCEPTION;
     }
-    if (read_font_filter(ctx, opts, &fo) != 0) {
-        free((void *)fo.codepoints);
-        return JS_EXCEPTION;
+    fo.effects.outline_width = (float)outline_width;
+    fo.effects.shadow_blur = (float)shadow_blur;
+    fo.effects.shadow_offset[0] = (float)off_x;
+    fo.effects.shadow_offset[1] = (float)off_y;
+    uint32_t *cps = NULL;
+    int ncp = 0;
+    if (!JS_IsNull(argv[2]) && !JS_IsUndefined(argv[2])) {
+        const char *gs = JS_ToCString(ctx, argv[2]);
+        if (!gs) {
+            return JS_EXCEPTION;
+        }
+        ncp = efx_text_codepoints(gs, &cps);
+        JS_FreeCString(ctx, gs);
+        if (ncp < 0) {
+            return efx_api_generic_error(ctx, "out of memory");
+        }
+        if (ncp == 0) {
+            free(cps);
+            return efx_api_range_error(ctx, "glyphs must not be empty");
+        }
+        fo.codepoints = cps;
+        fo.codepoint_count = ncp;
     }
-    if (read_font_outline(ctx, opts, &fo) != 0) {
-        free((void *)fo.codepoints);
-        return JS_EXCEPTION;
-    }
-    if (read_font_shadow(ctx, opts, &fo) != 0) {
-        free((void *)fo.codepoints);
-        return JS_EXCEPTION;
-    }
-
     int err = EFX_TEXT_OK;
     efx_text_font *font = efx_text_font_create(fdw->fd, &fo, &err);
-    free((void *)fo.codepoints);
+    free(cps);
     if (!font) {
         return text_error(ctx, err, "font could not be baked");
     }
