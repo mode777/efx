@@ -96,4 +96,11 @@ void efx_api_physics_release(JSContext *ctx);
 /* F14: attach the efx.audio sub-namespace to the single efx object */
 int efx_api_register_audio(JSContext *ctx, JSValueConst efx);
 
+/* F14 prelude natives (ADR 0049): loaders return the wrapper or a negative
+ * code (-1 unreadable, -2 undecodable); play takes the validated scalars */
+JSValue efx_js_audio_load_data_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_load_stream_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_check_source(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_audio_play_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 #endif

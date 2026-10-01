@@ -199,9 +199,9 @@ coercion.phys-number-string: TypeError: friction must be a finite number
 13.gamepad-onconnect-nonfn: TypeError: hook must be a function
 13.gamepad-ondisconnect-nonfn: TypeError: hook must be a function
 14.loadaudiodata-type: TypeError: loadAudioData requires a path string
-14.loadaudiodata-missing: KNOWN-DIVERGENCE
+14.loadaudiodata-missing: Error: cannot read audio: nope.wav
 14.loadaudiostream-type: TypeError: loadAudioStream requires a path string
-14.loadaudiostream-missing: KNOWN-DIVERGENCE
+14.loadaudiostream-missing: Error: cannot read audio: nope.mp3
 14.playaudio-bad-source: TypeError: playAudio requires an AudioData or AudioStream
 14.playaudio-null: TypeError: playAudio requires an AudioData or AudioStream
 14.volume-negative: RangeError: volume must be a non-negative number

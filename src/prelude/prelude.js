@@ -1204,6 +1204,57 @@ function __efxPhysCommonOpts(opts) {
              position: position, layer: layer, mask: mask };
 }
 
+/* ------------------------------------------ audio (F14)
+ *
+ * Loader argument checks and playAudio options live once here (ADR 0049);
+ * loader failures come back as codes and map to the canonical messages
+ * (D4): -1 unreadable, -2 undecodable. */
+
+function __efxLoadAudio(natives, fn, path, what) {
+    if (typeof path !== 'string') {
+        throw new TypeError(what + ' requires a path string');
+    }
+    var r = fn(path);
+    if (typeof r === 'number') {
+        throw new Error((r === -1 ? 'cannot read audio: '
+                                  : 'cannot decode audio: ') + path);
+    }
+    return r;
+}
+
+function __efxPlayAudio(natives, source, opts) {
+    natives.checkAudioSource(source);
+    var volume = 1, pan = 0, pitch = 1, loop = false;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('playAudio options must be an object');
+        }
+        __efxCheckKnown(opts, ['volume', 'pan', 'pitch', 'loop'], 'playAudio');
+        if (opts['volume'] !== undefined) {
+            volume = __efxFinite(opts['volume'], 'volume must be a finite number');
+            if (volume < 0) {
+                throw new RangeError('volume must be a non-negative number');
+            }
+        }
+        if (opts['pan'] !== undefined) {
+            pan = __efxFinite(opts['pan'], 'pan must be a finite number');
+        }
+        if (opts['pitch'] !== undefined) {
+            pitch = __efxFinite(opts['pitch'], 'pitch must be a finite number');
+            if (pitch <= 0) {
+                pitch = 1;
+            }
+        }
+        if (opts['loop'] !== undefined) {
+            if (typeof opts['loop'] !== 'boolean') {
+                throw new TypeError('loop must be a boolean');
+            }
+            loop = opts['loop'];
+        }
+    }
+    return natives.playAudio(source, volume, pan, pitch, loop);
+}
+
 function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -1232,6 +1283,19 @@ function __efxPreludeInstall(efx, natives) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.playAudio) {
+        efx.audio.loadAudioData = function (path) {
+            return __efxLoadAudio(natives, natives.loadAudioData, path,
+                                  'loadAudioData');
+        };
+        efx.audio.loadAudioStream = function (path) {
+            return __efxLoadAudio(natives, natives.loadAudioStream, path,
+                                  'loadAudioStream');
+        };
+        efx.audio.playAudio = function (source, opts) {
+            return __efxPlayAudio(natives, source, opts);
+        };
+    }
     if (natives && natives.physicsStep) {
         var phys = efx.physics;
         phys.step = function (dt) {

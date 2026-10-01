@@ -76,15 +76,17 @@
 
 ## 6. Physics (R26)
 
-- [ ] 6.1 Migrate shape, body, character, static-mesh and query option
+- [x] 6.1 Migrate shape, body, character, static-mesh and query option
   validation to the prelude, deleting `parse_shape`, `read_common_body_opts`
   and the remaining physics option readers (desktop) and `__physShape`/
-  `__physBodyVec3`/`__physBodyCommonOpts` (web). Apply strict numbers (D6).
-- [ ] 6.2 Resolve `12.createbody-noshape`, `12.createstaticmesh-noopts`,
+  `__physBodyCommonOpts`/`__physMask` (web; `__physBodyVec3` stays with the
+  hot accessors). Apply strict numbers (D6).
+- [x] 6.2 Resolve `12.createbody-noshape`, `12.createstaticmesh-noopts`,
   `12.raycast-noopts`, `12.overlap-noopts`, `12.shapecast-noopts`,
   `12.step-nodt` and `coercion.phys-number-string` (now `TypeError` on both).
   Update the expected file, remove the `DIVERGENT` entries, and replace any
   `api_tests` assertion that relied on desktop coercion.
+  (No api_tests assertion relied on coercion; physics_js passes unchanged.)
 - [ ] 6.3 Verify: V1 `physics_js`, `efx_physics_tests`; V2 `smoke_12_physics`,
   `smoke_showcase_physics`; V4 `web_12_physics`, catalog, compare; timing
   within budget.

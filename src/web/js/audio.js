@@ -1,22 +1,4 @@
     /* --------------------------------------------- F14 audio */
-    function __efxAudioOpts(opts, known, where) {
-        if (opts === undefined || opts === null) {
-            return {};
-        }
-        if (typeof opts !== 'object') {
-            throw new TypeError(where + ' options must be an object');
-        }
-        var out = {};
-        for (var k in opts) {
-            if (Object.prototype.hasOwnProperty.call(opts, k)) {
-                if (known.indexOf(k) < 0) {
-                    throw new TypeError("unknown " + where + " option '" + k + "'");
-                }
-                out[k] = opts[k];
-            }
-        }
-        return out;
-    }
 
     var EfxAudioData = __efxResourceClass('EfxAudioData', {
         init: function (id) {
@@ -115,61 +97,9 @@
         },
     });
 
-    function __efxAudioPlay(playFn, src, opts) {
-        var o = __efxAudioOpts(opts, ['volume', 'pan', 'pitch', 'loop'],
-                               'playAudio');
-        var volume = (o.volume === undefined) ? 1
-            : __efxFiniteNumber(o.volume, 'volume');
-        if (volume < 0) {
-            throw new RangeError('volume must be a non-negative number');
-        }
-        var pan = (o.pan === undefined) ? 0 : __efxFiniteNumber(o.pan, 'pan');
-        var pitch = (o.pitch === undefined) ? 1 : __efxFiniteNumber(o.pitch, 'pitch');
-        if (pitch <= 0) pitch = 1;
-        var loop = o.loop ? 1 : 0;
-        var id = playFn(src.__id, volume, pan, pitch, loop);
-        if (!id) return null;
-        return new EfxAudio(id, volume, pan, pitch, !!o.loop);
-    }
-
     api.audio = {
-        loadAudioData: function (path) {
-            if (typeof path !== 'string') {
-                throw new TypeError('loadAudioData requires a path string');
-            }
-            var p = __efxAllocCStr(path);
-            var id = bridge['_efx_bridge_audio_load_data'](p);
-            bridge['_free'](p);
-            if (!id) {
-                throw new Error('cannot decode audio: ' + path);
-            }
-            return new EfxAudioData(id);
-        },
-        loadAudioStream: function (path) {
-            if (typeof path !== 'string') {
-                throw new TypeError('loadAudioStream requires a path string');
-            }
-            var p = __efxAllocCStr(path);
-            var id = bridge['_efx_bridge_audio_load_stream'](p);
-            bridge['_free'](p);
-            if (!id) {
-                throw new Error('cannot decode audio: ' + path);
-            }
-            return new EfxAudioStream(id);
-        },
-        playAudio: function (source, opts) {
-            if (source instanceof EfxAudioData) {
-                if (!source.__alive) throw new Error('AudioData was destroyed');
-                return __efxAudioPlay(
-                    bridge['_efx_bridge_audio_play_data'], source, opts);
-            }
-            if (source instanceof EfxAudioStream) {
-                if (!source.__alive) throw new Error('AudioStream was destroyed');
-                return __efxAudioPlay(
-                    bridge['_efx_bridge_audio_play_stream'], source, opts);
-            }
-            throw new TypeError('playAudio requires an AudioData or AudioStream');
-        },
+        /* loadAudioData/loadAudioStream/playAudio are installed by the
+         * shared prelude (ADR 0049) */
         resume: function () {
             bridge['_efx_audio_request_resume']();
         },
@@ -399,6 +329,55 @@
             };
             bridge['_free'](ptr);
             return out;
+        },
+        checkAudioSource: function (v) {
+            if (v instanceof EfxAudioData) {
+                if (!v.__alive) {
+                    throw new Error('AudioData was destroyed');
+                }
+                return;
+            }
+            if (v instanceof EfxAudioStream) {
+                if (!v.__alive) {
+                    throw new Error('AudioStream was destroyed');
+                }
+                return;
+            }
+            throw new TypeError('playAudio requires an AudioData or AudioStream');
+        },
+        loadAudioData: function (path) {
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_audio_load_data'](p);
+            bridge['_free'](p);
+            if (id < 0) {
+                return id;
+            }
+            if (!id) {
+                return -2;
+            }
+            return new EfxAudioData(id);
+        },
+        loadAudioStream: function (path) {
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_audio_load_stream'](p);
+            bridge['_free'](p);
+            if (id < 0) {
+                return id;
+            }
+            if (!id) {
+                return -2;
+            }
+            return new EfxAudioStream(id);
+        },
+        playAudio: function (source, volume, pan, pitch, loop) {
+            var playFn = (source instanceof EfxAudioData)
+                ? bridge['_efx_bridge_audio_play_data']
+                : bridge['_efx_bridge_audio_play_stream'];
+            var id = playFn(source.__id, volume, pan, pitch, loop ? 1 : 0);
+            if (!id) {
+                return null;
+            }
+            return new EfxAudio(id, volume, pan, pitch, loop);
         },
     };
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());

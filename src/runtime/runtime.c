@@ -306,6 +306,17 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     n = JS_NewCFunction(rt->ctx, efx_js_physics_shape_cast_wire,
                         "shapeCast", 15);
     JS_SetPropertyStr(rt->ctx, natives, "shapeCast", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_load_data_wire,
+                        "loadAudioData", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "loadAudioData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_load_stream_wire,
+                        "loadAudioStream", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "loadAudioStream", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_check_source,
+                        "checkAudioSource", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkAudioSource", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_play_wire, "playAudio", 5);
+    JS_SetPropertyStr(rt->ctx, natives, "playAudio", n);
     return natives;
 }
 

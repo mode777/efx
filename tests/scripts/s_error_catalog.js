@@ -53,8 +53,6 @@ var DIVERGENT = {
     '6b.loadmesh-missing': 'desktop: glTF resource could not be read / web: glTF import failed',
     '6b.loadmesh-corrupt': 'desktop: invalid or malformed glTF asset / web: glTF import failed',
     '11.billboard-pos': 'desktop: drawBillboard pos must be [x,y,z] / web: pos must be [x,y] or [x,y,z]',
-    '14.loadaudiodata-missing': 'desktop: cannot read audio: <path> / web: cannot decode audio: <path>',
-    '14.loadaudiostream-missing': 'same as 14.loadaudiodata-missing',
 };
 
 /* ------------------------------------------------------------- 2D layer */
