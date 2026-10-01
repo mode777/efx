@@ -130,11 +130,11 @@
 6a.loadtext-type: TypeError: loadText requires a path string
 6a.loadtext-missing: Error: resource not found
 6a.loadimage-type: TypeError: loadImage requires a path string
-6a.loadimage-missing: KNOWN-DIVERGENCE
+6a.loadimage-missing: Error: resource not found
 6b.loadmesh-type: TypeError: loadMeshData requires a path string
-6b.loadmesh-missing: KNOWN-DIVERGENCE
+6b.loadmesh-missing: Error: glTF resource could not be read
 6b.loadmesh-unknown-opt: TypeError: unknown loadMeshData option 'nope'
-6b.loadmesh-corrupt: KNOWN-DIVERGENCE
+6b.loadmesh-corrupt: Error: invalid or malformed glTF asset
 6c.md-joints-unpaired: RangeError: invalid mesh data
 8a.loadfont-type: TypeError: loadFontData requires a path string
 8a.loadfont-missing: Error: font could not be loaded

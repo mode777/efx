@@ -3,39 +3,18 @@
 
 /* -------------------------------------------------------- F5a bindings */
 
-JSValue efx_js_createRenderTarget(JSContext *ctx, JSValueConst this_val,
-                                  int argc, JSValueConst *argv) {
+/* (width, height) — validated by the shared prelude (ADR 0049) */
+JSValue efx_js_create_render_target_wire(JSContext *ctx, JSValueConst this_val,
+                                         int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "createRenderTarget requires an options object");
+    if (argc < 2) {
+        return efx_api_type_error(ctx, "render target wire native requires (w, h)");
     }
-    JSValueConst opts = argv[0];
-    static const char *known[] = {"width", "height"};
-    if (efx_api_check_known_fields(ctx, opts, known, 2, "createRenderTarget") != 0) {
+    int32_t w = 0, h = 0;
+    if (JS_ToInt32(ctx, &w, argv[0]) < 0 || JS_ToInt32(ctx, &h, argv[1]) < 0) {
         return JS_EXCEPTION;
     }
-    double w = 0, h = 0;
-    static const char *keys[] = {"width", "height"};
-    double *outs[] = {&w, &h};
-    for (int i = 0; i < 2; i++) {
-        JSValue v = JS_GetPropertyStr(ctx, opts, keys[i]);
-        if (JS_IsUndefined(v)) {
-            JS_FreeValue(ctx, v);
-            return efx_api_type_error(ctx, "createRenderTarget requires width and height");
-        }
-        int bad = !JS_IsNumber(v) || JS_ToFloat64(ctx, outs[i], v) < 0;
-        JS_FreeValue(ctx, v);
-        if (bad) {
-            return efx_api_type_error(ctx, "width and height must be numbers");
-        }
-        if (!isfinite(*outs[i]) || *outs[i] <= 0 ||
-            *outs[i] != floor(*outs[i]) ||
-            *outs[i] > (double)EFX_RENDER_MAX_TARGET_SIZE) {
-            return efx_api_range_error(
-                ctx, "width and height must be integers in 1..4096");
-        }
-    }
-    uint64_t handle = efx_render_target_create((int)w, (int)h);
+    uint64_t handle = efx_render_target_create(w, h);
     if (!handle) {
         return efx_api_generic_error(ctx, "render target creation failed (no GPU context?)");
     }

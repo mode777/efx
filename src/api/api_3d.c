@@ -3,237 +3,156 @@
 
 /* indices: non-negative integers in uint32 range; non-integer → RangeError
  * (the F2 pixel-bytes precedent). `what` names the field for messages. */
-static int read_index_array(JSContext *ctx, JSValueConst v, uint32_t **out,
-                            int *out_len, const char *what) {
-    int is_ta = JS_GetTypedArrayType(v);
-    if (!JS_IsArray(v) && is_ta < 0) {
-        efx_api_type_error(ctx, what);
-        return -1;
-    }
-    JSValue lenv = JS_GetPropertyStr(ctx, v, "length");
-    int32_t len = -1;
-    JS_ToInt32(ctx, &len, lenv);
-    JS_FreeValue(ctx, lenv);
-    if (len < 0) {
-        efx_api_range_error(ctx, what);
-        return -2;
-    }
-    uint32_t *buf = len ? malloc((size_t)len * sizeof(uint32_t)) : NULL;
-    if (len && !buf) {
-        efx_api_generic_error(ctx, "out of memory");
-        return -3;
-    }
-    if (efx_api_read_elements(ctx, v, len, EFX_ELEM_U32,
-                      "array elements must be numbers", NULL,
-                      "array elements must be integers in [0, 2^32-1]",
-                      efx_api_sink_u32, buf) != 0) {
-        free(buf);
-        return -2;
-    }
-    *out = buf;
-    *out_len = (int)len;
-    return 0;
-}
+/* ---- native for the shared prelude validator (ADR 0049): the bag was
+ * validated and marshalled into concatenated attribute streams with a
+ * per-surface length table and the per-surface material wire ---- */
 
-
-static const char *MD_KEYS[] = {"positions", "normals", "uvs",
-                                "colors", "joints", "weights", "indices"};
-
-static const char *MD_KEYS_MAT[] = {"positions", "normals", "uvs",
-                                    "colors", "joints", "weights",
-                                    "indices", "materials"};
-
-
-static void md_owned_free(md_owned *o) {
-    for (int k = 0; k < o->nf; k++) {
-        free(o->f[k]);
-    }
-    for (int k = 0; k < o->ni; k++) {
-        free(o->i[k]);
-    }
-    for (int k = 0; k < o->nj; k++) {
-        free(o->j[k]);
-    }
-    o->nf = 0;
-    o->ni = 0;
-    o->nj = 0;
-}
-
-
-/* extract one surface object into an efx_surface_src; buffers are owned
- * by *own (the caller releases them, on success and on failure alike) */
-static int read_surface(JSContext *ctx, JSValueConst obj, efx_surface_src *s,
-                        md_owned *own, int allow_materials) {
-    memset(s, 0, sizeof(*s));
-    if (!JS_IsObject(obj)) {
-        efx_api_type_error(ctx, "surfaces must be objects");
-        return -1;
-    }
-    if (allow_materials
-            ? efx_api_check_known_fields(ctx, obj, MD_KEYS_MAT, 8, "surface") != 0
-            : efx_api_check_known_fields(ctx, obj, MD_KEYS, 7, "surface") != 0) {
-        return -1;
-    }
-    static const char *keys[] = {"positions", "normals", "uvs", "colors"};
-    float *bufs[4] = {NULL, NULL, NULL, NULL};
-    int lens[4] = {0, 0, 0, 0};
+static void wire_mat_from_block(efx_material *m, const float *f,
+                                const double *maps) {
     for (int i = 0; i < 4; i++) {
-        JSValue v = JS_GetPropertyStr(ctx, obj, keys[i]);
-        if (JS_IsUndefined(v)) {
-            JS_FreeValue(ctx, v);
-            continue;
-        }
-        int rc = efx_api_read_number_array(ctx, v, &bufs[i], &lens[i], keys[i]);
-        JS_FreeValue(ctx, v);
-        if (rc != 0) {
-            return -1;
-        }
-        own->f[own->nf++] = bufs[i];
+        m->ambient[i] = f[i];
+        m->diffuse[i] = f[4 + i];
+        m->specular[i] = f[8 + i];
+        m->emissive[i] = f[12 + i];
     }
-    s->positions = bufs[0];
-    s->positions_len = lens[0];
-    s->normals = bufs[1];
-    s->normals_len = lens[1];
-    s->uvs = bufs[2];
-    s->uvs_len = lens[2];
-    s->colors = bufs[3];
-    s->colors_len = lens[3];
-    /* F6c skinned attributes: joints are integer indices, weights finite
-     * floats; pairing/count validation happens in efx_meshdata_create */
-    JSValue jv = JS_GetPropertyStr(ctx, obj, "joints");
-    if (!JS_IsUndefined(jv)) {
-        uint32_t *jb = NULL;
-        int jl = 0;
-        int rc = read_index_array(ctx, jv, &jb, &jl, "joints");
-        JS_FreeValue(ctx, jv);
-        if (rc != 0) {
-            return -1;
+    m->shininess = f[16];
+    m->ambient_map = (uint64_t)maps[0];
+    m->diffuse_map = (uint64_t)maps[1];
+    m->specular_map = (uint64_t)maps[2];
+    m->emissive_map = (uint64_t)maps[3];
+    m->alpha_mask = (uint64_t)maps[4];
+}
+
+static float *wire_f32(JSContext *ctx, JSValueConst v, size_t *out_len) {
+    size_t blen = 0;
+    uint8_t *bytes = NULL;
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, v, NULL, NULL, NULL);
+    if (JS_IsException(ab)) {
+        return NULL;
+    }
+    bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+    JS_FreeValue(ctx, ab);
+    if (!bytes || blen % sizeof(float) != 0) {
+        return NULL;
+    }
+    *out_len = blen / sizeof(float);
+    return (float *)bytes;
+}
+
+static int32_t *wire_i32(JSContext *ctx, JSValueConst v, size_t *out_len) {
+    size_t blen = 0;
+    uint8_t *bytes = NULL;
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, v, NULL, NULL, NULL);
+    if (JS_IsException(ab)) {
+        return NULL;
+    }
+    bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+    JS_FreeValue(ctx, ab);
+    if (!bytes || blen % sizeof(int32_t) != 0) {
+        return NULL;
+    }
+    *out_len = blen / sizeof(int32_t);
+    return (int32_t *)bytes;
+}
+
+static uint32_t *wire_u32(JSContext *ctx, JSValueConst v, size_t *out_len) {
+    size_t blen = 0;
+    uint8_t *bytes = NULL;
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, v, NULL, NULL, NULL);
+    if (JS_IsException(ab)) {
+        return NULL;
+    }
+    bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+    JS_FreeValue(ctx, ab);
+    if (!bytes || blen % sizeof(uint32_t) != 0) {
+        return NULL;
+    }
+    *out_len = blen / sizeof(uint32_t);
+    return (uint32_t *)bytes;
+}
+
+/* (count, lens Int32Array(count*7), pos, nrm, uv, col, joints Uint32Array,
+ * weights, indices Uint32Array, blocks Float32Array|null, maps Float64Array|null,
+ * matHas Int32Array) */
+JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
+                                    int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 12) {
+        return efx_api_type_error(ctx, "meshdata wire native requires 12 arguments");
+    }
+    int32_t count = 0;
+    if (JS_ToInt32(ctx, &count, argv[0]) < 0 || count < 1 ||
+        count > EFX_MESH_MAX_SURFACES) {
+        return efx_api_range_error(ctx, "surfaces must hold 1..16 entries");
+    }
+    size_t lens_len = 0;
+    int32_t *lens = wire_i32(ctx, argv[1], &lens_len);
+    if (!lens || lens_len < (size_t)count * 7) {
+        return efx_api_type_error(ctx, "meshdata wire lens table");
+    }
+    size_t np = 0, nn = 0, nu = 0, nc = 0, nj = 0, nw = 0, ni = 0;
+    float *pos = wire_f32(ctx, argv[2], &np);
+    float *nrm = wire_f32(ctx, argv[3], &nn);
+    float *uv = wire_f32(ctx, argv[4], &nu);
+    float *col = wire_f32(ctx, argv[5], &nc);
+    uint32_t *joints = wire_u32(ctx, argv[6], &nj);
+    float *weights = wire_f32(ctx, argv[7], &nw);
+    uint32_t *idx = wire_u32(ctx, argv[8], &ni);
+    if (!pos || !nrm || !uv || !col || !joints || !weights || !idx) {
+        return efx_api_type_error(ctx, "meshdata wire attribute streams");
+    }
+    size_t nhas = 0;
+    float *blocks = wire_f32(ctx, argv[9], &(size_t){0});
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, argv[10], NULL, NULL, NULL);
+    double *maps = NULL;
+    if (!JS_IsException(ab)) {
+        size_t blen = 0;
+        uint8_t *bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+        JS_FreeValue(ctx, ab);
+        if (bytes && blen % sizeof(double) == 0) {
+            maps = (double *)bytes;
         }
-        s->joints = jb;
-        s->joints_len = jl;
-        own->j[own->nj++] = jb;
     } else {
-        JS_FreeValue(ctx, jv);
+        JS_GetException(ctx);
+        maps = NULL;
     }
-    JSValue wv = JS_GetPropertyStr(ctx, obj, "weights");
-    if (!JS_IsUndefined(wv)) {
-        float *wb = NULL;
-        int wl = 0;
-        int rc = efx_api_read_number_array(ctx, wv, &wb, &wl, "weights");
-        JS_FreeValue(ctx, wv);
-        if (rc != 0) {
-            return -1;
-        }
-        s->weights = wb;
-        s->weights_len = wl;
-        own->f[own->nf++] = wb;
-    } else {
-        JS_FreeValue(ctx, wv);
+    int32_t *mat_has = wire_i32(ctx, argv[11], &nhas);
+    if (!mat_has || nhas < (size_t)count) {
+        return efx_api_type_error(ctx, "meshdata wire material flags");
     }
-    JSValue iv = JS_GetPropertyStr(ctx, obj, "indices");
-    if (!JS_IsUndefined(iv)) {
-        uint32_t *ibuf = NULL;
-        int ilen = 0;
-        int rc = read_index_array(ctx, iv, &ibuf, &ilen, "indices");
-        JS_FreeValue(ctx, iv);
-        if (rc != 0) {
-            return -1;
-        }
-        s->indices = ibuf;
-        s->indices_len = ilen;
-        own->i[own->ni++] = ibuf;
-    }
-    if (!s->positions) {
-        efx_api_type_error(ctx, "surface requires positions");
-        return -1;
-    }
-    return 0;
-}
 
-
-/* read a `surfaces` array into src/own; consumes the `surfaces` and
- * `positions` JSValues (positions is unused in this form) */
-static int read_mesh_surfaces(JSContext *ctx, JSValue surfaces,
-                              JSValue positions, efx_surface_src *src,
-                              md_owned *own, int *out_count) {
-    if (!JS_IsArray(surfaces)) {
-        JS_FreeValue(ctx, surfaces);
-        JS_FreeValue(ctx, positions);
-        efx_api_type_error(ctx, "surfaces must be an array");
-        return -1;
-    }
-    JSValue lenv = JS_GetPropertyStr(ctx, surfaces, "length");
-    int32_t len = -1;
-    JS_ToInt32(ctx, &len, lenv);
-    JS_FreeValue(ctx, lenv);
-    JS_FreeValue(ctx, positions);
-    if (len < 1 || len > EFX_MESH_MAX_SURFACES) {
-        JS_FreeValue(ctx, surfaces);
-        efx_api_range_error(ctx, "surfaces must hold 1..16 entries");
-        return -1;
-    }
-    for (int32_t i = 0; i < len; i++) {
-        JSValue sv = JS_GetPropertyUint32(ctx, surfaces, (uint32_t)i);
-        int rc = read_surface(ctx, sv, &src[i], own, 0);
-        JS_FreeValue(ctx, sv);
-        if (rc != 0) {
-            JS_FreeValue(ctx, surfaces);
-            return -1;
+    /* slice the streams per surface (efx_meshdata_create copies) */
+    efx_surface_src srcs[EFX_MESH_MAX_SURFACES];
+    memset(srcs, 0, sizeof(srcs));
+    size_t op = 0, on = 0, ou = 0, oc = 0, oj = 0, ow = 0, oi = 0;
+    for (int i = 0; i < count; i++) {
+        int32_t *L = lens + (size_t)i * 7;
+        if ((size_t)L[0] > np - op || (size_t)L[1] > nn - on ||
+            (size_t)L[2] > nu - ou || (size_t)L[3] > nc - oc ||
+            (size_t)L[4] > nj - oj || (size_t)L[5] > nw - ow ||
+            (size_t)L[6] > ni - oi) {
+            return efx_api_range_error(ctx, "invalid mesh data");
         }
-        (*out_count)++;
+        srcs[i].positions = pos + op;
+        srcs[i].positions_len = L[0];
+        srcs[i].normals = nrm + on;
+        srcs[i].normals_len = L[1];
+        srcs[i].uvs = uv + ou;
+        srcs[i].uvs_len = L[2];
+        srcs[i].colors = col + oc;
+        srcs[i].colors_len = L[3];
+        /* joints/weights live on the surface src alongside (F6c) */
+        srcs[i].joints = joints + oj;
+        srcs[i].joints_len = L[4];
+        srcs[i].weights = weights + ow;
+        srcs[i].weights_len = L[5];
+        srcs[i].indices = idx + oi;
+        srcs[i].indices_len = L[6];
+        op += L[0]; on += L[1]; ou += L[2]; oc += L[3];
+        oj += L[4]; ow += L[5]; oi += L[6];
     }
-    JS_FreeValue(ctx, surfaces);
-    return 0;
-}
-
-/* F4a: optional parallel materials array (one entry per surface) */
-static int read_materials(JSContext *ctx, JSValueConst opts,
-                          efx_material *mats, uint8_t *mat_has, int count) {
-    JSValue materials = JS_GetPropertyStr(ctx, opts, "materials");
-    if (JS_IsUndefined(materials)) {
-        JS_FreeValue(ctx, materials);
-        return 0;
-    }
-    if (!JS_IsArray(materials)) {
-        JS_FreeValue(ctx, materials);
-        efx_api_type_error(ctx, "materials must be an array");
-        return -1;
-    }
-    JSValue mlenv = JS_GetPropertyStr(ctx, materials, "length");
-    int32_t mlen = -1;
-    JS_ToInt32(ctx, &mlen, mlenv);
-    JS_FreeValue(ctx, mlenv);
-    if (mlen != count) {
-        JS_FreeValue(ctx, materials);
-        efx_api_range_error(ctx, "materials must have one entry per surface");
-        return -1;
-    }
-    for (int32_t i = 0; i < count; i++) {
-        JSValue mv = JS_GetPropertyUint32(ctx, materials, (uint32_t)i);
-        if (JS_IsNull(mv) || JS_IsUndefined(mv)) {
-            JS_FreeValue(ctx, mv);
-            continue;
-        }
-        if (efx_api_read_material(ctx, mv, &mats[i]) != 0) {
-            JS_FreeValue(ctx, mv);
-            JS_FreeValue(ctx, materials);
-            return -1;
-        }
-        mat_has[i] = 1;
-        JS_FreeValue(ctx, mv);
-    }
-    JS_FreeValue(ctx, materials);
-    return 0;
-}
-
-/* create the MeshData + JS wrapper from the read sources/materials; releases
- * the temporary source buffers via `own` */
-static JSValue build_meshdata(JSContext *ctx, efx_surface_src *src, int count,
-                              efx_material *mats, uint8_t *mat_has,
-                              md_owned *own) {
     int err = 0;
-    efx_meshdata *md = efx_meshdata_create(src, count, &err);
-    md_owned_free(own);
+    efx_meshdata *md = efx_meshdata_create(srcs, count, &err);
     if (!md) {
         if (err == EFX_MESHERR_COUNT || err == EFX_MESHERR_LEN ||
             err == EFX_MESHERR_INDEX) {
@@ -241,9 +160,16 @@ static JSValue build_meshdata(JSContext *ctx, efx_surface_src *src, int count,
         }
         return efx_api_generic_error(ctx, "out of memory");
     }
-    for (int i = 0; i < count; i++) {
-        efx_meshdata_set_material(md, i, mat_has[i] ? &mats[i] : NULL,
-                                  mat_has[i]);
+    if (blocks && maps) {
+        for (int i = 0; i < count; i++) {
+            if (!mat_has[i]) {
+                continue;
+            }
+            efx_material m;
+            wire_mat_from_block(&m, blocks + (size_t)i * 17,
+                                maps + (size_t)i * 5);
+            efx_meshdata_set_material(md, i, &m, 1);
+        }
     }
     efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
     if (!wrap) {
@@ -255,69 +181,6 @@ static JSValue build_meshdata(JSContext *ctx, efx_surface_src *src, int count,
     JSValue obj = JS_NewObjectClass(ctx, meshdata_class_id);
     JS_SetOpaque(obj, wrap);
     return obj;
-}
-
-JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val,
-                              int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "createMeshData requires an options object");
-    }
-    JSValueConst opts = argv[0];
-    static const char *bag_keys[] = {"surfaces", "positions", "normals",
-                                     "uvs", "colors", "joints", "weights",
-                                     "indices", "materials"};
-    if (efx_api_check_known_fields(ctx, opts, bag_keys, 9, "createMeshData") != 0) {
-        return JS_EXCEPTION;
-    }
-
-    JSValue surfaces = JS_GetPropertyStr(ctx, opts, "surfaces");
-    JSValue positions = JS_GetPropertyStr(ctx, opts, "positions");
-    int has_surfaces = !JS_IsUndefined(surfaces);
-    int has_positions = !JS_IsUndefined(positions);
-    if (has_surfaces && has_positions) {
-        JS_FreeValue(ctx, surfaces);
-        JS_FreeValue(ctx, positions);
-        return efx_api_type_error(ctx,
-                          "pass either surfaces or single-surface fields");
-    }
-    if (!has_surfaces && !has_positions) {
-        JS_FreeValue(ctx, surfaces);
-        JS_FreeValue(ctx, positions);
-        return efx_api_type_error(ctx, "createMeshData requires surfaces");
-    }
-
-    efx_surface_src src[EFX_MESH_MAX_SURFACES];
-    md_owned own;
-    memset(&own, 0, sizeof(own));
-    int count = 0;
-
-    if (has_surfaces) {
-        if (read_mesh_surfaces(ctx, surfaces, positions, src, &own, &count) != 0) {
-            md_owned_free(&own);
-            return JS_EXCEPTION;
-        }
-    } else {
-        JS_FreeValue(ctx, surfaces);
-        /* the bag itself is the single surface */
-        int rc = read_surface(ctx, opts, &src[0], &own, 1);
-        JS_FreeValue(ctx, positions);
-        if (rc != 0) {
-            md_owned_free(&own);
-            return JS_EXCEPTION;
-        }
-        count = 1;
-    }
-
-    efx_material mats[EFX_MESH_MAX_SURFACES];
-    uint8_t mat_has[EFX_MESH_MAX_SURFACES];
-    memset(mat_has, 0, sizeof(mat_has));
-    if (read_materials(ctx, opts, mats, mat_has, count) != 0) {
-        md_owned_free(&own);
-        return JS_EXCEPTION;
-    }
-
-    return build_meshdata(ctx, src, count, mats, mat_has, &own);
 }
 
 

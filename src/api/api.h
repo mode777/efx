@@ -14,15 +14,16 @@ JSValue efx_js_registerRenderHook(JSContext *ctx, JSValueConst this_val, int arg
 /* F2 — 2D drawing */
 JSValue efx_js_setClearColor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setCamera2D(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_createImageData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_createTexture(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_check_image_data(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_create_image_data_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_create_texture_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setBlendMode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_whiteTexture(JSContext *ctx, JSValueConst this_val);
 
 /* F3 — 3D core */
 JSValue efx_js_setCamera3D(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_createMeshData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
@@ -35,7 +36,7 @@ JSValue efx_js_setDirectionalLight(JSContext *ctx, JSValueConst this_val, int ar
 JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F5a — render targets */
-JSValue efx_js_createRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_create_render_target_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_beginRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
@@ -45,10 +46,10 @@ JSValue efx_js_setRenderScale(JSContext *ctx, JSValueConst this_val, int argc, J
 
 /* F6a — resource loading */
 JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_load_image_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F6b — glTF mesh import */
-JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_load_meshdata_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F8a — font + text */
 JSValue efx_js_loadFontData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);

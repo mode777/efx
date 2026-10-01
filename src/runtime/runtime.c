@@ -176,27 +176,24 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
     JS_CFUNC_DEF("setClearColor", 1, efx_js_setClearColor),
     JS_CFUNC_DEF("setCamera2D", 1, efx_js_setCamera2D),
-    JS_CFUNC_DEF("createImageData", 1, efx_js_createImageData),
-    JS_CFUNC_DEF("createTexture", 1, efx_js_createTexture),
+    /* createImageData/createTexture are installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawQuad", 4, efx_js_drawQuad),
     JS_CFUNC_DEF("setBlendMode", 1, efx_js_setBlendMode),
     JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
     JS_CFUNC_DEF("setCamera3D", 1, efx_js_setCamera3D),
-    JS_CFUNC_DEF("createMeshData", 1, efx_js_createMeshData),
+    /* createMeshData is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
     JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
     JS_CFUNC_DEF("poseMesh", 2, efx_js_poseMesh),
     JS_CFUNC_DEF("setLight", 2, efx_js_setLight),
     JS_CFUNC_DEF("setDirectionalLight", 1, efx_js_setDirectionalLight),
     JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
-    JS_CFUNC_DEF("createRenderTarget", 1, efx_js_createRenderTarget),
+    /* createRenderTarget is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
     JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
     /* setPostEffects is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
     JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
-    JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
-    JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
     JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
     /* createFont is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
@@ -306,6 +303,22 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     n = JS_NewCFunction(rt->ctx, efx_js_physics_shape_cast_wire,
                         "shapeCast", 15);
     JS_SetPropertyStr(rt->ctx, natives, "shapeCast", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_check_image_data, "checkImageData", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkImageData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_image_data_wire,
+                        "createImageData", 3);
+    JS_SetPropertyStr(rt->ctx, natives, "createImageData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_texture_wire, "createTexture", 4);
+    JS_SetPropertyStr(rt->ctx, natives, "createTexture", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_render_target_wire,
+                        "createRenderTarget", 2);
+    JS_SetPropertyStr(rt->ctx, natives, "createRenderTarget", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_load_image_wire, "loadImage", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "loadImage", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_load_meshdata_wire, "loadMeshData", 5);
+    JS_SetPropertyStr(rt->ctx, natives, "loadMeshData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_meshdata_wire, "createMeshData", 12);
+    JS_SetPropertyStr(rt->ctx, natives, "createMeshData", n);
     n = JS_NewCFunction(rt->ctx, efx_js_audio_load_data_wire,
                         "loadAudioData", 1);
     JS_SetPropertyStr(rt->ctx, natives, "loadAudioData", n);

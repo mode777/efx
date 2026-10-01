@@ -1255,6 +1255,351 @@ function __efxPlayAudio(natives, source, opts) {
     return natives.playAudio(source, volume, pan, pitch, loop);
 }
 
+/* ------------------------------------- resource construction (F2/F3/F5a/
+ * F6a/F6b). The option bags are validated once here (ADR 0049); the natives
+ * unpack the marshalled form. Loader failures come back as negative engine
+ * error codes and map to the canonical messages (D4). */
+
+function __efxFloat32Array(v, what) {
+    if (!Array.isArray(v) && !ArrayBuffer.isView(v)) {
+        throw new TypeError(what + ' must be an array');
+    }
+    var n = v.length;
+    var out = new Float32Array(n);
+    for (var i = 0; i < n; i++) {
+        var d = v[i];
+        if (typeof d !== 'number') {
+            throw new TypeError('array elements must be numbers');
+        }
+        if (!isFinite(d)) {
+            throw new RangeError('array elements must be finite numbers');
+        }
+        out[i] = d;
+    }
+    return out;
+}
+
+function __efxUint32Array(v, what) {
+    what = what || 'indices';
+    if (!Array.isArray(v) && !ArrayBuffer.isView(v)) {
+        throw new TypeError(what + ' must be an array');
+    }
+    var n = v.length;
+    var out = new Uint32Array(n);
+    for (var i = 0; i < n; i++) {
+        var d = v[i];
+        if (typeof d !== 'number') {
+            throw new TypeError('array elements must be numbers');
+        }
+        if (!isFinite(d) || d < 0 || d > 4294967295 || d !== Math.floor(d)) {
+            throw new RangeError('array elements must be integers in [0, 2^32-1]');
+        }
+        out[i] = d;
+    }
+    return out;
+}
+
+/* createImageData: -> { w, h, bytes } (bytes is a fresh Uint8Array) */
+function __efxImageDataOpts(opts) {
+    var w = Number(opts['width']) | 0;
+    var h = Number(opts['height']) | 0;
+    if (w <= 0 || h <= 0) {
+        throw new RangeError('width and height must be positive');
+    }
+    var n = w * h * 4;
+    if (n > 0x7fffffff) {
+        throw new RangeError('image too large');
+    }
+    var pixels = opts['pixels'];
+    if (pixels === undefined) {
+        throw new TypeError('createImageData requires pixels');
+    }
+    var bytes;
+    if (Array.isArray(pixels)) {
+        bytes = new Uint8Array(n);
+        for (var i = 0; i < n; i++) {
+            var d = Number(pixels[i]);
+            if (!(d >= 0 && d <= 255 && d === (d | 0))) {
+                throw new RangeError('pixel bytes must be integers 0..255');
+            }
+            bytes[i] = d;
+        }
+    } else if (pixels instanceof Uint8Array) {
+        if (pixels.length !== n) {
+            throw new RangeError('pixels length must be width*height*4');
+        }
+        bytes = new Uint8Array(n);
+        bytes.set(pixels);
+    } else {
+        throw new TypeError('pixels must be an array or typed array');
+    }
+    var fmt = opts['format'];
+    if (fmt !== undefined && String(fmt) !== 'rgba8') {
+        throw new RangeError("unsupported image format (only 'rgba8')");
+    }
+    var known = { width: 1, height: 1, pixels: 1, format: 1 };
+    var names = Object.getOwnPropertyNames(opts);
+    for (var k = 0; k < names.length; k++) {
+        if (!known[names[k]]) {
+            throw new TypeError("unknown option '" + names[k] + "'");
+        }
+    }
+    return { w: w, h: h, bytes: bytes };
+}
+
+/* createTexture options -> [wrap, filter, mipmaps] */
+function __efxTextureOpts(opts) {
+    var wrap = 0, filter = 1, mipmaps = 0;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('createTexture options must be an object');
+        }
+        __efxCheckKnown(opts, { wrap: 1, filter: 1, mipmaps: 1 },
+                        'createTexture');
+        if (opts['wrap'] !== undefined) {
+            if (opts['wrap'] === 'repeat') {
+                wrap = 0;
+            } else if (opts['wrap'] === 'clamp') {
+                wrap = 1;
+            } else if (opts['wrap'] === 'mirror') {
+                wrap = 2;
+            } else {
+                throw new TypeError('unknown wrap mode');
+            }
+        }
+        if (opts['filter'] !== undefined) {
+            if (opts['filter'] === 'nearest') {
+                filter = 0;
+            } else if (opts['filter'] === 'linear') {
+                filter = 1;
+            } else {
+                throw new TypeError('unknown filter');
+            }
+        }
+        if (opts['mipmaps'] !== undefined) {
+            if (typeof opts['mipmaps'] !== 'boolean') {
+                throw new TypeError('mipmaps must be a boolean');
+            }
+            mipmaps = opts['mipmaps'] ? 1 : 0;
+        }
+    }
+    return [wrap, filter, mipmaps];
+}
+
+/* createRenderTarget options -> [width, height] */
+function __efxRenderTargetOpts(opts) {
+    var known = { width: 1, height: 1 };
+    __efxCheckKnown(opts, known, 'createRenderTarget');
+    var dims = [];
+    for (var k = 0; k < 2; k++) {
+        var key = k === 0 ? 'width' : 'height';
+        var v = opts[key];
+        if (v === undefined) {
+            throw new TypeError('createRenderTarget requires width and height');
+        }
+        if (typeof v !== 'number' || !isFinite(v) || v <= 0 ||
+            (v | 0) !== v || v > 4096) {
+            throw new RangeError('width and height must be integers in 1..4096');
+        }
+        dims.push(v | 0);
+    }
+    return dims;
+}
+
+/* Phong material -> the 17-float block + 5 map-handles wire (the layout of
+ * the bindings' material marshalling); `sample` resolves map resources */
+function __efxMaterialWire(v, sample) {
+    if (!__efxIsObject(v)) {
+        throw new TypeError('material must be an object');
+    }
+    __efxCheckKnown(v, { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
+                         alphaMask: 1 }, 'material');
+    var out = new Float32Array(17);
+    out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;     /* ambient */
+    out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;     /* diffuse */
+    out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1;   /* specular */
+    out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
+    out[16] = 32;                                       /* shininess */
+    var maps = new Float64Array(5);                     /* all absent (0) */
+    var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
+    for (var ci = 0; ci < 4; ci++) {
+        var ch = v[chan[ci]];
+        if (ch === undefined || ch === null) {
+            continue;
+        }
+        if (!__efxIsObject(ch)) {
+            throw new TypeError(chan[ci] + ' channel must be an object');
+        }
+        __efxCheckKnown(ch, ci === 2 ? { color: 1, shininess: 1, map: 1 }
+                                     : { color: 1, map: 1 }, chan[ci]);
+        if (ch['color'] === undefined) {
+            throw new TypeError(chan[ci] + ' channel requires color');
+        }
+        var c = __efxFloatArray(ch['color'], 4);
+        out[ci * 4] = c[0];
+        out[ci * 4 + 1] = c[1];
+        out[ci * 4 + 2] = c[2];
+        out[ci * 4 + 3] = c[3];
+        if (ch['map'] !== undefined && ch['map'] !== null) {
+            maps[ci] = sample(ch['map']).handle;
+        }
+        if (ci === 2 && ch['shininess'] !== undefined) {
+            if (typeof ch['shininess'] !== 'number') {
+                throw new TypeError('shininess must be a number');
+            }
+            if (!isFinite(ch['shininess']) || ch['shininess'] <= 0) {
+                throw new RangeError('shininess must be Finite and > 0');
+            }
+            out[16] = ch['shininess'];
+        }
+    }
+    if (v['alphaMask'] !== undefined && v['alphaMask'] !== null) {
+        maps[4] = sample(v['alphaMask']).handle;
+    }
+    return { blocks: out, maps: maps };
+}
+
+/* createMeshData: validate the bag and marshal the concatenated-buffers wire
+ * (7 attribute streams + per-surface lengths + per-surface materials) */
+function __efxMeshDataWire(opts, natives) {
+    var bagKnown = { surfaces: 1, positions: 1, normals: 1, uvs: 1,
+                     colors: 1, joints: 1, weights: 1, indices: 1,
+                     materials: 1 };
+    __efxCheckKnown(opts, bagKnown, 'createMeshData');
+    var surfaces = opts['surfaces'];
+    var shorthand = opts['positions'] !== undefined;
+    if (surfaces !== undefined && shorthand) {
+        throw new TypeError('pass either surfaces or single-surface fields');
+    }
+    if (surfaces === undefined && !shorthand) {
+        throw new TypeError('createMeshData requires surfaces');
+    }
+    var list;
+    if (surfaces !== undefined) {
+        if (!Array.isArray(surfaces)) {
+            throw new TypeError('surfaces must be an array');
+        }
+        if (surfaces.length < 1 || surfaces.length > 16) {
+            throw new RangeError('surfaces must hold 1..16 entries');
+        }
+        list = surfaces;
+    } else {
+        list = [opts];
+    }
+    var surfKnown = { positions: 1, normals: 1, uvs: 1, colors: 1,
+                      joints: 1, weights: 1, indices: 1 };
+    /* the shorthand form passes the whole bag as the surface, so the
+     * bag-level materials field is allowed there (desktop parity) */
+    if (surfaces === undefined) {
+        surfKnown.materials = 1;
+    }
+    var count = list.length;
+    var lens = new Int32Array(count * 7);
+    var posAll = [], nrmAll = [], uvAll = [], colAll = [], jntAll = [];
+    var wgtAll = [], idxAll = [];
+    var materials = opts['materials'];
+    if (materials !== undefined) {
+        if (!Array.isArray(materials)) {
+            throw new TypeError('materials must be an array');
+        }
+        if (materials.length !== count) {
+            throw new RangeError('materials must have one entry per surface');
+        }
+    }
+    for (var i = 0; i < count; i++) {
+        var sv = list[i];
+        if (!__efxIsObject(sv)) {
+            throw new TypeError('surfaces must be objects');
+        }
+        var names = Object.getOwnPropertyNames(sv);
+        for (var k = 0; k < names.length; k++) {
+            if (!surfKnown[names[k]]) {
+                throw new TypeError("unknown surface option '" + names[k] + "'");
+            }
+        }
+        if (sv['positions'] === undefined) {
+            throw new TypeError('surface requires positions');
+        }
+        var pos = __efxFloat32Array(sv['positions'], 'positions');
+        var nrm = sv['normals'] !== undefined
+            ? __efxFloat32Array(sv['normals'], 'normals') : [];
+        var uvs = sv['uvs'] !== undefined
+            ? __efxFloat32Array(sv['uvs'], 'uvs') : [];
+        var cols = sv['colors'] !== undefined
+            ? __efxFloat32Array(sv['colors'], 'colors') : [];
+        var joints = sv['joints'] !== undefined
+            ? __efxUint32Array(sv['joints'], 'joints') : [];
+        var weights = sv['weights'] !== undefined
+            ? __efxFloat32Array(sv['weights'], 'weights') : [];
+        var idx = sv['indices'] !== undefined
+            ? __efxUint32Array(sv['indices']) : [];
+        lens[i * 7] = pos.length;
+        lens[i * 7 + 1] = nrm.length;
+        lens[i * 7 + 2] = uvs.length;
+        lens[i * 7 + 3] = cols.length;
+        lens[i * 7 + 4] = joints.length;
+        lens[i * 7 + 5] = weights.length;
+        lens[i * 7 + 6] = idx.length;
+        for (var p = 0; p < pos.length; p++) posAll.push(pos[p]);
+        for (p = 0; p < nrm.length; p++) nrmAll.push(nrm[p]);
+        for (p = 0; p < uvs.length; p++) uvAll.push(uvs[p]);
+        for (p = 0; p < cols.length; p++) colAll.push(cols[p]);
+        for (p = 0; p < joints.length; p++) jntAll.push(joints[p]);
+        for (p = 0; p < weights.length; p++) wgtAll.push(weights[p]);
+        for (p = 0; p < idx.length; p++) idxAll.push(idx[p]);
+    }
+    var blocks = null, maps = null, matHas = new Int32Array(count);
+    if (materials !== undefined) {
+        blocks = new Float32Array(count * 17);
+        maps = new Float64Array(count * 5);
+        for (var mi = 0; mi < count; mi++) {
+            var mv = materials[mi];
+            if (mv === null || mv === undefined) {
+                continue;
+            }
+            var mf = __efxMaterialWire(mv, natives.liveSample);
+            blocks.set(mf.blocks, mi * 17);
+            maps.set(mf.maps, mi * 5);
+            matHas[mi] = 1;
+        }
+    }
+    return {
+        count: count,
+        lens: lens,
+        pos: new Float32Array(posAll),
+        nrm: new Float32Array(nrmAll),
+        uv: new Float32Array(uvAll),
+        col: new Float32Array(colAll),
+        joints: new Uint32Array(jntAll),
+        weights: new Float32Array(wgtAll),
+        idx: new Uint32Array(idxAll),
+        blocks: blocks,
+        maps: maps,
+        matHas: matHas,
+    };
+}
+
+/* loader failure code -> canonical message (D4); codes are the negated
+ * engine error enums */
+var __efxResourceMsgs = {
+    1: 'resource root could not be opened',
+    2: 'resource not found',
+    3: 'invalid resource path',
+    4: 'resource read failed',
+    5: 'out of memory',
+    100: 'image decode failed',
+};
+
+var __efxGltfMsgs = {
+    1: 'invalid or malformed glTF asset',
+    2: 'glTF asset requires an unsupported extension',
+    3: 'glTF mesh selection matched no mesh',
+    4: 'glTF mesh exceeds the surface count limit',
+    5: 'glTF image decode failed',
+    6: 'out of memory',
+    7: 'glTF resource could not be read',
+};
+
 function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -1283,6 +1628,85 @@ function __efxPreludeInstall(efx, natives) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.createImageData) {
+        efx.createImageData = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createImageData requires an options object');
+            }
+            var im = __efxImageDataOpts(opts);
+            return natives.createImageData(im.w, im.h, im.bytes);
+        };
+        efx.createTexture = function (imageData, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('createTexture requires an ImageData');
+            }
+            natives.checkImageData(imageData);
+            var t = __efxTextureOpts(opts);
+            return natives.createTexture(imageData, t[0], t[1], t[2]);
+        };
+    }
+    if (natives && natives.createRenderTarget) {
+        efx.createRenderTarget = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createRenderTarget requires an options object');
+            }
+            var dims = __efxRenderTargetOpts(opts);
+            return natives.createRenderTarget(dims[0], dims[1]);
+        };
+    }
+    if (natives && natives.loadImage) {
+        efx.loadImage = function (path) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadImage requires a path string');
+            }
+            var r = natives.loadImage(path);
+            if (typeof r === 'number') {
+                throw new Error(__efxResourceMsgs[-r] || 'resource error');
+            }
+            return r;
+        };
+        efx.loadMeshData = function (path, opts) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadMeshData requires a path string');
+            }
+            var hasMesh = 0, index = 0, name = null;
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('loadMeshData options must be an object');
+                }
+                __efxCheckKnown(opts, { mesh: 1 }, 'loadMeshData');
+                if (opts['mesh'] !== undefined) {
+                    var mv = opts['mesh'];
+                    hasMesh = 1;
+                    if (typeof mv === 'string') {
+                        name = mv;
+                    } else if (typeof mv === 'number' && isFinite(mv) &&
+                               mv === Math.floor(mv) && mv >= 0) {
+                        index = mv | 0;
+                    } else {
+                        throw new TypeError('mesh must be a non-negative integer or a name');
+                    }
+                }
+            }
+            var r = natives.loadMeshData(path, hasMesh,
+                                         name !== null ? 1 : 0, index, name);
+            if (typeof r === 'number') {
+                throw new Error(__efxGltfMsgs[-r] || 'glTF import failed');
+            }
+            return r;
+        };
+    }
+    if (natives && natives.createMeshData) {
+        efx.createMeshData = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createMeshData requires an options object');
+            }
+            var w = __efxMeshDataWire(opts, natives);
+            return natives.createMeshData(w.count, w.lens, w.pos, w.nrm, w.uv,
+                                          w.col, w.joints, w.weights, w.idx,
+                                          w.blocks, w.maps, w.matHas);
+        };
+    }
     if (natives && natives.playAudio) {
         efx.audio.loadAudioData = function (path) {
             return __efxLoadAudio(natives, natives.loadAudioData, path,

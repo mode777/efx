@@ -197,6 +197,128 @@
         checkMesh: function (v) {
             liveMesh(v);
         },
+        checkImageData: function (v) {
+            liveImageData(v);
+        },
+        createImageData: function (w, h, bytes) {
+            var n = w * h * 4;
+            var ptr = bridge['_efx_bridge_imagedata_alloc'](n);
+            if (!ptr) {
+                throw new Error('out of memory');
+            }
+            try {
+                HEAPU8.set(bytes, ptr);
+                var id = bridge['_efx_bridge_imagedata_commit'](w, h, ptr);
+                if (!id) {
+                    throw new Error('out of memory');
+                }
+                return new EfxImageData(id);
+            } catch (e) {
+                bridge['_free'](ptr); /* not committed: still ours */
+                throw e;
+            }
+        },
+        createTexture: function (image, wrap, filter, mipmaps) {
+            var handle = bridge['_efx_bridge_texture_create'](
+                image.__id, wrap, filter, mipmaps);
+            if (!handle) {
+                throw new Error('texture upload failed (no GPU context?)');
+            }
+            return new EfxTexture(handle, false);
+        },
+        createRenderTarget: function (w, h) {
+            var handle = bridge['_efx_bridge_target_create'](w, h);
+            if (!handle) {
+                throw new Error('render target creation failed (no GPU context?)');
+            }
+            return new EfxRenderTarget(handle);
+        },
+        loadImage: function (path) {
+            var p = __efxAllocCStr(path);
+            var id = bridge['_efx_bridge_load_image'](p);
+            bridge['_free'](p);
+            if (id < 0) {
+                return id;
+            }
+            if (!id) {
+                return -100;
+            }
+            return new EfxImageData(id);
+        },
+        loadMeshData: function (path, hasMesh, isName, index, name) {
+            var pathPtr = __efxAllocCStr(path);
+            var namePtr = name !== null && name !== undefined
+                ? __efxAllocCStr(name) : 0;
+            var id = bridge['_efx_bridge_load_meshdata'](pathPtr, hasMesh,
+                                                         isName, index,
+                                                         namePtr);
+            bridge['_free'](pathPtr);
+            bridge['_free'](namePtr);
+            if (id < 0) {
+                return id;
+            }
+            if (!id) {
+                return -1;
+            }
+            return new EfxMeshData(id);
+        },
+        createMeshData: function (count, lens, pos, nrm, uv, col, joints,
+                                  weights, idx, blocks, maps, matHas) {
+            var id = bridge['_efx_bridge_meshdata_create'](count);
+            if (!id) {
+                throw new Error('out of memory');
+            }
+            var bad = 0;
+            try {
+                var L = lens, o = [0, 0, 0, 0, 0, 0, 0];
+                for (var i = 0; i < count; i++) {
+                    var pPtr = mallocCopyF32(pos.subarray(o[0], o[0] += L[i * 7]));
+                    var nPtr = mallocCopyF32(nrm.subarray(o[1], o[1] += L[i * 7 + 1]));
+                    var uPtr = mallocCopyF32(uv.subarray(o[2], o[2] += L[i * 7 + 2]));
+                    var cPtr = mallocCopyF32(col.subarray(o[3], o[3] += L[i * 7 + 3]));
+                    var jPtr = mallocCopyU32(joints.subarray(o[4], o[4] += L[i * 7 + 4]));
+                    var wPtr = mallocCopyF32(weights.subarray(o[5], o[5] += L[i * 7 + 5]));
+                    var iPtr = mallocCopyU32(idx.subarray(o[6], o[6] += L[i * 7 + 6]));
+                    var rc = bridge['_efx_bridge_meshdata_surface'](id, i,
+                        pPtr, L[i * 7], nPtr, L[i * 7 + 1], uPtr, L[i * 7 + 2],
+                        cPtr, L[i * 7 + 3], jPtr, L[i * 7 + 4], wPtr,
+                        L[i * 7 + 5], iPtr, L[i * 7 + 6]);
+                    bridge['_free'](pPtr);
+                    bridge['_free'](nPtr);
+                    bridge['_free'](uPtr);
+                    bridge['_free'](cPtr);
+                    bridge['_free'](jPtr);
+                    bridge['_free'](wPtr);
+                    bridge['_free'](iPtr);
+                    if (rc !== 0) {
+                        bad = 1; /* deferred: materials errors come first (D3) */
+                    }
+                }
+                if (blocks) {
+                    for (var mi = 0; mi < count; mi++) {
+                        if (!matHas[mi]) {
+                            continue;
+                        }
+                        var mptr = mallocCopyF32(blocks.subarray(mi * 17,
+                                                                 mi * 17 + 17));
+                        var mapsptr = mallocCopyF64(maps.subarray(mi * 5,
+                                                                  mi * 5 + 5));
+                        bridge['_efx_bridge_meshdata_set_material'](
+                            id, mi, mptr, mapsptr, 1);
+                        bridge['_free'](mptr);
+                        bridge['_free'](mapsptr);
+                    }
+                }
+                var crc = bridge['_efx_bridge_meshdata_commit'](id);
+                if (bad || crc !== 0) {
+                    throw new RangeError('invalid mesh data');
+                }
+                return new EfxMeshData(id);
+            } catch (e) {
+                bridge['_efx_bridge_meshdata_destroy'](id);
+                throw e;
+            }
+        },
         createBody: function (dynamic, sensor, t, r, hx, hy, hz, height,
                               px, py, pz, mass, friction, restitution,
                               layer, mask, mesh) {

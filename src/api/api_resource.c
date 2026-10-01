@@ -47,10 +47,12 @@ JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
-JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc,
-                         JSValueConst *argv) {
+/* natives for the shared prelude validator (ADR 0049): return the wrapper
+ * object, or the NEGATED engine error code for the prelude's message table */
+JSValue efx_js_load_image_wire(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsString(argv[0])) {
+    if (argc < 1) {
         return efx_api_type_error(ctx, "loadImage requires a path string");
     }
     struct efx_host_state *h = efx_api_host_state(ctx);
@@ -66,14 +68,14 @@ JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc,
     uint8_t *bytes = efx_resource_read(h->resource, path, &size, &err);
     JS_FreeCString(ctx, path);
     if (!bytes) {
-        return efx_api_plain_error(ctx, resource_err_text(err));
+        return JS_NewInt32(ctx, -err);
     }
     int ierr = EFX_IMAGE_OK;
     efx_image *img = efx_image_decode(bytes, size, &ierr);
     efx_resource_free(bytes);
     if (!img) {
-        return efx_api_plain_error(ctx, ierr == EFX_IMAGE_ERR_NOMEM ? "out of memory"
-                                                            : "image decode failed");
+        /* -100: decode failure (distinct from the resource error codes) */
+        return JS_NewInt32(ctx, -100);
     }
     size_t n = (size_t)img->width * (size_t)img->height * 4u;
     uint8_t *px = malloc(n ? n : 1);
@@ -100,30 +102,11 @@ JSValue efx_js_loadImage(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
-static const char *gltf_err_text(int err) {
-    switch (err) {
-    case EFX_GLTF_ERR_UNSUPPORTED:
-        return "glTF asset requires an unsupported extension";
-    case EFX_GLTF_ERR_SELECTION:
-        return "glTF mesh selection matched no mesh";
-    case EFX_GLTF_ERR_CAP:
-        return "glTF mesh exceeds the surface count limit";
-    case EFX_GLTF_ERR_IMAGE:
-        return "glTF image decode failed";
-    case EFX_GLTF_ERR_NOMEM:
-        return "out of memory";
-    case EFX_GLTF_ERR_IO:
-        return "glTF resource could not be read";
-    default:
-        return "invalid or malformed glTF asset";
-    }
-}
-
-
-JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc,
-                            JSValueConst *argv) {
+/* (path, hasMesh, isName, index, nameOrNull) */
+JSValue efx_js_load_meshdata_wire(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsString(argv[0])) {
+    if (argc < 5) {
         return efx_api_type_error(ctx, "loadMeshData requires a path string");
     }
     struct efx_host_state *h = efx_api_host_state(ctx);
@@ -137,46 +120,19 @@ JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc,
     efx_gltf_mesh_opts opts;
     memset(&opts, 0, sizeof(opts));
     char *name = NULL;
-    if (argc >= 2 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
-        if (!JS_IsObject(argv[1])) {
-            JS_FreeCString(ctx, path);
-            return efx_api_type_error(ctx, "loadMeshData options must be an object");
-        }
-        static const char *known[] = {"mesh"};
-        if (efx_api_check_known_fields(ctx, argv[1], known, 1, "loadMeshData") != 0) {
+    if (JS_ToInt32(ctx, &opts.has_mesh, argv[1]) < 0 ||
+        JS_ToInt32(ctx, &opts.is_name, argv[2]) < 0 ||
+        JS_ToInt32(ctx, &opts.mesh_index, argv[3]) < 0) {
+        JS_FreeCString(ctx, path);
+        return JS_EXCEPTION;
+    }
+    if (!JS_IsNull(argv[4]) && !JS_IsUndefined(argv[4])) {
+        name = (char *)JS_ToCString(ctx, argv[4]);
+        if (!name) {
             JS_FreeCString(ctx, path);
             return JS_EXCEPTION;
         }
-        JSValue mv = JS_GetPropertyStr(ctx, argv[1], "mesh");
-        if (!JS_IsUndefined(mv)) {
-            opts.has_mesh = 1;
-            if (JS_IsString(mv)) {
-                opts.is_name = 1;
-                name = (char *)JS_ToCString(ctx, mv);
-                if (!name) {
-                    JS_FreeValue(ctx, mv);
-                    JS_FreeCString(ctx, path);
-                    return JS_EXCEPTION;
-                }
-                opts.mesh_name = name;
-            } else if (JS_IsNumber(mv)) {
-                double d = 0;
-                if (JS_ToFloat64(ctx, &d, mv) < 0 || !isfinite(d) ||
-                    d != floor(d) || d < 0) {
-                    JS_FreeValue(ctx, mv);
-                    JS_FreeCString(ctx, path);
-                    return efx_api_type_error(ctx,
-                                      "mesh must be a non-negative integer or a name");
-                }
-                opts.mesh_index = (int)d;
-            } else {
-                JS_FreeValue(ctx, mv);
-                JS_FreeCString(ctx, path);
-                return efx_api_type_error(ctx,
-                                  "mesh must be a non-negative integer or a name");
-            }
-        }
-        JS_FreeValue(ctx, mv);
+        opts.mesh_name = name;
     }
     int err = EFX_GLTF_OK;
     efx_meshdata *md = efx_gltf_load_meshdata(h->resource, path, &opts, &err);
@@ -185,7 +141,7 @@ JSValue efx_js_loadMeshData(JSContext *ctx, JSValueConst this_val, int argc,
     }
     JS_FreeCString(ctx, path);
     if (!md) {
-        return efx_api_plain_error(ctx, gltf_err_text(err));
+        return JS_NewInt32(ctx, -err);
     }
     efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
     if (!wrap) {

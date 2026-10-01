@@ -49,9 +49,6 @@ var DIVERGENT = {
     '4a.light-slot': 'desktop: light slot must be an integer 0..3 / web: light slot out of range (0..3)',
     '4a.light-slot-neg': 'same as 4a.light-slot',
     '4a.light-pos-short': 'desktop: expected 3 numbers / web: pos must hold 3 numbers',
-    '6a.loadimage-missing': 'desktop: resource not found / web: image decode failed',
-    '6b.loadmesh-missing': 'desktop: glTF resource could not be read / web: glTF import failed',
-    '6b.loadmesh-corrupt': 'desktop: invalid or malformed glTF asset / web: glTF import failed',
     '11.billboard-pos': 'desktop: drawBillboard pos must be [x,y,z] / web: pos must be [x,y] or [x,y,z]',
 };
 

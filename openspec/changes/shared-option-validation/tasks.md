@@ -93,10 +93,10 @@
 
 ## 7. Audio (R27)
 
-- [ ] 7.1 Migrate `playAudio` options and the loader argument checks to the
+- [x] 7.1 Migrate `playAudio` options and the loader argument checks to the
   prelude. Map the not-found, unreadable and undecodable loader failures to
   dedicated codes (D4).
-- [ ] 7.2 Resolve `14.loadaudiodata-missing` and `14.loadaudiostream-missing`.
+- [x] 7.2 Resolve `14.loadaudiodata-missing` and `14.loadaudiostream-missing`.
   Update the expected file and `DIVERGENT`.
 - [ ] 7.3 Verify: V1 `audio_js`; V2 `smoke_14_audio`,
   `smoke_showcase_audio`; V4 `web_14_audio`, catalog, compare.
