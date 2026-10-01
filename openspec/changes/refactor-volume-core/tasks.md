@@ -1,16 +1,16 @@
 ## 1. Render core (R8)
 
-- [ ] 1.1 Add `DEFAULT_CAMERA2D`/`DEFAULT_CAMERA3D`/`DEFAULT_MATERIAL`
+- [x] 1.1 Add `DEFAULT_CAMERA2D`/`DEFAULT_CAMERA3D`/`DEFAULT_MATERIAL`
   constants and `apply_default_state()` in `render_records.c`. Route
   `ensure_state`, `efx_render_reset_state` and `efx_material_default` through
   them (D1). Verify: V1 `render_tests` (`default_camera_viewport`,
   `lights_state`, `material_binding`, `lighting_reference`) and `api_tests`
   `default_camera`.
-- [ ] 1.2 Make `record_push` stamp `target`/`sort_key`, remove the stamps from
+- [x] 1.2 Make `record_push` stamp `target`/`sort_key`, remove the stamps from
   the 6 producers, and add `color_or_white` for the 3 color loops (D2).
   Verify: V1 `record_fields`, `mesh_record_fields`, `billboard_record_fields`,
   `segmentation`, `batching`, `record_budget`.
-- [ ] 1.3 Inline `map_bind_retain`/`map_bind_release` into
+- [x] 1.3 Inline `map_bind_retain`/`map_bind_release` into
   `texture_bind_retain`/`texture_bind_release`. Verify: V1 `map_retention`,
   `material_maps`, `target_deferred_release`, plus V2 goldens.
 

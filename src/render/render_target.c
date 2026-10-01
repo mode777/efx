@@ -120,16 +120,14 @@ int efx_render_begin_target(uint64_t h) {
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_BEGIN_TARGET;
-    rec.target = h;
     rec.u.begin_target.target = h;
     efx_render_clear_color(rec.u.begin_target.clear); /* snapshot (design D3) */
-    rec.sort_key = (uint32_t)R.record_count;
-    int rc = record_push(rec, sizeof(efx_record));
+    R.active_target = h; /* the begin record is tagged with its own target */
+    int rc = record_push(&rec);
     if (rc != EFX_RENDER_OK) {
-        return rc;
+        R.active_target = 0;
     }
-    R.active_target = h;
-    return EFX_RENDER_OK;
+    return rc;
 }
 
 int efx_render_end_target(void) {
@@ -140,10 +138,8 @@ int efx_render_end_target(void) {
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_END_TARGET;
-    rec.target = R.active_target;
     rec.u.begin_target.target = R.active_target;
-    rec.sort_key = (uint32_t)R.record_count;
-    int rc = record_push(rec, sizeof(efx_record));
+    int rc = record_push(&rec);
     if (rc != EFX_RENDER_OK) {
         return rc;
     }

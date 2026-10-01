@@ -152,7 +152,7 @@ static void finalize_texture_release(tex_slot *s) {
 /* F4b map retention (design D6): material bindings keep their maps alive.
  * F5a: maps may reference a Texture or a RenderTarget — the retain/ref
  * helpers dispatch on whichever registry holds the handle. */
-static void map_bind_retain(uint64_t h) {
+void texture_bind_retain(uint64_t h) {
     tex_slot *ts = slot_get(h);
     if (ts) {
         ts->bind_refs++;
@@ -164,11 +164,7 @@ static void map_bind_retain(uint64_t h) {
     }
 }
 
-void texture_bind_retain(uint64_t h) {
-    map_bind_retain(h);
-}
-
-static void map_bind_release(uint64_t h) {
+void texture_bind_release(uint64_t h) {
     tex_slot *ts = slot_get(h);
     if (ts) {
         if (ts->bind_refs > 0) {
@@ -188,10 +184,6 @@ static void map_bind_release(uint64_t h) {
             finalize_target_release(t);
         }
     }
-}
-
-void texture_bind_release(uint64_t h) {
-    map_bind_release(h);
 }
 
 static int texture_release(uint64_t h, tex_slot **out_slot) {

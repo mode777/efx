@@ -605,15 +605,13 @@ int efx_render_billboard(uint64_t texture, const float pos[3], float w, float h,
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_BILLBOARD;
-    rec.target = R.active_target;
-    rec.sort_key = (uint32_t)R.record_count;
     efx_billboard_record *b = &rec.u.billboard;
     b->pos[0] = pos[0];
     b->pos[1] = pos[1];
     b->pos[2] = pos[2];
     b->w = w;
     b->h = h;
-    for (int i = 0; i < 4; i++) b->color[i] = color ? color[i] : 1.0f;
+    color_or_white(b->color, color);
     b->rotation = rotation;
     b->facing = (uint8_t)facing;
     b->depth_test = depth_test ? 1 : 0;
@@ -638,7 +636,7 @@ int efx_render_billboard(uint64_t texture, const float pos[3], float w, float h,
         b->sh = (float)th;
     }
     b->camera = R.camera3d;
-    return record_push(rec, sizeof(efx_record));
+    return record_push(&rec);
 }
 
 int efx_render_particles_draw(uint64_t h) {
@@ -653,8 +651,6 @@ int efx_render_particles_draw(uint64_t h) {
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_PARTICLES;
-    rec.target = R.active_target;
-    rec.sort_key = (uint32_t)R.record_count;
     efx_particle_record *pr = &rec.u.particles;
     pr->system = h;
     pr->blend = (uint8_t)p->cfg.blend;
@@ -666,6 +662,6 @@ int efx_render_particles_draw(uint64_t h) {
         pr->frame_w = R.camera.frame_w > 0.0f ? R.camera.frame_w : (float)sw;
         pr->frame_h = R.camera.frame_h > 0.0f ? R.camera.frame_h : (float)sh;
     }
-    return record_push(rec, sizeof(efx_record));
+    return record_push(&rec);
 }
 

@@ -21,80 +21,44 @@ void efx_render_viewport(int *out_w, int *out_h) {
    at eval time, before the GPU sink exists, and installing the sink must
    not wipe that configuration */
 static int state_ready;
-static void default_camera(efx_camera2d *cam);
-static void default_camera3d(efx_camera3d *cam);
-static void default_lights(efx_light_set *lights);
+
+static const efx_camera2d DEFAULT_CAMERA2D = {.zoom = 1.0f};
+static const efx_camera3d DEFAULT_CAMERA3D = {
+    .pos = {0.0f, 0.0f, 1.0f}, .fov = 60.0f, .near_z = 0.1f, .far_z = 100.0f};
+static const efx_material DEFAULT_MATERIAL = {
+    .ambient = {0.0f, 0.0f, 0.0f, 1.0f},
+    .diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
+    .specular = {0.0f, 0.0f, 0.0f, 1.0f},
+    .emissive = {0.0f, 0.0f, 0.0f, 1.0f},
+    .shininess = 32.0f};
+
+static void apply_default_state(void) {
+    R.camera = DEFAULT_CAMERA2D;
+    R.camera3d = DEFAULT_CAMERA3D;
+    memset(&R.lights, 0, sizeof(R.lights)); /* every light disabled */
+    R.clear_color[0] = 0.0f;
+    R.clear_color[1] = 0.0f;
+    R.clear_color[2] = 0.0f;
+    R.clear_color[3] = 1.0f;
+    R.blend = EFX_BLEND_ALPHA;
+}
 
 void ensure_state(void) {
     if (state_ready) {
         return;
     }
-    default_camera(&R.camera);
-    default_camera3d(&R.camera3d);
-    default_lights(&R.lights);
-    R.clear_color[0] = 0.0f;
-    R.clear_color[1] = 0.0f;
-    R.clear_color[2] = 0.0f;
-    R.clear_color[3] = 1.0f;
-    R.blend = EFX_BLEND_ALPHA;
+    apply_default_state();
     state_ready = 1;
 }
 
-static void default_camera(efx_camera2d *cam) {
-    cam->frame_w = 0.0f;
-    cam->frame_h = 0.0f;
-    cam->x = 0.0f;
-    cam->y = 0.0f;
-    cam->zoom = 1.0f;
-    cam->rotation = 0.0f;
-}
-
-static void default_camera3d(efx_camera3d *cam) {
-    cam->pos[0] = 0.0f;
-    cam->pos[1] = 0.0f;
-    cam->pos[2] = 1.0f;
-    cam->target[0] = 0.0f;
-    cam->target[1] = 0.0f;
-    cam->target[2] = 0.0f;
-    cam->fov = 60.0f;
-    cam->near_z = 0.1f;
-    cam->far_z = 100.0f;
-}
-
-static void default_lights(efx_light_set *lights) {
-    memset(lights, 0, sizeof(*lights)); /* every light disabled */
-}
-
 void efx_material_default(efx_material *m) {
-    if (!m) {
-        return;
+    if (m) {
+        *m = DEFAULT_MATERIAL;
     }
-    /* ambient/specular/emissive black, diffuse white, shininess 32 */
-    m->ambient[0] = 0.0f; m->ambient[1] = 0.0f;
-    m->ambient[2] = 0.0f; m->ambient[3] = 1.0f;
-    m->diffuse[0] = 1.0f; m->diffuse[1] = 1.0f;
-    m->diffuse[2] = 1.0f; m->diffuse[3] = 1.0f;
-    m->specular[0] = 0.0f; m->specular[1] = 0.0f;
-    m->specular[2] = 0.0f; m->specular[3] = 1.0f;
-    m->emissive[0] = 0.0f; m->emissive[1] = 0.0f;
-    m->emissive[2] = 0.0f; m->emissive[3] = 1.0f;
-    m->shininess = 32.0f;
-    m->ambient_map = 0;
-    m->diffuse_map = 0;
-    m->specular_map = 0;
-    m->emissive_map = 0;
-    m->alpha_mask = 0;
 }
 
 void efx_render_reset_state(void) {
-    default_camera(&R.camera);
-    default_camera3d(&R.camera3d);
-    default_lights(&R.lights);
-    R.clear_color[0] = 0.0f;
-    R.clear_color[1] = 0.0f;
-    R.clear_color[2] = 0.0f;
-    R.clear_color[3] = 1.0f;
-    R.blend = EFX_BLEND_ALPHA;
+    apply_default_state();
     post_reset();
 }
 
@@ -238,8 +202,18 @@ efx_affine efx_quad_matrix(float x, float y,
 
 /* ------------------------------------------------------------- records */
 
-int record_push(efx_record rec, size_t bytes) {
-    if ((size_t)(R.record_count + 1) * bytes > EFX_RENDER_RECORD_BUDGET_BYTES) {
+void color_or_white(float out[4], const float color[4]) {
+    for (int i = 0; i < 4; i++) {
+        out[i] = color ? color[i] : 1.0f;
+    }
+}
+
+/* sort key = record index: playback order equals record order */
+int record_push(efx_record *rec) {
+    rec->target = R.active_target;
+    rec->sort_key = (uint32_t)R.record_count;
+    if ((size_t)(R.record_count + 1) * sizeof(efx_record) >
+        EFX_RENDER_RECORD_BUDGET_BYTES) {
         return EFX_RENDER_ERR_BUDGET;
     }
     if (R.record_count >= R.record_cap) {
@@ -248,7 +222,7 @@ int record_push(efx_record rec, size_t bytes) {
             return EFX_RENDER_ERR_NOMEM;
         }
     }
-    R.records[R.record_count++] = rec;
+    R.records[R.record_count++] = *rec;
     return EFX_RENDER_OK;
 }
 
@@ -286,7 +260,6 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_QUAD;
-    rec.target = R.active_target;
     efx_quad_record *q = &rec.u.quad;
     q->m = efx_affine_mul(view, model);
     q->frame_w = fw;
@@ -321,15 +294,9 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
         q->sw = (float)q->tw;
         q->sh = (float)q->th;
     }
-    for (int i = 0; i < 4; i++) {
-        q->color[i] = color ? color[i] : 1.0f;
-    }
+    color_or_white(q->color, color);
     q->blend = (uint8_t)R.blend;
-    /* sort key: record index — playback order equals record order in F2
-       (design D3); the stable sort below generalizes when keys change */
-    rec.sort_key = (uint32_t)R.record_count;
-
-    return record_push(rec, sizeof(efx_record));
+    return record_push(&rec);
 }
 
 int efx_render_mesh(uint64_t mesh, const float transform[16],
@@ -361,7 +328,6 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     efx_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_MESH;
-    rec.target = R.active_target;
     efx_mesh_record *mr = &rec.u.mesh;
     mr->mesh = mesh;
     for (int i = 0; i < 16; i++) {
@@ -373,15 +339,12 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
         mr->transform[10] = 1.0f;
         mr->transform[15] = 1.0f;
     }
-    for (int i = 0; i < 4; i++) {
-        mr->color[i] = color ? color[i] : 1.0f;
-    }
+    color_or_white(mr->color, color);
     mr->camera = R.camera3d;
     mr->lights = R.lights;   /* value snapshot (F4a design D4) */
     mr->blend = (uint8_t)R.blend;
     mr->skinned = skinned ? 1 : 0;
-    rec.sort_key = (uint32_t)R.record_count;
-    return record_push(rec, sizeof(efx_record));
+    return record_push(&rec);
 }
 
 /* --------------------------------------------- F11 particles + billboards */
