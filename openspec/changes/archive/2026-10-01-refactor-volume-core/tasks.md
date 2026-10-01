@@ -113,5 +113,5 @@
 
 - [x] 9.1 Update `docs/refactoring.md`: mark R8–R16 done, record the R11
   finding (confirmed or not) under §6, note Checkpoint 2 and the measured Δ.
-- [ ] 9.2 Merge to `main` and push (per `AGENTS.md`), then archive the change
+- [x] 9.2 Merge to `main` and push (per `AGENTS.md`), then archive the change
   (`skip_specs`).
