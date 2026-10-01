@@ -35,10 +35,10 @@
 - [x] 3.1 Add `tools/lib/web-host.mjs` exporting `loadPuppeteer()`,
   `serveStatic(root, routes)` and `launchBrowser(opts)`; verify it loads under
   Node 20
-- [ ] 3.2 Migrate `run_web_goldens.mjs` and `run_web_harness.mjs` onto it,
+- [x] 3.2 Migrate `run_web_goldens.mjs` and `run_web_harness.mjs` onto it,
   keeping CLI/env/exit codes; verify both produce unchanged output on the
   verification server
-- [ ] 3.3 Migrate `run_gallery_smoke.mjs` and the server half of
+- [x] 3.3 Migrate `run_gallery_smoke.mjs` and the server half of
   `test_web_assets.mjs`; verify both run locally with unchanged output
 
 ## 4. Build and naming hygiene (P18–P19)
@@ -64,11 +64,11 @@
 
 ## 6. Verification
 
-- [ ] 6.1 Run the local unit suites
+- [x] 6.1 Run the local unit suites
   (`cmake -B build-h -DEFX_HEADLESS=ON && ctest --test-dir build-h`) and the
   generated-file checks (`python tools/gen_prelude.py --check`,
   `npm --prefix gallery run docs:check`); verify all green
-- [ ] 6.2 Run `python3 tools/verify_remote.py all <branch>` (native ctest incl.
+- [x] 6.2 Run `python3 tools/verify_remote.py all <branch>` (native ctest incl.
   all goldens, Emscripten ctest, web goldens, `run_web_compare.mjs`); verify
   green before dispatching CI
 - [ ] 6.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
