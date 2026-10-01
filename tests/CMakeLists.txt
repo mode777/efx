@@ -190,7 +190,8 @@ foreach(CASE
     t_support_basic t_shapes t_narrow_triangle t_narrow_pairs t_ray_shapes
     t_sweep_shapes t_bvh_query t_world_registry t_broadphase_filter
     t_determinism t_integrate t_contact_manifold t_restitution_friction
-    t_settle t_step_dt t_stress t_sensors t_contact_report t_raycast_query
+    t_settle t_step_dt t_thin_floor_large_dt t_fast_body_thin_floor
+    t_force_substep t_stress t_sensors t_contact_report t_raycast_query
     t_overlap_query t_shapecast_query t_character_create t_move_slide
     t_floor_classify t_floor_snap t_step_up t_character_push)
     add_unit_test(efx_physics_tests ${CASE})
@@ -240,7 +241,7 @@ if(NOT EMSCRIPTEN)
 foreach(CASE
     white quad_record size_derivation origin_pivot quad_validation
     texture_size_getters camera_snapshot src_oob budget texture_lifecycle
-    blend_snapshot default_camera hooks_registration meshdata_js
+    blend_snapshot default_camera clear_color_js hooks_registration meshdata_js
     meshdata_cap_js mesh_js camera3d_js f4a_js f4b_js f5a_js f5b_js
     resource_js createTexture_js gltf_js skin_js pose_js repl_eval input_js
     gamepad_js module_js module_hooks_js font_js

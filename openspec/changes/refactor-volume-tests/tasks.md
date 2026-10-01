@@ -11,11 +11,11 @@
 
 ## 2. Fix the never-run test cases (R1)
 
-- [ ] 2.1 Add `t_thin_floor_large_dt`, `t_fast_body_thin_floor` and
+- [x] 2.1 Add `t_thin_floor_large_dt`, `t_fast_body_thin_floor` and
   `t_force_substep` to the physics case list, and `clear_color_js` to the
   `efx_api_tests` list, in `tests/CMakeLists.txt`. Verify: V1 + V2 pass, and
   `ctest -N` shows exactly the four new names compared with 1.1.
-- [ ] 2.2 Run the four cases on Linux and Emscripten via V4. If any fails,
+- [x] 2.2 Run the four cases on Linux and Emscripten via V4. If any fails,
   fix the underlying bug in its own commit and record the root cause in
   `design.md` → "Findings during apply". Verify: all four pass on every V4
   target.

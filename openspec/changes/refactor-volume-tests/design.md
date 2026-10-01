@@ -212,4 +212,9 @@ build. It is then deleted.
 
 ## Findings during apply
 
-<!-- Record any failing R1 case per target, with root cause and fix commit. -->
+- **R1 (no V4 server).** The SSH server was unavailable, so V4 was replaced
+  by local runs. The four registered cases pass on Windows/MSVC (V1 + V2) and
+  the three physics cases pass on a local Emscripten 5.0.5 build under Node
+  (`clear_color_js` is desktop-only). Linux/GCC and macOS/Clang coverage of
+  the four cases comes from the V5 gate. Inventories: headless 186 → 190,
+  desktop 293 → 297, Emscripten 156 → 159 — exactly the R1 names.
