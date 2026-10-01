@@ -45,7 +45,7 @@ int efx_hooks_append(JSContext *ctx, struct efx_hook_list *list, JSValueConst fn
     return idx;
 }
 
-int efx_hooks_active(const struct efx_hook_list *list) {
+static int efx_hooks_active(const struct efx_hook_list *list) {
     int n = 0;
     for (int i = 0; i < list->count; i++) {
         if (list->entries[i].active) {
@@ -55,7 +55,7 @@ int efx_hooks_active(const struct efx_hook_list *list) {
     return n;
 }
 
-void efx_hooks_free_all(JSContext *ctx, struct efx_hook_list *list) {
+static void efx_hooks_free_all(JSContext *ctx, struct efx_hook_list *list) {
     for (int i = 0; i < list->count; i++) {
         JS_FreeValue(ctx, list->entries[i].fn);
     }

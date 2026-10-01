@@ -70,7 +70,5 @@ struct efx_hook_list *efx_host_hook_list(struct efx_host_state *h, int which);
 
 /* append a duplicated reference; returns the stable entry index or -1 */
 int efx_hooks_append(JSContext *ctx, struct efx_hook_list *list, JSValueConst fn);
-int efx_hooks_active(const struct efx_hook_list *list);
-void efx_hooks_free_all(JSContext *ctx, struct efx_hook_list *list);
 
 #endif
