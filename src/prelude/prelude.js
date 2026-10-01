@@ -593,6 +593,27 @@ function __efxFinite(v, typeMsg) {
     return d;
 }
 
+/* throw for a non-zero native return code (ADR 0049 D4). `codes` maps each
+ * code the call site handles to [ErrorClass, message], or to `true` for the
+ * shared render messages; any other code throws Error('<where> failed') */
+function __efxRc(rc, where, codes) {
+    if (rc === 0) {
+        return;
+    }
+    var e = codes[rc];
+    if (e === true) {
+        e = {
+            1: [RangeError, 'display list budget exceeded'],
+            4: [Error, 'no render surface (draw calls need a window)'],
+            9: [TypeError, 'cannot sample the render target being drawn into'],
+        }[rc];
+    }
+    if (!e) {
+        e = [Error, where + ' failed'];
+    }
+    throw new e[0](e[1]);
+}
+
 function __efxFloatArray(v, n) {
     var i, out;
     if (v instanceof Uint8Array) {

@@ -48,10 +48,10 @@
 
 ## 3. Particles (R23)
 
-- [ ] 3.1 Install the prelude validator for `createParticleSystem` and
+- [x] 3.1 Install the prelude validator for `createParticleSystem` and
   `ParticleSystem.set`. Delete `read_particle_config` and the `pcfg_*`
   readers (desktop) and the web reader path, so natives unpack the wire.
-- [ ] 3.2 Resolve `11.ps-max-range`, `11.ps-bad-facing` and `11.ps-set-max`
+- [x] 3.2 Resolve `11.ps-max-range`, `11.ps-bad-facing` and `11.ps-set-max`
   per D5. Update `s_error_catalog.expected.txt` and remove those `DIVERGENT`
   entries.
 - [ ] 3.3 Verify the domain: V1 `particles_js`; V2 particle goldens; V4 catalog

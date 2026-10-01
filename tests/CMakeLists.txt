@@ -176,6 +176,8 @@ efx_portable_case(11_particles "${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-1
 efx_portable_case(12_physics "${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
 efx_portable_case(13_gamepad "${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
 efx_portable_case(8a_text "${F}/web/text_root" ROOT EXPECT 0 EXPECT_OUT "s-8a-text-ok")
+efx_portable_case(natives_privacy "${S}/s_natives_privacy.js" EXPECT 0
+    EXPECT_OUT "s-natives-privacy-ok")
 
 endif() # NOT EFX_HEADLESS
 
@@ -224,6 +226,14 @@ if(NOT EMSCRIPTEN)
                 -DARG_LINE=${S}/s_error_catalog.js\\;${S}
                 -DEXPECT=0
                 -DEXPECT_OUT_FILE=${S}/s_error_catalog.expected.txt
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+        add_test(NAME natives_privacy_headless
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_NAME=natives_privacy_headless
+                -DPLAYER_COMMAND=$<TARGET_FILE:efx_catalog_runner>
+                -DARG_LINE=${S}/s_natives_privacy.js\\;${S}
+                -DEXPECT=0
+                -DEXPECT_OUT=s-natives-privacy-ok
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
     endif()
 endif()
