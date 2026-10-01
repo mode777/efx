@@ -206,7 +206,10 @@ settled — see `docs/decisions/`.
   GL renders correctly" plus half-missing meshes means check this first.
 - JS API layering: low/mid-level in C/C++ (`drawQuad`, `drawMesh`,
   `setMeshSurfaceMaterial`, `drawText`…), high-level conveniences in pure JS
-  (`makeCube`/`makePlane`/`makeSphere`…).
+  (`makeCube`/`makePlane`/`makeSphere`…). Cold-path option-bag validation is
+  written once in the shared prelude behind a private `natives` object —
+  natives stay marshal-only, hot draw/query paths keep native validation
+  (ADR 0049).
 - JS code must have **zero browser/Node dependencies, not even transitively**.
 - Memory rules: manage resources in JS where possible; unavoidable unmanaged
   resources are exposed as GC-finalized opaque classes with explicit

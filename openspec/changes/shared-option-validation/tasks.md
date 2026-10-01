@@ -115,13 +115,15 @@
 
 ## 9. Lights and cameras (R29)
 
-- [ ] 9.1 Migrate `setLight`, `setDirectionalLight`, `setCamera2D` and
+- [x] 9.1 Migrate `setLight`, `setDirectionalLight`, `setCamera2D` and
   `setCamera3D` validation to the prelude (or leave any that ADR 0049 marks
   hot).
-- [ ] 9.2 Resolve `4a.light-slot`, `4a.light-slot-neg`, `4a.light-pos-short`
+- [x] 9.2 Resolve `4a.light-slot`, `4a.light-slot-neg`, `4a.light-pos-short`
   and `11.billboard-pos`. The last one is resolved here only if
   `drawBillboard` moved under ADR 0049; otherwise unify the native messages in
   both bindings. Update the expected file and `DIVERGENT`.
+  (drawBillboard stayed native; the web billboard call site passes the
+  desktop canonical shape message.)
 - [ ] 9.3 Verify: V1 `f4a_js`, `camera3d_js`, `camera_snapshot`; V2 lighting
   goldens; V4 `web_4a_validation`, catalog, compare.
 

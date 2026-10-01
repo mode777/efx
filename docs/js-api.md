@@ -35,6 +35,17 @@ behavior.
     facilities.
   The layer is an implementation concern: the generated reference is
   end-user facing and does not tag entries by layer.
+- **Shared argument handling (ADR 0049).** A `[C]` function MAY validate and
+  normalize its option bag in the engine-bundled pure-ES6 layer
+  (`src/prelude/prelude.js`) before its C implementation runs. That argument
+  handling is written **once** and shared by every runtime; it reaches the
+  native implementation only through an engine-internal binding object passed
+  to the prelude wrapper, which is neither a member of `efx` nor a global and
+  is never callable by scripts on its own. Such a function remains a `[C]`
+  function: its observable behavior, defaults, and errors are unchanged.
+  Hot per-frame draw and query calls (`drawQuad`, `drawSprites`,
+  `drawBillboard`, `drawMesh`, `drawText`/`measureText`, the input queries)
+  keep their native validation.
 - **Runtime binding per platform.** Every `[C]` entry is implemented once in
   C and exposed through the platform's binding — on desktop the embedded
   quickjs binding, on Emscripten the native bridge to the page's JS engine.
@@ -65,9 +76,14 @@ behavior.
     required.
 - **Option-object validation.** A missing or wrongly-typed required field
   throws `TypeError`; unknown fields throw `TypeError` (typo protection).
-  Bags documented as "null disables" (e.g. post FX) accept `null` as an
-  explicit off switch. A call that validates a list validates **eagerly and
-  atomically**: on throw, the previous state is unchanged.
+  A number-typed option field accepts **only** values whose type is number —
+  numeric strings and booleans throw `TypeError` on every runtime (ADR 0049);
+  non-finite numbers and out-of-range values keep their documented error
+  class. Every runtime throws the **same error class with the same message**
+  for the same invalid call or failed load. Bags documented as "null
+  disables" (e.g. post FX) accept `null` as an explicit off switch. A call
+  that validates a list validates **eagerly and atomically**: on throw, the
+  previous state is unchanged.
 - **Units.** Angles in **degrees** (radians never appear in the API), time in
   **seconds**, positions and sizes in world units.
 - **Colors.** `[r, g, b, a]` arrays of normalized floats in `0..1`
@@ -311,7 +327,13 @@ single source of truth, so the reference can never drift from it.
 4. **Add a `js-api` spec delta** describing the required behavior of the
    addition, and update this guidelines document if the change settles or
    amends a **design rule** (conventions, layering, resource model, limits).
-5. **Do not** add internal roadmap-milestone tags or per-entry layer tags to
+5. **Implement the binding** (ADR 0049): write the option-bag validator
+   **once**, in the shared prelude (`src/prelude/prelude.js`), and keep the
+   per-runtime natives marshal-only — they unpack the normalized form and
+   never re-validate. Regenerate `prelude.h` after every prelude edit
+   (`python3 tools/gen_prelude.py`; CI fails on drift). Hot paths keep their
+   native validation unless new ADR 0049-budget measurements say otherwise.
+6. **Do not** add internal roadmap-milestone tags or per-entry layer tags to
    the reference. The API is end-user facing.
 
 A change that adds, modifies, or removes a public API function MUST update the
