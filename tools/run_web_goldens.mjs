@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
-import { loadPuppeteer, serveStatic, launchBrowser } from './lib/web-host.mjs';
+import { loadPuppeteer, serveStatic, launchBrowser, hostPage } from './lib/web-host.mjs';
 
 const puppeteer = await loadPuppeteer();
 
@@ -25,27 +25,11 @@ const SCENES_DIR = path.join(ROOT, 'tests', 'goldens');
 const OUT_DIR = path.join(BUILD, 'goldens');
 const PORT = 18123;
 
-const PAGE_HTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>efx golden capture</title></head>
-<body><canvas id="canvas" width="640" height="480"></canvas>
-<!-- keep the compositor producing BeginFrames in headless so rAF (and the
-     emscripten main loop) keeps ticking; DOM is not part of the GL readback -->
-<style>@keyframes k { from { transform: translateY(0); } to { transform: translateY(1px); } }</style>
-<div style="position:fixed;width:1px;height:1px;background:#123;animation:k 0.016s linear infinite alternate;"></div>
-<script>
-window.__rafCount = 0;
-const __raf = window.requestAnimationFrame.bind(window);
-window.requestAnimationFrame = (cb) => {
-    window.__rafCount++;
-    if (window.__rafCount <= 3) console.log('[raf] tick ' + window.__rafCount);
-    return __raf((t) => {
-        try { cb(t); } catch (e) { console.log('[raf-cb-throw]', e && (e.message || e), e && e.stack); throw e; }
-    });
-};
-window.addEventListener('unhandledrejection', (e) => console.log('[rejection]', e.reason && (e.reason.message || e.reason)));
-window.addEventListener('error', (e) => console.log('[page-err]', e.message));
-</script>
-<script src="/player_web_golden.js"></script></body></html>`;
+const PAGE_HTML = hostPage({
+    title: 'efx golden capture',
+    script: '/player_web_golden.js',
+    verbose: true,
+});
 
 const scenes = fs
     .readdirSync(SCENES_DIR)

@@ -11,7 +11,7 @@
  */
 import path from 'node:path';
 import url from 'node:url';
-import { loadPuppeteer, serveStatic, launchBrowser } from './lib/web-host.mjs';
+import { loadPuppeteer, serveStatic, launchBrowser, hostPage } from './lib/web-host.mjs';
 
 const puppeteer = await loadPuppeteer();
 
@@ -19,21 +19,7 @@ const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..'
 const BUILD = process.env.WEB_GOLDEN_BUILD ?? path.join(ROOT, 'build-web-golden');
 const PORT = 18124;
 
-const PAGE_HTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>efx web harness</title></head>
-<body><canvas id="canvas" width="640" height="480"></canvas>
-<style>@keyframes k { from { transform: translateY(0); } to { transform: translateY(1px); } }</style>
-<div style="position:fixed;width:1px;height:1px;background:#123;animation:k 0.016s linear infinite alternate;"></div>
-<script>
-window.__rafCount = 0;
-const __raf = window.requestAnimationFrame.bind(window);
-window.requestAnimationFrame = (cb) => {
-    window.__rafCount++;
-    return __raf((t) => { try { cb(t); } catch (e) { console.log('[raf-cb-throw]', e && (e.message || e)); throw e; } });
-};
-window.addEventListener('error', (e) => console.log('[page-err]', e.message));
-</script>
-<script src="/player_web_golden.js"></script></body></html>`;
+const PAGE_HTML = hostPage({ title: 'efx web harness', script: '/player_web_golden.js' });
 
 const server = serveStatic(BUILD, { '/': PAGE_HTML });
 await new Promise((r) => server.listen(PORT, r));
