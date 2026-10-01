@@ -233,21 +233,12 @@
                 }
             }
             var rc = bridge['_efx_bridge_draw_mesh'](m.__handle, tPtr, cPtr, skinned);
-            if (rc === 1) {
-                throw new RangeError('display list budget exceeded');
-            }
-            if (rc === 2) {
-                throw new TypeError('expected a live Mesh');
-            }
-            if (rc === 11) {
-                throw new TypeError('mesh has no rig to draw skinned');
-            }
-            if (rc === 9) {
-                throw new TypeError('cannot sample the render target being drawn into');
-            }
-            if (rc !== 0) {
-                throw new Error('drawMesh failed');
-            }
+            __efxRc(rc, 'drawMesh', {
+                1: true,
+                2: [TypeError, 'expected a live Mesh'],
+                9: true,
+                11: [TypeError, 'mesh has no rig to draw skinned'],
+            });
         },
         poseMesh: function (mesh, pose) {
             if (arguments.length < 2) {
@@ -314,15 +305,10 @@
             if (ptr) {
                 bridge['_free'](ptr);
             }
-            if (rc === 2) {
-                throw new TypeError('poseMesh requires a Mesh with a rig');
-            }
-            if (rc === 6) {
-                throw new RangeError('clip index out of range');
-            }
-            if (rc !== 0) {
-                throw new Error('poseMesh failed');
-            }
+            __efxRc(rc, 'poseMesh', {
+                2: [TypeError, 'poseMesh requires a Mesh with a rig'],
+                6: [RangeError, 'clip index out of range'],
+            });
         },
         setLight: function (slot, opts) {
             if (arguments.length < 2) {

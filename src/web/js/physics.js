@@ -155,34 +155,36 @@
                 var m = __efxFloatArray(motion, 3);
                 var ptr = bridge['_malloc'](10 * 8);
                 var base = ptr >> 3;
-                if (!bridge['_efx_bridge_physics_character_move'](
-                        this.__handle, m[0], m[1], m[2], ptr)) {
-                    bridge['_free'](ptr);
-                    throw new TypeError('moveAndSlide failed');
-                }
-                var pos = [HEAPF64[base], HEAPF64[base + 1], HEAPF64[base + 2]];
-                var onFloor = !!HEAPF64[base + 3];
-                var onWall = !!HEAPF64[base + 4];
-                var onCeiling = !!HEAPF64[base + 5];
-                var fn = [HEAPF64[base + 6], HEAPF64[base + 7], HEAPF64[base + 8]];
-                var count = HEAPF64[base + 9];
-                var cols = [];
-                for (var i = 0; i < count; i++) {
-                    if (!bridge['_efx_bridge_physics_move_collision'](
-                            this.__handle, i, ptr)) {
-                        continue;
+                try {
+                    if (!bridge['_efx_bridge_physics_character_move'](
+                            this.__handle, m[0], m[1], m[2], ptr)) {
+                        throw new TypeError('moveAndSlide failed');
                     }
-                    cols.push({
-                        body: physBodies.get(HEAPF64[base]) || null,
-                        normal: [HEAPF64[base + 1], HEAPF64[base + 2], HEAPF64[base + 3]],
-                        point: [HEAPF64[base + 4], HEAPF64[base + 5], HEAPF64[base + 6]],
-                    });
+                    var pos = [HEAPF64[base], HEAPF64[base + 1], HEAPF64[base + 2]];
+                    var onFloor = !!HEAPF64[base + 3];
+                    var onWall = !!HEAPF64[base + 4];
+                    var onCeiling = !!HEAPF64[base + 5];
+                    var fn = [HEAPF64[base + 6], HEAPF64[base + 7], HEAPF64[base + 8]];
+                    var count = HEAPF64[base + 9];
+                    var cols = [];
+                    for (var i = 0; i < count; i++) {
+                        if (!bridge['_efx_bridge_physics_move_collision'](
+                                this.__handle, i, ptr)) {
+                            continue;
+                        }
+                        cols.push({
+                            body: physBodies.get(HEAPF64[base]) || null,
+                            normal: [HEAPF64[base + 1], HEAPF64[base + 2], HEAPF64[base + 3]],
+                            point: [HEAPF64[base + 4], HEAPF64[base + 5], HEAPF64[base + 6]],
+                        });
+                    }
+                    return {
+                        position: pos, onFloor: onFloor, onWall: onWall,
+                        onCeiling: onCeiling, floorNormal: fn, collisions: cols,
+                    };
+                } finally {
+                    bridge['_free'](ptr);
                 }
-                bridge['_free'](ptr);
-                return {
-                    position: pos, onFloor: onFloor, onWall: onWall,
-                    onCeiling: onCeiling, floorNormal: fn, collisions: cols,
-                };
             },
         },
         getters: {

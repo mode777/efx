@@ -82,6 +82,47 @@ function __efxFinite(v, typeMsg) {
     return d;
 }
 
+/* throw for a non-zero bridge return code. `codes` maps each code the call
+   site handles to [ErrorClass, message], or to `true` for the shared render
+   message; any other code throws Error('<where> failed') */
+function __efxRc(rc, where, codes) {
+    if (rc === 0) {
+        return;
+    }
+    var e = codes[rc];
+    if (e === true) {
+        e = {
+            1: [RangeError, 'display list budget exceeded'],
+            4: [Error, 'no render surface (draw calls need a window)'],
+            9: [TypeError, 'cannot sample the render target being drawn into'],
+        }[rc];
+    }
+    if (!e) {
+        e = [Error, where + ' failed'];
+    }
+    throw new e[0](e[1]);
+}
+
+/* validate a sourceRect against a sample source's size -> [x, y, w, h] */
+function __efxSourceRect(tex, v) {
+    if (!__efxIsObject(v)) {
+        throw new TypeError('sourceRect must be an object');
+    }
+    var keys = ['x', 'y', 'w', 'h'];
+    var src = [0, 0, 0, 0];
+    for (var j = 0; j < 4; j++) {
+        src[j] = __efxFinite(v[keys[j]], 'sourceRect fields must be finite numbers');
+    }
+    if (src[2] <= 0 || src[3] <= 0) {
+        throw new RangeError('sourceRect extent must be > 0');
+    }
+    if (src[0] < 0 || src[1] < 0 ||
+        src[0] + src[2] > tex.w || src[1] + src[3] > tex.h) {
+        throw new RangeError('sourceRect outside texture bounds');
+    }
+    return src;
+}
+
 function __efxFloatArray(v, n) {
     var i, out;
     if (v instanceof Uint8Array) {
@@ -654,12 +695,6 @@ function __efxEnsureApi() {
         }
         return out;
     }
-    function __efxTextError(rc) {
-        if (rc === 4) {
-            throw new RangeError('text layout failed');
-        }
-        throw new Error('text operation failed');
-    }
 
     function liveMeshData(v) {
         return EfxMeshData.__live(v);
@@ -984,23 +1019,7 @@ function __efxEnsureApi() {
             out.hasOrigin = 1;
         }
         if (e['sourceRect'] !== undefined) {
-            var srcv = e['sourceRect'];
-            if (!__efxIsObject(srcv)) {
-                throw new TypeError('sourceRect must be an object');
-            }
-            var skeys = ['x', 'y', 'w', 'h'];
-            for (var j = 0; j < 4; j++) {
-                out.src[j] = __efxFinite(srcv[skeys[j]],
-                    'sourceRect fields must be finite numbers');
-            }
-            if (out.src[2] <= 0 || out.src[3] <= 0) {
-                throw new RangeError('sourceRect extent must be > 0');
-            }
-            if (out.src[0] < 0 || out.src[1] < 0 ||
-                out.src[0] + out.src[2] > tex.w ||
-                out.src[1] + out.src[3] > tex.h) {
-                throw new RangeError('sourceRect outside texture bounds');
-            }
+            out.src = __efxSourceRect(tex, e['sourceRect']);
             out.hasSrc = 1;
         }
         if (out.hasSize) {

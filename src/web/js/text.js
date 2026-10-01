@@ -30,21 +30,19 @@
             if (!(size > 0)) {
                 throw new RangeError('size must be > 0');
             }
-            var glyphsPtr = 0;
-            if (opts.glyphs !== undefined) {
-                if (typeof opts.glyphs !== 'string') {
+            var glyphs = opts.glyphs;
+            if (glyphs !== undefined) {
+                if (typeof glyphs !== 'string') {
                     throw new TypeError('glyphs must be a string');
                 }
-                if (opts.glyphs.length === 0) {
+                if (glyphs.length === 0) {
                     throw new RangeError('glyphs must not be empty');
                 }
-                glyphsPtr = __efxAllocCStr(opts.glyphs);
             }
             var padding = 1;
             if (opts.padding !== undefined) {
                 var pv = __efxFinite(opts.padding, 'padding must be a finite number');
                 if (pv < 0 || pv !== Math.floor(pv)) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new RangeError('padding must be a non-negative integer');
                 }
                 padding = pv | 0;
@@ -56,31 +54,21 @@
                 } else if (opts.filter === 'nearest') {
                     filter = 0;
                 } else {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError("filter must be 'linear' or 'nearest'");
                 }
             }
             var hasOutline = 0, outlineWidth = 0;
             if (opts.outline !== undefined && opts.outline !== null) {
                 if (!__efxIsObject(opts.outline)) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('outline must be an object or null');
                 }
-                var oKnown = { width: 1 };
-                try {
-                    __efxCheckKnown(opts.outline, oKnown, 'outline');
-                } catch (e) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
-                    throw e;
-                }
+                __efxCheckKnown(opts.outline, { width: 1 }, 'outline');
                 if (opts.outline.width === undefined) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('outline requires a numeric width');
                 }
                 outlineWidth = __efxFinite(opts.outline.width,
                                            'outline width must be a finite number');
                 if (!(outlineWidth > 0)) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new RangeError('outline width must be > 0');
                 }
                 hasOutline = 1;
@@ -88,24 +76,15 @@
             var hasShadow = 0, shadowBlur = 0, offX = 0, offY = 0;
             if (opts.shadow !== undefined && opts.shadow !== null) {
                 if (!__efxIsObject(opts.shadow)) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('shadow must be an object or null');
                 }
-                var sKnown = { blur: 1, offset: 1 };
-                try {
-                    __efxCheckKnown(opts.shadow, sKnown, 'shadow');
-                } catch (e) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
-                    throw e;
-                }
+                __efxCheckKnown(opts.shadow, { blur: 1, offset: 1 }, 'shadow');
                 if (opts.shadow.blur === undefined) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new TypeError('shadow requires a numeric blur');
                 }
                 shadowBlur = __efxFinite(opts.shadow.blur,
                                          'shadow blur must be a finite number');
                 if (!(shadowBlur > 0)) {
-                    if (glyphsPtr) { bridge['_free'](glyphsPtr); }
                     throw new RangeError('shadow blur must be > 0');
                 }
                 if (opts.shadow.offset !== undefined) {
@@ -115,12 +94,11 @@
                 }
                 hasShadow = 1;
             }
+            var glyphsPtr = glyphs !== undefined ? __efxAllocCStr(glyphs) : 0;
             var id = bridge['_efx_bridge_create_font'](
                 fontData.__id, size, glyphsPtr, padding, filter, hasOutline,
                 outlineWidth, hasShadow, shadowBlur, offX, offY);
-            if (glyphsPtr) {
-                bridge['_free'](glyphsPtr);
-            }
+            bridge['_free'](glyphsPtr);
             if (!id) {
                 throw new Error('font could not be baked');
             }
@@ -147,9 +125,7 @@
                       height: HEAPF32[(optr >> 2) + 1],
                       lines: HEAPF32[(optr >> 2) + 2] };
             bridge['_free'](optr);
-            if (rc !== 0) {
-                __efxTextError(rc);
-            }
+            __efxRc(rc, 'text operation', { 4: [RangeError, 'text layout failed'] });
             return b;
         },
         drawText: function (text, font, x, y, opts) {
@@ -184,8 +160,6 @@
                       height: HEAPF32[(optr >> 2) + 1],
                       lines: HEAPF32[(optr >> 2) + 2] };
             bridge['_free'](optr);
-            if (rc !== 0) {
-                __efxTextError(rc);
-            }
+            __efxRc(rc, 'text operation', { 4: [RangeError, 'text layout failed'] });
             return b;
         },

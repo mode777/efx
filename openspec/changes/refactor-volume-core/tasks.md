@@ -68,14 +68,14 @@
 
 ## 6. Web binding (R13–R15)
 
-- [ ] 6.1 Add `__efxRc` to `core.js` and replace the 27 return-code ladders
+- [x] 6.1 Add `__efxRc` to `core.js` and replace the 27 return-code ladders
   (D8). Verify: V4 `web_*` ctest and `web_error_catalog` byte-identical.
-- [ ] 6.2 Reorder allocations after validation, or wrap them in
+- [x] 6.2 Reorder allocations after validation, or wrap them in
   `try/finally`, in `text.js`, `render3d.js`, `resource.js`, `physics.js`,
   `particles.js`, `render2d.js`, `audio.js`, `input.js` and `boot.js`.
   Remove every hand-written free-before-throw. Verify: V4 compare,
   `run_web_harness.mjs`, `web_error_catalog` byte-identical.
-- [ ] 6.3 Add `__efxSourceRect(tex, v)` and use it in `drawQuad`,
+- [x] 6.3 Add `__efxSourceRect(tex, v)` and use it in `drawQuad`,
   `drawBillboard` and the sprite parser. Verify: V4 `web_2d_validation`,
   `web_11_particles`, catalog.
 - [ ] 6.4 (R14) Add `EFX_WEB_CORE_EXPORTS` to `CMakeLists.txt`, delete the 31

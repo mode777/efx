@@ -301,5 +301,14 @@ a call with its current policy and message.
   reports presence. Text's two "requires a numeric …" sites throw their own
   message when the field is absent (return 0). `efx_api_opt_vec3` now writes
   an `efx_vec3`, since physics is its only caller.
+- **D8 opt-in shared codes.** `__efxRc(rc, where, codes)` applies the shared
+  1/4/9 messages only where a site lists them (`{1: true, …}`). Applying them
+  everywhere would have changed one path: `drawSprites` can get
+  `EFX_RENDER_ERR_FEEDBACK` (9) from `efx_render_quad`, which today throws
+  `Error('drawSprites failed')`. The text helper `__efxTextError` folded into
+  `__efxRc(rc, 'text operation', {4: …})`. The real ladders were 10 call sites
+  (plus the text helper), not 27: the plan counted `if (rc === N)` blocks.
+  Heap: `createFont` and `loadMeshData` now validate before they marshal.
+  `createImageData` and `moveAndSlide` use one catch/finally free each.
 
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->

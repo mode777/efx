@@ -76,41 +76,32 @@
             if (arguments.length < 1 || typeof path !== 'string') {
                 throw new TypeError('loadMeshData requires a path string');
             }
-            var hasMesh = 0, isName = 0, index = 0, namePtr = 0;
-            var pathPtr = __efxAllocCStr(path);
+            var hasMesh = 0, index = 0, name = null;
             if (opts !== undefined && opts !== null) {
                 if (!__efxIsObject(opts)) {
-                    bridge['_free'](pathPtr);
                     throw new TypeError('loadMeshData options must be an object');
                 }
-                var known = { mesh: 1 };
-                try {
-                    __efxCheckKnown(opts, known, 'loadMeshData');
-                } catch (e) {
-                    bridge['_free'](pathPtr);
-                    throw e;
-                }
+                __efxCheckKnown(opts, { mesh: 1 }, 'loadMeshData');
                 if (opts['mesh'] !== undefined) {
                     var mv = opts['mesh'];
                     hasMesh = 1;
                     if (typeof mv === 'string') {
-                        isName = 1;
-                        namePtr = __efxAllocCStr(mv);
+                        name = mv;
                     } else if (typeof mv === 'number' && isFinite(mv) &&
                                mv === Math.floor(mv) && mv >= 0) {
                         index = mv | 0;
                     } else {
-                        bridge['_free'](pathPtr);
                         throw new TypeError('mesh must be a non-negative integer or a name');
                     }
                 }
             }
-            var id = bridge['_efx_bridge_load_meshdata'](pathPtr, hasMesh, isName,
+            var pathPtr = __efxAllocCStr(path);
+            var namePtr = name !== null ? __efxAllocCStr(name) : 0;
+            var id = bridge['_efx_bridge_load_meshdata'](pathPtr, hasMesh,
+                                                         name !== null ? 1 : 0,
                                                          index, namePtr);
             bridge['_free'](pathPtr);
-            if (namePtr) {
-                bridge['_free'](namePtr);
-            }
+            bridge['_free'](namePtr);
             if (!id) {
                 throw new Error('glTF import failed');
             }

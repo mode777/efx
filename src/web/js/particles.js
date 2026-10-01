@@ -52,20 +52,7 @@
                 }
                 var srcv = opts['sourceRect'];
                 if (srcv !== undefined) {
-                    if (!__efxIsObject(srcv)) {
-                        throw new TypeError('sourceRect must be an object');
-                    }
-                    var skeys = ['x', 'y', 'w', 'h'];
-                    for (var j = 0; j < 4; j++) {
-                        src[j] = __efxFinite(srcv[skeys[j]], 'sourceRect fields must be finite numbers');
-                    }
-                    if (src[2] <= 0 || src[3] <= 0) {
-                        throw new RangeError('sourceRect extent must be > 0');
-                    }
-                    if (src[0] < 0 || src[1] < 0 ||
-                        src[0] + src[2] > tex.w || src[1] + src[3] > tex.h) {
-                        throw new RangeError('sourceRect outside texture bounds');
-                    }
+                    src = __efxSourceRect(tex, srcv);
                     hasSrc = true;
                 }
             }
@@ -85,18 +72,7 @@
             var rc = bridge['_efx_bridge_draw_quad'](tex.handle, fx, fy, fw, fh,
                 color[0], color[1], color[2], color[3], rotation, scale,
                 src[0], src[1], src[2], src[3], hasSrc ? 1 : 0, ox, oy);
-            if (rc === 1) {
-                throw new RangeError('display list budget exceeded');
-            }
-            if (rc === 4) {
-                throw new Error('no render surface (draw calls need a window)');
-            }
-            if (rc === 9) {
-                throw new TypeError('cannot sample the render target being drawn into');
-            }
-            if (rc !== 0) {
-                throw new Error('drawQuad failed');
-            }
+            __efxRc(rc, 'drawQuad', { 1: true, 4: true, 9: true });
         },
         drawBillboard: function (pos, opts) {
             if (arguments.length < 2) {
@@ -148,22 +124,7 @@
             var src = [0, 0, 0, 0];
             var hasSrc = 0;
             if (opts['sourceRect'] !== undefined) {
-                var srcv = opts['sourceRect'];
-                if (!__efxIsObject(srcv)) {
-                    throw new TypeError('sourceRect must be an object');
-                }
-                var skeys = ['x', 'y', 'w', 'h'];
-                for (var j = 0; j < 4; j++) {
-                    src[j] = __efxFinite(srcv[skeys[j]],
-                        'sourceRect fields must be finite numbers');
-                }
-                if (src[2] <= 0 || src[3] <= 0) {
-                    throw new RangeError('sourceRect extent must be > 0');
-                }
-                if (src[0] < 0 || src[1] < 0 ||
-                    src[0] + src[2] > tex.w || src[1] + src[3] > tex.h) {
-                    throw new RangeError('sourceRect outside texture bounds');
-                }
+                src = __efxSourceRect(tex, opts['sourceRect']);
                 hasSrc = 1;
             }
             var pPtr = mallocCopyF32(p);
@@ -174,18 +135,11 @@
                 hasSrc);
             bridge['_free'](pPtr);
             bridge['_free'](nPtr);
-            if (rc === 1) {
-                throw new RangeError('display list budget exceeded');
-            }
-            if (rc === 2) {
-                throw new TypeError('expected a Texture or RenderTarget');
-            }
-            if (rc === 10) {
-                throw new RangeError('invalid billboard size or facing');
-            }
-            if (rc !== 0) {
-                throw new Error('drawBillboard failed');
-            }
+            __efxRc(rc, 'drawBillboard', {
+                1: true,
+                2: [TypeError, 'expected a Texture or RenderTarget'],
+                10: [RangeError, 'invalid billboard size or facing'],
+            });
         },
         drawSprites: function (texture, sprites) {
             if (arguments.length < 2) {
@@ -205,15 +159,7 @@
                     s.w, s.h, s.color[0], s.color[1], s.color[2], s.color[3],
                     s.rotation, s.scale, s.src[0], s.src[1], s.src[2], s.src[3],
                     s.hasSrc, s.ox, s.oy);
-                if (rc === 1) {
-                    throw new RangeError('display list budget exceeded');
-                }
-                if (rc === 4) {
-                    throw new Error('no render surface (draw calls need a window)');
-                }
-                if (rc !== 0) {
-                    throw new Error('drawSprites failed');
-                }
+                __efxRc(rc, 'drawSprites', { 1: true, 4: true });
             }
         },
         createParticleSystem: function (opts) {
@@ -235,18 +181,11 @@
         drawParticles: function (sys) {
             livePS(sys);
             var rc = bridge['_efx_bridge_particles_draw'](sys.__handle);
-            if (rc === 1) {
-                throw new RangeError('display list budget exceeded');
-            }
-            if (rc === 2) {
-                throw new TypeError('expected a live ParticleSystem');
-            }
-            if (rc === 9) {
-                throw new TypeError('cannot sample the render target being drawn into');
-            }
-            if (rc !== 0) {
-                throw new Error('drawParticles failed');
-            }
+            __efxRc(rc, 'drawParticles', {
+                1: true,
+                2: [TypeError, 'expected a live ParticleSystem'],
+                9: true,
+            });
         },
         setBlendMode: function (mode) {
             if (arguments.length < 1) {

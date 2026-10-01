@@ -34,27 +34,17 @@
                 throw new TypeError('using a destroyed resource');
             }
             var rc = bridge['_efx_bridge_target_begin'](rt.__handle);
-            if (rc === 7) {
-                throw new TypeError('a render target is already active');
-            }
-            if (rc === 1) {
-                throw new RangeError('display list budget exceeded');
-            }
-            if (rc !== 0) {
-                throw new Error('beginRenderTarget failed');
-            }
+            __efxRc(rc, 'beginRenderTarget', {
+                1: true,
+                7: [TypeError, 'a render target is already active'],
+            });
         },
         endRenderTarget: function () {
             var rc = bridge['_efx_bridge_target_end']();
-            if (rc === 8) {
-                throw new TypeError('no render target is active');
-            }
-            if (rc === 1) {
-                throw new RangeError('display list budget exceeded');
-            }
-            if (rc !== 0) {
-                throw new Error('endRenderTarget failed');
-            }
+            __efxRc(rc, 'endRenderTarget', {
+                1: true,
+                8: [TypeError, 'no render target is active'],
+            });
         },
         setPostEffects: function (list) {
             if (arguments.length < 1) {
@@ -80,18 +70,11 @@
             if (ptr) {
                 bridge['_free'](ptr);
             }
-            if (rc === 1) {
-                throw new TypeError('unknown post effect');
-            }
-            if (rc === 2) {
-                throw new RangeError('post-effect chain is limited to 8 entries');
-            }
-            if (rc === 3) {
-                throw new RangeError('post-effect option out of range');
-            }
-            if (rc !== 0) {
-                throw new Error('setPostEffects failed');
-            }
+            __efxRc(rc, 'setPostEffects', {
+                1: [TypeError, 'unknown post effect'],
+                2: [RangeError, 'post-effect chain is limited to 8 entries'],
+                3: [RangeError, 'post-effect option out of range'],
+            });
         },
         setRenderScale: function (scale, opts) {
             if (arguments.length < 1) {
@@ -121,13 +104,8 @@
                 }
             }
             var rc = bridge['_efx_bridge_set_render_scale'](scale, filter);
-            if (rc === 3) {
-                throw new RangeError('scale must be in (0, 2]');
-            }
-            if (rc === 4) {
-                throw new TypeError('unknown filter');
-            }
-            if (rc !== 0) {
-                throw new Error('setRenderScale failed');
-            }
+            __efxRc(rc, 'setRenderScale', {
+                3: [RangeError, 'scale must be in (0, 2]'],
+                4: [TypeError, 'unknown filter'],
+            });
         },

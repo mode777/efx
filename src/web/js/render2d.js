@@ -102,6 +102,7 @@
             if (!ptr) {
                 throw new Error('out of memory');
             }
+            var id;
             try {
                 if (Array.isArray(pixels)) {
                     for (var i = 0; i < n; i++) {
@@ -124,34 +125,31 @@
                 } else {
                     throw new TypeError('pixels must be an array or typed array');
                 }
+                var fmt = opts['format'];
+                if (fmt !== undefined) {
+                    var fs = __efxCStr(fmt);
+                    if (fs === null || fs !== 'rgba8') {
+                        throw new RangeError("unsupported image format (only 'rgba8')");
+                    }
+                }
+                var known = { width: 1, height: 1, pixels: 1, format: 1 };
+                var names = Object.getOwnPropertyNames(opts);
+                var unknown = null;
+                for (var k = 0; k < names.length; k++) {
+                    if (!known[names[k]]) {
+                        unknown = names[k];
+                    }
+                }
+                if (unknown !== null) {
+                    throw new TypeError("unknown option '" + unknown + "'");
+                }
+                id = bridge['_efx_bridge_imagedata_commit'](w, h, ptr);
+                if (!id) {
+                    throw new Error('out of memory');
+                }
             } catch (e) {
-                bridge['_free'](ptr);
+                bridge['_free'](ptr); /* not committed: still ours */
                 throw e;
-            }
-            var fmt = opts['format'];
-            if (fmt !== undefined) {
-                var fs = __efxCStr(fmt);
-                if (fs === null || fs !== 'rgba8') {
-                    bridge['_free'](ptr);
-                    throw new RangeError("unsupported image format (only 'rgba8')");
-                }
-            }
-            var known = { width: 1, height: 1, pixels: 1, format: 1 };
-            var names = Object.getOwnPropertyNames(opts);
-            var unknown = null;
-            for (var k = 0; k < names.length; k++) {
-                if (!known[names[k]]) {
-                    unknown = names[k];
-                }
-            }
-            if (unknown !== null) {
-                bridge['_free'](ptr);
-                throw new TypeError("unknown option '" + unknown + "'");
-            }
-            var id = bridge['_efx_bridge_imagedata_commit'](w, h, ptr);
-            if (!id) {
-                bridge['_free'](ptr);
-                throw new Error('out of memory');
             }
             return new EfxImageData(id);
         },
