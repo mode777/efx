@@ -105,7 +105,7 @@ static int web_frame(void *ud, double dt) {
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_frame(void) {
     /* direct (Node harness) path bypasses the sokol frame loop, so derive dt
-       here; the first frame reports 0 (desktop parity, design D3) */
+       here; the first frame reports 0 (desktop parity) */
     double now = emscripten_get_now();
     double dt = W.frame_have_now ? (now - W.frame_last_now) / 1000.0 : 0.0;
     W.frame_have_now = 1;

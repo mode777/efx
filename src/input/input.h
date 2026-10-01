@@ -2,7 +2,7 @@
 #define EFX_INPUT_H
 
 /*
- * F9 input core (design D1/D2/D5): a pure-C keyboard/mouse state model with
+ * F9 input core (ADR 0036): a pure-C keyboard/mouse state model with
  * frame-staged event delivery. No Sokol, no quickjs (ADR 0003 module walls).
  * The platform layer translates the backend's event callback into the
  * arrival functions below; both script bindings and the tests consume the

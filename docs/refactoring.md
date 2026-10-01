@@ -1,10 +1,13 @@
 # Volume-reduction refactoring plan (YAGNI + DRY)
 
-Status: **in progress** — Phase A–B (R0–R7) **done** (change
+Status: **Part 1 done** — Phase A–B (R0–R7) **done** (change
 `refactor-volume-tests`, Checkpoint 1 green, run 36850058681, measured
 Δ −499). Phase C–F (R8–R16) **done** (change `refactor-volume-core`,
-Checkpoint 2 green through macOS, run 36855766168, measured Δ −623). R17
-onward pending. Snapshot taken 2026-10-01 against `main` at `cdf1c67`
+Checkpoint 2 green through macOS, run 36855766168, measured Δ −623).
+Phase G (R17–R21) **done** (change `refactor-volume-build`, Checkpoint 3
+green through macOS, run 36864472674, measured Δ −90 code+tools plus
+−301 `AGENTS.md`; the AGENTS.md slimming is the former P21). Snapshot
+taken 2026-10-01 against `main` at `cdf1c67`
 (after `refactor-safety-net`, `refactor-split-modules` and
 `refactor-long-functions`). The previous plan — split and decompose, implemented
 through its Checkpoint 3 — is in git history (`git show cdf1c67:docs/refactoring.md`).
@@ -551,6 +554,10 @@ production code moves.
 - **Validation:** E5 identical. E2 identical. V5 configures on all four
   targets.
 - **Est. Δ:** −150.
+- **Status:** done (change `refactor-volume-build`). Sorted
+  `compile_commands.json` byte-identical on the server (Ninja configure with
+  the golden build); 298-test desktop inventory identical; V5 run
+  36864472674 green. Measured Δ −108 in `CMakeLists.txt`.
 
 #### R18. `tests/CMakeLists.txt`: one row per portable case
 
@@ -564,6 +571,9 @@ production code moves.
     root-mode-only cases) stay explicit.
 - **Validation:** E2 identical on desktop and on Emscripten (V4).
 - **Est. Δ:** −50.
+- **Status:** done (change `refactor-volume-build`). 23 portable rows
+  converted; name-keyed `ctest -N -V` identical on both runtimes (298/159);
+  Emscripten ctest 159/159 green. Measured Δ −92 in `tests/CMakeLists.txt`.
 
 #### R19. Shared host page for the web runners
 
@@ -573,6 +583,9 @@ production code moves.
   `tools/lib/web-host.mjs`.
 - **Validation:** V4. Runner output and exit codes are unchanged.
 - **Est. Δ:** −15.
+- **Status:** done (change `refactor-volume-build`). `hostPage()` in
+  `tools/lib/web-host.mjs`; web goldens, harness (9/9) and cross-runtime
+  compare all green with unchanged output.
 
 #### R20. Comment hygiene
 
@@ -588,6 +601,11 @@ production code moves.
 - **Validation:** E7 for C/C++, V3, and review for JS. No code token may
   change.
 - **Est. Δ:** −150.
+- **Status:** done (change `refactor-volume-build`). E7 green for every
+  touched C/C++ file; zero `design D#`/`P#` pointers remain in `src/`;
+  `prelude.h` regenerated (V3). Measured Δ +19 net: pointer→ADR re-points
+  add length where the ADR number is longer than the process id — the
+  references now resolve.
 
 #### R21. Re-home misplaced desktop functions (optional, move-only)
 
@@ -599,6 +617,9 @@ production code moves.
 - **Validation:** `git diff -M --color-moved=dimmed-zebra` shows only moves.
   V1 + V2.
 - **Est. Δ:** 0.
+- **Status:** done (change `refactor-volume-build`). Move-only verified
+  byte-identical (451 insertions / 450 deletions); found the functions in
+  `api_target_post.c`/`api_particles.c` post-`refactor-volume-core`.
 
 ### Part 1 totals
 
@@ -725,7 +746,10 @@ flowchart LR
   server), V5 green in run 36855766168 (Linux, Windows, macOS, Emscripten,
   web goldens); volume 40 062 → 39 439 (−623).
 - **Checkpoint 3** (after R21): build, tools and comments are done. Run V5,
-  merge to `main` per `AGENTS.md`, and archive.
+  merge to `main` per `AGENTS.md`, and archive. **Done** — V4 green on the
+  server, V5 green in run 36864472674 (Linux, Windows, macOS, Emscripten,
+  web goldens); volume 39 439 → 39 349 (−90 code+tools, E4 paths) plus
+  `AGENTS.md` 569 → 268 (−301, the former P21, outside the E4 paths).
 - **Part 2** starts only after ADR 0049 is accepted. It runs as its own OpenSpec
   change, with spec deltas.
 

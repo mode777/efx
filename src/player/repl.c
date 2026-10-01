@@ -40,7 +40,7 @@ static int repl_is_tty(void) {
 #endif
 }
 
-/* Non-blocking "is there input?" check (design D1). Pipes and redirected
+/* Non-blocking "is there input?" check. Pipes and redirected
  * files are reported readable so the piped CI path works on every target. */
 static int repl_readable(void) {
 #ifdef _WIN32
@@ -224,7 +224,7 @@ int efx_repl_run(struct efx_resource *resource) {
     if (resource) {
         efx_runtime_set_resource(rt, resource);
         /* run the root's entry script once, if present; a bare root (or no
-           root) starts with the namespace only (design D4) */
+           root) starts with the namespace only */
         int eerr = EFX_RESOURCE_OK;
         char *code = efx_resource_read_text(resource, "main.js", &eerr);
         int exit_code = 0;

@@ -2,7 +2,7 @@
 #define EFX_GAMEPAD_H
 
 /*
- * F13 gamepad core (design D2/D3/D5/D6): a pure-C fixed bank of gamepad
+ * F13 gamepad core (ADR 0041): a pure-C fixed bank of gamepad
  * slots plus a portable SDL game-controller-mapping evaluator. No Sokol, no
  * quickjs, and no vendored backend types (ADR 0003 module walls). The
  * platform layer translates the vendored poll backend into device
@@ -15,7 +15,7 @@
 
 #include <stdint.h>
 
-/* fixed pad bank (design D5) */
+/* fixed pad bank (ADR 0041) */
 #define EFX_GAMEPAD_MAX 4
 
 /* raw device layout caps (a descriptor may report fewer) */
@@ -52,10 +52,10 @@
 #define EFX_GPA_RIGHT_TRIGGER 5
 #define EFX_GPA_COUNT 6
 
-/* canonical ranges (design D6) */
+/* canonical ranges (ADR 0041) */
 #define EFX_GAMEPAD_TRIGGER_THRESHOLD 0.5f
 
-/* one device snapshot, device-agnostic (design D3). When `normalized` is set
+/* one device snapshot, device-agnostic (ADR 0041). When `normalized` is set
  * the raw arrays already use the SDL-standard layout (web `mapping ===
  * 'standard'` pads and the platform backend, which reconstructs the layout);
  * otherwise the evaluator selects a mapping by `guid` from the loaded SDL

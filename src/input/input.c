@@ -11,7 +11,7 @@ typedef struct {
     int id;
 } efx_input_name_entry;
 
-/* The documented key-name set (design D3 open question settled here). The
+/* The documented key-name set. The
  * numeric ids are the platform virtual-keycode values; the table is the
  * engine-owned name source of truth for scripts. Every name here is
  * exercised by the input unit test. */
@@ -200,10 +200,10 @@ void efx_input_reset(void) {
 
 void efx_input_begin_frame(void) {
     /* F13: gamepads are poll-based, so sample them at frame begin before
-     * edges are finalized (design D2) */
+     * edges are finalized (ADR 0036) */
     efx_input_gamepad_poll();
     /* commit the movement/wheel that arrived since the previous frame; the
-     * level/edge state is already current (design D2) */
+     * level/edge state is already current (ADR 0036) */
     P.frame_dx = P.accum_dx;
     P.frame_dy = P.accum_dy;
     P.accum_dx = 0;
@@ -312,7 +312,7 @@ void efx_input_wheel(float dx, float dy) {
 }
 
 void efx_input_focus_lost(void) {
-    /* clear held state; no synthetic up events (design D7) */
+    /* clear held state; no synthetic up events (ADR 0036) */
     memset(K.down, 0, sizeof(K.down));
     memset(B.down, 0, sizeof(B.down));
 }

@@ -1,5 +1,5 @@
 /*
- * Private contract shared by the src/render/render_*.c fragments (P14). The
+ * Private contract shared by the src/render/render_*.c fragments. The
  * public surface is render/render.h; this header holds the engine-owned
  * registries (`R`, `POST`), the slot types, the pool helpers, and the handful
  * of helpers that cross fragment boundaries.
@@ -27,7 +27,7 @@ typedef struct {
     int used;
     int alive;
     int permanent;
-    int bind_refs;       /* F4b: material map retain count (design D6) */
+    int bind_refs;       /* F4b: material map retain count (ADR 0027) */
     int release_pending; /* F4b: destroy() called while retained */
     uint32_t gen;
     int w, h;
@@ -39,7 +39,7 @@ typedef struct {
 
 /* F5a render target: an offscreen color+depth attachment pair; native is
  * owned by the sink and doubles as the sampling source (texture coercion,
- * design D1). No CPU-side pixel payload: before a sink exists only the
+ * ADR 0028). No CPU-side pixel payload: before a sink exists only the
  * slot (with its size) is allocated. */
 typedef struct {
     int used;
@@ -162,8 +162,8 @@ extern render_post_state POST;
 
 /* --------------------------------------------------------- pool helpers */
 
-/* grow a pool to hold at least `need` elements, doubling from `initial`
- * (P11). Returns 1 on success, 0 on OOM; `*arr`/`*cap` update only on
+/* grow a pool to hold at least `need` elements, doubling from `initial`.
+ * Returns 1 on success, 0 on OOM; `*arr`/`*cap` update only on
  * success, so each caller keeps its own OOM branch. */
 static inline int pool_grow(void **arr, int *cap, int need, size_t elem,
                             int initial) {
@@ -183,7 +183,7 @@ static inline int pool_grow(void **arr, int *cap, int need, size_t elem,
     return 1;
 }
 
-/* decode a pool handle `gen << 32 | idx` (P11). `tag` is the 4-bit namespace
+/* decode a pool handle `gen << 32 | idx`. `tag` is the 4-bit namespace
  * in the index half (0 for textures, 1 for render targets); pass
  * EFX_HANDLE_NO_TAG to skip the tag check (meshes/particles, legacy). Returns
  * 0 when the tag does not match, else writes the 1-based index and generation. */

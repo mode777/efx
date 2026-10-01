@@ -264,7 +264,7 @@ function __efxScratch() {
 }
 
 /* F9: drain the frame's staged input events into the registered callbacks,
-   in arrival order, before the update hooks run (design D2/D3) */
+   in arrival order, before the update hooks run (ADR 0036) */
 function __efxDispatchInput(st) {
     var bridge = Module;
     var n = bridge['_efx_input_event_count']();
@@ -344,7 +344,7 @@ function __efxEnsureApi() {
         return st;
     }
     var bridge = Module;
-    /* one known-field check for every option bag (P8): unknown keys throw a
+    /* one known-field check for every option bag: unknown keys throw a
      * TypeError naming the field. `where` names the bag (may be empty),
      * `useKeys` selects Object.keys instead of getOwnPropertyNames, and
      * `noName` reproduces the two legacy messages that omit the field. */
@@ -399,7 +399,7 @@ function __efxEnsureApi() {
 
     // explicit hook registration (ADR 0016): entries are marked inactive on
     // unsubscribe instead of spliced, so a hook may unsubscribe itself while
-    // it is running (desktop parity, design D1)
+    // it is running (desktop parity)
     function makeRegister(which) {
         return function (fn) {
             if (typeof fn !== 'function') {
@@ -413,7 +413,7 @@ function __efxEnsureApi() {
         };
     }
 
-    /* P9: one factory for the native-backed resource wrappers. It owns the
+    /* one factory for the native-backed resource wrappers. It owns the
      * `__alive` flag, the idempotent `destroy()` guard and the liveness check
      * shared by guarded accessors and methods. `init` seeds the instance
      * fields (run with `__alive` already true); `destroy` is the release body

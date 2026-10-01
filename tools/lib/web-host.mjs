@@ -1,8 +1,9 @@
 /*
  * Shared helpers for the puppeteer-based web test runners (P17):
- * loadPuppeteer(), serveStatic(root, routes, opts) and launchBrowser(opts).
- * Each runner keeps its own CLI, env vars and exit codes; only the duplicated
- * dynamic import, static server and browser-launch wiring lives here.
+ * loadPuppeteer(), serveStatic(root, routes, opts), launchBrowser(opts) and
+ * hostPage(). Each runner keeps its own CLI, env vars and exit codes; only
+ * the duplicated dynamic import, static server, browser-launch wiring and
+ * host page live here.
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -103,4 +104,42 @@ export async function launchBrowser(opts = {}) {
             '--run-all-compositor-stages-before-draw',
         ],
     });
+}
+
+/*
+ * The shared host page: the canvas the engine renders into, a keep-alive
+ * animation so headless Chrome keeps producing BeginFrames (rAF — and with
+ * it the emscripten main loop — only ticks inside them), and a counting rAF
+ * wrapper. `verbose: true` adds the goldens runner's first-three-tick
+ * logging, the rAF-callback stack and the unhandledrejection hook.
+ */
+export function hostPage({ title, script, verbose = false }) {
+    const tickLog = verbose
+        ? "\n    if (window.__rafCount <= 3) console.log('[raf] tick ' + window.__rafCount);"
+        : '';
+    const cbThrow = verbose
+        ? "console.log('[raf-cb-throw]', e && (e.message || e), e && e.stack)"
+        : "console.log('[raf-cb-throw]', e && (e.message || e))";
+    const rejection = verbose
+        ? "\nwindow.addEventListener('unhandledrejection', (e) => console.log('[rejection]', e.reason && (e.reason.message || e.reason)));"
+        : '';
+    return `<!doctype html>
+<html><head><meta charset="utf-8"><title>${title}</title></head>
+<body><canvas id="canvas" width="640" height="480"></canvas>
+<style>@keyframes k { from { transform: translateY(0); } to { transform: translateY(1px); } }</style>
+<!-- keep the compositor producing BeginFrames in headless so rAF (and the
+     emscripten main loop) keeps ticking; DOM is not part of the GL readback -->
+<div style="position:fixed;width:1px;height:1px;background:#123;animation:k 0.016s linear infinite alternate;"></div>
+<script>
+window.__rafCount = 0;
+const __raf = window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame = (cb) => {
+    window.__rafCount++;${tickLog}
+    return __raf((t) => {
+        try { cb(t); } catch (e) { ${cbThrow}; throw e; }
+    });
+};${rejection}
+window.addEventListener('error', (e) => console.log('[page-err]', e.message));
+</script>
+<script src="${script}"></script></body></html>`;
 }

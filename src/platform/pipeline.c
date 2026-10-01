@@ -2,7 +2,7 @@
  * Sokol implementation of the render-module GPU sink: canned 2D quad
  * shader + 3D mesh shader (sokol-shdc generated, ADR 0015/0021), blend
  * pipeline variants, dynamic quad batching and indexed mesh playback
- * with depth (design D1–D7, F3).
+ * with depth (ADR 0021).
  */
 #include "platform/pipeline.h"
 #include "platform/backend.h"
@@ -31,7 +31,7 @@ typedef struct {
 } pipe_vertex;
 
 /* interleaved mesh vertex: pos(3f) normal(3f) uv(2f) color(4f) = 48 bytes
- * (design D1: all attribute slots present, defaults filled at upload).
+ * All attribute slots are present; defaults are filled at upload.
  * The full 4-element layout matches the shader input signature exactly;
  * D3D11 CreateInputLayout returns E_INVALIDARG for partial coverage. */
 typedef struct {
@@ -50,7 +50,7 @@ typedef struct {
 
 /* F5a offscreen render target: env-default color+depth attachments plus a
  * texture view over the color image (sampling a target = texture coercion,
- * design D1) */
+ * ADR 0028) */
 typedef struct {
     int w, h;
     sg_image color, depth;
@@ -484,7 +484,7 @@ void efx_pipeline_install(void) {
         qd.depth.compare = SG_COMPAREFUNC_LESS_EQUAL;
         P.bill_pip[i] = sg_make_pipeline(&qd);
         /* mesh pipelines: indexed triangles, depth-tested and writing
-           (design D4), backface culling on CCW front faces (design D6) */
+           backface culling on CCW front faces */
         sg_pipeline_desc md = {
             .shader = P.mesh_shd,
             .primitive_type = SG_PRIMITIVETYPE_TRIANGLES,
@@ -513,7 +513,7 @@ void efx_pipeline_install(void) {
     }
 
     /* D3D11/Metal use a 0..1 depth range: fold the GL-style (-1..1)
-       projection into clip space at playback (design D3/D4) */
+       projection into clip space at playback (ADR 0025) */
     P.depth_remap = sg_query_features().origin_top_left ? 1 : 0;
     /* GL-family backends land offscreen render output top-at-v=1 (ADR
        0028): rendering INTO a render target flips y engine-side */
@@ -607,7 +607,7 @@ static sg_pass_action pipe_pass_action(const float clear[4]) {
     memset(&pa, 0, sizeof(pa));
     pa.colors[0].load_action = SG_LOADACTION_CLEAR;
     pa.colors[0].clear_value = (sg_color){clear[0], clear[1], clear[2], clear[3]};
-    /* F3 depth: cleared to far (1.0) each pass (design D4) */
+    /* F3 depth: cleared to far (1.0) each pass */
     pa.depth.load_action = SG_LOADACTION_CLEAR;
     pa.depth.clear_value = 1.0f;
     return pa;
@@ -637,7 +637,7 @@ void efx_pipeline_set_default_attachments(void *atts) {
     }
 }
 
-/* texture coercion (F5a design D1): a sampling handle resolves through the
+/* texture coercion (ADR 0028): a sampling handle resolves through the
  * texture registry first, then the render-target registry */
 static sg_view view_for_handle(uint64_t h) {
     pipe_tex *t = (pipe_tex *)efx_render_texture_native(h);

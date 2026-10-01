@@ -2,7 +2,7 @@
 
 /* ------------------------------------------- F11 (billboards + particles) */
 
-/* particle wire layout (floats); kept in sync with src/web/entry.js:
+/* particle wire layout (floats); kept in sync with the particles.js writer:
  *   0 max, 1 space, 2 facing, 3 blend, 4 lifeMin, 5 lifeMax, 6 emissionRate,
  *   7 emitterLifetime, 8 speedScale, 9 spread, 10 sizeCount, 11 sizeVariation,
  *   12 colorCount, 13 relativeRotation, 14 shape, 15 quadCount,

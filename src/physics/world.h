@@ -2,7 +2,7 @@
 #define EFX_PHYS_WORLD_H
 
 /*
- * F12 world model (design D2/D3): one engine-owned world holding every
+ * F12 world model (ADR 0040): one engine-owned world holding every
  * collider, keyed by a stable monotonically increasing id, with a per-slot
  * free list. The solver and character controller operate on this model; the
  * public C surface in physics.h is implemented over it.
@@ -16,7 +16,7 @@
 #define EFX_PBODY_STATIC 0
 #define EFX_PBODY_DYNAMIC 1
 
-/* solver tuning (design D6, open questions settled here) */
+/* solver tuning (ADR 0040) */
 #define EFX_PHYS_PEN_SLOP 0.001f
 #define EFX_PHYS_BAUMGARTE 0.0f
 #define EFX_PHYS_RESTITUTION_THRESHOLD 1.0f

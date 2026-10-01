@@ -4,7 +4,12 @@ set(F ${CMAKE_CURRENT_SOURCE_DIR}/fixtures)
 # EFX_HEADLESS (root CMakeLists): no player target — register only the
 # headless unit-test cases at the bottom of this file
 if(NOT EFX_HEADLESS)
-function(add_player_test NAME)
+# The one place that knows how a player run becomes a ctest invocation: all
+# argument escaping and the run_test.cmake plumbing. add_player_test and
+# add_web_test are thin wrappers supplying the runtime-specific -D set;
+# MIDDLE_DARGS carries those -D entries that sit between PLAYER_UNDER_NODE
+# and -DARG_LINE (web staging).
+function(efx_add_run_test NAME PLAYER_NODE MIDDLE_DARGS)
     cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_OUT_FILE;EXPECT_ERR;INPUT_FILE" "ARGS" ${ARGN})
     set(ARG_LINE "${ARG_ARGS}")
     string(REPLACE ";" "\\;" ARG_LINE_ESC "${ARG_LINE}")
@@ -18,7 +23,8 @@ function(add_player_test NAME)
         COMMAND ${CMAKE_COMMAND}
             -DTEST_NAME=${NAME}
             -DPLAYER_COMMAND=$<TARGET_FILE:player>
-            -DPLAYER_UNDER_NODE=$<BOOL:${EMSCRIPTEN}>
+            -DPLAYER_UNDER_NODE=${PLAYER_NODE}
+            ${MIDDLE_DARGS}
             -DARG_LINE=${ARG_LINE_ESC}
             -DEXPECT=${ARG_EXPECT}
             -DEXPECT_OUT=${EXPECT_OUT_ESC}
@@ -28,12 +34,73 @@ function(add_player_test NAME)
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endfunction()
 
+function(add_player_test NAME)
+    cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_OUT_FILE;EXPECT_ERR;INPUT_FILE" "ARGS" ${ARGN})
+    efx_add_run_test(${NAME} $<BOOL:${EMSCRIPTEN}> ""
+        ARGS ${ARG_ARGS}
+        EXPECT ${ARG_EXPECT}
+        EXPECT_OUT "${ARG_EXPECT_OUT}"
+        EXPECT_OUT_FILE "${ARG_EXPECT_OUT_FILE}"
+        EXPECT_ERR "${ARG_EXPECT_ERR}"
+        INPUT_FILE "${ARG_INPUT_FILE}")
+endfunction()
+
+# web native-runtime tests (ADR 0022): the host JS engine (Node in this
+# harness) runs the same portable scripts through the resource-root entry,
+# asserting the same observable effects as the desktop --script suite
+function(add_web_test NAME STAGE_SCRIPT)
+    cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_OUT_FILE;EXPECT_ERR;ROOT" "ARGS;ASSETS" ${ARGN})
+    string(REPLACE ";" "\\;" STAGE_ASSETS_ESC "${ARG_ASSETS}")
+    set(MIDDLE "-DSTAGE_ASSETS=${STAGE_ASSETS_ESC}")
+    if(ARG_ROOT)
+        list(PREPEND MIDDLE "-DROOT_PATH=${ARG_ROOT}")
+    elseif(IS_DIRECTORY "${STAGE_SCRIPT}")
+        list(PREPEND MIDDLE "-DROOT_PATH=${STAGE_SCRIPT}")
+    else()
+        list(PREPEND MIDDLE "-DSTAGE_SCRIPT=${STAGE_SCRIPT}" "-DBINARY_DIR=${CMAKE_BINARY_DIR}")
+    endif()
+    efx_add_run_test(${NAME} ON "${MIDDLE}"
+        ARGS ${ARG_ARGS}
+        EXPECT ${ARG_EXPECT}
+        EXPECT_OUT "${ARG_EXPECT_OUT}"
+        EXPECT_OUT_FILE "${ARG_EXPECT_OUT_FILE}"
+        EXPECT_ERR "${ARG_EXPECT_ERR}")
+endfunction()
+
+# One row per case that desktop and web run with identical arguments and
+# expectations (refactor-volume-build D2): registers smoke_<name> on desktop
+# and web_<name> on Emscripten. PATH is the --script file, or the resource
+# root with ROOT; extra ARGS follow the path on both runtimes. Cases that
+# genuinely differ between the runtimes stay explicit
+# add_player_test/add_web_test rows.
+function(efx_portable_case NAME PATH)
+    cmake_parse_arguments(ARG "ROOT" "EXPECT;EXPECT_OUT;EXPECT_ERR" "ARGS" ${ARGN})
+    if(NOT EMSCRIPTEN)
+        if(ARG_ROOT)
+            set(PLAYER_ARGS "${PATH}")
+        else()
+            set(PLAYER_ARGS "--script;${PATH}")
+        endif()
+        if(ARG_ARGS)
+            list(APPEND PLAYER_ARGS ${ARG_ARGS})
+        endif()
+        add_player_test(smoke_${NAME}
+            ARGS ${PLAYER_ARGS}
+            EXPECT ${ARG_EXPECT}
+            EXPECT_OUT "${ARG_EXPECT_OUT}"
+            EXPECT_ERR "${ARG_EXPECT_ERR}")
+    else()
+        add_web_test(web_${NAME} "${PATH}"
+            ARGS ${ARG_ARGS}
+            EXPECT ${ARG_EXPECT}
+            EXPECT_OUT "${ARG_EXPECT_OUT}"
+            EXPECT_ERR "${ARG_EXPECT_ERR}")
+    endif()
+endfunction()
+
 if(NOT EMSCRIPTEN)
 add_player_test(smoke_log ARGS "--script;${S}/s_log.js" EXPECT 0)
 add_player_test(smoke_quit3 ARGS "--script;${S}/s_quit3.js" EXPECT 3)
-add_player_test(smoke_args ARGS "--script;${S}/s_args.js;one;two" EXPECT 0)
-add_player_test(smoke_portable ARGS "--script;${S}/s_portable.js" EXPECT 0)
-add_player_test(smoke_throw ARGS "--script;${S}/s_throw.js" EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
 add_player_test(smoke_missing_file ARGS "--script;${S}/does_not_exist.js" EXPECT nonzero EXPECT_ERR "cannot read script file")
 add_player_test(smoke_no_script_arg ARGS --script EXPECT nonzero EXPECT_ERR "requires a file argument")
 add_player_test(smoke_root_ok ARGS "${F}/root_ok" EXPECT 0 EXPECT_OUT "entry-ok")
@@ -42,31 +109,11 @@ add_player_test(smoke_root_missing_dir ARGS "${F}/no_such_dir" EXPECT nonzero EX
 add_player_test(smoke_root_eval_throw ARGS "${F}/web/root_eval_throw" EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
 add_player_test(smoke_no_args EXPECT nonzero EXPECT_ERR "usage")
 add_player_test(smoke_unknown_option ARGS --frobnicate EXPECT nonzero EXPECT_ERR "unknown option")
-add_player_test(smoke_2d_validation ARGS "--script;${S}/s_2d_validation.js" EXPECT 0)
-add_player_test(smoke_resource_lifecycle ARGS "--script;${S}/s_resource_lifecycle.js" EXPECT 0)
-add_player_test(smoke_3d_validation ARGS "--script;${S}/s_3d_validation.js" EXPECT 0 EXPECT_OUT "s-3d-validation-ok")
-add_player_test(smoke_3d_math ARGS "--script;${S}/s_3d_math.js" EXPECT 0 EXPECT_OUT "s-3d-math-ok")
-add_player_test(smoke_4a_validation ARGS "--script;${S}/s_4a_validation.js" EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
-add_player_test(smoke_4b_validation ARGS "--script;${S}/s_4b_validation.js" EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
-add_player_test(smoke_5a_validation ARGS "--script;${S}/s_5a_validation.js" EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
-add_player_test(smoke_5b_validation ARGS "--script;${S}/s_5b_validation.js" EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
 add_player_test(smoke_6a_resource ARGS "--script;${S}/s_6a_resource.js" EXPECT 0 EXPECT_OUT "s-6a-resource-ok")
 add_player_test(smoke_6b_gltf ARGS "--script;${S}/s_6b_gltf.js" EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
-add_player_test(smoke_6c_skin ARGS "--script;${S}/s_6c_skin.js" EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
 add_player_test(smoke_7_skin_pose ARGS "--script;${S}/s_7_skin_pose.js;--root;${F}/resource/gltf" EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
-add_player_test(smoke_9_input ARGS "--script;${S}/s_9_input.js" EXPECT 0 EXPECT_OUT "s-9-input-ok")
-add_player_test(smoke_10_modules ARGS "${F}/modules" EXPECT 0 EXPECT_OUT "s-10-modules-ok")
-add_player_test(smoke_10_module_throw ARGS "${F}/modules_error" EXPECT nonzero EXPECT_ERR "intentional-module-throw")
-add_player_test(smoke_10_missing ARGS "--script;${S}/s_10_missing.js" EXPECT nonzero EXPECT_ERR "cannot find module")
-add_player_test(smoke_10_escape ARGS "--script;${S}/s_10_escape.js" EXPECT nonzero EXPECT_ERR "escapes the resource root")
-add_player_test(smoke_10_unsupported ARGS "--script;${S}/s_10_unsupported.js" EXPECT nonzero)
-add_player_test(smoke_10_nohost ARGS "--script;${S}/s_10_nohost.js" EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
-add_player_test(smoke_11_particles ARGS "--script;${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-11-particles-ok")
-add_player_test(smoke_12_physics ARGS "--script;${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
-add_player_test(smoke_13_gamepad ARGS "--script;${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
 add_player_test(smoke_14_audio ARGS "--script;${S}/s_14_audio.js;--root;${F}/audio" EXPECT 0 EXPECT_OUT "s-14-audio-ok")
 add_player_test(smoke_error_catalog ARGS "--script;${S}/s_error_catalog.js" EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt)
-add_player_test(smoke_8a_text ARGS "${F}/web/text_root" EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 add_player_test(smoke_6a_root ARGS "--script;${S}/s_6a_root.js;--root;${F}/resource" EXPECT 0 EXPECT_OUT "s-6a-root-ok")
 add_player_test(smoke_6a_root_zip ARGS "--script;${S}/s_6a_root_zip.js;--root;${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "s-6a-root-zip-ok")
 # gallery showcase samples run against their sample directories: a failed
@@ -85,80 +132,50 @@ add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
 
-# web native-runtime tests (ADR 0022): the host JS engine (Node in this
-# harness) runs the same portable scripts through the resource-root entry,
-# asserting the same observable effects as the desktop --script suite
 if(EMSCRIPTEN)
-    function(add_web_test NAME STAGE_SCRIPT)
-        cmake_parse_arguments(ARG "" "EXPECT;EXPECT_OUT;EXPECT_OUT_FILE;EXPECT_ERR;ROOT" "ARGS;ASSETS" ${ARGN})
-        set(ARG_LINE "${ARG_ARGS}")
-        string(REPLACE ";" "\\;" ARG_LINE_ESC "${ARG_LINE}")
-        string(REPLACE ";" "\\;" EXPECT_OUT_ESC "${ARG_EXPECT_OUT}")
-        string(REPLACE ";" "\\;" EXPECT_ERR_ESC "${ARG_EXPECT_ERR}")
-        string(REPLACE ";" "\\;" STAGE_ASSETS_ESC "${ARG_ASSETS}")
-        set(EXTRA_ARGS "")
-        if(ARG_ROOT)
-            list(APPEND EXTRA_ARGS "-DROOT_PATH=${ARG_ROOT}")
-        elseif(IS_DIRECTORY "${STAGE_SCRIPT}")
-            list(APPEND EXTRA_ARGS "-DROOT_PATH=${STAGE_SCRIPT}")
-        else()
-            list(APPEND EXTRA_ARGS "-DSTAGE_SCRIPT=${STAGE_SCRIPT}" "-DBINARY_DIR=${CMAKE_BINARY_DIR}")
-        endif()
-        add_test(NAME ${NAME}
-            COMMAND ${CMAKE_COMMAND}
-                -DTEST_NAME=${NAME}
-                -DPLAYER_COMMAND=$<TARGET_FILE:player>
-                -DPLAYER_UNDER_NODE=ON
-                ${EXTRA_ARGS}
-                -DSTAGE_ASSETS=${STAGE_ASSETS_ESC}
-                -DARG_LINE=${ARG_LINE_ESC}
-                -DEXPECT=${ARG_EXPECT}
-                -DEXPECT_OUT=${EXPECT_OUT_ESC}
-                -DEXPECT_OUT_FILE=${ARG_EXPECT_OUT_FILE}
-                -DEXPECT_ERR=${EXPECT_ERR_ESC}
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
-    endfunction()
-
-    set(WEBF ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/web)
-    add_web_test(web_root_ok ${F}/root_ok EXPECT 0 EXPECT_OUT "entry-ok")
-    add_web_test(web_root_no_entry ${F}/root_no_entry EXPECT nonzero EXPECT_ERR "no main.js in resource root")
-    add_web_test(web_root_missing_dir missing EXPECT nonzero EXPECT_ERR "not a directory" ROOT ${F}/no_such_dir)
-    add_web_test(web_root_frame ${WEBF}/root_frame EXPECT 0 EXPECT_OUT "frame-1")
-    add_web_test(web_root_hooks_order ${WEBF}/root_hooks_order EXPECT 0 EXPECT_OUT "u1.*r1.*u2")
-    add_web_test(web_explicit_hooks ${WEBF}/root_explicit_hooks EXPECT 0 EXPECT_OUT "u1.*u2.*r1.*u2.*r2.*done")
-    add_web_test(web_root_hook_throw ${WEBF}/root_hook_throw EXPECT nonzero EXPECT_ERR "uncaught exception: hook boom")
-    add_web_test(web_root_eval_throw ${WEBF}/root_eval_throw EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
-    add_web_test(web_log ${S}/s_log.js EXPECT 0 EXPECT_OUT "smoke-log-ok")
-    add_web_test(web_quit3 ${S}/s_quit3.js EXPECT 3 EXPECT_OUT "before-quit")
-    add_web_test(web_args ${S}/s_args.js ARGS one;two EXPECT 0)
-    add_web_test(web_portable ${S}/s_portable.js EXPECT 0)
-    add_web_test(web_throw ${S}/s_throw.js EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
-    add_web_test(web_2d_validation ${S}/s_2d_validation.js EXPECT 0)
-    add_web_test(web_resource_lifecycle ${S}/s_resource_lifecycle.js EXPECT 0)
-    add_web_test(web_3d_validation ${S}/s_3d_validation.js EXPECT 0 EXPECT_OUT "s-3d-validation-ok")
-    add_web_test(web_3d_math ${S}/s_3d_math.js EXPECT 0 EXPECT_OUT "s-3d-math-ok")
-    add_web_test(web_4a_validation ${S}/s_4a_validation.js EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
-    add_web_test(web_4b_validation ${S}/s_4b_validation.js EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
-    add_web_test(web_5a_validation ${S}/s_5a_validation.js EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
-    add_web_test(web_5b_validation ${S}/s_5b_validation.js EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
-    add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
-    add_web_test(web_6c_skin ${S}/s_6c_skin.js EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
-    add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
-    add_web_test(web_9_input ${S}/s_9_input.js EXPECT 0 EXPECT_OUT "s-9-input-ok")
-    add_web_test(web_10_modules ${F}/modules EXPECT 0 EXPECT_OUT "s-10-modules-ok")
-    add_web_test(web_10_module_throw ${F}/modules_error EXPECT nonzero EXPECT_ERR "intentional-module-throw")
-    add_web_test(web_10_missing ${S}/s_10_missing.js EXPECT nonzero EXPECT_ERR "cannot find module")
-    add_web_test(web_10_escape ${S}/s_10_escape.js EXPECT nonzero EXPECT_ERR "escapes the resource root")
-    add_web_test(web_10_unsupported ${S}/s_10_unsupported.js EXPECT nonzero)
-    add_web_test(web_10_nohost ${S}/s_10_nohost.js EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
-    add_web_test(web_11_particles ${S}/s_11_particles.js EXPECT 0 EXPECT_OUT "s-11-particles-ok")
-    add_web_test(web_12_physics ${S}/physics_smoke.js EXPECT 0 EXPECT_OUT "s-12-physics-ok")
-    add_web_test(web_13_gamepad ${S}/s_13_gamepad.js EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
-    add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
-    add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin)
-    add_web_test(web_8a_text ${F}/web/text_root EXPECT 0 EXPECT_OUT "s-8a-text-ok")
-    add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
+add_web_test(web_log ${S}/s_log.js EXPECT 0 EXPECT_OUT "smoke-log-ok")
+add_web_test(web_quit3 ${S}/s_quit3.js EXPECT 3 EXPECT_OUT "before-quit")
+set(WEBF ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/web)
+add_web_test(web_root_ok ${F}/root_ok EXPECT 0 EXPECT_OUT "entry-ok")
+add_web_test(web_root_no_entry ${F}/root_no_entry EXPECT nonzero EXPECT_ERR "no main.js in resource root")
+add_web_test(web_root_missing_dir missing EXPECT nonzero EXPECT_ERR "not a directory" ROOT ${F}/no_such_dir)
+add_web_test(web_root_frame ${WEBF}/root_frame EXPECT 0 EXPECT_OUT "frame-1")
+add_web_test(web_root_hooks_order ${WEBF}/root_hooks_order EXPECT 0 EXPECT_OUT "u1.*r1.*u2")
+add_web_test(web_explicit_hooks ${WEBF}/root_explicit_hooks EXPECT 0 EXPECT_OUT "u1.*u2.*r1.*u2.*r2.*done")
+add_web_test(web_root_hook_throw ${WEBF}/root_hook_throw EXPECT nonzero EXPECT_ERR "uncaught exception: hook boom")
+add_web_test(web_root_eval_throw ${WEBF}/root_eval_throw EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
+add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
+add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
+add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
+add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin)
+add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
+
+# portable cases: identical script/root, args and expectations on both
+# runtimes (one row instead of a mirrored smoke_*/web_* pair)
+efx_portable_case(args "${S}/s_args.js" ARGS one two EXPECT 0)
+efx_portable_case(portable "${S}/s_portable.js" EXPECT 0)
+efx_portable_case(throw "${S}/s_throw.js" EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
+efx_portable_case(2d_validation "${S}/s_2d_validation.js" EXPECT 0)
+efx_portable_case(resource_lifecycle "${S}/s_resource_lifecycle.js" EXPECT 0)
+efx_portable_case(3d_validation "${S}/s_3d_validation.js" EXPECT 0 EXPECT_OUT "s-3d-validation-ok")
+efx_portable_case(3d_math "${S}/s_3d_math.js" EXPECT 0 EXPECT_OUT "s-3d-math-ok")
+efx_portable_case(4a_validation "${S}/s_4a_validation.js" EXPECT 0 EXPECT_OUT "s-4a-validation-ok")
+efx_portable_case(4b_validation "${S}/s_4b_validation.js" EXPECT 0 EXPECT_OUT "s-4b-validation-ok")
+efx_portable_case(5a_validation "${S}/s_5a_validation.js" EXPECT 0 EXPECT_OUT "s-5a-validation-ok")
+efx_portable_case(5b_validation "${S}/s_5b_validation.js" EXPECT 0 EXPECT_OUT "s-5b-validation-ok")
+efx_portable_case(6c_skin "${S}/s_6c_skin.js" EXPECT 0 EXPECT_OUT "s-6c-skin-ok")
+efx_portable_case(9_input "${S}/s_9_input.js" EXPECT 0 EXPECT_OUT "s-9-input-ok")
+efx_portable_case(10_modules "${F}/modules" ROOT EXPECT 0 EXPECT_OUT "s-10-modules-ok")
+efx_portable_case(10_module_throw "${F}/modules_error" ROOT EXPECT nonzero EXPECT_ERR "intentional-module-throw")
+efx_portable_case(10_missing "${S}/s_10_missing.js" EXPECT nonzero EXPECT_ERR "cannot find module")
+efx_portable_case(10_escape "${S}/s_10_escape.js" EXPECT nonzero EXPECT_ERR "escapes the resource root")
+efx_portable_case(10_unsupported "${S}/s_10_unsupported.js" EXPECT nonzero)
+efx_portable_case(10_nohost "${S}/s_10_nohost.js" EXPECT 0 EXPECT_OUT "s-10-nohost-ok")
+efx_portable_case(11_particles "${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-11-particles-ok")
+efx_portable_case(12_physics "${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
+efx_portable_case(13_gamepad "${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
+efx_portable_case(8a_text "${F}/web/text_root" ROOT EXPECT 0 EXPECT_OUT "s-8a-text-ok")
 
 endif() # NOT EFX_HEADLESS
 

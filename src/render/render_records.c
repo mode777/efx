@@ -252,7 +252,7 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                                        rotation_deg, scale);
 
     if (texture && texture == R.active_target) {
-        /* feedback-loop guard (F5a design D4): a target is never sampled
+        /* feedback-loop guard (ADR 0028): a target is never sampled
            while it is the active attachment */
         return EFX_RENDER_ERR_FEEDBACK;
     }
@@ -308,7 +308,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     if (skinned && !efx_render_mesh_skinned(mesh)) {
         return EFX_RENDER_ERR_RIG;
     }
-    /* feedback-loop guard (F5a design D4): a mesh draw samples its bound
+    /* feedback-loop guard (ADR 0028): a mesh draw samples its bound
        maps — none of them may be the target being drawn into */
     if (R.active_target) {
         int surfaces = efx_render_mesh_surface_count(mesh);
@@ -341,7 +341,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     }
     color_or_white(mr->color, color);
     mr->camera = R.camera3d;
-    mr->lights = R.lights;   /* value snapshot (F4a design D4) */
+    mr->lights = R.lights;   /* value snapshot (ADR 0026) */
     mr->blend = (uint8_t)R.blend;
     mr->skinned = skinned ? 1 : 0;
     return record_push(&rec);

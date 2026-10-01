@@ -11,7 +11,7 @@
 
 int efx_web_main(int argc, char *const *argv);
 const char *efx_web_root(void); /* resource root chosen for this run */
-void efx_web_start_loop(void);  /* called by entry.js after main.js loaded */
+void efx_web_start_loop(void);  /* called by boot.js after main.js loaded */
 void efx_web_set_golden_mode(void); /* golden capture build: query-driven root */
 
 

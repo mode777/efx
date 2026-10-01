@@ -4,7 +4,7 @@
 /*
  * F14 audio core. Pure C: no Sokol, no quickjs (ADR 0003 module walls).
  *
- * Push model (design D2): all state lives on the calling (main) thread. Each
+ * Push model (ADR 0042): all state lives on the calling (main) thread. Each
  * frame the platform layer advances streaming source playheads and mixes a
  * block with efx_audio_mix, then pushes it to the device. There are no
  * threads, no atomics, and no cross-thread lifetimes, so the core is a

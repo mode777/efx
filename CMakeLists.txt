@@ -70,6 +70,61 @@ efx_add_vendor_library(efx_drlibs
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/dr_libs
     MSVC_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
 
+# Per-module source lists, each spelled out once: efx_core (below) and the
+# headless test executables (bottom of this file) are composed from them.
+set(EFX_RENDER_CORE_SOURCES
+    src/render/render_records.c
+    src/render/render_texture.c
+    src/render/render_target.c
+    src/render/render_post.c
+    src/render/render_mesh.c
+    src/render/render_particles.c
+    src/render/skin.c
+)
+set(EFX_TEXT_SOURCES
+    src/render/text.c
+    src/render/stb_truetype_impl.c
+    src/render/stb_rect_pack_impl.c
+)
+set(EFX_INPUT_SOURCES
+    src/input/input.c
+    src/input/gamepad.c
+)
+set(EFX_PHYSICS_SOURCES
+    src/physics/shape.c
+    src/physics/broadphase.c
+    src/physics/narrow.c
+    src/physics/solver.c
+    src/physics/character.c
+    src/physics/world.c
+)
+set(EFX_AUDIO_SOURCES
+    src/audio/audio.c
+    src/audio/decode.c
+)
+set(EFX_RESOURCE_SOURCES
+    src/resource/image.c
+    src/resource/resource.c
+    src/resource/gltf.c
+    src/resource/stb_image_impl.c
+)
+# desktop binding + runtime: the desktop efx_core variant appends these; the
+# web build gets its binding from the src/web/ bridge instead (ADR 0022)
+set(EFX_API_SOURCES
+    src/api/api.c
+    src/api/api_2d.c
+    src/api/api_3d.c
+    src/api/api_lighting.c
+    src/api/api_target_post.c
+    src/api/api_resource.c
+    src/api/api_text.c
+    src/api/api_particles.c
+    src/api/api_input.c
+    src/api/api_physics.c
+    src/api/api_audio.c
+    src/runtime/runtime.c
+)
+
 if(EMSCRIPTEN)
     # P10: the bridge fragments are linked directly into each web executable
     # rather than the static archive. The wasm linker drops archive members
@@ -87,71 +142,17 @@ if(EMSCRIPTEN)
         src/web/bridge_input.c
         src/web/bridge_audio.c
         src/web/bridge_physics.c)
-    add_library(efx_core STATIC
-        src/render/render_records.c
-        src/render/render_texture.c
-        src/render/render_target.c
-        src/render/render_post.c
-        src/render/render_mesh.c
-        src/render/render_particles.c
-        src/render/skin.c
-        src/render/text.c
-        src/input/input.c
-        src/input/gamepad.c
-        src/physics/shape.c
-        src/physics/broadphase.c
-        src/physics/narrow.c
-        src/physics/solver.c
-        src/physics/character.c
-        src/physics/world.c
-        src/audio/audio.c
-        src/audio/decode.c
-        src/resource/image.c
-        src/resource/resource.c
-        src/resource/gltf.c
-        src/resource/stb_image_impl.c
-        src/render/stb_truetype_impl.c
-        src/render/stb_rect_pack_impl.c
-    )
-else()
-    add_library(efx_core STATIC
-        src/api/api.c
-        src/api/api_2d.c
-        src/api/api_3d.c
-        src/api/api_lighting.c
-        src/api/api_target_post.c
-        src/api/api_resource.c
-        src/api/api_text.c
-        src/api/api_particles.c
-        src/api/api_input.c
-        src/api/api_physics.c
-        src/api/api_audio.c
-        src/runtime/runtime.c
-        src/render/render_records.c
-        src/render/render_texture.c
-        src/render/render_target.c
-        src/render/render_post.c
-        src/render/render_mesh.c
-        src/render/render_particles.c
-        src/render/skin.c
-        src/render/text.c
-        src/input/input.c
-        src/input/gamepad.c
-        src/physics/shape.c
-        src/physics/broadphase.c
-        src/physics/narrow.c
-        src/physics/solver.c
-        src/physics/character.c
-        src/physics/world.c
-        src/audio/audio.c
-        src/audio/decode.c
-        src/resource/image.c
-        src/resource/resource.c
-        src/resource/gltf.c
-        src/resource/stb_image_impl.c
-        src/render/stb_truetype_impl.c
-        src/render/stb_rect_pack_impl.c
-    )
+endif()
+add_library(efx_core STATIC
+    ${EFX_RENDER_CORE_SOURCES}
+    ${EFX_TEXT_SOURCES}
+    ${EFX_INPUT_SOURCES}
+    ${EFX_PHYSICS_SOURCES}
+    ${EFX_AUDIO_SOURCES}
+    ${EFX_RESOURCE_SOURCES}
+)
+if(NOT EMSCRIPTEN)
+    target_sources(efx_core PRIVATE ${EFX_API_SOURCES})
 endif()
 target_include_directories(efx_core PUBLIC src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
@@ -382,90 +383,85 @@ endif()
 enable_testing()
 add_subdirectory(tests)
 
-# headless math wrapper tests (GLM behind the plain C API, ADR 0005)
-add_executable(efx_math_tests
-    src/math/efx_math.cpp
-    tests/unit/math_tests.c
+# Headless test executables share the src include, -lm on UNIX, Emscripten
+# memory growth and the strict warning set. Every per-target difference stays
+# an explicit argument: DEFS / MSVC_DEFS / POSIX_DEFS / INCLUDES /
+# SYSTEM_INCLUDES / LIBS / MSVC_WARN (e.g. /W3 where a vendor header is not
+# /W4-clean), DESKTOP_ONLY for the filesystem- or quickjs-bound suites, and
+# NO_EM_GROWTH where a suite deliberately keeps the fixed-heap link line.
+function(efx_add_test_exe name)
+    cmake_parse_arguments(TEST "DESKTOP_ONLY;NO_EM_GROWTH" "MSVC_WARN"
+        "SOURCES;LIBS;DEFS;MSVC_DEFS;POSIX_DEFS;INCLUDES;SYSTEM_INCLUDES" ${ARGN})
+    if(TEST_DESKTOP_ONLY AND EMSCRIPTEN)
+        return()
+    endif()
+    add_executable(${name} ${TEST_SOURCES})
+    target_include_directories(${name} PRIVATE src)
+    if(TEST_INCLUDES)
+        target_include_directories(${name} PRIVATE ${TEST_INCLUDES})
+    endif()
+    if(TEST_SYSTEM_INCLUDES)
+        target_include_directories(${name} SYSTEM PRIVATE ${TEST_SYSTEM_INCLUDES})
+    endif()
+    if(TEST_DEFS)
+        target_compile_definitions(${name} PRIVATE ${TEST_DEFS})
+    endif()
+    if(MSVC AND TEST_MSVC_DEFS)
+        target_compile_definitions(${name} PRIVATE ${TEST_MSVC_DEFS})
+    endif()
+    if(NOT MSVC AND TEST_POSIX_DEFS)
+        target_compile_definitions(${name} PRIVATE ${TEST_POSIX_DEFS})
+    endif()
+    if(TEST_LIBS)
+        target_link_libraries(${name} PRIVATE ${TEST_LIBS})
+    endif()
+    if(UNIX)
+        target_link_libraries(${name} PRIVATE m)
+    endif()
+    if(EMSCRIPTEN AND NOT TEST_NO_EM_GROWTH)
+        target_link_options(${name} PRIVATE -sALLOW_MEMORY_GROWTH=1)
+    endif()
+    if(MSVC)
+        if(TEST_MSVC_WARN)
+            target_compile_options(${name} PRIVATE ${TEST_MSVC_WARN})
+        else()
+            target_compile_options(${name} PRIVATE /W4 /WX)
+        endif()
+    else()
+        target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
+    endif()
+endfunction()
+
+# headless math wrapper tests (GLM behind the plain C API, ADR 0005); GLM
+# headers are not /W4-clean and the suite keeps the fixed-heap link line
+efx_add_test_exe(efx_math_tests
+    SOURCES src/math/efx_math.cpp tests/unit/math_tests.c
+    SYSTEM_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor
+    MSVC_WARN /W3
+    NO_EM_GROWTH
 )
-target_include_directories(efx_math_tests PRIVATE src)
-target_include_directories(efx_math_tests SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor)
-if(UNIX)
-    target_link_libraries(efx_math_tests PRIVATE m)
-endif()
-if(MSVC)
-    target_compile_options(efx_math_tests PRIVATE /W3)
-else()
-    target_compile_options(efx_math_tests PRIVATE -Wall -Wextra -Werror)
-endif()
 
 # headless display-list unit tests (ADR 0019 record/assert gate)
-add_executable(efx_render_tests
-    src/render/render_records.c
-    src/render/render_texture.c
-    src/render/render_target.c
-    src/render/render_post.c
-    src/render/render_mesh.c
-    src/render/render_particles.c
-    src/render/skin.c
-    tests/unit/render_tests.c
+efx_add_test_exe(efx_render_tests
+    SOURCES ${EFX_RENDER_CORE_SOURCES} tests/unit/render_tests.c
 )
-target_include_directories(efx_render_tests PRIVATE src)
-if(UNIX)
-    target_link_libraries(efx_render_tests PRIVATE m)
-endif()
-if(EMSCRIPTEN)
-    target_link_options(efx_render_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
-endif()
-if(MSVC)
-    target_compile_options(efx_render_tests PRIVATE /W4 /WX)
-else()
-    target_compile_options(efx_render_tests PRIVATE -Wall -Wextra -Werror)
-endif()
 
 # headless input-core unit tests (F9): pure-C state model + injection seam
-add_executable(efx_input_tests
-    src/input/input.c
-    src/input/gamepad.c
-    tests/unit/input_tests.c
+efx_add_test_exe(efx_input_tests
+    SOURCES ${EFX_INPUT_SOURCES} tests/unit/input_tests.c
 )
-target_include_directories(efx_input_tests PRIVATE src)
-if(EMSCRIPTEN)
-    target_link_options(efx_input_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
-endif()
-if(MSVC)
-    target_compile_options(efx_input_tests PRIVATE /W4 /WX)
-else()
-    target_compile_options(efx_input_tests PRIVATE -Wall -Wextra -Werror)
-endif()
 
 # headless physics-core tests (F12): a self-contained C module — its own math,
 # no renderer, platform layer, script runtime, or GLM — so this binary builds
 # and runs in milliseconds on every target
-add_executable(efx_physics_tests
-    src/physics/shape.c
-    src/physics/broadphase.c
-    src/physics/narrow.c
-    src/physics/solver.c
-    src/physics/character.c
-    src/physics/world.c
-    tests/physics/main.c
-    tests/physics/tests_narrow.c
-    tests/physics/tests_world.c
-    tests/physics/tests_character.c
+efx_add_test_exe(efx_physics_tests
+    SOURCES ${EFX_PHYSICS_SOURCES}
+            tests/physics/main.c
+            tests/physics/tests_narrow.c
+            tests/physics/tests_world.c
+            tests/physics/tests_character.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/tests/physics
 )
-target_include_directories(efx_physics_tests PRIVATE src
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/physics)
-if(UNIX)
-    target_link_libraries(efx_physics_tests PRIVATE m)
-endif()
-if(EMSCRIPTEN)
-    target_link_options(efx_physics_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
-endif()
-if(MSVC)
-    target_compile_options(efx_physics_tests PRIVATE /W4 /WX)
-else()
-    target_compile_options(efx_physics_tests PRIVATE -Wall -Wextra -Werror)
-endif()
 
 # headless audio-core tests (F14): pure-C mixer/decoder/voice bank with no
 # device. The WAV and MP3 fixtures are embedded at configure time so the suite
@@ -481,161 +477,57 @@ string(REGEX REPLACE "(..)" "0x\\1," EFX_AUDIO_MP3_BYTES "${EFX_AUDIO_MP3_HEX}")
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/efx_audio_fixtures.h
 "#ifndef EFX_AUDIO_FIXTURES_H\n#define EFX_AUDIO_FIXTURES_H\nstatic const unsigned char EFX_TEST_WAV[] = {${EFX_AUDIO_WAV_BYTES}};\nstatic const unsigned int EFX_TEST_WAV_SIZE = ${EFX_AUDIO_WAV_SIZE};\nstatic const unsigned char EFX_TEST_MP3[] = {${EFX_AUDIO_MP3_BYTES}};\nstatic const unsigned int EFX_TEST_MP3_SIZE = ${EFX_AUDIO_MP3_SIZE};\n#endif\n")
 
-add_executable(efx_audio_tests
-    src/audio/audio.c
-    src/audio/decode.c
-    tests/unit/audio_tests.c
+efx_add_test_exe(efx_audio_tests
+    SOURCES ${EFX_AUDIO_SOURCES} tests/unit/audio_tests.c
+    INCLUDES ${CMAKE_CURRENT_BINARY_DIR}
+    LIBS efx_drlibs
+    MSVC_DEFS _CRT_SECURE_NO_WARNINGS
 )
-target_include_directories(efx_audio_tests PRIVATE src ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(efx_audio_tests PRIVATE efx_drlibs)
-if(UNIX)
-    target_link_libraries(efx_audio_tests PRIVATE m)
-endif()
-if(EMSCRIPTEN)
-    target_link_options(efx_audio_tests PRIVATE -sALLOW_MEMORY_GROWTH=1)
-endif()
-if(MSVC)
-    target_compile_options(efx_audio_tests PRIVATE /W4 /WX)
-    target_compile_definitions(efx_audio_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
-else()
-    target_compile_options(efx_audio_tests PRIVATE -Wall -Wextra -Werror)
-endif()
 
 # headless resource provider tests (F6a directory backend + path safety);
 # desktop-only: they read the filesystem
-if(NOT EMSCRIPTEN)
-add_executable(efx_resource_tests
-    src/render/render_records.c
-    src/render/render_texture.c
-    src/render/render_target.c
-    src/render/render_post.c
-    src/render/render_mesh.c
-    src/render/render_particles.c
-    src/render/skin.c
-    src/resource/gltf.c
-    src/resource/image.c
-    src/resource/resource.c
-    src/resource/stb_image_impl.c
-    tests/unit/resource_tests.c
+efx_add_test_exe(efx_resource_tests
+    SOURCES ${EFX_RENDER_CORE_SOURCES} ${EFX_RESOURCE_SOURCES} tests/unit/resource_tests.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
+    LIBS efx_miniz efx_cgltf
+    DEFS EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
+    DESKTOP_ONLY
 )
-target_include_directories(efx_resource_tests PRIVATE src)
-target_include_directories(efx_resource_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_resource_tests PRIVATE efx_miniz efx_cgltf)
-if(UNIX)
-    target_link_libraries(efx_resource_tests PRIVATE m)
-endif()
-target_compile_definitions(efx_resource_tests PRIVATE
-    EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
-if(MSVC)
-    target_compile_options(efx_resource_tests PRIVATE /W4 /WX)
-else()
-    target_compile_options(efx_resource_tests PRIVATE -Wall -Wextra -Werror)
-endif()
 
 # headless font/text tests (F8a): pure-C font module + display-list records;
 # desktop-only: they read a TTF fixture from the filesystem
-if(NOT EMSCRIPTEN)
-add_executable(efx_text_tests
-    src/render/render_records.c
-    src/render/render_texture.c
-    src/render/render_target.c
-    src/render/render_post.c
-    src/render/render_mesh.c
-    src/render/render_particles.c
-    src/render/skin.c
-    src/render/text.c
-    src/render/stb_truetype_impl.c
-    src/render/stb_rect_pack_impl.c
-    src/resource/resource.c
-    tests/unit/text_tests.c
+efx_add_test_exe(efx_text_tests
+    SOURCES ${EFX_RENDER_CORE_SOURCES} ${EFX_TEXT_SOURCES} src/resource/resource.c
+            tests/unit/text_tests.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
+    LIBS efx_miniz
+    DEFS EFX_FONT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
+    MSVC_DEFS _CRT_SECURE_NO_WARNINGS
+    POSIX_DEFS _POSIX_C_SOURCE=200809L
+    DESKTOP_ONLY
 )
-target_include_directories(efx_text_tests PRIVATE src)
-target_include_directories(efx_text_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_text_tests PRIVATE efx_miniz)
-if(UNIX)
-    target_link_libraries(efx_text_tests PRIVATE m)
-endif()
-target_compile_definitions(efx_text_tests PRIVATE
-    EFX_FONT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource")
-if(MSVC)
-    target_compile_options(efx_text_tests PRIVATE /W4 /WX)
-    target_compile_definitions(efx_text_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
-else()
-    target_compile_options(efx_text_tests PRIVATE -Wall -Wextra -Werror)
-endif()
-if(NOT MSVC)
-    target_compile_definitions(efx_text_tests PRIVATE _POSIX_C_SOURCE=200809L)
-endif()
-endif()
 
 # headless JS-API tests (mock GPU sink + real quickjs runtime + bindings);
 # desktop-only: ADR 0022 keeps quickjs out of every Emscripten target
-add_executable(efx_api_tests
-    src/api/api.c
-    src/api/api_2d.c
-    src/api/api_3d.c
-    src/api/api_lighting.c
-    src/api/api_target_post.c
-    src/api/api_resource.c
-    src/api/api_text.c
-    src/api/api_particles.c
-    src/api/api_input.c
-    src/api/api_physics.c
-    src/api/api_audio.c
-    src/runtime/runtime.c
-    src/render/render_records.c
-    src/render/render_texture.c
-    src/render/render_target.c
-    src/render/render_post.c
-    src/render/render_mesh.c
-    src/render/render_particles.c
-    src/render/skin.c
-    src/render/text.c
-    src/render/stb_truetype_impl.c
-    src/render/stb_rect_pack_impl.c
-    src/audio/audio.c
-    src/audio/decode.c
-    src/input/input.c
-    src/input/gamepad.c
-        src/physics/shape.c
-        src/physics/broadphase.c
-        src/physics/narrow.c
-        src/physics/solver.c
-        src/physics/character.c
-        src/physics/world.c
-    src/resource/gltf.c
-    src/resource/image.c
-    src/resource/resource.c
-    src/resource/stb_image_impl.c
-    tests/unit/api_tests.c
+efx_add_test_exe(efx_api_tests
+    SOURCES ${EFX_API_SOURCES}
+            ${EFX_RENDER_CORE_SOURCES}
+            ${EFX_TEXT_SOURCES}
+            ${EFX_AUDIO_SOURCES}
+            ${EFX_INPUT_SOURCES}
+            ${EFX_PHYSICS_SOURCES}
+            ${EFX_RESOURCE_SOURCES}
+            tests/unit/api_tests.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
+    LIBS qjs efx_miniz efx_cgltf efx_drlibs
+    DEFS EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
+         EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
+         EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error"
+         EFX_AUDIO_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/audio"
+    MSVC_DEFS _CRT_SECURE_NO_WARNINGS
+    POSIX_DEFS _POSIX_C_SOURCE=200809L
+    DESKTOP_ONLY
 )
-target_include_directories(efx_api_tests PRIVATE src)
-target_include_directories(efx_api_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_compile_definitions(efx_api_tests PRIVATE
-    EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
-    EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
-    EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error"
-    EFX_AUDIO_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/audio")
-if(UNIX)
-    target_link_libraries(efx_api_tests PRIVATE m)
-endif()
-target_link_libraries(efx_api_tests PRIVATE qjs)
-target_link_libraries(efx_api_tests PRIVATE efx_miniz)
-target_link_libraries(efx_api_tests PRIVATE efx_cgltf)
-target_link_libraries(efx_api_tests PRIVATE efx_drlibs)
-if(MSVC)
-    target_compile_options(efx_api_tests PRIVATE /W4 /WX)
-    target_compile_definitions(efx_api_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
-else()
-    target_compile_options(efx_api_tests PRIVATE -Wall -Wextra -Werror)
-endif()
-if(NOT MSVC)
-    target_compile_definitions(efx_api_tests PRIVATE _POSIX_C_SOURCE=200809L)
-endif()
-endif()
 
 if(EFX_BUILD_DEV_HARNESS AND NOT EMSCRIPTEN)
     add_executable(efx_dev_harness

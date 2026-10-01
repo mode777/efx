@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-/* Frame capture for golden-image tests (design D7): read back the default
+/* Frame capture for golden-image tests (ADR 0020): read back the default
  * framebuffer and write it as a PNG. Test infrastructure only. */
 
 /* reads the current default-framebuffer contents (call after sg_commit);

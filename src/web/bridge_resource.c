@@ -15,8 +15,8 @@ void web_open_root(void) {
 }
 
 /* Point the provider at a new root (directory or mounted zip). Returns 1 on
- * success, 0 when the root cannot be opened. Used by entry.js after it has
- * written a fetched asset archive into the filesystem. */
+ * success, 0 when the root cannot be opened. Used by the boot glue after it
+ * has written a fetched asset archive into the filesystem. */
 EMSCRIPTEN_KEEPALIVE int efx_bridge_set_root(const char *path) {
     snprintf(W.root, sizeof(W.root), "%s", path ? path : "");
     web_open_root();

@@ -75,6 +75,15 @@ flags. Every real difference stays an explicit argument at the call site.
 `EFX_RENDER_CORE_SOURCES`, `EFX_PHYSICS_SOURCES` and `EFX_API_SOURCES` are set
 once and reused by `efx_core` and the tests.
 
+Applied refinement (2026-10-01): `efx_math_tests` is the one executable that
+today has no `-sALLOW_MEMORY_GROWTH=1` on Emscripten, and the proposal's
+non-goals forbid changing link options — so the helper takes an explicit
+`NO_EM_GROWTH` opt-out (math only) and `DEFS` splits into `DEFS`/
+`MSVC_DEFS`/`POSIX_DEFS` so each definition keeps its original compiler
+scoping. Per-target flags stay byte-identical (E5, plus the link line by
+construction). No ADR follows; this is flag preservation, not a new
+decision.
+
 - **Proof:** `compile_commands.json` from a Ninja configure
   (`-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, on the Linux server, where the
   goldens build runs) is identical after sorting entries by file. The Visual

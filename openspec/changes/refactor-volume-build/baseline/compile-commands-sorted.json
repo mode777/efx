@@ -1,0 +1,932 @@
+[
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api.c.o -c /home/devuser/emotion-fx/src/api/api.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api.c.o -c /home/devuser/emotion-fx/src/api/api.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_2d.c.o -c /home/devuser/emotion-fx/src/api/api_2d.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_2d.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_2d.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_2d.c.o -c /home/devuser/emotion-fx/src/api/api_2d.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_2d.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_2d.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_3d.c.o -c /home/devuser/emotion-fx/src/api/api_3d.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_3d.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_3d.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_3d.c.o -c /home/devuser/emotion-fx/src/api/api_3d.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_3d.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_3d.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_audio.c.o -c /home/devuser/emotion-fx/src/api/api_audio.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_audio.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_audio.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_audio.c.o -c /home/devuser/emotion-fx/src/api/api_audio.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_audio.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_audio.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_input.c.o -c /home/devuser/emotion-fx/src/api/api_input.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_input.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_input.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_input.c.o -c /home/devuser/emotion-fx/src/api/api_input.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_input.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_input.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_lighting.c.o -c /home/devuser/emotion-fx/src/api/api_lighting.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_lighting.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_lighting.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_lighting.c.o -c /home/devuser/emotion-fx/src/api/api_lighting.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_lighting.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_lighting.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_particles.c.o -c /home/devuser/emotion-fx/src/api/api_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_particles.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_particles.c.o -c /home/devuser/emotion-fx/src/api/api_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_particles.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_physics.c.o -c /home/devuser/emotion-fx/src/api/api_physics.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_physics.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_physics.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_physics.c.o -c /home/devuser/emotion-fx/src/api/api_physics.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_physics.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_physics.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_resource.c.o -c /home/devuser/emotion-fx/src/api/api_resource.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_resource.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_resource.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_resource.c.o -c /home/devuser/emotion-fx/src/api/api_resource.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_resource.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_resource.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_target_post.c.o -c /home/devuser/emotion-fx/src/api/api_target_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_target_post.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_target_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_target_post.c.o -c /home/devuser/emotion-fx/src/api/api_target_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_target_post.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_target_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/api/api_text.c.o -c /home/devuser/emotion-fx/src/api/api_text.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_text.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/api/api_text.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/api/api_text.c.o -c /home/devuser/emotion-fx/src/api/api_text.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/api/api_text.c",
+  "output": "CMakeFiles/efx_core.dir/src/api/api_text.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/audio/audio.c.o -c /home/devuser/emotion-fx/src/audio/audio.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/audio.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/audio/audio.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/audio/audio.c.o -c /home/devuser/emotion-fx/src/audio/audio.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/audio.c",
+  "output": "CMakeFiles/efx_core.dir/src/audio/audio.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/build-cc -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_audio_tests.dir/src/audio/audio.c.o -c /home/devuser/emotion-fx/src/audio/audio.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/audio.c",
+  "output": "CMakeFiles/efx_audio_tests.dir/src/audio/audio.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/audio/decode.c.o -c /home/devuser/emotion-fx/src/audio/decode.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/decode.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/audio/decode.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/audio/decode.c.o -c /home/devuser/emotion-fx/src/audio/decode.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/decode.c",
+  "output": "CMakeFiles/efx_core.dir/src/audio/decode.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/build-cc -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_audio_tests.dir/src/audio/decode.c.o -c /home/devuser/emotion-fx/src/audio/decode.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/decode.c",
+  "output": "CMakeFiles/efx_audio_tests.dir/src/audio/decode.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -w -o CMakeFiles/efx_drlibs.dir/src/audio/dr_impl.c.o -c /home/devuser/emotion-fx/src/audio/dr_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/audio/dr_impl.c",
+  "output": "CMakeFiles/efx_drlibs.dir/src/audio/dr_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/input/gamepad.c.o -c /home/devuser/emotion-fx/src/input/gamepad.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/input/gamepad.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/input/gamepad.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/input/gamepad.c.o -c /home/devuser/emotion-fx/src/input/gamepad.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/input/gamepad.c",
+  "output": "CMakeFiles/efx_core.dir/src/input/gamepad.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_input_tests.dir/src/input/gamepad.c.o -c /home/devuser/emotion-fx/src/input/gamepad.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/input/gamepad.c",
+  "output": "CMakeFiles/efx_input_tests.dir/src/input/gamepad.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/input/input.c.o -c /home/devuser/emotion-fx/src/input/input.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/input/input.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/input/input.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/input/input.c.o -c /home/devuser/emotion-fx/src/input/input.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/input/input.c",
+  "output": "CMakeFiles/efx_core.dir/src/input/input.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_input_tests.dir/src/input/input.c.o -c /home/devuser/emotion-fx/src/input/input.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/input/input.c",
+  "output": "CMakeFiles/efx_input_tests.dir/src/input/input.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/sokol -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -o CMakeFiles/player.dir/src/main.c.o -c /home/devuser/emotion-fx/src/main.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/main.c",
+  "output": "CMakeFiles/player.dir/src/main.c.o"
+ },
+ {
+  "command": "/usr/bin/c++ -I/home/devuser/emotion-fx/src -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=gnu++11 -Wall -Wextra -Werror -o CMakeFiles/efx_math.dir/src/math/efx_math.cpp.o -c /home/devuser/emotion-fx/src/math/efx_math.cpp",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/math/efx_math.cpp",
+  "output": "CMakeFiles/efx_math.dir/src/math/efx_math.cpp.o"
+ },
+ {
+  "command": "/usr/bin/c++ -I/home/devuser/emotion-fx/src -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=gnu++11 -Wall -Wextra -Werror -o CMakeFiles/efx_math_tests.dir/src/math/efx_math.cpp.o -c /home/devuser/emotion-fx/src/math/efx_math.cpp",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/math/efx_math.cpp",
+  "output": "CMakeFiles/efx_math_tests.dir/src/math/efx_math.cpp.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/physics/broadphase.c.o -c /home/devuser/emotion-fx/src/physics/broadphase.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/broadphase.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/physics/broadphase.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/physics/broadphase.c.o -c /home/devuser/emotion-fx/src/physics/broadphase.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/broadphase.c",
+  "output": "CMakeFiles/efx_core.dir/src/physics/broadphase.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/src/physics/broadphase.c.o -c /home/devuser/emotion-fx/src/physics/broadphase.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/broadphase.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/src/physics/broadphase.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/physics/character.c.o -c /home/devuser/emotion-fx/src/physics/character.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/character.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/physics/character.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/physics/character.c.o -c /home/devuser/emotion-fx/src/physics/character.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/character.c",
+  "output": "CMakeFiles/efx_core.dir/src/physics/character.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/src/physics/character.c.o -c /home/devuser/emotion-fx/src/physics/character.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/character.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/src/physics/character.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/physics/narrow.c.o -c /home/devuser/emotion-fx/src/physics/narrow.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/narrow.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/physics/narrow.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/physics/narrow.c.o -c /home/devuser/emotion-fx/src/physics/narrow.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/narrow.c",
+  "output": "CMakeFiles/efx_core.dir/src/physics/narrow.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/src/physics/narrow.c.o -c /home/devuser/emotion-fx/src/physics/narrow.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/narrow.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/src/physics/narrow.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/physics/shape.c.o -c /home/devuser/emotion-fx/src/physics/shape.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/shape.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/physics/shape.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/physics/shape.c.o -c /home/devuser/emotion-fx/src/physics/shape.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/shape.c",
+  "output": "CMakeFiles/efx_core.dir/src/physics/shape.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/src/physics/shape.c.o -c /home/devuser/emotion-fx/src/physics/shape.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/shape.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/src/physics/shape.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/physics/solver.c.o -c /home/devuser/emotion-fx/src/physics/solver.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/solver.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/physics/solver.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/physics/solver.c.o -c /home/devuser/emotion-fx/src/physics/solver.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/solver.c",
+  "output": "CMakeFiles/efx_core.dir/src/physics/solver.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/src/physics/solver.c.o -c /home/devuser/emotion-fx/src/physics/solver.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/solver.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/src/physics/solver.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/physics/world.c.o -c /home/devuser/emotion-fx/src/physics/world.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/world.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/physics/world.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/physics/world.c.o -c /home/devuser/emotion-fx/src/physics/world.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/world.c",
+  "output": "CMakeFiles/efx_core.dir/src/physics/world.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/src/physics/world.c.o -c /home/devuser/emotion-fx/src/physics/world.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/physics/world.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/src/physics/world.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/sokol -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx -I/home/devuser/emotion-fx/vendor/minigamepad -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -o CMakeFiles/efx_platform.dir/src/platform/audio_backend.c.o -c /home/devuser/emotion-fx/src/platform/audio_backend.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/platform/audio_backend.c",
+  "output": "CMakeFiles/efx_platform.dir/src/platform/audio_backend.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/sokol -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx -I/home/devuser/emotion-fx/vendor/minigamepad -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -o CMakeFiles/efx_platform.dir/src/platform/capture.c.o -c /home/devuser/emotion-fx/src/platform/capture.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/platform/capture.c",
+  "output": "CMakeFiles/efx_platform.dir/src/platform/capture.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/sokol -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx -I/home/devuser/emotion-fx/vendor/minigamepad -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -o CMakeFiles/efx_platform.dir/src/platform/gamepad_backend.c.o -c /home/devuser/emotion-fx/src/platform/gamepad_backend.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/platform/gamepad_backend.c",
+  "output": "CMakeFiles/efx_platform.dir/src/platform/gamepad_backend.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/sokol -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx -I/home/devuser/emotion-fx/vendor/minigamepad -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -o CMakeFiles/efx_platform.dir/src/platform/pipeline.c.o -c /home/devuser/emotion-fx/src/platform/pipeline.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/platform/pipeline.c",
+  "output": "CMakeFiles/efx_platform.dir/src/platform/pipeline.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/sokol -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx -I/home/devuser/emotion-fx/vendor/minigamepad -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -o CMakeFiles/efx_platform.dir/src/platform/platform.c.o -c /home/devuser/emotion-fx/src/platform/platform.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/platform/platform.c",
+  "output": "CMakeFiles/efx_platform.dir/src/platform/platform.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/sokol -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_dev_harness.dir/src/player/player.c.o -c /home/devuser/emotion-fx/src/player/player.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/player/player.c",
+  "output": "CMakeFiles/efx_dev_harness.dir/src/player/player.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/sokol -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -o CMakeFiles/player.dir/src/player/player.c.o -c /home/devuser/emotion-fx/src/player/player.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/player/player.c",
+  "output": "CMakeFiles/player.dir/src/player/player.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/sokol -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_dev_harness.dir/src/player/repl.c.o -c /home/devuser/emotion-fx/src/player/repl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/player/repl.c",
+  "output": "CMakeFiles/efx_dev_harness.dir/src/player/repl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/sokol -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -o CMakeFiles/player.dir/src/player/repl.c.o -c /home/devuser/emotion-fx/src/player/repl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/player/repl.c",
+  "output": "CMakeFiles/player.dir/src/player/repl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/render_mesh.c.o -c /home/devuser/emotion-fx/src/render/render_mesh.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_mesh.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/render_mesh.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/render_mesh.c.o -c /home/devuser/emotion-fx/src/render/render_mesh.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_mesh.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/render_mesh.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/render_mesh.c.o -c /home/devuser/emotion-fx/src/render/render_mesh.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_mesh.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/render_mesh.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/render_mesh.c.o -c /home/devuser/emotion-fx/src/render/render_mesh.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_mesh.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/render_mesh.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/render_mesh.c.o -c /home/devuser/emotion-fx/src/render/render_mesh.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_mesh.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/render_mesh.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/render_particles.c.o -c /home/devuser/emotion-fx/src/render/render_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_particles.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/render_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/render_particles.c.o -c /home/devuser/emotion-fx/src/render/render_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_particles.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/render_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/render_particles.c.o -c /home/devuser/emotion-fx/src/render/render_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_particles.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/render_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/render_particles.c.o -c /home/devuser/emotion-fx/src/render/render_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_particles.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/render_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/render_particles.c.o -c /home/devuser/emotion-fx/src/render/render_particles.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_particles.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/render_particles.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/render_post.c.o -c /home/devuser/emotion-fx/src/render/render_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_post.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/render_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/render_post.c.o -c /home/devuser/emotion-fx/src/render/render_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_post.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/render_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/render_post.c.o -c /home/devuser/emotion-fx/src/render/render_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_post.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/render_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/render_post.c.o -c /home/devuser/emotion-fx/src/render/render_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_post.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/render_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/render_post.c.o -c /home/devuser/emotion-fx/src/render/render_post.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_post.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/render_post.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/render_records.c.o -c /home/devuser/emotion-fx/src/render/render_records.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_records.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/render_records.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/render_records.c.o -c /home/devuser/emotion-fx/src/render/render_records.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_records.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/render_records.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/render_records.c.o -c /home/devuser/emotion-fx/src/render/render_records.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_records.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/render_records.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/render_records.c.o -c /home/devuser/emotion-fx/src/render/render_records.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_records.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/render_records.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/render_records.c.o -c /home/devuser/emotion-fx/src/render/render_records.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_records.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/render_records.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/render_target.c.o -c /home/devuser/emotion-fx/src/render/render_target.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_target.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/render_target.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/render_target.c.o -c /home/devuser/emotion-fx/src/render/render_target.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_target.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/render_target.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/render_target.c.o -c /home/devuser/emotion-fx/src/render/render_target.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_target.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/render_target.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/render_target.c.o -c /home/devuser/emotion-fx/src/render/render_target.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_target.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/render_target.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/render_target.c.o -c /home/devuser/emotion-fx/src/render/render_target.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_target.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/render_target.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/render_texture.c.o -c /home/devuser/emotion-fx/src/render/render_texture.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_texture.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/render_texture.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/render_texture.c.o -c /home/devuser/emotion-fx/src/render/render_texture.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_texture.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/render_texture.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/render_texture.c.o -c /home/devuser/emotion-fx/src/render/render_texture.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_texture.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/render_texture.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/render_texture.c.o -c /home/devuser/emotion-fx/src/render/render_texture.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_texture.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/render_texture.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/render_texture.c.o -c /home/devuser/emotion-fx/src/render/render_texture.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/render_texture.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/render_texture.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/skin.c.o -c /home/devuser/emotion-fx/src/render/skin.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/skin.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/skin.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/skin.c.o -c /home/devuser/emotion-fx/src/render/skin.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/skin.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/skin.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/render/skin.c.o -c /home/devuser/emotion-fx/src/render/skin.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/skin.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/render/skin.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/skin.c.o -c /home/devuser/emotion-fx/src/render/skin.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/skin.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/skin.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/src/render/skin.c.o -c /home/devuser/emotion-fx/src/render/skin.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/skin.c",
+  "output": "CMakeFiles/efx_render_tests.dir/src/render/skin.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/stb_rect_pack_impl.c.o -c /home/devuser/emotion-fx/src/render/stb_rect_pack_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/stb_rect_pack_impl.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/stb_rect_pack_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/stb_rect_pack_impl.c.o -c /home/devuser/emotion-fx/src/render/stb_rect_pack_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/stb_rect_pack_impl.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/stb_rect_pack_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/stb_rect_pack_impl.c.o -c /home/devuser/emotion-fx/src/render/stb_rect_pack_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/stb_rect_pack_impl.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/stb_rect_pack_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/stb_truetype_impl.c.o -c /home/devuser/emotion-fx/src/render/stb_truetype_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/stb_truetype_impl.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/stb_truetype_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/stb_truetype_impl.c.o -c /home/devuser/emotion-fx/src/render/stb_truetype_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/stb_truetype_impl.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/stb_truetype_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/stb_truetype_impl.c.o -c /home/devuser/emotion-fx/src/render/stb_truetype_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/stb_truetype_impl.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/stb_truetype_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/render/text.c.o -c /home/devuser/emotion-fx/src/render/text.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/text.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/render/text.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/render/text.c.o -c /home/devuser/emotion-fx/src/render/text.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/text.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/render/text.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/render/text.c.o -c /home/devuser/emotion-fx/src/render/text.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/render/text.c",
+  "output": "CMakeFiles/efx_core.dir/src/render/text.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -w -o CMakeFiles/efx_cgltf.dir/src/resource/cgltf_impl.c.o -c /home/devuser/emotion-fx/src/resource/cgltf_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/cgltf_impl.c",
+  "output": "CMakeFiles/efx_cgltf.dir/src/resource/cgltf_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/resource/gltf.c.o -c /home/devuser/emotion-fx/src/resource/gltf.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/gltf.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/resource/gltf.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/resource/gltf.c.o -c /home/devuser/emotion-fx/src/resource/gltf.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/gltf.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/resource/gltf.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/resource/gltf.c.o -c /home/devuser/emotion-fx/src/resource/gltf.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/gltf.c",
+  "output": "CMakeFiles/efx_core.dir/src/resource/gltf.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/resource/image.c.o -c /home/devuser/emotion-fx/src/resource/image.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/image.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/resource/image.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/resource/image.c.o -c /home/devuser/emotion-fx/src/resource/image.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/image.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/resource/image.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/resource/image.c.o -c /home/devuser/emotion-fx/src/resource/image.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/image.c",
+  "output": "CMakeFiles/efx_core.dir/src/resource/image.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/resource/resource.c.o -c /home/devuser/emotion-fx/src/resource/resource.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/resource.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/resource/resource.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/src/resource/resource.c.o -c /home/devuser/emotion-fx/src/resource/resource.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/resource.c",
+  "output": "CMakeFiles/efx_text_tests.dir/src/resource/resource.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/resource/resource.c.o -c /home/devuser/emotion-fx/src/resource/resource.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/resource.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/resource/resource.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/resource/resource.c.o -c /home/devuser/emotion-fx/src/resource/resource.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/resource.c",
+  "output": "CMakeFiles/efx_core.dir/src/resource/resource.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/resource/stb_image_impl.c.o -c /home/devuser/emotion-fx/src/resource/stb_image_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/stb_image_impl.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/resource/stb_image_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/src/resource/stb_image_impl.c.o -c /home/devuser/emotion-fx/src/resource/stb_image_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/stb_image_impl.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/src/resource/stb_image_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/resource/stb_image_impl.c.o -c /home/devuser/emotion-fx/src/resource/stb_image_impl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/resource/stb_image_impl.c",
+  "output": "CMakeFiles/efx_core.dir/src/resource/stb_image_impl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/src/runtime/runtime.c.o -c /home/devuser/emotion-fx/src/runtime/runtime.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/runtime/runtime.c",
+  "output": "CMakeFiles/efx_api_tests.dir/src/runtime/runtime.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_core.dir/src/runtime/runtime.c.o -c /home/devuser/emotion-fx/src/runtime/runtime.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/src/runtime/runtime.c",
+  "output": "CMakeFiles/efx_core.dir/src/runtime/runtime.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/sokol -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_dev_harness.dir/tests/dev_harness.c.o -c /home/devuser/emotion-fx/tests/dev_harness.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/dev_harness.c",
+  "output": "CMakeFiles/efx_dev_harness.dir/tests/dev_harness.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/tests/../vendor/stb -O3 -DNDEBUG -std=c11 -Wall -Wno-unused-function -o tests/CMakeFiles/efx_imgdiff.dir/imgdiff.c.o -c /home/devuser/emotion-fx/tests/imgdiff.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/imgdiff.c",
+  "output": "tests/CMakeFiles/efx_imgdiff.dir/imgdiff.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/tests/physics/main.c.o -c /home/devuser/emotion-fx/tests/physics/main.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/physics/main.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/tests/physics/main.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/tests/physics/tests_character.c.o -c /home/devuser/emotion-fx/tests/physics/tests_character.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/physics/tests_character.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/tests/physics/tests_character.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/tests/physics/tests_narrow.c.o -c /home/devuser/emotion-fx/tests/physics/tests_narrow.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/physics/tests_narrow.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/tests/physics/tests_narrow.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/tests/physics -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_physics_tests.dir/tests/physics/tests_world.c.o -c /home/devuser/emotion-fx/tests/physics/tests_world.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/physics/tests_world.c",
+  "output": "CMakeFiles/efx_physics_tests.dir/tests/physics/tests_world.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_AUDIO_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/audio\\\" -DEFX_MOD_ERROR_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules_error\\\" -DEFX_MOD_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/modules\\\" -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/quickjs-ng -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_api_tests.dir/tests/unit/api_tests.c.o -c /home/devuser/emotion-fx/tests/unit/api_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/api_tests.c",
+  "output": "CMakeFiles/efx_api_tests.dir/tests/unit/api_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/build-cc -I/home/devuser/emotion-fx/vendor/dr_libs -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_audio_tests.dir/tests/unit/audio_tests.c.o -c /home/devuser/emotion-fx/tests/unit/audio_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/audio_tests.c",
+  "output": "CMakeFiles/efx_audio_tests.dir/tests/unit/audio_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_input_tests.dir/tests/unit/input_tests.c.o -c /home/devuser/emotion-fx/tests/unit/input_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/input_tests.c",
+  "output": "CMakeFiles/efx_input_tests.dir/tests/unit/input_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -isystem /home/devuser/emotion-fx/vendor -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_math_tests.dir/tests/unit/math_tests.c.o -c /home/devuser/emotion-fx/tests/unit/math_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/math_tests.c",
+  "output": "CMakeFiles/efx_math_tests.dir/tests/unit/math_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -I/home/devuser/emotion-fx/src -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_render_tests.dir/tests/unit/render_tests.c.o -c /home/devuser/emotion-fx/tests/unit/render_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/render_tests.c",
+  "output": "CMakeFiles/efx_render_tests.dir/tests/unit/render_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_RES_FIXTURES=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -I/home/devuser/emotion-fx/vendor/cgltf -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_resource_tests.dir/tests/unit/resource_tests.c.o -c /home/devuser/emotion-fx/tests/unit/resource_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/resource_tests.c",
+  "output": "CMakeFiles/efx_resource_tests.dir/tests/unit/resource_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DEFX_FONT_FIXTURE_DIR=\\\"/home/devuser/emotion-fx/tests/fixtures/resource\\\" -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/src -I/home/devuser/emotion-fx/vendor/stb -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -Wall -Wextra -Werror -o CMakeFiles/efx_text_tests.dir/tests/unit/text_tests.c.o -c /home/devuser/emotion-fx/tests/unit/text_tests.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/tests/unit/text_tests.c",
+  "output": "CMakeFiles/efx_text_tests.dir/tests/unit/text_tests.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -D_POSIX_C_SOURCE=200809L -I/home/devuser/emotion-fx/vendor/miniz -O3 -DNDEBUG -std=c11 -w -o CMakeFiles/efx_miniz.dir/vendor/miniz/miniz.c.o -c /home/devuser/emotion-fx/vendor/miniz/miniz.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/miniz/miniz.c",
+  "output": "CMakeFiles/efx_miniz.dir/vendor/miniz/miniz.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/api-test.dir/api-test.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/api-test.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/api-test.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/api-test.dir/api-test.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs.dir/dtoa.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/dtoa.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/dtoa.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs.dir/dtoa.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/function_source.dir/gen/function_source.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/gen/function_source.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/gen/function_source.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/function_source.dir/gen/function_source.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -Dqjs_exe_EXPORTS -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs_exe.dir/gen/repl.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/gen/repl.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/gen/repl.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs_exe.dir/gen/repl.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -Dqjs_exe_EXPORTS -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs_exe.dir/gen/standalone.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/gen/standalone.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/gen/standalone.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs_exe.dir/gen/standalone.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs.dir/libregexp.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/libregexp.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/libregexp.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs.dir/libregexp.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/lre-test.dir/libregexp.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/libregexp.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/libregexp.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/lre-test.dir/libregexp.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs.dir/libunicode.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/libunicode.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/libunicode.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs.dir/libunicode.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/lre-test.dir/libunicode.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/libunicode.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/libunicode.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/lre-test.dir/libunicode.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/lre-test.dir/lre-test.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/lre-test.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/lre-test.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/lre-test.dir/lre-test.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -Dqjs_exe_EXPORTS -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs_exe.dir/qjs.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/qjs.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/qjs.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs_exe.dir/qjs.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjsc.dir/qjsc.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/qjsc.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/qjsc.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjsc.dir/qjsc.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs-libc.dir/quickjs-libc.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/quickjs-libc.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/quickjs-libc.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs-libc.dir/quickjs-libc.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/qjs.dir/quickjs.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/quickjs.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/quickjs.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/qjs.dir/quickjs.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -I/home/devuser/emotion-fx/vendor/quickjs-ng -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/run-test262.dir/run-test262.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/run-test262.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/run-test262.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/run-test262.dir/run-test262.c.o"
+ },
+ {
+  "command": "/usr/bin/cc -DQUICKJS_NG_BUILD -D_GNU_SOURCE -O3 -DNDEBUG -std=gnu11 -fvisibility=hidden -Wall -Wextra -Wformat=2 -Wno-implicit-fallthrough -Wno-sign-compare -Wno-missing-field-initializers -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-result -Wno-stringop-truncation -Wno-array-bounds -funsigned-char -o vendor/quickjs-ng/CMakeFiles/unicode_gen.dir/unicode_gen.c.o -c /home/devuser/emotion-fx/vendor/quickjs-ng/unicode_gen.c",
+  "directory": "/home/devuser/emotion-fx/build-cc",
+  "file": "/home/devuser/emotion-fx/vendor/quickjs-ng/unicode_gen.c",
+  "output": "vendor/quickjs-ng/CMakeFiles/unicode_gen.dir/unicode_gen.c.o"
+ }
+]

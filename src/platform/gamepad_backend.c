@@ -2,9 +2,9 @@
  * F13 platform gamepad backend.
  *
  * The vendored minigamepad snapshot is the single poll backend on all four
- * targets (design D1). It is included exactly once here, with MG_API left
+ * targets (ADR 0041). It is included exactly once here, with MG_API left
  * empty so its symbols stay local to this translation unit, and it is never
- * linked into the pure-C core or the headless tests (design D2).
+ * linked into the pure-C core or the headless tests.
  *
  * minigamepad already reconstructs the platform raw layout into its semantic
  * mg_button/mg_axis enums (its GLFW-style GUID generation plus platform
@@ -99,7 +99,7 @@ static int backend_poll(efx_gamepad_device *out, int max, void *ud) {
             if (a == EFX_GPA_LEFT_TRIGGER || a == EFX_GPA_RIGHT_TRIGGER) {
                 /* minigamepad's desktop paths report triggers in -1..1; the
                  * web path already reports 0..1. Collapse to the canonical
-                 * 0..1 trigger range (design D6). */
+                 * 0..1 trigger range. */
 #if defined(__EMSCRIPTEN__)
                 d->raw_axes[a] = v;
 #else

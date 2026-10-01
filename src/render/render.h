@@ -47,10 +47,9 @@
 /* fixed limit: surfaces per mesh (vision.md fixed limits, F3) */
 #define EFX_MESH_MAX_SURFACES 16
 
-/* hard per-frame record budget (design D4). Raised in F4a so the larger
- * mesh record (light snapshot, design D4) keeps the documented ~170k quad
- * capacity: the budget is charged per record as sizeof(efx_record), and the
- * mesh record's union member now sets that size. */
+/* hard per-frame record budget: charged per record as sizeof(efx_record);
+ * sized so the mesh record (the union's largest member, light snapshot
+ * included) keeps the documented ~170k quad capacity. */
 #define EFX_RENDER_RECORD_BUDGET_BYTES (64 * 1024 * 1024)
 
 /* row-major 2D affine: x' = a*x + c*y + tx ; y' = b*x + d*y + ty */
@@ -72,7 +71,7 @@ typedef struct efx_camera3d {
     float near_z, far_z;
 } efx_camera3d;
 
-/* Fixed light bank (vision.md limits, F4a design D4). Lights are plain
+/* Fixed light bank (vision.md limits, ADR 0026). Lights are plain
  * value state: a mesh record snapshots the whole set at record time
  * (ADR 0019). A light is disabled unless explicitly set. */
 #define EFX_MAX_POINT_LIGHTS 4
@@ -95,11 +94,11 @@ typedef struct efx_light_set {
     efx_dir_light directional;
 } efx_light_set;
 
-/* Per-surface Phong material snapshot (F4a design D5/D6, extended by F4b
- * design D5): plain values, JS-managed on the script side (no native handle,
+/* Per-surface Phong material snapshot (ADR 0026/0027): plain values,
+ * JS-managed on the script side (no native handle,
  * no destroy). Colors/shininess are value-snapshotted; channel maps and the
  * alpha mask are handles (0 = absent) held by reference (ADR 0019) and
- * retained by the engine while bound (F4b design D6). From F5a a map handle
+ * retained by the engine while bound (ADR 0027). From F5a a map handle
  * may reference a Texture or a RenderTarget (texture coercion). */
 typedef struct efx_material {
     float ambient[4];
@@ -117,7 +116,7 @@ typedef struct efx_material {
 /* documented default material: white diffuse Phong, no maps */
 void efx_material_default(efx_material *m);
 
-/* F4b per-fragment map samples for the CPU lighting reference (design D8):
+/* F4b per-fragment map samples for the CPU lighting reference (ADR 0027):
  * each channel RGB sample multiplies that channel's color; a present mask
  * discards the fragment when mask_alpha < 0.5. Passing NULL to
  * efx_lighting_shade reproduces the F4a neutral result. */
@@ -130,7 +129,7 @@ typedef struct efx_map_samples {
     int has_mask;
 } efx_map_samples;
 
-/* one quad (design D1/D3; ~96 bytes) */
+/* one quad (~96 bytes) */
 typedef struct efx_quad_record {
     efx_affine m;          /* local -> frame, composed at record time */
     float frame_w, frame_h;
@@ -142,19 +141,19 @@ typedef struct efx_quad_record {
     uint8_t blend;
 } efx_quad_record;
 
-/* one whole-mesh draw (design D7): every surface plays back in surface
+/* one whole-mesh draw: every surface plays back in surface
  * order, depth-tested; the camera is value-snapshotted at record time */
 typedef struct efx_mesh_record {
     uint64_t mesh;
     float transform[16];   /* column-major model matrix */
     float color[4];        /* tint */
     efx_camera3d camera;
-    efx_light_set lights;  /* value snapshot at record time (F4a design D4) */
+    efx_light_set lights;  /* value snapshot at record time (ADR 0026) */
     uint8_t blend;
     uint8_t skinned;       /* F7: draw the posed buffer instead of bind pose */
 } efx_mesh_record;
 
-/* beginRenderTarget control record (F5a design D2): opens a segment; the
+/* beginRenderTarget control record (ADR 0028): opens a segment; the
  * clear color is value-snapshotted at record time (every begin starts
  * from a cleared target) */
 typedef struct efx_begin_target_record {
@@ -197,7 +196,7 @@ typedef struct efx_particle_record {
 #define EFX_RECORD_PARTICLES 5
 
 /* one display-list record; sort key = record index (F2: playback order
- * equals record order, design D3). `target` is the rendering surface the
+ * equals record order, ADR 0019). `target` is the rendering surface the
  * record belongs to (0 = default target; F5a segmentation: the renderer's
  * reordering freedom stops at segment boundaries). */
 typedef struct efx_record {
@@ -214,7 +213,7 @@ typedef struct efx_record {
 } efx_record;
 
 /* one batched quad playback run: consecutive quad records sharing
- * texture + blend (mesh records break runs; design D10) */
+ * texture + blend (mesh records break runs) */
 typedef struct efx_draw_run {
     int start;      /* index of first record */
     int count;      /* number of records in the run */
@@ -252,7 +251,7 @@ typedef struct efx_anim_channel {
 } efx_anim_channel;
 
 /* one glTF animation clip: a name (stable index-based name when unnamed) and
- * its channels (F6c design D5). Playback resolution is F7's concern. */
+ * its channels (ADR 0033). Playback resolution is F7's concern. */
 typedef struct efx_animation_clip {
     char *name;
     int channel_count;
@@ -260,7 +259,7 @@ typedef struct efx_animation_clip {
 } efx_animation_clip;
 
 /* opaque rig payload: the skin's joint hierarchy + inverse bind matrices and
- * the asset's animation clips, carried MeshData -> Mesh (design D2/D3). */
+ * the asset's animation clips, carried MeshData -> Mesh (ADR 0033). */
 typedef struct efx_rig {
     int joint_count;
     int *joint_nodes;    /* glTF node index per joint */
@@ -281,7 +280,7 @@ typedef struct efx_pose_sample {
 
 /* CPU mesh data: 1..EFX_MESH_MAX_SURFACES surfaces, each with its own
  * attribute arrays + optional indices (Godot surface / glTF primitive).
- * Storage is deep-copied and engine-owned (design D8). */
+ * Storage is deep-copied and engine-owned (ADR 0024). */
 typedef struct efx_surface_src {
     int positions_len;   /* floats, %3 == 0, > 0 */
     int normals_len;     /* floats, %3 == 0, 0 = absent */
@@ -327,8 +326,8 @@ void efx_meshdata_set_rig(efx_meshdata *md, efx_rig *rig);
 void efx_rig_free(efx_rig *rig);
 
 /* one GPU surface as handed to the sink: vertices interleaved
- * pos(3f) normal(3f) uv(2f) color(4f) = 12 floats/vertex (design D1;
- * absent attributes are filled with deterministic defaults) */
+ * pos(3f) normal(3f) uv(2f) color(4f) = 12 floats/vertex;
+ * absent attributes are filled with deterministic defaults */
 typedef struct efx_mesh_gpu_surface {
     int vertex_count, index_count;
     const float *interleaved;
@@ -371,7 +370,7 @@ void efx_render_clear_color(float out_rgba[4]);
 void efx_render_camera3d(float out_pos[3], float out_target[3], float *out_fov,
                          float *out_near, float *out_far);
 
-/* fixed light bank (F4a design D4); NULL disables the slot / the single
+/* fixed light bank (ADR 0026); NULL disables the slot / the single
  * directional light. Slot outside 0..EFX_MAX_POINT_LIGHTS-1 is ignored. */
 void efx_render_set_point_light(int slot, const efx_point_light *light);
 void efx_render_set_directional_light(const efx_dir_light *light);
@@ -396,7 +395,7 @@ void efx_render_texture_sampler(uint64_t handle, int *out_wrap, int *out_filter,
                                 int *out_mipmaps);
 void *efx_render_texture_native(uint64_t h); /* valid until end of frame */
 uint64_t efx_render_white_texture(void);
-/* F4b material-map retention count (design D6); -1 on a bad handle. Exposed
+/* F4b material-map retention count (ADR 0027); -1 on a bad handle. Exposed
  * for the headless unit tests that assert bindings retain/release textures. */
 int efx_render_texture_ref_count(uint64_t h);
 
@@ -417,7 +416,7 @@ int efx_render_mesh_geometry_count(uint64_t h, int *out_verts,
                                    int *out_indices);
 int efx_render_mesh_geometry(uint64_t h, float *positions, uint32_t *indices);
 /* test/introspection: the rig carried by a live Mesh (NULL when static;
- * ownership stays with the mesh). Not script-visible (F6c design D6). */
+ * ownership stays with the mesh). Not script-visible (ADR 0033). */
 const efx_rig *efx_render_mesh_rig(uint64_t h);
 
 /* F7 posing: 1 when the live Mesh carries a rig (and thus owns posed CPU
@@ -566,8 +565,8 @@ efx_affine efx_quad_matrix(float x, float y,
                            float origin_x, float origin_y,
                            float rotation_deg, float scale);
 
-/* CPU reference implementation of the lighting equation (F4a design D8,
- * extended by F4b design D8). `normal` may be non-unit (normalized
+/* CPU reference implementation of the lighting equation (ADR 0026/0027):
+ * `normal` may be non-unit (normalized
  * internally); `albedo` is the per-fragment vertex color × tint; `maps` is
  * the optional F4b map-sample set (NULL = neutral). Returns 1 when the
  * fragment is discarded by the alpha mask, else 0; out[4] receives the

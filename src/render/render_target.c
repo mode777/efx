@@ -121,7 +121,7 @@ int efx_render_begin_target(uint64_t h) {
     memset(&rec, 0, sizeof(rec));
     rec.type = EFX_RECORD_BEGIN_TARGET;
     rec.u.begin_target.target = h;
-    efx_render_clear_color(rec.u.begin_target.clear); /* snapshot (design D3) */
+    efx_render_clear_color(rec.u.begin_target.clear); /* snapshot (ADR 0028) */
     R.active_target = h; /* the begin record is tagged with its own target */
     int rc = record_push(&rec);
     if (rc != EFX_RENDER_OK) {
