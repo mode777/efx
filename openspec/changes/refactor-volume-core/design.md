@@ -283,4 +283,11 @@ a call with its current policy and message.
 
 ## Findings during apply
 
+- **D4 signature.** `efx_player_run_entry` is
+  `int (efx_runtime *rt, char *code, int *exit_code)`: it returns 1 (stop,
+  `*exit_code` set) or 0 (continue). A "−1 means continue" return would
+  collide with `efx.quit(-1)`, which is a legal exit code. The caller still
+  reads `main.js`, because root mode reports a missing entry as an error
+  naming the root while the REPL treats it as fine.
+
 <!-- Record whether destroy_no_pending_exception failed on the old code (per class). -->

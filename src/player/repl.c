@@ -1,4 +1,5 @@
 #include "player/repl.h"
+#include "player/player.h"
 #include "runtime/runtime.h"
 #include "platform/platform.h"
 #include "render/render.h"
@@ -155,20 +156,11 @@ static void repl_consume(efx_repl *r) {
 
 /* ------------------------------------------------------------ frame loop */
 
-static int repl_exit_code(const efx_repl *r) {
-    if (efx_runtime_in_error(r->rt)) {
-        return 1;
-    }
-    if (efx_runtime_quit_requested(r->rt)) {
-        return efx_runtime_quit_code(r->rt);
-    }
-    return 0; /* `.exit` and EOF are clean */
-}
-
 /* record the intended code, then stop the frame loop (macOS's Cocoa loop
- * never returns, so the platform layer exits with the recorded code) */
+ * never returns, so the platform layer exits with the recorded code);
+ * `.exit` and EOF are clean */
 static int repl_stop(efx_repl *r) {
-    efx_platform_set_exit_code(repl_exit_code(r));
+    efx_platform_set_exit_code(efx_player_exit_code(r->rt));
     return 1;
 }
 
@@ -235,18 +227,10 @@ int efx_repl_run(struct efx_resource *resource) {
            root) starts with the namespace only (design D4) */
         int eerr = EFX_RESOURCE_OK;
         char *code = efx_resource_read_text(resource, "main.js", &eerr);
-        if (code) {
-            int rc = efx_runtime_run_entry(rt, "main.js", code);
-            efx_resource_free(code);
-            if (rc == -1 || efx_runtime_in_error(rt)) {
-                efx_runtime_destroy(rt);
-                return 1;
-            }
-            if (efx_runtime_quit_requested(rt)) {
-                int exit_code = efx_runtime_quit_code(rt);
-                efx_runtime_destroy(rt);
-                return exit_code;
-            }
+        int exit_code = 0;
+        if (code && efx_player_run_entry(rt, code, &exit_code)) {
+            efx_runtime_destroy(rt);
+            return exit_code;
         }
     }
 
@@ -269,14 +253,7 @@ int efx_repl_run(struct efx_resource *resource) {
     hooks.on_frame = repl_on_frame;
     efx_platform_run(&desc, hooks);
 
-    int exit_code;
-    if (efx_runtime_in_error(rt)) {
-        exit_code = 1;
-    } else if (efx_runtime_quit_requested(rt)) {
-        exit_code = efx_runtime_quit_code(rt);
-    } else {
-        exit_code = 0;
-    }
+    int exit_code = efx_player_exit_code(rt);
     efx_runtime_destroy(rt);
     efx_render_end_frame();
     efx_render_shutdown();

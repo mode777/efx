@@ -92,16 +92,7 @@ static int run_script_mode(const char *path, const char *root_override,
         efx_runtime_set_resource(rt, res);
     }
     int rc = efx_runtime_eval_file(rt, path);
-    int exit_code;
-    if (rc == -1) {
-        exit_code = 1;
-    } else if (efx_runtime_in_error(rt)) {
-        exit_code = 1;
-    } else if (efx_runtime_quit_requested(rt)) {
-        exit_code = efx_runtime_quit_code(rt);
-    } else {
-        exit_code = 0;
-    }
+    int exit_code = rc == -1 ? 1 : efx_player_exit_code(rt);
     efx_runtime_destroy(rt);
     efx_resource_close(res);
     return exit_code;
@@ -129,18 +120,31 @@ static int run_repl_mode(const char *root) {
     return rc;
 }
 
+int efx_player_exit_code(efx_runtime *rt) {
+    if (efx_runtime_in_error(rt)) {
+        return 1;
+    }
+    return efx_runtime_quit_requested(rt) ? efx_runtime_quit_code(rt) : 0;
+}
+
+int efx_player_run_entry(efx_runtime *rt, char *code, int *exit_code) {
+    int rc = efx_runtime_run_entry(rt, "main.js", code);
+    efx_resource_free(code);
+    if (rc == -1 || efx_runtime_in_error(rt)) {
+        *exit_code = 1;
+        return 1;
+    }
+    if (efx_runtime_quit_requested(rt)) {
+        *exit_code = efx_runtime_quit_code(rt);
+        return 1;
+    }
+    return 0;
+}
+
 /* signal the frame loop to stop, recording the intended exit code first
  * (macOS's Cocoa loop never returns, so the platform layer exits for us) */
 static int player_stop(efx_runtime *rt) {
-    int code;
-    if (efx_runtime_in_error(rt)) {
-        code = 1;
-    } else if (efx_runtime_quit_requested(rt)) {
-        code = efx_runtime_quit_code(rt);
-    } else {
-        code = 0;
-    }
-    efx_platform_set_exit_code(code);
+    efx_platform_set_exit_code(efx_player_exit_code(rt));
     return 1;
 }
 
@@ -215,20 +219,8 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     /* F14: set up the audio device before the script runs, so load-time audio
        calls (e.g. background music at boot) use the real device sample rate */
     efx_audio_backend_init();
-    int rc = efx_runtime_run_entry(rt, "main.js", code);
-    efx_resource_free(code);
-    if (rc == -1) {
-        efx_runtime_destroy(rt);
-        efx_resource_close(res);
-        return 1;
-    }
-    if (efx_runtime_in_error(rt)) {
-        efx_runtime_destroy(rt);
-        efx_resource_close(res);
-        return 1;
-    }
-    if (efx_runtime_quit_requested(rt)) {
-        int exit_code = efx_runtime_quit_code(rt);
+    int exit_code = 0;
+    if (efx_player_run_entry(rt, code, &exit_code)) {
         efx_runtime_destroy(rt);
         efx_resource_close(res);
         return exit_code;
@@ -245,14 +237,7 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     hooks.ud = rt;
     hooks.on_frame = on_frame;
     efx_platform_run(&desc, hooks);
-    int exit_code;
-    if (efx_runtime_in_error(rt)) {
-        exit_code = 1;
-    } else if (efx_runtime_quit_requested(rt)) {
-        exit_code = efx_runtime_quit_code(rt);
-    } else {
-        exit_code = 0;
-    }
+    exit_code = efx_player_exit_code(rt);
     /* release native resources while the GPU context is still alive:
        runtime destroy runs finalizers -> deferred texture releases, then
        render shutdown flushes them, then sokol goes down */

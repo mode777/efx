@@ -333,17 +333,9 @@ void efx_runtime_destroy(efx_runtime *rt) {
     if (!rt) {
         return;
     }
-    efx_hooks_free_all(rt->ctx, &rt->host.update_hooks);
-    efx_hooks_free_all(rt->ctx, &rt->host.render_hooks);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_key_down);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_key_up);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_char);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_down);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_up);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_move);
-    efx_hooks_free_all(rt->ctx, &rt->host.input_mouse_wheel);
-    efx_hooks_free_all(rt->ctx, &rt->host.gamepad_connect);
-    efx_hooks_free_all(rt->ctx, &rt->host.gamepad_disconnect);
+    for (int which = 0; which < EFX_HOOK_LIST_COUNT; which++) {
+        efx_hooks_free_all(rt->ctx, efx_host_hook_list(&rt->host, which));
+    }
     efx_api_physics_release(rt->ctx);
     JS_FreeValue(rt->ctx, rt->host.quit_sentinel);
     JS_FreeValue(rt->ctx, rt->module_runtime);

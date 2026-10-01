@@ -29,10 +29,10 @@
 
 ## 3. Runtime and player (R10)
 
-- [ ] 3.1 Free the hook lists in `efx_runtime_destroy` by looping over
+- [x] 3.1 Free the hook lists in `efx_runtime_destroy` by looping over
   `efx_host_hook_list`. Verify: V1 `api_tests` `hooks_registration`,
   `module_hooks_js`.
-- [ ] 3.2 Add `efx_player_run_entry` and `efx_player_exit_code` (D4) and use
+- [x] 3.2 Add `efx_player_run_entry` and `efx_player_exit_code` (D4) and use
   them in `run_root_mode` and `efx_repl_run`, keeping the teardown order.
   Verify: V2 `smoke_root_*`, `smoke_quit3`, `smoke_10_*`, `smoke_repl_*`,
   `api_tests` `repl_eval`, and the exit-code contract (ADR 0007).
