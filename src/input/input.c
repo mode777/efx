@@ -115,46 +115,38 @@ static int event_count;
 
 /* ------------------------------------------------------- name lookup */
 
-int efx_input_key_id(const char *name) {
-    if (!name) {
-        return -1;
-    }
-    for (int i = 0; i < KEY_NAME_COUNT; i++) {
-        if (strcmp(KEY_NAMES[i].name, name) == 0) {
-            return KEY_NAMES[i].id;
+static int name_to_id(const efx_input_name_entry *t, int n, const char *name) {
+    for (int i = 0; name && i < n; i++) {
+        if (strcmp(t[i].name, name) == 0) {
+            return t[i].id;
         }
     }
     return -1;
+}
+
+static const char *id_to_name(const efx_input_name_entry *t, int n, int id) {
+    for (int i = 0; i < n; i++) {
+        if (t[i].id == id) {
+            return t[i].name;
+        }
+    }
+    return NULL;
+}
+
+int efx_input_key_id(const char *name) {
+    return name_to_id(KEY_NAMES, KEY_NAME_COUNT, name);
 }
 
 const char *efx_input_key_name(int key) {
-    for (int i = 0; i < KEY_NAME_COUNT; i++) {
-        if (KEY_NAMES[i].id == key) {
-            return KEY_NAMES[i].name;
-        }
-    }
-    return NULL;
+    return id_to_name(KEY_NAMES, KEY_NAME_COUNT, key);
 }
 
 int efx_input_button_id(const char *name) {
-    if (!name) {
-        return -1;
-    }
-    for (int i = 0; i < BUTTON_NAME_COUNT; i++) {
-        if (strcmp(BUTTON_NAMES[i].name, name) == 0) {
-            return BUTTON_NAMES[i].id;
-        }
-    }
-    return -1;
+    return name_to_id(BUTTON_NAMES, BUTTON_NAME_COUNT, name);
 }
 
 const char *efx_input_button_name(int button) {
-    for (int i = 0; i < BUTTON_NAME_COUNT; i++) {
-        if (BUTTON_NAMES[i].id == button) {
-            return BUTTON_NAMES[i].name;
-        }
-    }
-    return NULL;
+    return id_to_name(BUTTON_NAMES, BUTTON_NAME_COUNT, button);
 }
 
 const char *efx_input_mod_name(unsigned bit) {
@@ -200,18 +192,7 @@ void efx_input_clear_events(void) {
 void efx_input_reset(void) {
     memset(&K, 0, sizeof(K));
     memset(&B, 0, sizeof(B));
-    P.x = 0;
-    P.y = 0;
-    P.frame_dx = 0;
-    P.frame_dy = 0;
-    P.accum_dx = 0;
-    P.accum_dy = 0;
-    P.frame_wx = 0;
-    P.frame_wy = 0;
-    P.accum_wx = 0;
-    P.accum_wy = 0;
-    P.w = 0;
-    P.h = 0;
+    memset(&P, 0, sizeof(P));
     P.dpi_scale = 1.0f;
     event_count = 0;
     efx_input_gamepad_reset();
@@ -260,111 +241,74 @@ static int button_in_range(int button) {
     return button >= 0 && button < EFX_INPUT_MOUSE_MAX;
 }
 
+/* level change with its one-frame edge; a repeated level is not an edge */
+static void set_level(unsigned char *down, unsigned char *pressed,
+                      unsigned char *released, int i, int is_down) {
+    if (down[i] == is_down) {
+        return;
+    }
+    down[i] = (unsigned char)is_down;
+    (is_down ? pressed : released)[i] = 1;
+}
+
 void efx_input_key_down(int key, int repeat, unsigned mods) {
     if (!key_in_range(key)) {
         return;
     }
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_KEY_DOWN;
-    ev.key = key;
-    ev.repeat = repeat ? 1 : 0;
-    ev.mods = mods;
-    if (!K.down[key]) {
-        K.down[key] = 1;
-        K.pressed[key] = 1;
-    }
-    queue_push(&ev);
+    set_level(K.down, K.pressed, K.released, key, 1);
+    queue_push(&(efx_input_event){.type = EFX_INPUT_KEY_DOWN, .key = key,
+                                  .repeat = repeat ? 1 : 0, .mods = mods});
 }
 
 void efx_input_key_up(int key, unsigned mods) {
     if (!key_in_range(key)) {
         return;
     }
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_KEY_UP;
-    ev.key = key;
-    ev.mods = mods;
-    if (K.down[key]) {
-        K.down[key] = 0;
-        K.released[key] = 1;
-    }
-    queue_push(&ev);
+    set_level(K.down, K.pressed, K.released, key, 0);
+    queue_push(&(efx_input_event){.type = EFX_INPUT_KEY_UP, .key = key,
+                                  .mods = mods});
 }
 
 void efx_input_char(uint32_t codepoint) {
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_CHAR;
-    ev.codepoint = codepoint;
-    queue_push(&ev);
+    queue_push(&(efx_input_event){.type = EFX_INPUT_CHAR,
+                                  .codepoint = codepoint});
+}
+
+static void mouse_button(int type, int button, float x, float y,
+                         unsigned mods) {
+    if (!button_in_range(button)) {
+        return;
+    }
+    set_level(B.down, B.pressed, B.released, button,
+              type == EFX_INPUT_MOUSE_DOWN);
+    P.x = x;
+    P.y = y;
+    queue_push(&(efx_input_event){.type = type, .button = button, .x = x,
+                                  .y = y, .mods = mods});
 }
 
 void efx_input_mouse_down(int button, float x, float y, unsigned mods) {
-    if (!button_in_range(button)) {
-        return;
-    }
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_MOUSE_DOWN;
-    ev.button = button;
-    ev.x = x;
-    ev.y = y;
-    ev.mods = mods;
-    if (!B.down[button]) {
-        B.down[button] = 1;
-        B.pressed[button] = 1;
-    }
-    P.x = x;
-    P.y = y;
-    queue_push(&ev);
+    mouse_button(EFX_INPUT_MOUSE_DOWN, button, x, y, mods);
 }
 
 void efx_input_mouse_up(int button, float x, float y, unsigned mods) {
-    if (!button_in_range(button)) {
-        return;
-    }
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_MOUSE_UP;
-    ev.button = button;
-    ev.x = x;
-    ev.y = y;
-    ev.mods = mods;
-    if (B.down[button]) {
-        B.down[button] = 0;
-        B.released[button] = 1;
-    }
-    P.x = x;
-    P.y = y;
-    queue_push(&ev);
+    mouse_button(EFX_INPUT_MOUSE_UP, button, x, y, mods);
 }
 
 void efx_input_mouse_move(float x, float y, float dx, float dy) {
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_MOUSE_MOVE;
-    ev.x = x;
-    ev.y = y;
-    ev.dx = dx;
-    ev.dy = dy;
     P.x = x;
     P.y = y;
     P.accum_dx += dx;
     P.accum_dy += dy;
-    queue_push(&ev);
+    queue_push(&(efx_input_event){.type = EFX_INPUT_MOUSE_MOVE, .x = x,
+                                  .y = y, .dx = dx, .dy = dy});
 }
 
 void efx_input_wheel(float dx, float dy) {
-    efx_input_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.type = EFX_INPUT_WHEEL;
-    ev.dx = dx;
-    ev.dy = dy;
     P.accum_wx += dx;
     P.accum_wy += dy;
-    queue_push(&ev);
+    queue_push(&(efx_input_event){.type = EFX_INPUT_WHEEL, .dx = dx,
+                                  .dy = dy});
 }
 
 void efx_input_focus_lost(void) {

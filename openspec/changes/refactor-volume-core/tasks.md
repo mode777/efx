@@ -16,14 +16,14 @@
 
 ## 2. Input, audio and gamepad (R9)
 
-- [ ] 2.1 Rewrite the input feeders in `input.c` with compound literals and
+- [x] 2.1 Rewrite the input feeders in `input.c` with compound literals and
   `set_level` (D3). Verify: V1 `efx_input_tests` (`level_edge`, `repeat`,
   `ordering`, `deltas`, `mouse`, `focus`, `chars`, `mods`) and `api_tests`
   `input_js`.
-- [ ] 2.2 Add `live_voice()` and collapse the five voice setters plus the
+- [x] 2.2 Add `live_voice()` and collapse the five voice setters plus the
   voice queries in `audio.c`. Verify: V1 `efx_audio_tests` (all cases) and
   `api_tests` `audio_js`.
-- [ ] 2.3 Add `live_slot()` and one `name_lookup()` in `gamepad.c`/`input.c`
+- [x] 2.3 Add `live_slot()` and one `name_lookup()` in `gamepad.c`/`input.c`
   for the accessors and the four name↔id pairs. Verify: V1 `gp_*` cases and
   `api_tests` `gamepad_js`; V4 `web_9_input`, `web_13_gamepad`.
 

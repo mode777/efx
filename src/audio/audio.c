@@ -452,74 +452,53 @@ void efx_audio_stop_voice(int voice) {
     voice_clear(&g.voices[voice]);
 }
 
+/* the voice if in range and active, otherwise NULL (ignored silently) */
+static efx_voice *live_voice(int voice) {
+    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES ||
+        !g.voices[voice].active) {
+        return NULL;
+    }
+    return &g.voices[voice];
+}
+
 void efx_audio_set_voice_volume(int voice, float v) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return;
-    }
-    if (g.voices[voice].active) {
-        g.voices[voice].volume = clampf(v, 0.0f, 16.0f);
-    }
+    efx_voice *lv = live_voice(voice);
+    if (lv) lv->volume = clampf(v, 0.0f, 16.0f);
 }
 
 void efx_audio_set_voice_pan(int voice, float p) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return;
-    }
-    if (g.voices[voice].active) {
-        g.voices[voice].pan = p;
-    }
+    efx_voice *lv = live_voice(voice);
+    if (lv) lv->pan = p;
 }
 
 void efx_audio_set_voice_pitch(int voice, float p) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return;
-    }
-    if (g.voices[voice].active) {
-        g.voices[voice].pitch = (p > 0.0f) ? p : 1.0f;
-    }
+    efx_voice *lv = live_voice(voice);
+    if (lv) lv->pitch = (p > 0.0f) ? p : 1.0f;
 }
 
 void efx_audio_set_voice_loop(int voice, int loop) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return;
-    }
-    if (g.voices[voice].active) {
-        g.voices[voice].loop = loop ? 1 : 0;
-    }
+    efx_voice *lv = live_voice(voice);
+    if (lv) lv->loop = loop ? 1 : 0;
 }
 
 void efx_audio_set_voice_paused(int voice, int paused) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return;
-    }
-    if (g.voices[voice].active) {
-        g.voices[voice].paused = paused ? 1 : 0;
-    }
+    efx_voice *lv = live_voice(voice);
+    if (lv) lv->paused = paused ? 1 : 0;
 }
 
 int efx_audio_voice_playing(int voice) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return 0;
-    }
-    efx_voice *v = &g.voices[voice];
-    return (v->active && !v->paused && g.available) ? 1 : 0;
+    efx_voice *lv = live_voice(voice);
+    return (lv && !lv->paused && g.available) ? 1 : 0;
 }
 
 int efx_audio_voice_paused(int voice) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return 0;
-    }
-    return (g.voices[voice].active && g.voices[voice].paused) ? 1 : 0;
+    efx_voice *lv = live_voice(voice);
+    return (lv && lv->paused) ? 1 : 0;
 }
 
 long long efx_audio_voice_serial(int voice) {
-    if (voice < 0 || voice >= EFX_AUDIO_MAX_VOICES) {
-        return -1;
-    }
-    if (!g.voices[voice].active) {
-        return -1;
-    }
-    return g.voices[voice].start_seq;
+    efx_voice *lv = live_voice(voice);
+    return lv ? lv->start_seq : -1;
 }
 
 int efx_audio_active_voice_count(void) {

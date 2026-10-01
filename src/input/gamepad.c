@@ -92,42 +92,33 @@ static const char *const AXIS_NAMES[EFX_GPA_COUNT] = {
     "leftX", "leftY", "rightX", "rightY", "leftTrigger", "rightTrigger",
 };
 
-int efx_input_gamepad_button_id(const char *name) {
-    if (!name) {
-        return -1;
-    }
-    for (int i = 0; i < EFX_GPB_COUNT; i++) {
-        if (strcmp(BUTTON_NAMES[i], name) == 0) {
+static int in_range(int i, int n) {
+    return i >= 0 && i < n;
+}
+
+static int name_index(const char *const *names, int n, const char *name) {
+    for (int i = 0; name && i < n; i++) {
+        if (strcmp(names[i], name) == 0) {
             return i;
         }
     }
     return -1;
+}
+
+int efx_input_gamepad_button_id(const char *name) {
+    return name_index(BUTTON_NAMES, EFX_GPB_COUNT, name);
 }
 
 const char *efx_input_gamepad_button_name(int button) {
-    if (button < 0 || button >= EFX_GPB_COUNT) {
-        return NULL;
-    }
-    return BUTTON_NAMES[button];
+    return in_range(button, EFX_GPB_COUNT) ? BUTTON_NAMES[button] : NULL;
 }
 
 int efx_input_gamepad_axis_id(const char *name) {
-    if (!name) {
-        return -1;
-    }
-    for (int i = 0; i < EFX_GPA_COUNT; i++) {
-        if (strcmp(AXIS_NAMES[i], name) == 0) {
-            return i;
-        }
-    }
-    return -1;
+    return name_index(AXIS_NAMES, EFX_GPA_COUNT, name);
 }
 
 const char *efx_input_gamepad_axis_name(int axis) {
-    if (axis < 0 || axis >= EFX_GPA_COUNT) {
-        return NULL;
-    }
-    return AXIS_NAMES[axis];
+    return in_range(axis, EFX_GPA_COUNT) ? AXIS_NAMES[axis] : NULL;
 }
 
 /* -------------------------------------------------------- mapping model */
@@ -676,73 +667,54 @@ int efx_input_gamepad_count(void) {
     return n;
 }
 
+static const efx_gp_slot *live_slot(int slot) {
+    return in_range(slot, EFX_GAMEPAD_MAX) ? &LIVE[slot] : NULL;
+}
+
 int efx_input_gamepad_connected(int slot) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX) {
-        return 0;
-    }
-    return LIVE[slot].connected;
+    const efx_gp_slot *s = live_slot(slot);
+    return s ? s->connected : 0;
 }
 
 const char *efx_input_gamepad_name(int slot) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX) {
-        return NULL;
-    }
-    return LIVE[slot].name;
+    const efx_gp_slot *s = live_slot(slot);
+    return s ? s->name : NULL;
 }
 
 int efx_input_gamepad_mapped(int slot) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX) {
-        return 0;
-    }
-    return LIVE[slot].mapped;
+    const efx_gp_slot *s = live_slot(slot);
+    return s ? s->mapped : 0;
 }
 
 int efx_input_gamepad_button_is_down(int slot, int button) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX || button < 0 ||
-        button >= EFX_GPB_COUNT) {
-        return 0;
-    }
-    return LIVE[slot].down[button];
+    const efx_gp_slot *s = live_slot(slot);
+    return s && in_range(button, EFX_GPB_COUNT) ? s->down[button] : 0;
 }
 
 int efx_input_gamepad_button_is_pressed(int slot, int button) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX || button < 0 ||
-        button >= EFX_GPB_COUNT) {
-        return 0;
-    }
-    return LIVE[slot].pressed[button];
+    const efx_gp_slot *s = live_slot(slot);
+    return s && in_range(button, EFX_GPB_COUNT) ? s->pressed[button] : 0;
 }
 
 int efx_input_gamepad_button_is_released(int slot, int button) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX || button < 0 ||
-        button >= EFX_GPB_COUNT) {
-        return 0;
-    }
-    return LIVE[slot].released[button];
+    const efx_gp_slot *s = live_slot(slot);
+    return s && in_range(button, EFX_GPB_COUNT) ? s->released[button] : 0;
 }
 
 float efx_input_gamepad_axis(int slot, int axis) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX || axis < 0 ||
-        axis >= EFX_GPA_COUNT) {
-        return 0.0f;
-    }
-    return LIVE[slot].axes[axis];
+    const efx_gp_slot *s = live_slot(slot);
+    return s && in_range(axis, EFX_GPA_COUNT) ? s->axes[axis] : 0.0f;
 }
 
 int efx_input_gamepad_raw_button(int slot, int index) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX || index < 0 ||
-        index >= LIVE[slot].raw_button_count) {
-        return 0;
-    }
-    return LIVE[slot].raw_buttons[index];
+    const efx_gp_slot *s = live_slot(slot);
+    return s && in_range(index, s->raw_button_count) ? s->raw_buttons[index]
+                                                     : 0;
 }
 
 float efx_input_gamepad_raw_axis(int slot, int index) {
-    if (slot < 0 || slot >= EFX_GAMEPAD_MAX || index < 0 ||
-        index >= LIVE[slot].raw_axis_count) {
-        return 0.0f;
-    }
-    return LIVE[slot].raw_axes[index];
+    const efx_gp_slot *s = live_slot(slot);
+    return s && in_range(index, s->raw_axis_count) ? s->raw_axes[index] : 0.0f;
 }
 
 int efx_input_gamepad_connect_count(void) {
