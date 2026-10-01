@@ -322,9 +322,8 @@ void efx_meshdata_set_material(efx_meshdata *md, int index,
                                const efx_material *mat, int has);
 
 /* rig payload (F6c): takes ownership of `rig` and releases any previous one;
- * NULL clears. clone deep-copies (used by createMesh); free releases one. */
+ * NULL clears. free releases one. */
 void efx_meshdata_set_rig(efx_meshdata *md, efx_rig *rig);
-efx_rig *efx_rig_clone(const efx_rig *rig);
 void efx_rig_free(efx_rig *rig);
 
 /* one GPU surface as handed to the sink: vertices interleaved

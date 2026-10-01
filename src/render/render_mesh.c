@@ -187,7 +187,8 @@ static int *clone_ints(const int *src, int n) {
     return buf;
 }
 
-efx_rig *efx_rig_clone(const efx_rig *src) {
+/* deep copy; a Mesh owns its own rig, independent of the MeshData */
+static efx_rig *efx_rig_clone(const efx_rig *src) {
     if (!src) {
         return NULL;
     }

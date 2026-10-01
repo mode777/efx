@@ -81,7 +81,9 @@ static int cmp_u32(const void *a, const void *b) {
 
 static int utf8_next(const char *s, size_t *i, size_t len, uint32_t *cp);
 
-int efx_text_default_codepoints(uint32_t **out) {
+/* malloc'd array of the default (printable Latin-1) codepoints; returns the
+ * count, or -1 on OOM. Caller frees. */
+static int efx_text_default_codepoints(uint32_t **out) {
     int n = 0;
     for (uint32_t c = 0x20; c <= 0x7E; c++) n++;
     for (uint32_t c = 0xA0; c <= 0xFF; c++) n++;

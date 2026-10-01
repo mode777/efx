@@ -6,7 +6,7 @@
 
 /* ------------------------------------------------------- matrix helpers */
 
-void efx_skin_mat_mul(float out[16], const float a[16], const float b[16]) {
+static void efx_skin_mat_mul(float out[16], const float a[16], const float b[16]) {
     float r[16];
     for (int c = 0; c < 4; c++) {
         for (int row = 0; row < 4; row++) {
@@ -21,7 +21,7 @@ void efx_skin_mat_mul(float out[16], const float a[16], const float b[16]) {
 }
 
 /* general 4x4 inverse (column-major); 0 when singular (determinant ~ 0) */
-int efx_skin_mat_inverse(float out[16], const float m[16]) {
+static int efx_skin_mat_inverse(float out[16], const float m[16]) {
     float inv[16];
     inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] -
              m[9] * m[6] * m[15] + m[9] * m[7] * m[14] +
@@ -217,7 +217,8 @@ int efx_skin_bind_local(const efx_rig *rig, float *out) {
     return 0;
 }
 
-int efx_skin_bind_trs(const efx_rig *rig, efx_skin_trs *out) {
+/* per-joint bind-local TRS (joint_count entries); same fallbacks as bind_local */
+static int efx_skin_bind_trs(const efx_rig *rig, efx_skin_trs *out) {
     if (!rig || !out || rig->joint_count <= 0) {
         return -1;
     }
@@ -239,7 +240,8 @@ int efx_skin_bind_trs(const efx_rig *rig, efx_skin_trs *out) {
 
 /* ------------------------------------------------------------ sampling */
 
-float efx_skin_clip_length(const efx_animation_clip *clip) {
+/* clip length in seconds (max keyframe time over its channels); 0 when empty */
+static float efx_skin_clip_length(const efx_animation_clip *clip) {
     if (!clip) {
         return 0.0f;
     }

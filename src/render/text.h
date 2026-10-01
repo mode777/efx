@@ -114,12 +114,6 @@ int efx_text_draw(const efx_text_font *f, const char *utf8, float x, float y,
                   const float outline_color[4], const float shadow_color[4],
                   efx_text_bounds *out);
 
-/* --------------------------------------------------------- default set */
-
-/* Writes a malloc'd array of the default (printable Latin-1) codepoints and
- * returns the count; caller frees. Returns -1 on OOM. */
-int efx_text_default_codepoints(uint32_t **out);
-
 /* Decodes UTF-8 into a malloc'd codepoint array (U+FFFD for invalid bytes);
  * returns the count or -1 on OOM. Caller frees. */
 int efx_text_codepoints(const char *utf8, uint32_t **out);

@@ -20,21 +20,11 @@ typedef struct efx_skin_trs {
     float s[3];
 } efx_skin_trs;
 
-/* column-major 4x4 helpers (pure C) */
-void efx_skin_mat_mul(float out[16], const float a[16], const float b[16]);
-int efx_skin_mat_inverse(float out[16], const float m[16]); /* 0 = singular */
-
 /* derive per-joint bind-local matrices (joint_count*16, column-major) from
  * inverse_bind + joint_parents: world_bind = inverse(inverse_bind) and
  * local_bind = inverse(world_bind[parent]) * world_bind (root: world_bind);
  * a singular matrix falls back to identity for that joint. 0 ok, -1 bad args */
 int efx_skin_bind_local(const efx_rig *rig, float *out);
-
-/* per-joint bind-local TRS (joint_count entries); same fallbacks as above */
-int efx_skin_bind_trs(const efx_rig *rig, efx_skin_trs *out);
-
-/* clip length in seconds (max keyframe time over its channels); 0 when empty */
-float efx_skin_clip_length(const efx_animation_clip *clip);
 
 /* Evaluate a weighted pose into the skin-matrix palette (joint_count*16):
  * local = bind local overridden by each sampled channel (joint-targeted
