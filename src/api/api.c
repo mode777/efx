@@ -70,7 +70,7 @@ JSValue efx_api_generic_error(JSContext *ctx, const char *msg) {
 
 /* unsubscribe closure: magic selects the host callback list (see
    EFX_HOOK_LIST_* in runtime_internal.h), func_data[0] carries the stable
-   entry index (design D1/D2, extended by F9 input) */
+   entry index; the F9 input events reuse the same scheme */
 static JSValue efx_js_unsubscribe(JSContext *ctx, JSValueConst this_val,
                                   int argc, JSValueConst *argv, int magic,
                                   JSValue *func_data) {
