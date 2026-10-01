@@ -230,6 +230,18 @@
                 throw new RangeError('invalid particle configuration');
             }
         },
+        setPostEffects: function (wire, count) {
+            var ptr = wire ? mallocCopyF32(wire) : 0;
+            var rc = bridge['_efx_bridge_set_post_effects'](ptr, count);
+            if (ptr) {
+                bridge['_free'](ptr);
+            }
+            __efxRc(rc, 'setPostEffects', {
+                1: [TypeError, 'unknown post effect'],
+                2: [RangeError, 'post-effect chain is limited to 8 entries'],
+                3: [RangeError, 'post-effect option out of range'],
+            });
+        },
     };
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
     st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, natives);

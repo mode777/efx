@@ -942,6 +942,83 @@ function __efxSourceRect(sample, v) {
     return src;
 }
 
+/* ------------------------------------------ post effects (F5b)
+ *
+ * One chain-entry validator for both runtimes (ADR 0049): the 9-float wire
+ * layout is the desktop twin of src/web/bridge_target_post.c's reader.
+ * Bounds stay engine-side (post_entry_valid); classes/messages match the
+ * desktop binding. */
+
+function __efxPostNumber(v, what) {
+    if (typeof v !== 'number') {
+        throw new TypeError(what + ' must be a number');
+    }
+    if (!isFinite(v)) {
+        throw new RangeError(what + ' must be a finite number');
+    }
+    return v;
+}
+
+function __efxPostEntry(v) {
+    if (!__efxIsObject(v)) {
+        throw new TypeError('post-effect entry must be an object');
+    }
+    var effect = v['effect'];
+    if (typeof effect !== 'string') {
+        throw new TypeError('post-effect entry requires an effect name');
+    }
+    var known;
+    var out = new Float32Array(9);
+    out[1] = 1;
+    if (effect === 'colorFilter') {
+        known = { effect: 1, mix: 1, brightness: 1, contrast: 1,
+                  saturation: 1, tint: 1 };
+        out[0] = 0; out[2] = 1; out[3] = 1; out[4] = 1;
+        out[5] = 1; out[6] = 1; out[7] = 1; out[8] = 1;
+    } else if (effect === 'blur') {
+        known = { effect: 1, mix: 1, radius: 1 };
+        out[0] = 1; out[2] = 1;
+    } else if (effect === 'bloom') {
+        known = { effect: 1, mix: 1, threshold: 1, strength: 1 };
+        out[0] = 2; out[2] = 0.8; out[3] = 0.5;
+    } else {
+        throw new TypeError('unknown post effect');
+    }
+    __efxCheckKnown(v, known, 'post effect');
+    if (v['mix'] !== undefined) {
+        out[1] = __efxPostNumber(v['mix'], 'mix');
+    }
+    if (effect === 'colorFilter') {
+        if (v['brightness'] !== undefined) {
+            out[2] = __efxPostNumber(v['brightness'], 'brightness');
+        }
+        if (v['contrast'] !== undefined) {
+            out[3] = __efxPostNumber(v['contrast'], 'contrast');
+        }
+        if (v['saturation'] !== undefined) {
+            out[4] = __efxPostNumber(v['saturation'], 'saturation');
+        }
+        if (v['tint'] !== undefined) {
+            var t = __efxFloatArray(v['tint'], 4);
+            for (var k = 0; k < 4; k++) {
+                out[5 + k] = t[k];
+            }
+        }
+    } else if (effect === 'blur') {
+        if (v['radius'] !== undefined) {
+            out[2] = __efxPostNumber(v['radius'], 'radius');
+        }
+    } else {
+        if (v['threshold'] !== undefined) {
+            out[2] = __efxPostNumber(v['threshold'], 'threshold');
+        }
+        if (v['strength'] !== undefined) {
+            out[3] = __efxPostNumber(v['strength'], 'strength');
+        }
+    }
+    return out;
+}
+
 function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
@@ -970,6 +1047,28 @@ function __efxPreludeInstall(efx, natives) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.setPostEffects) {
+        efx.setPostEffects = function (list) {
+            if (arguments.length < 1) {
+                throw new TypeError('setPostEffects requires an array or null');
+            }
+            if (list === null || list === undefined) {
+                natives.setPostEffects(null, 0);
+                return;
+            }
+            if (!Array.isArray(list)) {
+                throw new TypeError('setPostEffects requires an array or null');
+            }
+            if (list.length > 8) {
+                throw new RangeError('post-effect chain is limited to 8 entries');
+            }
+            var wire = new Float32Array(list.length * 9);
+            for (var i = 0; i < list.length; i++) {
+                wire.set(__efxPostEntry(list[i]), i * 9);
+            }
+            natives.setPostEffects(wire, list.length);
+        };
+    }
     if (natives && natives.createParticleSystemWire) {
         efx.createParticleSystem = function (opts) {
             var parsed = __efxParticleWire(opts, natives.liveSample);

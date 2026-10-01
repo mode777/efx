@@ -192,7 +192,7 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("createRenderTarget", 1, efx_js_createRenderTarget),
     JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
     JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
-    JS_CFUNC_DEF("setPostEffects", 1, efx_js_setPostEffects),
+    /* setPostEffects is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
     JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
     JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
@@ -276,6 +276,9 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JS_SetPropertyStr(rt->ctx, natives, "psSet", psset);
     JSValue psproto = JS_NewCFunction(rt->ctx, efx_js_ps_proto, "psProto", 0);
     JS_SetPropertyStr(rt->ctx, natives, "psProto", psproto);
+    JSValue post = JS_NewCFunction(rt->ctx, efx_js_set_post_effects_wire,
+                                   "setPostEffects", 2);
+    JS_SetPropertyStr(rt->ctx, natives, "setPostEffects", post);
     return natives;
 }
 

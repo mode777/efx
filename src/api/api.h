@@ -40,7 +40,7 @@ JSValue efx_js_beginRenderTarget(JSContext *ctx, JSValueConst this_val, int argc
 JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F5b — post-processing chain + render scale */
-JSValue efx_js_setPostEffects(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_set_post_effects_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_setRenderScale(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F6a — resource loading */
