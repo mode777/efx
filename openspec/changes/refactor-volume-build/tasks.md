@@ -72,23 +72,35 @@
 
 ## 6. AGENTS.md slimming (signed off 2026-10-01)
 
-- [ ] 6.1 Rewrite "Current state" as summary + per-milestone links + codebase
+- [x] 6.1 Rewrite "Current state" as summary + per-milestone links + codebase
   map (D5). Move the operational-rule block (current L382–L441) unchanged.
   Verify: a diff of that block is empty, and every relative link in
-  `AGENTS.md` resolves.
-- [ ] 6.2 Correct "Not yet decided": the glTF import profile was settled in F6
+  `AGENTS.md` resolves. (Block diffed empty after the move; 569 → 268 lines;
+  all 29 relative paths resolve. One pre-existing drift fixed by one token:
+  the Roadmap table's F13 row named `src/input/efx_gamepad.c`, renamed to
+  `gamepad.c` by `refactor-volume-core` — a path correction, not a table
+  restructure.)
+- [x] 6.2 Correct "Not yet decided": the glTF import profile was settled in F6
   (ADR 0032). Remove the matching "remains open" sentence. Verify: no
   remaining statement in `AGENTS.md` contradicts `docs/decisions/README.md`.
-- [ ] 6.3 Reviewer checklist: sample at least 10 removed facts (e.g. the
+  (Zero "remains open"/unresolved statements left.)
+- [x] 6.3 Reviewer checklist: sample at least 10 removed facts (e.g. the
   F12 ADR, the F5b effect list, the F14 voice count, a gate run id) and record
   where each one is reachable (roadmap spec, ADR, archived change, or
-  `docs/api/`).
+  `docs/api/`). (15 facts sampled; `reviewer-checklist.md` in this change
+  folder; every cited path verified to exist.)
 
 ## 7. Checkpoint 3 verification
 
-- [ ] 7.1 Run the full local suite: V2 and V3. Confirm
+- [x] 7.1 Run the full local suite: V2 and V3. Confirm
   `s_error_catalog.expected.txt` is unchanged and the `ctest -N` inventory
   equals the post-`refactor-volume-core` inventory. Record the volume Δ (E4).
+  (V1 fresh build 191/191 with zero warnings; V3 prelude + docs green; E6
+  zero unused exports; error catalog byte-unchanged; ctest inventory
+  name-keyed identical 298/159 against the baseline captured in 1.1 — V2's
+  golden build runs on the server as part of V4, this container has no
+  display. Volume Δ (E4): 39 439 → 39 349 non-blank lines, −90 for
+  code+tools; plus AGENTS.md 569 → 268 lines, −301, outside the E4 paths.)
 - [ ] 7.2 Push and run V4
   (`python3 tools/verify_remote.py all refactor-volume-build`). Verify: green.
 - [ ] 7.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-build`)
