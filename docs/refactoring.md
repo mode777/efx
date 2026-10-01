@@ -1,6 +1,8 @@
 # Volume-reduction refactoring plan (YAGNI + DRY)
 
-Status: **proposed** — snapshot taken 2026-10-01 against `main` at `cdf1c67`
+Status: **in progress** — Phase A–B (R0–R7) **done** (change
+`refactor-volume-tests`, Checkpoint 1 green, run 36850058681, measured
+Δ −499 lines). R8 onward pending. Snapshot taken 2026-10-01 against `main` at `cdf1c67`
 (after `refactor-safety-net`, `refactor-split-modules` and
 `refactor-long-functions`). The previous plan — split and decompose, implemented
 through its Checkpoint 3 — is in git history (`git show cdf1c67:docs/refactoring.md`).
@@ -165,8 +167,7 @@ duplication *between* them.
 - About 35 header-declared `efx_*` functions are referenced only inside their
   defining TU (no other TU, no test). Examples: `efx_skin_mat_inverse`,
   `efx_rig_clone`, `efx_hooks_free_all`, `efx_api_read_channel_color`,
-  `efx_world_generate_contacts`, the `efx_narrow_closest_*` family,
-  `efx_web_start_loop`.
+  `efx_world_generate_contacts` and the `efx_narrow_closest_*` family.
 
 ### 2.6 Tests and build
 
@@ -252,6 +253,8 @@ production code moves.
 
 #### R0. Record the baseline
 
+- **Status:** done — 40 561 lines; inventories 186/293/156; recorded in the
+  archived `refactor-volume-tests` change.
 - **Current behavior:** there is no volume metric and no recorded test
   inventory.
 - **Structural improvement:** none to the code. Record the §1 numbers, the
@@ -262,6 +265,7 @@ production code moves.
 
 #### R1. Register the orphaned unit cases
 
+- **Status:** done — all four pass on every target; no fix was needed.
 - **Current behavior:** `t_thin_floor_large_dt`, `t_fast_body_thin_floor`,
   `t_force_substep` and `clear_color_js` compile but are never run by ctest.
 - **Structural improvement:** add the four names to the CMake case lists. This
@@ -273,6 +277,8 @@ production code moves.
 
 #### R2. One test-support header and `CASE` tables
 
+- **Status:** done — run-all mode exposed a per-process class-registration
+  guard in `efx_api_init` (deleted, own commit).
 - **Current behavior:** 7 suites each define `fail()` (5 also define `feq()`)
   and a hand-written `strcmp` chain in `main`. Physics already uses a `CASE`
   table and runs every case when given no argument.
@@ -285,6 +291,7 @@ production code moves.
 
 #### R3. One source of truth for case names
 
+- **Status:** done.
 - **Current behavior:** the case names live both in the C tables and in the
   CMake `foreach(CASE …)` lists ([tests/CMakeLists.txt L176–L248](../tests/CMakeLists.txt#L176)).
   R1 shows these already drifted.
@@ -297,6 +304,7 @@ production code moves.
 
 #### R4. `REQUIRE` and a shared JS assertion helper in `api_tests.c`
 
+- **Status:** done — 89 blocks, 9 (not 6) pasted helpers; 8 resource blocks.
 - **Current behavior:** 89 four-line clean-up-and-fail blocks, plus 6 pasted
   copies of the JS `t(fn, kind)` helper inside C string snippets.
   `resource_tests.c` has 9 similar blocks.
@@ -313,6 +321,7 @@ production code moves.
 
 #### R5. Remove the unused physics math
 
+- **Status:** done.
 - **Current behavior:** `efx_quat`, `efx_mat3` and 8 inline helpers in
   [efx_phys_vec.h](../src/physics/efx_phys_vec.h#L28) have no users.
 - **Structural improvement:** delete them. Change ADR 0040's "own
@@ -323,6 +332,8 @@ production code moves.
 
 #### R6. Internal linkage for single-TU functions
 
+- **Status:** done — 30 functions; none became unused. Web had none: the
+  `efx_web_*` functions are `EMSCRIPTEN_KEEPALIVE` exports used by `boot.js`.
 - **Current behavior:** about 35 `efx_*` functions are declared in a header but
   used only by the TU that defines them (§2.5).
 - **Structural improvement:** make them `static` and drop the declarations. One
@@ -335,6 +346,7 @@ production code moves.
 
 #### R7. Remove duplicate web helpers
 
+- **Status:** done.
 - **Current behavior:** the second `__efxAllocCStr`, the identical
   `__physNumber`/`__efxAudioNum`, and the `efx_bridge_mem_free` wrapper around
   the already-exported `_free`.
@@ -679,7 +691,9 @@ flowchart LR
 ```
 
 - **Checkpoint 1** (after R7): the test net is stronger, with +4 cases and no
-  drift, and the dead code is gone. Run V4, then V5.
+  drift, and the dead code is gone. Run V4, then V5. **Done** — V4 suites run
+  locally (no SSH server), V5 green in run 36850058681; volume
+  40 561 → 40 062 (−499).
 - **Checkpoint 2** (after R16): the core, binding and pipeline passes are done.
   Run V4, then **V5 through macOS**.
 - **Checkpoint 3** (after R21): build, tools and comments are done. Run V5,

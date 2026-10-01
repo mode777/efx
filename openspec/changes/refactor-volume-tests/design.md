@@ -270,3 +270,6 @@ build. It is then deleted.
   gallery suite (`test_web_override.mjs`, `test_web_assets.mjs`, gallery
   build, `run_gallery_smoke.mjs`). All green. The canonical llvmpipe /
   pinned-emsdk signal comes from the V5 Linux and Emscripten jobs.
+- **V5 (7.3).** One dispatch runs the whole matrix: run 36850058681 green on
+  Linux, Windows, macOS, Emscripten and the Emscripten golden job. This is
+  also the first GCC/Clang run of the four R1 cases and the new test header.

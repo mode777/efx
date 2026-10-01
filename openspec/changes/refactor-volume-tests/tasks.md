@@ -80,13 +80,13 @@
   (`python3 tools/verify_remote.py all refactor-volume-tests`). Verify: green,
   and the Emscripten `ctest -N` equals the R0 inventory plus the four R1
   names.
-- [ ] 7.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-tests`)
+- [x] 7.3 Dispatch V5 (`gh workflow run ci.yml --ref refactor-volume-tests`)
   in the order Linux → Windows → macOS. Verify: the four-target gate is green;
   record the run id.
 
 ## 8. Docs and close-out
 
-- [ ] 8.1 Update `docs/refactoring.md`: mark R0–R7 done, note Checkpoint 1
+- [x] 8.1 Update `docs/refactoring.md`: mark R0–R7 done, note Checkpoint 1
   and the measured Δ. Verify: no R0–R7 pass is still marked pending.
 - [ ] 8.2 Merge to `main` and push (per `AGENTS.md`), then archive the change
   (`skip_specs`).
