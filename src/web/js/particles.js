@@ -78,7 +78,8 @@
             if (arguments.length < 2) {
                 throw new TypeError('drawBillboard requires (pos, opts)');
             }
-            var p = __efxPartVec(pos, 'pos', false);
+            var p = __efxPartVec(pos, 'pos', false,
+                                 'drawBillboard pos must be [x,y,z]');
             if (!__efxIsObject(opts)) {
                 throw new TypeError('drawBillboard options must be an object');
             }
@@ -162,22 +163,7 @@
                 __efxRc(rc, 'drawSprites', { 1: true, 4: true });
             }
         },
-        createParticleSystem: function (opts) {
-            var parsed = __efxParticleWire(opts);
-            var ptr = mallocCopyF32(parsed.wire);
-            var handle = bridge['_efx_bridge_particles_create'](ptr, parsed.texture);
-            bridge['_free'](ptr);
-            if (!handle) {
-                throw new RangeError('invalid particle configuration');
-            }
-            var snapshot = {};
-            for (var k in opts) {
-                if (Object.prototype.hasOwnProperty.call(opts, k)) {
-                    snapshot[k] = opts[k];
-                }
-            }
-            return new EfxParticleSystem(handle, parsed.texture, snapshot);
-        },
+        /* createParticleSystem is installed by the shared prelude (ADR 0049) */
         drawParticles: function (sys) {
             livePS(sys);
             var rc = bridge['_efx_bridge_particles_draw'](sys.__handle);

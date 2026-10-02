@@ -3,36 +3,13 @@
 
 /* ================================================= F14 audio bindings */
 
-/* audio options: null is absent, no coercion, the key leads the message */
-#define AUDIO_OPT (EFX_OPT_NULL_ABSENT | EFX_OPT_STRICT | EFX_OPT_KEY_MSG)
-
-
-/* reads a resource for a loader; on failure throws and returns NULL */
-static uint8_t *audio_read_resource(JSContext *ctx, JSValueConst pathv,
-                                    const char *fn, size_t *out_size) {
-    if (!JS_IsString(pathv)) {
-        JS_ThrowTypeError(ctx, "%s requires a path string", fn);
-        return NULL;
+/* validated numeric play argument (the prelude checked them already) */
+static double audio_arg(JSContext *ctx, JSValueConst v) {
+    double d = 0.0;
+    if (JS_ToFloat64(ctx, &d, v) < 0) {
+        return 0.0;
     }
-    const char *path = JS_ToCString(ctx, pathv);
-    if (!path) {
-        return NULL;
-    }
-    struct efx_host_state *h = efx_api_host_state(ctx);
-    if (!h->resource) {
-        JS_FreeCString(ctx, path);
-        JS_ThrowInternalError(ctx, "%s requires a resource root", fn);
-        return NULL;
-    }
-    size_t size = 0;
-    int rerr = EFX_RESOURCE_OK;
-    uint8_t *bytes = efx_resource_read(h->resource, path, &size, &rerr);
-    if (!bytes) {
-        JS_ThrowInternalError(ctx, "cannot read audio: %s", path);
-    }
-    JS_FreeCString(ctx, path);
-    *out_size = size;
-    return bytes;
+    return d;
 }
 
 
@@ -211,6 +188,8 @@ static JSValue audio_handle_set_loop(JSContext *ctx, JSValueConst this_val,
 }
 
 
+_Static_assert(sizeof(audio_proto_funcs) / sizeof((audio_proto_funcs)[0]) == 9,
+                "audio_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry audio_proto_funcs[] = {
     JS_CFUNC_DEF("stop", 0, audio_handle_stop),
     JS_CFUNC_DEF("pause", 0, audio_handle_pause),
@@ -224,29 +203,65 @@ const JSCFunctionListEntry audio_proto_funcs[] = {
 };
 
 
+
 /* ---- namespace entry points ---- */
 
-static JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
-                                          int argc, JSValueConst *argv) {
+/* natives for the shared prelude validators (ADR 0049). Loaders return the
+ * wrapper object on success, or a negative code the prelude maps to the
+ * canonical message: -1 unreadable, -2 undecodable. */
+
+static int audio_load_bytes(JSContext *ctx, JSValueConst pathv,
+                            const char *fn, size_t *out_size,
+                            uint8_t **out_bytes) {
+    if (!JS_IsString(pathv)) {
+        JS_ThrowTypeError(ctx, "%s requires a path string", fn);
+        return -3;
+    }
+    const char *path = JS_ToCString(ctx, pathv);
+    if (!path) {
+        return -3;
+    }
+    struct efx_host_state *h = efx_api_host_state(ctx);
+    if (!h->resource) {
+        JS_FreeCString(ctx, path);
+        JS_ThrowInternalError(ctx, "%s requires a resource root", fn);
+        return -3;
+    }
+    size_t size = 0;
+    int rerr = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(h->resource, path, &size, &rerr);
+    JS_FreeCString(ctx, path);
+    if (!bytes) {
+        return -1;
+    }
+    *out_size = size;
+    *out_bytes = bytes;
+    return 0;
+}
+
+
+JSValue efx_js_audio_load_data_wire(JSContext *ctx, JSValueConst this_val,
+                                    int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "loadAudioData requires a path string");
     }
     size_t size = 0;
-    uint8_t *bytes = audio_read_resource(ctx, argv[0], "loadAudioData", &size);
-    if (!bytes) {
-        return JS_EXCEPTION;
+    uint8_t *bytes = NULL;
+    int rc = audio_load_bytes(ctx, argv[0], "loadAudioData", &size, &bytes);
+    if (rc != 0) {
+        return JS_NewInt32(ctx, rc);
     }
     int derr = 0;
     efx_audio_data *data = efx_audio_data_load(bytes, size, &derr);
     efx_resource_free(bytes);
     if (!data) {
-        return efx_api_generic_error(ctx, "cannot decode audio");
+        return JS_NewInt32(ctx, -2);
     }
     efxjs_audiodata *o = calloc(1, sizeof(*o));
     if (!o) {
         efx_audio_data_release(data);
-        return efx_api_generic_error(ctx, "out of memory");
+        return JS_NewInt32(ctx, -2);
     }
     o->data = data;
     o->alive = 1;
@@ -256,28 +271,28 @@ static JSValue efx_js_audio_loadAudioData(JSContext *ctx, JSValueConst this_val,
 }
 
 
-static JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_val,
-                                            int argc, JSValueConst *argv) {
+JSValue efx_js_audio_load_stream_wire(JSContext *ctx, JSValueConst this_val,
+                                      int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "loadAudioStream requires a path string");
     }
     size_t size = 0;
-    uint8_t *bytes =
-        audio_read_resource(ctx, argv[0], "loadAudioStream", &size);
-    if (!bytes) {
-        return JS_EXCEPTION;
+    uint8_t *bytes = NULL;
+    int rc = audio_load_bytes(ctx, argv[0], "loadAudioStream", &size, &bytes);
+    if (rc != 0) {
+        return JS_NewInt32(ctx, rc);
     }
     int derr = 0;
     efx_audio_stream *stream = efx_audio_stream_load(bytes, size, &derr);
     efx_resource_free(bytes);
     if (!stream) {
-        return efx_api_generic_error(ctx, "cannot decode audio");
+        return JS_NewInt32(ctx, -2);
     }
     efxjs_audiostream *o = calloc(1, sizeof(*o));
     if (!o) {
         efx_audio_stream_release(stream);
-        return efx_api_generic_error(ctx, "out of memory");
+        return JS_NewInt32(ctx, -2);
     }
     o->stream = stream;
     o->alive = 1;
@@ -287,8 +302,10 @@ static JSValue efx_js_audio_loadAudioStream(JSContext *ctx, JSValueConst this_va
 }
 
 
-static JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int argc,
-                                      JSValueConst *argv) {
+/* type + liveness for the playAudio source (throws with the shared
+ * messages; the prelude validates the options bag first, D3) */
+JSValue efx_js_audio_check_source(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 1) {
         return efx_api_type_error(ctx, "playAudio requires an AudioData or AudioStream");
@@ -298,60 +315,37 @@ static JSValue efx_js_audio_playAudio(JSContext *ctx, JSValueConst this_val, int
     if (!ad && !as) {
         return efx_api_type_error(ctx, "playAudio requires an AudioData or AudioStream");
     }
-    float volume = 1.0f;
-    float pan = 0.0f;
-    float pitch = 1.0f;
-    int loop = 0;
-    if (argc >= 2 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
-        if (!JS_IsObject(argv[1])) {
-            return efx_api_type_error(ctx, "playAudio options must be an object");
-        }
-        static const char *known[] = {"volume", "pan", "pitch", "loop"};
-        if (efx_api_check_known_fields(ctx, argv[1], known, 4, "playAudio") != 0) {
-            return JS_EXCEPTION;
-        }
-        double n = 0.0;
-        const char *num = "must be a finite number";
-        int r;
-        if ((r = efx_api_opt_number(ctx, argv[1], "volume", &n, AUDIO_OPT,
-                                    num)) < 0) {
-            return JS_EXCEPTION;
-        }
-        if (r) {
-            if (n < 0.0) {
-                return efx_api_range_error(ctx, "volume must be a non-negative number");
-            }
-            volume = (float)n;
-        }
-        if ((r = efx_api_opt_number(ctx, argv[1], "pan", &n, AUDIO_OPT,
-                                    num)) < 0) {
-            return JS_EXCEPTION;
-        }
-        if (r) {
-            pan = (float)n;
-        }
-        if ((r = efx_api_opt_number(ctx, argv[1], "pitch", &n, AUDIO_OPT,
-                                    num)) < 0) {
-            return JS_EXCEPTION;
-        }
-        if (r) {
-            pitch = (n > 0.0) ? (float)n : 1.0f;
-        }
-        if (efx_api_opt_bool(ctx, argv[1], "loop", &loop, AUDIO_OPT,
-                             "must be a boolean") < 0) {
-            return JS_EXCEPTION;
-        }
-    }
-    int voice;
     if (ad) {
         if (!ad->alive || !ad->data) {
             return efx_api_generic_error(ctx, "AudioData was destroyed");
         }
+    } else if (!as->alive || !as->stream) {
+        return efx_api_generic_error(ctx, "AudioStream was destroyed");
+    }
+    return JS_UNDEFINED;
+}
+
+
+/* (source, volume, pan, pitch, loop) — all validated by the prelude */
+JSValue efx_js_audio_play_wire(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 5) {
+        return efx_api_type_error(ctx, "playAudio wire native requires 5 arguments");
+    }
+    efxjs_audiodata *ad = JS_GetOpaque(argv[0], audiodata_class_id);
+    efxjs_audiostream *as = JS_GetOpaque(argv[0], audiostream_class_id);
+    if (!ad && !as) {
+        return efx_api_type_error(ctx, "playAudio requires an AudioData or AudioStream");
+    }
+    float volume = (float)audio_arg(ctx, argv[1]);
+    float pan = (float)audio_arg(ctx, argv[2]);
+    float pitch = (float)audio_arg(ctx, argv[3]);
+    int loop = JS_ToBool(ctx, argv[4]) ? 1 : 0;
+    int voice;
+    if (ad) {
         voice = efx_audio_play_data(ad->data, volume, pan, pitch, loop);
     } else {
-        if (!as->alive || !as->stream) {
-            return efx_api_generic_error(ctx, "AudioStream was destroyed");
-        }
         voice = efx_audio_play_stream(as->stream, volume, pan, pitch, loop);
     }
     if (voice < 0) {
@@ -406,9 +400,8 @@ static JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int ar
 
 int efx_api_register_audio(JSContext *ctx, JSValueConst efx) {
     static const JSCFunctionListEntry audio_funcs[] = {
-        JS_CFUNC_DEF("loadAudioData", 1, efx_js_audio_loadAudioData),
-        JS_CFUNC_DEF("loadAudioStream", 1, efx_js_audio_loadAudioStream),
-        JS_CFUNC_DEF("playAudio", 2, efx_js_audio_playAudio),
+        /* loadAudioData/loadAudioStream/playAudio are installed by the
+         * shared prelude (ADR 0049) */
         JS_CGETSET_DEF("volume", efx_js_audio_get_master,
                        efx_js_audio_set_master),
         JS_CFUNC_DEF("resume", 0, efx_js_audio_resume),

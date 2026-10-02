@@ -97,14 +97,17 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_load_data(const char *path) {
     size_t n = 0;
     int e = EFX_RESOURCE_OK;
     uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
-    if (!bytes) return 0;
+    /* negative codes are loader failures the prelude maps to messages
+     * (ADR 0049 D4): -1 unreadable, -2 undecodable */
+    if (!bytes) return -1;
     int de = 0;
     efx_audio_data *data = efx_audio_data_load(bytes, n, &de);
     efx_resource_free(bytes);
-    if (!data) return 0;
+    if (!data) return -2;
     int id = web_data_push(data);
     if (!id) {
         efx_audio_data_release(data);
+        return -2;
     }
     return id;
 }
@@ -114,14 +117,15 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_audio_load_stream(const char *path) {
     size_t n = 0;
     int e = EFX_RESOURCE_OK;
     uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
-    if (!bytes) return 0;
+    if (!bytes) return -1;
     int de = 0;
     efx_audio_stream *stream = efx_audio_stream_load(bytes, n, &de);
     efx_resource_free(bytes);
-    if (!stream) return 0;
+    if (!stream) return -2;
     int id = web_stream_push(stream);
     if (!id) {
         efx_audio_stream_release(stream);
+        return -2;
     }
     return id;
 }

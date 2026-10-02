@@ -41,14 +41,17 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_load_image(const char *path) {
     size_t n = 0;
     int e = EFX_RESOURCE_OK;
     uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
+    /* negative codes are loader failures the prelude maps to messages
+     * (ADR 0049 D4): -err for resource errors, -100 decode, -5 out of
+     * memory */
     if (!bytes) {
-        return 0;
+        return -e;
     }
     int ie = EFX_IMAGE_OK;
     efx_image *img = efx_image_decode(bytes, n, &ie);
     efx_resource_free(bytes);
     if (!img) {
-        return 0;
+        return ie == EFX_IMAGE_ERR_NOMEM ? -5 : -100;
     }
     size_t sz = (size_t)img->width * (size_t)img->height * 4u;
     uint8_t *px = malloc(sz ? sz : 1);

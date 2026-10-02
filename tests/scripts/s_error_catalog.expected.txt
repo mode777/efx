@@ -63,11 +63,11 @@
 3d.drawmesh-destroyed: TypeError: using a destroyed resource
 3d.mesh-surfacecount-destroyed: TypeError: using a destroyed resource
 3d.md-surfacecount-destroyed: TypeError: using a destroyed resource
-4a.light-slot: KNOWN-DIVERGENCE
-4a.light-slot-neg: KNOWN-DIVERGENCE
+4a.light-slot: RangeError: light slot must be an integer 0..3
+4a.light-slot-neg: RangeError: light slot must be an integer 0..3
 4a.light-no-pos: TypeError: setLight requires pos
 4a.light-no-color: TypeError: setLight requires color
-4a.light-pos-short: KNOWN-DIVERGENCE
+4a.light-pos-short: RangeError: pos must hold 3 numbers
 4a.light-range-type: TypeError: range must be a number
 4a.light-range-neg: RangeError: range must be a finite number >= 0
 4a.light-unknown: TypeError: unknown setLight option 'frob'
@@ -130,11 +130,11 @@
 6a.loadtext-type: TypeError: loadText requires a path string
 6a.loadtext-missing: Error: resource not found
 6a.loadimage-type: TypeError: loadImage requires a path string
-6a.loadimage-missing: KNOWN-DIVERGENCE
+6a.loadimage-missing: Error: resource not found
 6b.loadmesh-type: TypeError: loadMeshData requires a path string
-6b.loadmesh-missing: KNOWN-DIVERGENCE
+6b.loadmesh-missing: Error: glTF resource could not be read
 6b.loadmesh-unknown-opt: TypeError: unknown loadMeshData option 'nope'
-6b.loadmesh-corrupt: KNOWN-DIVERGENCE
+6b.loadmesh-corrupt: Error: invalid or malformed glTF asset
 6c.md-joints-unpaired: RangeError: invalid mesh data
 8a.loadfont-type: TypeError: loadFontData requires a path string
 8a.loadfont-missing: Error: font could not be loaded
@@ -164,33 +164,33 @@
 9.mouse-onwheel-nonfn: TypeError: hook must be a function
 11.ps-missing-texture: TypeError: createParticleSystem requires a texture
 11.ps-missing-max: TypeError: createParticleSystem requires max
-11.ps-max-range: KNOWN-DIVERGENCE
+11.ps-max-range: RangeError: max must be in 1..65536
 11.ps-missing-lifetime: TypeError: createParticleSystem requires lifetime
 11.ps-lifetime-order: RangeError: invalid particle configuration
 11.ps-unknown-field: TypeError: unknown createParticleSystem option 'bogus'
-11.ps-bad-facing: KNOWN-DIVERGENCE
+11.ps-bad-facing: TypeError: facing must be 'view', 'y', or 'plane'
 11.ps-plane-screen: TypeError: facing must be 'view' for screen space
-11.ps-set-max: KNOWN-DIVERGENCE
+11.ps-set-max: RangeError: max must be in 1..65536
 11.ps-destroyed-emit: TypeError: using a destroyed resource
 11.billboard-no-texture: TypeError: drawBillboard requires a texture
-11.billboard-pos: KNOWN-DIVERGENCE
+11.billboard-pos: TypeError: drawBillboard pos must be [x,y,z]
 11.billboard-size: RangeError: size entries must be > 0
 11.sprites-array: TypeError: sprites must be an array
 11.sprite-xy: TypeError: sprite x and y must be finite numbers
 12.createbody-noopts: TypeError: createBody requires an options object
-12.createbody-noshape: KNOWN-DIVERGENCE
+12.createbody-noshape: TypeError: shape must be an options object
 12.createcharacter-noopts: TypeError: createCharacter requires an options object
 12.createcharacter-noradius: TypeError: createCharacter requires radius and height
-12.createstaticmesh-noopts: KNOWN-DIVERGENCE
+12.createstaticmesh-noopts: TypeError: createStaticMesh requires a Mesh
 12.createstaticmesh-nomesh: TypeError: expected a Mesh
 12.applyimpulse-static: TypeError: applyImpulse requires a dynamic body
-12.raycast-noopts: KNOWN-DIVERGENCE
+12.raycast-noopts: TypeError: raycast requires origin and direction
 12.raycast-nomax: TypeError: raycast requires a positive maxDistance
-12.overlap-noopts: KNOWN-DIVERGENCE
-12.shapecast-noopts: KNOWN-DIVERGENCE
-12.step-nodt: KNOWN-DIVERGENCE
+12.overlap-noopts: TypeError: overlap requires a shape
+12.shapecast-noopts: TypeError: shapeCast requires shape, from and motion
+12.step-nodt: TypeError: dt must be a finite number
 12.dt-nonfinite: TypeError: dt must be a finite number
-coercion.phys-number-string: KNOWN-DIVERGENCE
+coercion.phys-number-string: TypeError: friction must be a finite number
 12.createbody-bad-radius: RangeError: radius must be positive
 12.createbody-shape-unknown: TypeError: unknown shape option 'nope'
 12.body-destroyed: TypeError: using a destroyed Body
@@ -199,9 +199,9 @@ coercion.phys-number-string: KNOWN-DIVERGENCE
 13.gamepad-onconnect-nonfn: TypeError: hook must be a function
 13.gamepad-ondisconnect-nonfn: TypeError: hook must be a function
 14.loadaudiodata-type: TypeError: loadAudioData requires a path string
-14.loadaudiodata-missing: KNOWN-DIVERGENCE
+14.loadaudiodata-missing: Error: cannot read audio: nope.wav
 14.loadaudiostream-type: TypeError: loadAudioStream requires a path string
-14.loadaudiostream-missing: KNOWN-DIVERGENCE
+14.loadaudiostream-missing: Error: cannot read audio: nope.mp3
 14.playaudio-bad-source: TypeError: playAudio requires an AudioData or AudioStream
 14.playaudio-null: TypeError: playAudio requires an AudioData or AudioStream
 14.volume-negative: RangeError: volume must be a non-negative number

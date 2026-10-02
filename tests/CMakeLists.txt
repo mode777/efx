@@ -147,7 +147,7 @@ add_web_test(web_root_eval_throw ${WEBF}/root_eval_throw EXPECT nonzero EXPECT_E
 add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
 add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
-add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin)
+add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin ${S}/gltf_probe.glb ${S}/gltf_corrupt.gltf)
 add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
@@ -176,6 +176,8 @@ efx_portable_case(11_particles "${S}/s_11_particles.js" EXPECT 0 EXPECT_OUT "s-1
 efx_portable_case(12_physics "${S}/physics_smoke.js" EXPECT 0 EXPECT_OUT "s-12-physics-ok")
 efx_portable_case(13_gamepad "${S}/s_13_gamepad.js" EXPECT 0 EXPECT_OUT "s-13-gamepad-ok")
 efx_portable_case(8a_text "${F}/web/text_root" ROOT EXPECT 0 EXPECT_OUT "s-8a-text-ok")
+efx_portable_case(natives_privacy "${S}/s_natives_privacy.js" EXPECT 0
+    EXPECT_OUT "s-natives-privacy-ok")
 
 endif() # NOT EFX_HEADLESS
 
@@ -214,6 +216,26 @@ if(NOT EMSCRIPTEN)
     efx_register_unit_cases(efx_resource_tests ${U}/resource_tests.c)
     efx_register_unit_cases(efx_text_tests ${U}/text_tests.c)
     efx_register_unit_cases(efx_api_tests ${U}/api_tests.c)
+    if(EFX_HEADLESS)
+        # no player target in headless builds: the error catalog's
+        # byte-compare runs through efx_catalog_runner instead
+        add_test(NAME catalog_headless
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_NAME=catalog_headless
+                -DPLAYER_COMMAND=$<TARGET_FILE:efx_catalog_runner>
+                -DARG_LINE=${S}/s_error_catalog.js\\;${S}
+                -DEXPECT=0
+                -DEXPECT_OUT_FILE=${S}/s_error_catalog.expected.txt
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+        add_test(NAME natives_privacy_headless
+            COMMAND ${CMAKE_COMMAND}
+                -DTEST_NAME=natives_privacy_headless
+                -DPLAYER_COMMAND=$<TARGET_FILE:efx_catalog_runner>
+                -DARG_LINE=${S}/s_natives_privacy.js\\;${S}
+                -DEXPECT=0
+                -DEXPECT_OUT=s-natives-privacy-ok
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+    endif()
 endif()
 
 # golden-image tests (require a GPU/display; enable in CI or locally with a

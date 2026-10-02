@@ -547,7 +547,1089 @@ function __efxCreateModuleRuntime(efx, opts) {
     };
 }
 
-function __efxPreludeInstall(efx) {
+/* ------------------------------------------ R22 spike: particles domain
+ *
+ * The shared option-bag validators live here once (this spike moves only the
+ * particles wire); the natives object carries the binding-provided entry
+ * points. Spike-only timing references (createParticleSystemC, drawQuadJS,
+ * drawQuadUnpacked) exist on the throwaway branch only. */
+
+function __efxIsObject(v) {
+    return v !== null && (typeof v === 'object' || typeof v === 'function');
+}
+
+/* one known-field check for every option bag: unknown keys throw a
+ * TypeError naming the field. `where` names the bag (may be empty),
+ * `useKeys` selects Object.keys instead of getOwnPropertyNames, and
+ * `noName` reproduces the two legacy messages that omit the field. */
+function __efxCheckKnown(obj, known, where, useKeys, noName) {
+    var names = useKeys ? Object.keys(obj) : Object.getOwnPropertyNames(obj);
+    for (var i = 0; i < names.length; i++) {
+        var k = names[i];
+        var ok = (known instanceof Array) ? known.indexOf(k) >= 0 : known[k];
+        if (!ok) {
+            if (noName) {
+                throw new TypeError('unknown ' + (where ? where + ' option' : 'option'));
+            }
+            var prefix = where ? where + ' option ' : 'option ';
+            throw new TypeError('unknown ' + prefix + "'" + k + "'");
+        }
+    }
+}
+
+function __efxFinite(v, typeMsg) {
+    /* strict numbers (ADR 0049 D6): a number-typed field accepts only
+     * typeof === 'number'; non-finite values keep the documented class */
+    if (typeof v !== 'number') {
+        throw new TypeError(typeMsg);
+    }
+    if (!isFinite(v)) {
+        throw new TypeError(typeMsg);
+    }
+    return v;
+}
+
+/* throw for a non-zero native return code (ADR 0049 D4). `codes` maps each
+ * code the call site handles to [ErrorClass, message], or to `true` for the
+ * shared render messages; any other code throws Error('<where> failed') */
+function __efxRc(rc, where, codes) {
+    if (rc === 0) {
+        return;
+    }
+    var e = codes[rc];
+    if (e === true) {
+        e = {
+            1: [RangeError, 'display list budget exceeded'],
+            4: [Error, 'no render surface (draw calls need a window)'],
+            9: [TypeError, 'cannot sample the render target being drawn into'],
+        }[rc];
+    }
+    if (!e) {
+        e = [Error, where + ' failed'];
+    }
+    throw new e[0](e[1]);
+}
+
+function __efxFloatArray(v, n) {
+    var i, out;
+    if (v instanceof Uint8Array) {
+        if (v.length !== n) {
+            throw new RangeError('wrong buffer length');
+        }
+        out = new Array(n);
+        for (i = 0; i < n; i++) {
+            out[i] = v[i];
+        }
+        return out;
+    }
+    if (Array.isArray(v)) {
+        if (v.length !== n) {
+            throw new RangeError('wrong array length');
+        }
+        out = new Array(n);
+        for (i = 0; i < n; i++) {
+            var d;
+            try {
+                d = Number(v[i]);
+            } catch (e) {
+                throw new RangeError('array elements must be finite numbers');
+            }
+            if (!isFinite(d)) {
+                throw new RangeError('array elements must be finite numbers');
+            }
+            out[i] = d;
+        }
+        return out;
+    }
+    throw new TypeError('expected an array');
+}
+
+function __efxPartVec(v, what, allow2) {
+    if (!Array.isArray(v)) {
+        throw new TypeError(what + ' must be an array');
+    }
+    if (v.length !== 3 && !(allow2 && v.length === 2)) {
+        throw new TypeError(what + ' must be [x,y] or [x,y,z]');
+    }
+    var out = [0, 0, 0];
+    for (var i = 0; i < v.length; i++) {
+        out[i] = __efxFinite(v[i], what + ' entries must be finite numbers');
+    }
+    return out;
+}
+
+function __efxPartRange(v, what) {
+    if (Array.isArray(v)) {
+        return __efxFloatArray(v, 2);
+    }
+    var d = __efxFinite(v, what + ' must be a finite number');
+    return [d, d];
+}
+
+function __efxPartEnum(v, map, dflt, what, msg) {
+    if (v === undefined) {
+        return dflt;
+    }
+    if (typeof v !== 'string' || !Object.prototype.hasOwnProperty.call(map, v)) {
+        throw new TypeError(msg || (what + ' has an unknown value'));
+    }
+    return map[v];
+}
+
+/* particle wire layout (floats); kept in sync with the desktop wire native
+ * (api_particles.c) and src/web/bridge_particles.c */
+var EFX_PART_WIRE_LEN = 352;
+
+/* per-system option snapshots for ParticleSystem.set's merge (web parity:
+ * set re-validates the merged bag; keyed weakly so wrappers stay
+ * GC-finalized, ADR 0011) */
+var __efxPsBags = new WeakMap();
+
+/* shallow copy of a bag's own properties (the create snapshot must not
+ * alias the caller's object) */
+function __efxSnapshotOpts(opts) {
+    var out = {};
+    for (var k in opts) {
+        if (Object.prototype.hasOwnProperty.call(opts, k)) {
+            out[k] = opts[k];
+        }
+    }
+    return out;
+}
+
+/* spike probe: the wire is written and consumed synchronously by the native,
+ * so one reusable buffer serves every call (single-threaded runtimes) */
+var __efxPartScratch = null;
+
+/* parse + validate a particle options object into the wire layout;
+ * `liveSample` resolves a Texture/RenderTarget argument to its handle
+ * (binding-provided through natives, D1/D3) */
+function __efxParticleWire(opts, liveSample) {
+    if (!__efxIsObject(opts)) {
+        throw new TypeError('createParticleSystem requires an options object');
+    }
+    var known = { texture: 1, max: 1, space: 1, facing: 1, normal: 1,
+        blend: 1, lifetime: 1, emissionRate: 1, emitterLifetime: 1,
+        position: 1, direction: 1, spread: 1, speed: 1, gravity: 1,
+        linearAcceleration: 1, radialAcceleration: 1,
+        tangentialAcceleration: 1, linearDamping: 1, sizes: 1,
+        sizeVariation: 1, colors: 1, rotation: 1, spin: 1, spinVariation: 1,
+        relativeRotation: 1, emissionShape: 1, quads: 1, insertMode: 1,
+        speedScale: 1 };
+    __efxCheckKnown(opts, known, 'createParticleSystem');
+    if (!__efxPartScratch) {
+        __efxPartScratch = new Float32Array(EFX_PART_WIRE_LEN);
+    }
+    var w = __efxPartScratch;
+    /* a failed call may leave stale non-zero entries behind; every field is
+     * written below from defaults or the bag before the native reads it */
+    w.fill(0);
+    /* defaults mirror efx_render_particles_create */
+    w[4] = 1; w[5] = 1; w[7] = -1; w[8] = 1; w[10] = 1; w[12] = 1;
+    w[25] = 1; w[44] = 1; w[52] = 1; w[53] = 1; w[54] = 1; w[55] = 1;
+    w[344] = 1;
+
+    if (opts['texture'] === undefined) {
+        throw new TypeError('createParticleSystem requires a texture');
+    }
+    var tex = liveSample(opts['texture']);
+    var texHandle = (tex !== null && typeof tex === 'object') ? tex.handle : tex;
+
+    if (opts['max'] === undefined) {
+        throw new TypeError('createParticleSystem requires max');
+    }
+    if (typeof opts['max'] !== 'number' || !isFinite(opts['max']) ||
+        opts['max'] !== Math.floor(opts['max'])) {
+        throw new TypeError('max must be an integer');
+    }
+    if (opts['max'] < 1 || opts['max'] > 65536) {
+        throw new RangeError('max must be in 1..65536');
+    }
+    w[0] = opts['max'];
+
+    /* enum messages follow the canonical desktop texts (ADR 0049 D5) */
+    w[1] = __efxPartEnum(opts['space'], { world: 0, screen: 1 }, 0, 'space',
+                         "space must be 'world' or 'screen'");
+    w[2] = __efxPartEnum(opts['facing'],
+                         { view: 0, y: 1, plane: 2 }, 0, 'facing',
+                         "facing must be 'view', 'y', or 'plane'");
+    if (w[1] === 1 && w[2] !== 0) {
+        throw new TypeError("facing must be 'view' for screen space");
+    }
+    w[3] = __efxPartEnum(opts['blend'],
+                         { alpha: 0, additive: 1, subtractive: 2 }, 0,
+                         'blend',
+                         "blend must be 'alpha', 'additive', or 'subtractive'");
+    if (opts['normal'] !== undefined) {
+        var n = __efxPartVec(opts['normal'], 'normal', false);
+        w[343] = n[0]; w[344] = n[1]; w[345] = n[2];
+    }
+    if (opts['lifetime'] === undefined) {
+        throw new TypeError('createParticleSystem requires lifetime');
+    }
+    var life = __efxPartRange(opts['lifetime'], 'lifetime');
+    w[4] = life[0]; w[5] = life[1];
+    if (opts['emissionRate'] !== undefined) {
+        w[6] = __efxFinite(opts['emissionRate'], 'emissionRate must be a finite number');
+    }
+    if (opts['emitterLifetime'] !== undefined) {
+        w[7] = __efxFinite(opts['emitterLifetime'], 'emitterLifetime must be a finite number');
+    }
+    if (opts['speedScale'] !== undefined) {
+        w[8] = __efxFinite(opts['speedScale'], 'speedScale must be a finite number');
+    }
+    if (opts['spread'] !== undefined) {
+        w[9] = __efxFinite(opts['spread'], 'spread must be a finite number');
+    }
+    if (opts['position'] !== undefined) {
+        var p = __efxPartVec(opts['position'], 'position', true);
+        w[21] = p[0]; w[22] = p[1]; w[23] = p[2];
+    }
+    if (opts['direction'] !== undefined) {
+        var dir = __efxPartVec(opts['direction'], 'direction', true);
+        w[24] = dir[0]; w[25] = dir[1]; w[26] = dir[2];
+    }
+    if (opts['speed'] !== undefined) {
+        var sp = __efxPartRange(opts['speed'], 'speed');
+        w[27] = sp[0]; w[28] = sp[1];
+    }
+    if (opts['gravity'] !== undefined) {
+        var g = __efxPartVec(opts['gravity'], 'gravity', true);
+        w[29] = g[0]; w[30] = g[1]; w[31] = g[2];
+    }
+    if (opts['linearAcceleration'] !== undefined) {
+        var la = __efxPartVec(opts['linearAcceleration'], 'linearAcceleration', false);
+        for (var i = 0; i < 3; i++) { w[32 + i] = la[i]; w[35 + i] = la[i]; }
+    }
+    if (opts['radialAcceleration'] !== undefined) {
+        var ra = __efxPartRange(opts['radialAcceleration'], 'radialAcceleration');
+        w[38] = ra[0]; w[39] = ra[1];
+    }
+    if (opts['tangentialAcceleration'] !== undefined) {
+        var ta = __efxPartRange(opts['tangentialAcceleration'], 'tangentialAcceleration');
+        w[40] = ta[0]; w[41] = ta[1];
+    }
+    if (opts['linearDamping'] !== undefined) {
+        var ld = __efxPartRange(opts['linearDamping'], 'linearDamping');
+        w[42] = ld[0]; w[43] = ld[1];
+    }
+    if (opts['sizes'] !== undefined) {
+        var sizes = Array.isArray(opts['sizes']) ? opts['sizes'] : [opts['sizes']];
+        if (sizes.length < 1 || sizes.length > 8) {
+            throw new RangeError('sizes must hold 1..8 entries');
+        }
+        for (var s = 0; s < sizes.length; s++) {
+            var sv = __efxFinite(sizes[s], 'sizes must be finite numbers');
+            if (sv <= 0) {
+                throw new RangeError('sizes must be > 0');
+            }
+            w[44 + s] = sv;
+        }
+        w[10] = sizes.length;
+    }
+    if (opts['sizeVariation'] !== undefined) {
+        w[11] = __efxFinite(opts['sizeVariation'], 'sizeVariation must be a finite number');
+    }
+    if (opts['colors'] !== undefined) {
+        if (!Array.isArray(opts['colors'])) {
+            throw new TypeError('colors must be a color or an array of colors');
+        }
+        var cols = (opts['colors'].length && Array.isArray(opts['colors'][0]))
+            ? opts['colors'] : [opts['colors']];
+        if (cols.length < 1 || cols.length > 8) {
+            throw new RangeError('colors must hold 1..8 entries');
+        }
+        for (var c = 0; c < cols.length; c++) {
+            var col = __efxFloatArray(cols[c], 4);
+            for (var k = 0; k < 4; k++) {
+                w[52 + c * 4 + k] = col[k];
+            }
+        }
+        w[12] = cols.length;
+    }
+    if (opts['rotation'] !== undefined) {
+        var ro = __efxPartRange(opts['rotation'], 'rotation');
+        w[16] = ro[0]; w[17] = ro[1];
+    }
+    if (opts['spin'] !== undefined) {
+        var spin = __efxPartRange(opts['spin'], 'spin');
+        w[18] = spin[0]; w[19] = spin[1];
+    }
+    if (opts['spinVariation'] !== undefined) {
+        w[20] = __efxFinite(opts['spinVariation'], 'spinVariation must be a finite number');
+    }
+    if (opts['relativeRotation'] !== undefined) {
+        if (typeof opts['relativeRotation'] !== 'boolean') {
+            throw new TypeError('relativeRotation must be a boolean');
+        }
+        w[13] = opts['relativeRotation'] ? 1 : 0;
+    }
+    if (opts['emissionShape'] !== undefined) {
+        var es = opts['emissionShape'];
+        if (!__efxIsObject(es)) {
+            throw new TypeError('emissionShape must be an object');
+        }
+        var ekn = { shape: 1, size: 1 };
+        __efxCheckKnown(es, ekn, 'emissionShape');
+        w[14] = __efxPartEnum(es['shape'],
+            { point: 0, box: 1, sphere: 2, sphereSurface: 3, disc: 4 }, 0,
+            'emissionShape.shape', 'unknown emission shape');
+        if (es['size'] !== undefined) {
+            var ss = __efxPartVec(es['size'], 'emissionShape.size', false);
+            w[84] = ss[0]; w[85] = ss[1]; w[86] = ss[2];
+        }
+    }
+    if (opts['quads'] !== undefined) {
+        var quads = opts['quads'];
+        if (!Array.isArray(quads)) {
+            throw new TypeError('quads must be an array');
+        }
+        if (quads.length > 64) {
+            throw new RangeError('quads must hold at most 64 entries');
+        }
+        for (var q = 0; q < quads.length; q++) {
+            var qe = quads[q];
+            var rect;
+            if (Array.isArray(qe)) {
+                rect = __efxFloatArray(qe, 4);
+            } else if (__efxIsObject(qe)) {
+                rect = [
+                    __efxFinite(qe['x'], 'quad rect fields must be finite numbers'),
+                    __efxFinite(qe['y'], 'quad rect fields must be finite numbers'),
+                    __efxFinite(qe['w'], 'quad rect fields must be finite numbers'),
+                    __efxFinite(qe['h'], 'quad rect fields must be finite numbers'),
+                ];
+            } else {
+                throw new TypeError('each quad must be an object or [x,y,w,h]');
+            }
+            for (var k2 = 0; k2 < 4; k2++) {
+                w[87 + q * 4 + k2] = rect[k2];
+            }
+        }
+        w[15] = quads.length;
+    }
+    if (opts['insertMode'] !== undefined) {
+        w[346] = __efxPartEnum(opts['insertMode'],
+            { top: 0, bottom: 1, random: 2 }, 0, 'insertMode',
+            "insertMode must be 'top', 'bottom', or 'random'");
+    }
+    return { wire: w, texture: texHandle };
+}
+
+/* validate a sourceRect against a sample source's size -> [x, y, w, h]
+ * (same messages as the bindings' __efxSourceRect; the size comes from the
+ * binding-resolved sample) */
+function __efxSourceRect(sample, v) {
+    if (!__efxIsObject(v)) {
+        throw new TypeError('sourceRect must be an object');
+    }
+    var keys = ['x', 'y', 'w', 'h'];
+    var src = [0, 0, 0, 0];
+    for (var j = 0; j < 4; j++) {
+        src[j] = __efxFinite(v[keys[j]], 'sourceRect fields must be finite numbers');
+    }
+    if (src[2] <= 0 || src[3] <= 0) {
+        throw new RangeError('sourceRect extent must be > 0');
+    }
+    if (src[0] < 0 || src[1] < 0 ||
+        src[0] + src[2] > sample.w || src[1] + src[3] > sample.h) {
+        throw new RangeError('sourceRect outside texture bounds');
+    }
+    return src;
+}
+
+/* ------------------------------------------ post effects (F5b)
+ *
+ * One chain-entry validator for both runtimes (ADR 0049): the 9-float wire
+ * layout is the desktop twin of src/web/bridge_target_post.c's reader.
+ * Bounds stay engine-side (post_entry_valid); classes/messages match the
+ * desktop binding. */
+
+function __efxPostNumber(v, what) {
+    if (typeof v !== 'number') {
+        throw new TypeError(what + ' must be a number');
+    }
+    if (!isFinite(v)) {
+        throw new RangeError(what + ' must be a finite number');
+    }
+    return v;
+}
+
+function __efxPostEntry(v) {
+    if (!__efxIsObject(v)) {
+        throw new TypeError('post-effect entry must be an object');
+    }
+    var effect = v['effect'];
+    if (typeof effect !== 'string') {
+        throw new TypeError('post-effect entry requires an effect name');
+    }
+    var known;
+    var out = new Float32Array(9);
+    out[1] = 1;
+    if (effect === 'colorFilter') {
+        known = { effect: 1, mix: 1, brightness: 1, contrast: 1,
+                  saturation: 1, tint: 1 };
+        out[0] = 0; out[2] = 1; out[3] = 1; out[4] = 1;
+        out[5] = 1; out[6] = 1; out[7] = 1; out[8] = 1;
+    } else if (effect === 'blur') {
+        known = { effect: 1, mix: 1, radius: 1 };
+        out[0] = 1; out[2] = 1;
+    } else if (effect === 'bloom') {
+        known = { effect: 1, mix: 1, threshold: 1, strength: 1 };
+        out[0] = 2; out[2] = 0.8; out[3] = 0.5;
+    } else {
+        throw new TypeError('unknown post effect');
+    }
+    __efxCheckKnown(v, known, 'post effect');
+    if (v['mix'] !== undefined) {
+        out[1] = __efxPostNumber(v['mix'], 'mix');
+    }
+    if (effect === 'colorFilter') {
+        if (v['brightness'] !== undefined) {
+            out[2] = __efxPostNumber(v['brightness'], 'brightness');
+        }
+        if (v['contrast'] !== undefined) {
+            out[3] = __efxPostNumber(v['contrast'], 'contrast');
+        }
+        if (v['saturation'] !== undefined) {
+            out[4] = __efxPostNumber(v['saturation'], 'saturation');
+        }
+        if (v['tint'] !== undefined) {
+            var t = __efxFloatArray(v['tint'], 4);
+            for (var k = 0; k < 4; k++) {
+                out[5 + k] = t[k];
+            }
+        }
+    } else if (effect === 'blur') {
+        if (v['radius'] !== undefined) {
+            out[2] = __efxPostNumber(v['radius'], 'radius');
+        }
+    } else {
+        if (v['threshold'] !== undefined) {
+            out[2] = __efxPostNumber(v['threshold'], 'threshold');
+        }
+        if (v['strength'] !== undefined) {
+            out[3] = __efxPostNumber(v['strength'], 'strength');
+        }
+    }
+    return out;
+}
+
+/* ------------------------------------------ fonts (F8a)
+ *
+ * The createFont option bag is validated once here (ADR 0049); the native
+ * bakes the atlas. Layout options for drawText/measureText stay native
+ * (hot path, ADR 0049). */
+
+function __efxCreateFontOpts(natives, fontData, opts) {
+    var known = { size: 1, glyphs: 1, padding: 1, filter: 1,
+                  outline: 1, shadow: 1 };
+    __efxCheckKnown(opts, known, 'createFont');
+    if (opts['size'] === undefined) {
+        throw new TypeError('createFont requires size');
+    }
+    var size = __efxFinite(opts['size'], 'size must be a finite number');
+    if (!(size > 0)) {
+        throw new RangeError('size must be > 0');
+    }
+    var glyphs = opts['glyphs'];
+    if (glyphs !== undefined) {
+        if (typeof glyphs !== 'string') {
+            throw new TypeError('glyphs must be a string');
+        }
+        if (glyphs.length === 0) {
+            throw new RangeError('glyphs must not be empty');
+        }
+    }
+    var padding = 1;
+    if (opts['padding'] !== undefined) {
+        var pv = __efxFinite(opts['padding'], 'padding must be a finite number');
+        if (pv < 0 || pv !== Math.floor(pv)) {
+            throw new RangeError('padding must be a non-negative integer');
+        }
+        padding = pv | 0;
+    }
+    var filter = 1;
+    if (opts['filter'] !== undefined) {
+        if (opts['filter'] === 'linear') {
+            filter = 1;
+        } else if (opts['filter'] === 'nearest') {
+            filter = 0;
+        } else {
+            throw new TypeError("filter must be 'linear' or 'nearest'");
+        }
+    }
+    var hasOutline = 0, outlineWidth = 0;
+    if (opts['outline'] !== undefined && opts['outline'] !== null) {
+        if (!__efxIsObject(opts['outline'])) {
+            throw new TypeError('outline must be an object or null');
+        }
+        __efxCheckKnown(opts['outline'], { width: 1 }, 'outline');
+        if (opts['outline']['width'] === undefined) {
+            throw new TypeError('outline requires a numeric width');
+        }
+        outlineWidth = __efxFinite(opts['outline']['width'],
+                                   'outline width must be a finite number');
+        if (!(outlineWidth > 0)) {
+            throw new RangeError('outline width must be > 0');
+        }
+        hasOutline = 1;
+    }
+    var hasShadow = 0, shadowBlur = 0, offX = 0, offY = 0;
+    if (opts['shadow'] !== undefined && opts['shadow'] !== null) {
+        if (!__efxIsObject(opts['shadow'])) {
+            throw new TypeError('shadow must be an object or null');
+        }
+        __efxCheckKnown(opts['shadow'], { blur: 1, offset: 1 }, 'shadow');
+        if (opts['shadow']['blur'] === undefined) {
+            throw new TypeError('shadow requires a numeric blur');
+        }
+        shadowBlur = __efxFinite(opts['shadow']['blur'],
+                                 'shadow blur must be a finite number');
+        if (!(shadowBlur > 0)) {
+            throw new RangeError('shadow blur must be > 0');
+        }
+        if (opts['shadow']['offset'] !== undefined) {
+            var off = __efxFloatArray(opts['shadow']['offset'], 2);
+            offX = off[0];
+            offY = off[1];
+        }
+        hasShadow = 1;
+    }
+    return natives.createFont(fontData, size,
+                              glyphs !== undefined ? glyphs : null,
+                              padding, filter, hasOutline, outlineWidth,
+                              hasShadow, shadowBlur, offX, offY);
+}
+
+/* ------------------------------------------ physics (F12)
+ *
+ * Shape, body, character, static-mesh and query option validation lives once
+ * here (ADR 0049); shapes marshal to the flat (type, radius, hx, hy, hz,
+ * height, mesh) form the bindings' bridges already use. Numbers are strict
+ * (D6); messages are the canonical texts of ADR 0049's table. */
+
+function __efxPhysNumber(v, what) {
+    if (typeof v !== 'number' || !isFinite(v)) {
+        throw new TypeError(what + ' must be a finite number');
+    }
+    return v;
+}
+
+function __efxPhysMask(v, what) {
+    if (typeof v !== 'number' || !isFinite(v)) {
+        throw new TypeError(what + ' must be a finite number');
+    }
+    if (Math.floor(v) !== v || v < 0 || v > 4294967295) {
+        throw new RangeError('layer/mask must be a 32-bit unsigned integer');
+    }
+    return v;
+}
+
+function __efxPhysVec3(v, what) {
+    return __efxFloatArray(v, 3);
+}
+
+function __efxPhysShape(v, natives) {
+    if (!__efxIsObject(v) || Array.isArray(v)) {
+        throw new TypeError('shape must be an options object');
+    }
+    if (v['type'] === 'sphere') {
+        __efxCheckKnown(v, ['type', 'radius'], 'shape', true);
+        if (typeof v['radius'] !== 'number') {
+            throw new TypeError('sphere shapes require a radius');
+        }
+        if (!(v['radius'] > 0)) {
+            throw new RangeError('radius must be positive');
+        }
+        return { t: 0, r: v['radius'], hx: 0, hy: 0, hz: 0, height: 0,
+                 mesh: null };
+    }
+    if (v['type'] === 'box') {
+        __efxCheckKnown(v, ['type', 'size'], 'shape', true);
+        var s = __efxFloatArray(v['size'], 3);
+        if (!(s[0] > 0 && s[1] > 0 && s[2] > 0)) {
+            throw new RangeError('box size components must be positive');
+        }
+        return { t: 1, r: 0, hx: s[0], hy: s[1], hz: s[2], height: 0,
+                 mesh: null };
+    }
+    if (v['type'] === 'capsule') {
+        __efxCheckKnown(v, ['type', 'radius', 'height'], 'shape', true);
+        if (typeof v['radius'] !== 'number' || typeof v['height'] !== 'number') {
+            throw new TypeError('capsule shapes require radius and height');
+        }
+        if (!(v['radius'] > 0)) {
+            throw new RangeError('radius must be positive');
+        }
+        if (!(v['height'] >= 2 * v['radius'])) {
+            throw new RangeError('capsule height must be at least 2 * radius');
+        }
+        return { t: 2, r: v['radius'], hx: 0, hy: 0, hz: 0, height: v['height'],
+                 mesh: null };
+    }
+    if (v['type'] === 'mesh') {
+        __efxCheckKnown(v, ['type', 'mesh'], 'shape', true);
+        if (v['mesh'] === undefined) {
+            throw new TypeError('expected a Mesh');
+        }
+        natives.checkMesh(v['mesh']);
+        return { t: 3, r: 0, hx: 0, hy: 0, hz: 0, height: 0, mesh: v['mesh'] };
+    }
+    throw new TypeError('unknown shape type');
+}
+
+function __efxPhysCommonOpts(opts) {
+    var sensor = !!opts['sensor'];
+    var friction = opts['friction'] === undefined
+        ? 0.5
+        : __efxPhysNumber(opts['friction'], 'friction');
+    var restitution = opts['restitution'] === undefined
+        ? 0
+        : __efxPhysNumber(opts['restitution'], 'restitution');
+    if (friction < 0) {
+        throw new RangeError('friction must not be negative');
+    }
+    if (restitution < 0 || restitution > 1) {
+        throw new RangeError('restitution must be in [0, 1]');
+    }
+    var position = opts['position'] === undefined
+        ? [0, 0, 0]
+        : __efxPhysVec3(opts['position'], 'position');
+    var layer = opts['layer'] === undefined ? 4294967295
+                                            : __efxPhysMask(opts['layer'], 'layer');
+    var mask = opts['mask'] === undefined ? 4294967295
+                                          : __efxPhysMask(opts['mask'], 'mask');
+    return { sensor: sensor, friction: friction, restitution: restitution,
+             position: position, layer: layer, mask: mask };
+}
+
+/* ------------------------------------------ audio (F14)
+ *
+ * Loader argument checks and playAudio options live once here (ADR 0049);
+ * loader failures come back as codes and map to the canonical messages
+ * (D4): -1 unreadable, -2 undecodable. */
+
+function __efxLoadAudio(natives, fn, path, what) {
+    if (typeof path !== 'string') {
+        throw new TypeError(what + ' requires a path string');
+    }
+    var r = fn(path);
+    if (typeof r === 'number') {
+        throw new Error((r === -1 ? 'cannot read audio: '
+                                  : 'cannot decode audio: ') + path);
+    }
+    return r;
+}
+
+function __efxPlayAudio(natives, source, opts) {
+    natives.checkAudioSource(source);
+    var volume = 1, pan = 0, pitch = 1, loop = false;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('playAudio options must be an object');
+        }
+        __efxCheckKnown(opts, ['volume', 'pan', 'pitch', 'loop'], 'playAudio');
+        if (opts['volume'] !== undefined) {
+            volume = __efxFinite(opts['volume'], 'volume must be a finite number');
+            if (volume < 0) {
+                throw new RangeError('volume must be a non-negative number');
+            }
+        }
+        if (opts['pan'] !== undefined) {
+            pan = __efxFinite(opts['pan'], 'pan must be a finite number');
+        }
+        if (opts['pitch'] !== undefined) {
+            pitch = __efxFinite(opts['pitch'], 'pitch must be a finite number');
+            if (pitch <= 0) {
+                pitch = 1;
+            }
+        }
+        if (opts['loop'] !== undefined) {
+            if (typeof opts['loop'] !== 'boolean') {
+                throw new TypeError('loop must be a boolean');
+            }
+            loop = opts['loop'];
+        }
+    }
+    return natives.playAudio(source, volume, pan, pitch, loop);
+}
+
+/* ------------------------------------- resource construction (F2/F3/F5a/
+ * F6a/F6b). The option bags are validated once here (ADR 0049); the natives
+ * unpack the marshalled form. Loader failures come back as negative engine
+ * error codes and map to the canonical messages (D4). */
+
+function __efxFloat32Array(v, what) {
+    if (!Array.isArray(v) && !ArrayBuffer.isView(v)) {
+        throw new TypeError(what + ' must be an array');
+    }
+    var n = v.length;
+    var out = new Float32Array(n);
+    for (var i = 0; i < n; i++) {
+        var d = v[i];
+        if (typeof d !== 'number') {
+            throw new TypeError('array elements must be numbers');
+        }
+        if (!isFinite(d)) {
+            throw new RangeError('array elements must be finite numbers');
+        }
+        out[i] = d;
+    }
+    return out;
+}
+
+function __efxUint32Array(v, what) {
+    what = what || 'indices';
+    if (!Array.isArray(v) && !ArrayBuffer.isView(v)) {
+        throw new TypeError(what + ' must be an array');
+    }
+    var n = v.length;
+    var out = new Uint32Array(n);
+    for (var i = 0; i < n; i++) {
+        var d = v[i];
+        if (typeof d !== 'number') {
+            throw new TypeError('array elements must be numbers');
+        }
+        if (!isFinite(d) || d < 0 || d > 4294967295 || d !== Math.floor(d)) {
+            throw new RangeError('array elements must be integers in [0, 2^32-1]');
+        }
+        out[i] = d;
+    }
+    return out;
+}
+
+/* createImageData: -> { w, h, bytes } (bytes is a fresh Uint8Array) */
+function __efxImageDataOpts(opts) {
+    var w = Number(opts['width']) | 0;
+    var h = Number(opts['height']) | 0;
+    if (w <= 0 || h <= 0) {
+        throw new RangeError('width and height must be positive');
+    }
+    var n = w * h * 4;
+    if (n > 0x7fffffff) {
+        throw new RangeError('image too large');
+    }
+    var pixels = opts['pixels'];
+    if (pixels === undefined) {
+        throw new TypeError('createImageData requires pixels');
+    }
+    var bytes;
+    if (Array.isArray(pixels)) {
+        bytes = new Uint8Array(n);
+        for (var i = 0; i < n; i++) {
+            var d = Number(pixels[i]);
+            if (!(d >= 0 && d <= 255 && d === (d | 0))) {
+                throw new RangeError('pixel bytes must be integers 0..255');
+            }
+            bytes[i] = d;
+        }
+    } else if (pixels instanceof Uint8Array) {
+        if (pixels.length !== n) {
+            throw new RangeError('pixels length must be width*height*4');
+        }
+        bytes = new Uint8Array(n);
+        bytes.set(pixels);
+    } else {
+        throw new TypeError('pixels must be an array or typed array');
+    }
+    var fmt = opts['format'];
+    if (fmt !== undefined && String(fmt) !== 'rgba8') {
+        throw new RangeError("unsupported image format (only 'rgba8')");
+    }
+    var known = { width: 1, height: 1, pixels: 1, format: 1 };
+    var names = Object.getOwnPropertyNames(opts);
+    for (var k = 0; k < names.length; k++) {
+        if (!known[names[k]]) {
+            throw new TypeError("unknown option '" + names[k] + "'");
+        }
+    }
+    return { w: w, h: h, bytes: bytes };
+}
+
+/* createTexture options -> [wrap, filter, mipmaps] */
+function __efxTextureOpts(opts) {
+    var wrap = 0, filter = 1, mipmaps = 0;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('createTexture options must be an object');
+        }
+        __efxCheckKnown(opts, { wrap: 1, filter: 1, mipmaps: 1 },
+                        'createTexture');
+        if (opts['wrap'] !== undefined) {
+            if (opts['wrap'] === 'repeat') {
+                wrap = 0;
+            } else if (opts['wrap'] === 'clamp') {
+                wrap = 1;
+            } else if (opts['wrap'] === 'mirror') {
+                wrap = 2;
+            } else {
+                throw new TypeError('unknown wrap mode');
+            }
+        }
+        if (opts['filter'] !== undefined) {
+            if (opts['filter'] === 'nearest') {
+                filter = 0;
+            } else if (opts['filter'] === 'linear') {
+                filter = 1;
+            } else {
+                throw new TypeError('unknown filter');
+            }
+        }
+        if (opts['mipmaps'] !== undefined) {
+            if (typeof opts['mipmaps'] !== 'boolean') {
+                throw new TypeError('mipmaps must be a boolean');
+            }
+            mipmaps = opts['mipmaps'] ? 1 : 0;
+        }
+    }
+    return [wrap, filter, mipmaps];
+}
+
+/* createRenderTarget options -> [width, height] */
+function __efxRenderTargetOpts(opts) {
+    var known = { width: 1, height: 1 };
+    __efxCheckKnown(opts, known, 'createRenderTarget');
+    var dims = [];
+    for (var k = 0; k < 2; k++) {
+        var key = k === 0 ? 'width' : 'height';
+        var v = opts[key];
+        if (v === undefined) {
+            throw new TypeError('createRenderTarget requires width and height');
+        }
+        if (typeof v !== 'number' || !isFinite(v) || v <= 0 ||
+            (v | 0) !== v || v > 4096) {
+            throw new RangeError('width and height must be integers in 1..4096');
+        }
+        dims.push(v | 0);
+    }
+    return dims;
+}
+
+/* sample results are binding-shaped: the web returns {handle, w, h}, the
+ * desktop a plain handle number (ADR 0049 D2) */
+function __efxSampleHandle(sample) {
+    return (sample !== null && typeof sample === 'object') ? sample.handle
+                                                           : sample;
+}
+
+/* Phong material -> the 17-float block + 5 map-handles wire (the layout of
+ * the bindings' material marshalling); `sample` resolves map resources */
+function __efxMaterialWire(v, sample) {
+    if (!__efxIsObject(v)) {
+        throw new TypeError('material must be an object');
+    }
+    __efxCheckKnown(v, { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
+                         alphaMask: 1 }, 'material');
+    var out = new Float32Array(17);
+    out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;     /* ambient */
+    out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;     /* diffuse */
+    out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1;   /* specular */
+    out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
+    out[16] = 32;                                       /* shininess */
+    var maps = new Float64Array(5);                     /* all absent (0) */
+    var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
+    for (var ci = 0; ci < 4; ci++) {
+        var ch = v[chan[ci]];
+        if (ch === undefined || ch === null) {
+            continue;
+        }
+        if (!__efxIsObject(ch)) {
+            throw new TypeError(chan[ci] + ' channel must be an object');
+        }
+        __efxCheckKnown(ch, ci === 2 ? { color: 1, shininess: 1, map: 1 }
+                                     : { color: 1, map: 1 }, chan[ci]);
+        if (ch['color'] === undefined) {
+            throw new TypeError(chan[ci] + ' channel requires color');
+        }
+        var c = __efxFloatArray(ch['color'], 4);
+        out[ci * 4] = c[0];
+        out[ci * 4 + 1] = c[1];
+        out[ci * 4 + 2] = c[2];
+        out[ci * 4 + 3] = c[3];
+        if (ch['map'] !== undefined && ch['map'] !== null) {
+            maps[ci] = __efxSampleHandle(sample(ch['map']));
+        }
+        if (ci === 2 && ch['shininess'] !== undefined) {
+            if (typeof ch['shininess'] !== 'number') {
+                throw new TypeError('shininess must be a number');
+            }
+            if (!isFinite(ch['shininess']) || ch['shininess'] <= 0) {
+                throw new RangeError('shininess must be Finite and > 0');
+            }
+            out[16] = ch['shininess'];
+        }
+    }
+    if (v['alphaMask'] !== undefined && v['alphaMask'] !== null) {
+        maps[4] = __efxSampleHandle(sample(v['alphaMask']));
+    }
+    return { blocks: out, maps: maps };
+}
+
+/* createMeshData: validate the bag and marshal the concatenated-buffers wire
+ * (7 attribute streams + per-surface lengths + per-surface materials) */
+function __efxMeshDataWire(opts, natives) {
+    var bagKnown = { surfaces: 1, positions: 1, normals: 1, uvs: 1,
+                     colors: 1, joints: 1, weights: 1, indices: 1,
+                     materials: 1 };
+    __efxCheckKnown(opts, bagKnown, 'createMeshData');
+    var surfaces = opts['surfaces'];
+    var shorthand = opts['positions'] !== undefined;
+    if (surfaces !== undefined && shorthand) {
+        throw new TypeError('pass either surfaces or single-surface fields');
+    }
+    if (surfaces === undefined && !shorthand) {
+        throw new TypeError('createMeshData requires surfaces');
+    }
+    var list;
+    if (surfaces !== undefined) {
+        if (!Array.isArray(surfaces)) {
+            throw new TypeError('surfaces must be an array');
+        }
+        if (surfaces.length < 1 || surfaces.length > 16) {
+            throw new RangeError('surfaces must hold 1..16 entries');
+        }
+        list = surfaces;
+    } else {
+        list = [opts];
+    }
+    var surfKnown = { positions: 1, normals: 1, uvs: 1, colors: 1,
+                      joints: 1, weights: 1, indices: 1 };
+    /* the shorthand form passes the whole bag as the surface, so the
+     * bag-level materials field is allowed there (desktop parity) */
+    if (surfaces === undefined) {
+        surfKnown.materials = 1;
+    }
+    var count = list.length;
+    var lens = new Int32Array(count * 7);
+    var posAll = [], nrmAll = [], uvAll = [], colAll = [], jntAll = [];
+    var wgtAll = [], idxAll = [];
+    var materials = opts['materials'];
+    if (materials !== undefined) {
+        if (!Array.isArray(materials)) {
+            throw new TypeError('materials must be an array');
+        }
+        if (materials.length !== count) {
+            throw new RangeError('materials must have one entry per surface');
+        }
+    }
+    for (var i = 0; i < count; i++) {
+        var sv = list[i];
+        if (!__efxIsObject(sv)) {
+            throw new TypeError('surfaces must be objects');
+        }
+        var names = Object.getOwnPropertyNames(sv);
+        for (var k = 0; k < names.length; k++) {
+            if (!surfKnown[names[k]]) {
+                throw new TypeError("unknown surface option '" + names[k] + "'");
+            }
+        }
+        if (sv['positions'] === undefined) {
+            throw new TypeError('surface requires positions');
+        }
+        var pos = __efxFloat32Array(sv['positions'], 'positions');
+        var nrm = sv['normals'] !== undefined
+            ? __efxFloat32Array(sv['normals'], 'normals') : [];
+        var uvs = sv['uvs'] !== undefined
+            ? __efxFloat32Array(sv['uvs'], 'uvs') : [];
+        var cols = sv['colors'] !== undefined
+            ? __efxFloat32Array(sv['colors'], 'colors') : [];
+        var joints = sv['joints'] !== undefined
+            ? __efxUint32Array(sv['joints'], 'joints') : [];
+        var weights = sv['weights'] !== undefined
+            ? __efxFloat32Array(sv['weights'], 'weights') : [];
+        var idx = sv['indices'] !== undefined
+            ? __efxUint32Array(sv['indices']) : [];
+        lens[i * 7] = pos.length;
+        lens[i * 7 + 1] = nrm.length;
+        lens[i * 7 + 2] = uvs.length;
+        lens[i * 7 + 3] = cols.length;
+        lens[i * 7 + 4] = joints.length;
+        lens[i * 7 + 5] = weights.length;
+        lens[i * 7 + 6] = idx.length;
+        for (var p = 0; p < pos.length; p++) posAll.push(pos[p]);
+        for (p = 0; p < nrm.length; p++) nrmAll.push(nrm[p]);
+        for (p = 0; p < uvs.length; p++) uvAll.push(uvs[p]);
+        for (p = 0; p < cols.length; p++) colAll.push(cols[p]);
+        for (p = 0; p < joints.length; p++) jntAll.push(joints[p]);
+        for (p = 0; p < weights.length; p++) wgtAll.push(weights[p]);
+        for (p = 0; p < idx.length; p++) idxAll.push(idx[p]);
+    }
+    var blocks = null, maps = null, matHas = new Int32Array(count);
+    if (materials !== undefined) {
+        blocks = new Float32Array(count * 17);
+        maps = new Float64Array(count * 5);
+        for (var mi = 0; mi < count; mi++) {
+            var mv = materials[mi];
+            if (mv === null || mv === undefined) {
+                continue;
+            }
+            var mf = __efxMaterialWire(mv, natives.liveSample);
+            blocks.set(mf.blocks, mi * 17);
+            maps.set(mf.maps, mi * 5);
+            matHas[mi] = 1;
+        }
+    }
+    return {
+        count: count,
+        lens: lens,
+        pos: new Float32Array(posAll),
+        nrm: new Float32Array(nrmAll),
+        uv: new Float32Array(uvAll),
+        col: new Float32Array(colAll),
+        joints: new Uint32Array(jntAll),
+        weights: new Float32Array(wgtAll),
+        idx: new Uint32Array(idxAll),
+        blocks: blocks,
+        maps: maps,
+        matHas: matHas,
+    };
+}
+
+/* loader failure code -> canonical message (D4); codes are the negated
+ * engine error enums */
+var __efxResourceMsgs = {
+    1: 'resource root could not be opened',
+    2: 'resource not found',
+    3: 'invalid resource path',
+    4: 'resource read failed',
+    5: 'out of memory',
+    100: 'image decode failed',
+};
+
+var __efxGltfMsgs = {
+    1: 'invalid or malformed glTF asset',
+    2: 'glTF asset requires an unsupported extension',
+    3: 'glTF mesh selection matched no mesh',
+    4: 'glTF mesh exceeds the surface count limit',
+    5: 'glTF image decode failed',
+    6: 'out of memory',
+    7: 'glTF resource could not be read',
+};
+
+/* ------------------------------------- lights and cameras (F4a/F2/F3)
+ *
+ * Set-once configuration APIs; validation lives once here (ADR 0049). The
+ * vec3 length messages name the field (canonical web texts, ADR 0049 D5);
+ * the light slot uses the single desktop message for every failure. */
+
+function __efxVec3Field(v, what, lenMsg) {
+    var out = __efxFloat32Array(v, what);
+    if (out.length !== 3) {
+        throw new RangeError(lenMsg || (what + ' must hold 3 numbers'));
+    }
+    return out;
+}
+
+function __efxLightSlot(slot) {
+    if (typeof slot !== 'number' || !isFinite(slot) ||
+        slot !== Math.floor(slot) || slot < 0 || slot > 3) {
+        throw new RangeError('light slot must be an integer 0..3');
+    }
+    return slot | 0;
+}
+
+function __efxPreludeInstall(efx, natives) {
     efx.mat4 = {
         identity: __efxM4Identity,
         perspective: __efxM4Perspective,
@@ -575,9 +1657,516 @@ function __efxPreludeInstall(efx) {
     efx.makePlane = __efxMakePlane;
     efx.makeSphere = __efxMakeSphere;
     efx.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.setPointLight) {
+        efx.setLight = function (slot, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('setLight requires (slot, opts)');
+            }
+            var s = __efxLightSlot(slot);
+            if (opts === null || opts === undefined) {
+                natives.setPointLight(s, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setLight options must be an object or null');
+            }
+            __efxCheckKnown(opts, { pos: 1, color: 1, range: 1 }, 'setLight');
+            if (opts['pos'] === undefined) {
+                throw new TypeError('setLight requires pos');
+            }
+            var pv = __efxVec3Field(opts['pos'], 'pos');
+            if (opts['color'] === undefined) {
+                throw new TypeError('setLight requires color');
+            }
+            var lc = __efxFloatArray(opts['color'], 4);
+            var range = 0;
+            if (opts['range'] !== undefined) {
+                if (typeof opts['range'] !== 'number') {
+                    throw new TypeError('range must be a number');
+                }
+                if (!isFinite(opts['range']) || opts['range'] < 0) {
+                    throw new RangeError('range must be a finite number >= 0');
+                }
+                range = opts['range'];
+            }
+            natives.setPointLight(s, 1, pv[0], pv[1], pv[2],
+                                  lc[0], lc[1], lc[2], lc[3], range);
+        };
+        efx.setDirectionalLight = function (opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('setDirectionalLight requires an options object or null');
+            }
+            if (opts === null || opts === undefined) {
+                natives.setDirectionalLight(0, 0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setDirectionalLight options must be an object or null');
+            }
+            __efxCheckKnown(opts, { dir: 1, color: 1 }, 'setDirectionalLight');
+            if (opts['dir'] === undefined) {
+                throw new TypeError('setDirectionalLight requires dir');
+            }
+            var dv = __efxVec3Field(opts['dir'], 'dir');
+            if (dv[0] === 0 && dv[1] === 0 && dv[2] === 0) {
+                throw new TypeError('dir must be non-zero');
+            }
+            if (opts['color'] === undefined) {
+                throw new TypeError('setDirectionalLight requires color');
+            }
+            var dc = __efxFloatArray(opts['color'], 4);
+            natives.setDirectionalLight(1, dv[0], dv[1], dv[2],
+                                        dc[0], dc[1], dc[2], dc[3]);
+        };
+    }
+    if (natives && natives.setCamera2D) {
+        efx.setCamera2D = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('setCamera2D requires an options object');
+            }
+            var frameW = 0, frameH = 0, x = NaN, y = NaN, zoom = 1, rotation = 0;
+            var frame = opts['frame'];
+            if (frame !== undefined) {
+                var f = __efxFloatArray(frame, 2);
+                if (!(f[0] > 0 && f[1] > 0)) {
+                    throw new RangeError('frame must be positive');
+                }
+                frameW = f[0];
+                frameH = f[1];
+                if (isNaN(x)) {
+                    x = frameW * 0.5;
+                }
+                if (isNaN(y)) {
+                    y = frameH * 0.5;
+                }
+            }
+            var xv = opts['x'];
+            if (xv !== undefined) {
+                x = __efxFinite(xv, 'camera fields must be finite numbers');
+            }
+            var yv = opts['y'];
+            if (yv !== undefined) {
+                y = __efxFinite(yv, 'camera fields must be finite numbers');
+            }
+            var zv = opts['zoom'];
+            if (zv !== undefined) {
+                zoom = __efxFinite(zv, 'camera fields must be finite numbers');
+            }
+            var rv = opts['rotation'];
+            if (rv !== undefined) {
+                rotation = __efxFinite(rv, 'camera fields must be finite numbers');
+            }
+            if (!(zoom > 0)) {
+                throw new RangeError('zoom must be > 0');
+            }
+            natives.setCamera2D(frameW, frameH, x, y, zoom, rotation);
+        };
+    }
+    if (natives && natives.setCamera3D) {
+        efx.setCamera3D = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('setCamera3D requires an options object');
+            }
+            __efxCheckKnown(opts, { pos: 1, target: 1, fov: 1, near: 1,
+                                    far: 1 }, 'setCamera3D');
+            var pos = opts['pos'];
+            var target = opts['target'];
+            if (pos === undefined || target === undefined) {
+                throw new TypeError('setCamera3D requires pos and target');
+            }
+            var p = __efxVec3Field(pos, 'pos', 'pos and target must hold 3 numbers');
+            var t = __efxVec3Field(target, 'target',
+                                   'pos and target must hold 3 numbers');
+            var fov = opts['fov'];
+            if (fov === undefined) {
+                throw new TypeError('setCamera3D requires fov');
+            }
+            if (typeof fov !== 'number') {
+                throw new TypeError('fov must be a number');
+            }
+            if (!isFinite(fov)) {
+                throw new RangeError('fov must be finite');
+            }
+            var nearZ = 0.1, farZ = 100;
+            var nv = opts['near'];
+            if (nv !== undefined) {
+                if (typeof nv !== 'number') {
+                    throw new TypeError('near and far must be numbers');
+                }
+                if (!isFinite(nv)) {
+                    throw new RangeError('near and far must be finite');
+                }
+                nearZ = nv;
+            }
+            var fv = opts['far'];
+            if (fv !== undefined) {
+                if (typeof fv !== 'number') {
+                    throw new TypeError('near and far must be numbers');
+                }
+                if (!isFinite(fv)) {
+                    throw new RangeError('near and far must be finite');
+                }
+                farZ = fv;
+            }
+            natives.setCamera3D(p[0], p[1], p[2], t[0], t[1], t[2], fov,
+                                nearZ, farZ);
+        };
+    }
+    if (natives && natives.createImageData) {
+        efx.createImageData = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createImageData requires an options object');
+            }
+            var im = __efxImageDataOpts(opts);
+            return natives.createImageData(im.w, im.h, im.bytes);
+        };
+        efx.createTexture = function (imageData, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('createTexture requires an ImageData');
+            }
+            natives.checkImageData(imageData);
+            var t = __efxTextureOpts(opts);
+            return natives.createTexture(imageData, t[0], t[1], t[2]);
+        };
+    }
+    if (natives && natives.createRenderTarget) {
+        efx.createRenderTarget = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createRenderTarget requires an options object');
+            }
+            var dims = __efxRenderTargetOpts(opts);
+            return natives.createRenderTarget(dims[0], dims[1]);
+        };
+    }
+    if (natives && natives.loadImage) {
+        efx.loadImage = function (path) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadImage requires a path string');
+            }
+            var r = natives.loadImage(path);
+            if (typeof r === 'number') {
+                throw new Error(__efxResourceMsgs[-r] || 'resource error');
+            }
+            return r;
+        };
+        efx.loadMeshData = function (path, opts) {
+            if (arguments.length < 1 || typeof path !== 'string') {
+                throw new TypeError('loadMeshData requires a path string');
+            }
+            var hasMesh = 0, index = 0, name = null;
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('loadMeshData options must be an object');
+                }
+                __efxCheckKnown(opts, { mesh: 1 }, 'loadMeshData');
+                if (opts['mesh'] !== undefined) {
+                    var mv = opts['mesh'];
+                    hasMesh = 1;
+                    if (typeof mv === 'string') {
+                        name = mv;
+                    } else if (typeof mv === 'number' && isFinite(mv) &&
+                               mv === Math.floor(mv) && mv >= 0) {
+                        index = mv | 0;
+                    } else {
+                        throw new TypeError('mesh must be a non-negative integer or a name');
+                    }
+                }
+            }
+            var r = natives.loadMeshData(path, hasMesh,
+                                         name !== null ? 1 : 0, index, name);
+            if (typeof r === 'number') {
+                throw new Error(__efxGltfMsgs[-r] || 'glTF import failed');
+            }
+            return r;
+        };
+    }
+    if (natives && natives.createMeshData) {
+        efx.createMeshData = function (opts) {
+            if (arguments.length < 1 || !__efxIsObject(opts)) {
+                throw new TypeError('createMeshData requires an options object');
+            }
+            var w = __efxMeshDataWire(opts, natives);
+            return natives.createMeshData(w.count, w.lens, w.pos, w.nrm, w.uv,
+                                          w.col, w.joints, w.weights, w.idx,
+                                          w.blocks, w.maps, w.matHas);
+        };
+    }
+    if (natives && natives.playAudio) {
+        efx.audio.loadAudioData = function (path) {
+            return __efxLoadAudio(natives, natives.loadAudioData, path,
+                                  'loadAudioData');
+        };
+        efx.audio.loadAudioStream = function (path) {
+            return __efxLoadAudio(natives, natives.loadAudioStream, path,
+                                  'loadAudioStream');
+        };
+        efx.audio.playAudio = function (source, opts) {
+            return __efxPlayAudio(natives, source, opts);
+        };
+    }
+    if (natives && natives.physicsStep) {
+        var phys = efx.physics;
+        phys.step = function (dt) {
+            if (arguments.length < 1 || typeof dt !== 'number' || !isFinite(dt)) {
+                throw new TypeError('dt must be a finite number');
+            }
+            natives.physicsStep(dt);
+        };
+        phys.createBody = function (opts) {
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('createBody requires an options object');
+            }
+            __efxCheckKnown(opts,
+                ['dynamic', 'sensor', 'shape', 'position', 'mass',
+                 'friction', 'restitution', 'layer', 'mask'],
+                'createBody', true);
+            if (opts['shape'] === undefined) {
+                throw new TypeError('shape must be an options object');
+            }
+            var sh = __efxPhysShape(opts['shape'], natives);
+            var dynamic = !!opts['dynamic'];
+            var mass = opts['mass'] === undefined
+                ? 1
+                : __efxPhysNumber(opts['mass'], 'mass');
+            if (dynamic && !(mass > 0)) {
+                throw new RangeError('dynamic bodies require a positive mass');
+            }
+            var c = __efxPhysCommonOpts(opts);
+            return natives.createBody(dynamic, c.sensor ? 1 : 0, sh.t, sh.r,
+                sh.hx, sh.hy, sh.hz, sh.height, c.position[0], c.position[1],
+                c.position[2], mass, c.friction, c.restitution, c.layer,
+                c.mask, sh.mesh);
+        };
+        phys.createStaticMesh = function (mesh, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('createStaticMesh requires a Mesh');
+            }
+            natives.checkMesh(mesh);
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('createStaticMesh options must be an object');
+            }
+            __efxCheckKnown(opts,
+                ['position', 'sensor', 'friction', 'restitution', 'layer',
+                 'mask'],
+                'createStaticMesh', true);
+            var c = __efxPhysCommonOpts(opts);
+            return natives.createStaticMesh(mesh, c.position[0],
+                c.position[1], c.position[2], c.sensor ? 1 : 0, c.friction,
+                c.restitution, c.layer, c.mask);
+        };
+        phys.createCharacter = function (opts) {
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('createCharacter requires an options object');
+            }
+            __efxCheckKnown(opts,
+                ['radius', 'height', 'position', 'up', 'floorMaxAngle',
+                 'floorSnapLength', 'stepHeight', 'maxSlides', 'safeMargin',
+                 'layer', 'mask'],
+                'createCharacter', true);
+            if (typeof opts['radius'] !== 'number' ||
+                typeof opts['height'] !== 'number') {
+                throw new TypeError('createCharacter requires radius and height');
+            }
+            if (!(opts['radius'] > 0)) {
+                throw new RangeError('radius must be positive');
+            }
+            if (!(opts['height'] >= 2 * opts['radius'])) {
+                throw new RangeError('height must be at least 2 * radius');
+            }
+            var position = opts['position'] === undefined
+                ? [0, 0, 0]
+                : __efxPhysVec3(opts['position'], 'position');
+            var up = opts['up'] === undefined
+                ? [0, 1, 0]
+                : __efxPhysVec3(opts['up'], 'up');
+            if (up[0] === 0 && up[1] === 0 && up[2] === 0) {
+                throw new RangeError('up must be non-zero');
+            }
+            var floorMaxAngle = opts['floorMaxAngle'] === undefined
+                ? 45
+                : __efxPhysNumber(opts['floorMaxAngle'], 'floorMaxAngle');
+            var snap = opts['floorSnapLength'] === undefined
+                ? 0.1
+                : __efxPhysNumber(opts['floorSnapLength'], 'floorSnapLength');
+            var step = opts['stepHeight'] === undefined
+                ? 0.3
+                : __efxPhysNumber(opts['stepHeight'], 'stepHeight');
+            var safe = opts['safeMargin'] === undefined
+                ? 0.001
+                : __efxPhysNumber(opts['safeMargin'], 'safeMargin');
+            var maxSlides = opts['maxSlides'] === undefined
+                ? 6
+                : __efxPhysNumber(opts['maxSlides'], 'maxSlides');
+            if (!(maxSlides >= 1) || Math.floor(maxSlides) !== maxSlides) {
+                throw new RangeError('maxSlides must be a positive integer');
+            }
+            if (snap < 0) {
+                throw new RangeError('floorSnapLength must not be negative');
+            }
+            if (step < 0) {
+                throw new RangeError('stepHeight must not be negative');
+            }
+            if (safe < 0) {
+                throw new RangeError('safeMargin must not be negative');
+            }
+            var layer = opts['layer'] === undefined ? 4294967295
+                                                    : __efxPhysMask(opts['layer'], 'layer');
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.createCharacter(opts['radius'], opts['height'],
+                position[0], position[1], position[2], up[0], up[1], up[2],
+                floorMaxAngle, snap, step, safe, maxSlides, layer, mask);
+        };
+        phys.raycast = function (origin, direction, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('raycast requires origin and direction');
+            }
+            var o = __efxPhysVec3(origin, 'origin');
+            var d = __efxPhysVec3(direction, 'direction');
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('raycast options must be an object');
+            }
+            __efxCheckKnown(opts, ['maxDistance', 'mask', 'all', 'sensors'],
+                            'raycast', true);
+            var maxd = opts['maxDistance'];
+            if (typeof maxd !== 'number' || !isFinite(maxd) || !(maxd > 0)) {
+                throw new TypeError('raycast requires a positive maxDistance');
+            }
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.raycast(o[0], o[1], o[2], d[0], d[1], d[2], maxd,
+                                   mask, !!opts['sensors'], !!opts['all']);
+        };
+        phys.overlap = function (shape, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('overlap requires a shape');
+            }
+            var sh = __efxPhysShape(shape, natives);
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('overlap options must be an object');
+            }
+            __efxCheckKnown(opts, ['position', 'mask'], 'overlap', true);
+            var p = opts['position'] === undefined
+                ? [0, 0, 0]
+                : __efxPhysVec3(opts['position'], 'position');
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.overlap(sh.t, sh.r, sh.hx, sh.hy, sh.hz, sh.height,
+                                   sh.mesh, p[0], p[1], p[2], mask);
+        };
+        phys.shapeCast = function (shape, from, motion, opts) {
+            if (arguments.length < 3) {
+                throw new TypeError('shapeCast requires shape, from and motion');
+            }
+            var sh = __efxPhysShape(shape, natives);
+            var f = __efxPhysVec3(from, 'from');
+            var m = __efxPhysVec3(motion, 'motion');
+            opts = opts === undefined ? {} : opts;
+            if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                throw new TypeError('shapeCast options must be an object');
+            }
+            __efxCheckKnown(opts, ['mask', 'sensors'], 'shapeCast', true);
+            var mask = opts['mask'] === undefined ? 4294967295
+                                                  : __efxPhysMask(opts['mask'], 'mask');
+            return natives.shapeCast(sh.t, sh.r, sh.hx, sh.hy, sh.hz,
+                                     sh.height, sh.mesh, f[0], f[1], f[2],
+                                     m[0], m[1], m[2], mask,
+                                     !!opts['sensors']);
+        };
+    }
+    if (natives && natives.createFont) {
+        efx.createFont = function (fontData, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('createFont requires a FontData');
+            }
+            natives.checkFontData(fontData);
+            if (arguments.length < 2 || !__efxIsObject(opts)) {
+                throw new TypeError('createFont requires an options object');
+            }
+            return __efxCreateFontOpts(natives, fontData, opts);
+        };
+    }
+    if (natives && natives.setPostEffects) {
+        efx.setPostEffects = function (list) {
+            if (arguments.length < 1) {
+                throw new TypeError('setPostEffects requires an array or null');
+            }
+            if (list === null || list === undefined) {
+                natives.setPostEffects(null, 0);
+                return;
+            }
+            if (!Array.isArray(list)) {
+                throw new TypeError('setPostEffects requires an array or null');
+            }
+            if (list.length > 8) {
+                throw new RangeError('post-effect chain is limited to 8 entries');
+            }
+            var wire = new Float32Array(list.length * 9);
+            for (var i = 0; i < list.length; i++) {
+                wire.set(__efxPostEntry(list[i]), i * 9);
+            }
+            natives.setPostEffects(wire, list.length);
+        };
+    }
+    if (natives && natives.createParticleSystemWire) {
+        efx.createParticleSystem = function (opts) {
+            var parsed = __efxParticleWire(opts, natives.liveSample);
+            var ps = natives.createParticleSystemWire(parsed.wire,
+                                                      parsed.texture);
+            __efxPsBags.set(ps, __efxSnapshotOpts(opts));
+            return ps;
+        };
+        var psProto = natives.psProto();
+        if (psProto) {
+            /* set: merge over the create snapshot, re-validate the whole
+             * bag through the wire, then hand the native the result */
+            psProto.set = function (opts) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('set requires an options object');
+                }
+                var merged = {};
+                var k;
+                var prev = __efxPsBags.get(this);
+                if (prev) {
+                    for (k in prev) {
+                        if (Object.prototype.hasOwnProperty.call(prev, k)) {
+                            merged[k] = prev[k];
+                        }
+                    }
+                }
+                for (k in opts) {
+                    if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                        merged[k] = opts[k];
+                    }
+                }
+                var parsed = __efxParticleWire(merged, natives.liveSample);
+                natives.psSet(this, parsed.wire, parsed.texture);
+                __efxPsBags.set(this, merged);
+            };
+            /* speedScale writes must reach the snapshot too, or a later
+             * set() would resurrect the creation-time value */
+            var sd = Object.getOwnPropertyDescriptor(psProto, 'speedScale');
+            if (sd && sd.set) {
+                var nativeSetSpeed = sd.set;
+                Object.defineProperty(psProto, 'speedScale', {
+                    get: sd.get,
+                    set: function (v) {
+                        nativeSetSpeed.call(this, v);
+                        var bag = __efxPsBags.get(this);
+                        if (bag) {
+                            bag['speedScale'] = v;
+                        }
+                    },
+                });
+            }
+        }
+    }
 }
 
-__efxPreludeInstall(efx);
+__efxPreludeInstall(efx, natives);
 
 /* the bindings capture this factory and call it with `(efx, opts)` to create
    the shared module runtime; on web `opts` carries the shadowed host globals */

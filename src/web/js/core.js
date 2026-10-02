@@ -486,6 +486,10 @@ function __efxEnsureApi() {
                                 return d.set.call(live(this), v);
                             };
                         }
+                        /* configurable: the shared prelude may wrap an
+                         * accessor (ADR 0049, e.g. ParticleSystem
+                         * speedScale writes reaching the option snapshot) */
+                        acc.configurable = true;
                         Object.defineProperty(proto, g, acc);
                     })(k);
                 }
@@ -826,78 +830,6 @@ function __efxEnsureApi() {
     }
 
 
-    /* F5b: parse one post-effect chain entry into the 9-float wire layout
-       (desktop parity: unknown field -> TypeError, non-number -> TypeError,
-       non-finite -> RangeError; bounds are enforced engine-side). */
-    function __efxPostNumber(v, what) {
-        if (typeof v !== 'number') {
-            throw new TypeError(what + ' must be a number');
-        }
-        if (!isFinite(v)) {
-            throw new RangeError(what + ' must be a finite number');
-        }
-        return v;
-    }
-    function __efxPostEntry(v) {
-        if (!__efxIsObject(v)) {
-            throw new TypeError('post-effect entry must be an object');
-        }
-        var effect = v['effect'];
-        if (typeof effect !== 'string') {
-            throw new TypeError('post-effect entry requires an effect name');
-        }
-        var known;
-        var out = new Float32Array(9);
-        out[1] = 1;
-        if (effect === 'colorFilter') {
-            known = { effect: 1, mix: 1, brightness: 1, contrast: 1,
-                      saturation: 1, tint: 1 };
-            out[0] = 0; out[2] = 1; out[3] = 1; out[4] = 1;
-            out[5] = 1; out[6] = 1; out[7] = 1; out[8] = 1;
-        } else if (effect === 'blur') {
-            known = { effect: 1, mix: 1, radius: 1 };
-            out[0] = 1; out[2] = 1;
-        } else if (effect === 'bloom') {
-            known = { effect: 1, mix: 1, threshold: 1, strength: 1 };
-            out[0] = 2; out[2] = 0.8; out[3] = 0.5;
-        } else {
-            throw new TypeError('unknown post effect');
-        }
-                __efxCheckKnown(v, known, 'post effect');
-        if (v['mix'] !== undefined) {
-            out[1] = __efxPostNumber(v['mix'], 'mix');
-        }
-        if (effect === 'colorFilter') {
-            if (v['brightness'] !== undefined) {
-                out[2] = __efxPostNumber(v['brightness'], 'brightness');
-            }
-            if (v['contrast'] !== undefined) {
-                out[3] = __efxPostNumber(v['contrast'], 'contrast');
-            }
-            if (v['saturation'] !== undefined) {
-                out[4] = __efxPostNumber(v['saturation'], 'saturation');
-            }
-            if (v['tint'] !== undefined) {
-                var t = __efxFloatArray(v['tint'], 4);
-                for (var k = 0; k < 4; k++) {
-                    out[5 + k] = t[k];
-                }
-            }
-        } else if (effect === 'blur') {
-            if (v['radius'] !== undefined) {
-                out[2] = __efxPostNumber(v['radius'], 'radius');
-            }
-        } else {
-            if (v['threshold'] !== undefined) {
-                out[2] = __efxPostNumber(v['threshold'], 'threshold');
-            }
-            if (v['strength'] !== undefined) {
-                out[3] = __efxPostNumber(v['strength'], 'strength');
-            }
-        }
-        return out;
-    }
-
     function liveImageData(v) {
         return EfxImageData.__live(v);
     }
@@ -935,15 +867,12 @@ function __efxEnsureApi() {
 
     /* --------------------------------------------- F11 (billboards + particles) */
 
-    /* particle wire layout (floats); kept in sync with src/web/bridge_particles.c */
-    var EFX_PART_WIRE_LEN = 352;
-
-    function __efxPartVec(v, what, allow2) {
+    function __efxPartVec(v, what, allow2, shapeMsg) {
         if (!Array.isArray(v)) {
             throw new TypeError(what + ' must be an array');
         }
         if (v.length !== 3 && !(allow2 && v.length === 2)) {
-            throw new TypeError(what + ' must be [x,y] or [x,y,z]');
+            throw new TypeError(shapeMsg || (what + ' must be [x,y] or [x,y,z]'));
         }
         var out = [0, 0, 0];
         for (var i = 0; i < v.length; i++) {
@@ -1030,216 +959,14 @@ function __efxEnsureApi() {
         return out;
     }
 
-    /* parse + validate a particle options object into the wire layout;
-       mirrors the desktop binding's validation and error types */
-    function __efxParticleWire(opts) {
-        if (!__efxIsObject(opts)) {
-            throw new TypeError('createParticleSystem requires an options object');
-        }
-        var known = { texture: 1, max: 1, space: 1, facing: 1, normal: 1,
-            blend: 1, lifetime: 1, emissionRate: 1, emitterLifetime: 1,
-            position: 1, direction: 1, spread: 1, speed: 1, gravity: 1,
-            linearAcceleration: 1, radialAcceleration: 1,
-            tangentialAcceleration: 1, linearDamping: 1, sizes: 1,
-            sizeVariation: 1, colors: 1, rotation: 1, spin: 1, spinVariation: 1,
-            relativeRotation: 1, emissionShape: 1, quads: 1, insertMode: 1,
-            speedScale: 1 };
-        __efxCheckKnown(opts, known, 'createParticleSystem');
-        var w = new Float32Array(EFX_PART_WIRE_LEN);
-        /* defaults mirror efx_render_particles_create */
-        w[4] = 1; w[5] = 1; w[7] = -1; w[8] = 1; w[10] = 1; w[12] = 1;
-        w[25] = 1; w[44] = 1; w[52] = 1; w[53] = 1; w[54] = 1; w[55] = 1;
-        w[344] = 1;
-
-        if (opts['texture'] === undefined) {
-            throw new TypeError('createParticleSystem requires a texture');
-        }
-        var tex = liveSample(opts['texture']);
-
-        if (opts['max'] === undefined) {
-            throw new TypeError('createParticleSystem requires max');
-        }
-        if (typeof opts['max'] !== 'number' || !isFinite(opts['max']) ||
-            opts['max'] !== Math.floor(opts['max'])) {
-            throw new TypeError('max must be an integer');
-        }
-        if (opts['max'] < 1 || opts['max'] > 65536) {
-            throw new RangeError('max must be in 1..65536');
-        }
-        w[0] = opts['max'];
-
-        w[1] = __efxPartEnum(opts['space'], { world: 0, screen: 1 }, 0, 'space');
-        w[2] = __efxPartEnum(opts['facing'],
-                             { view: 0, y: 1, plane: 2 }, 0, 'facing');
-        if (w[1] === 1 && w[2] !== 0) {
-            throw new TypeError("facing must be 'view' for screen space");
-        }
-        w[3] = __efxPartEnum(opts['blend'],
-                             { alpha: 0, additive: 1, subtractive: 2 }, 0,
-                             'blend');
-        if (opts['normal'] !== undefined) {
-            var n = __efxPartVec(opts['normal'], 'normal', false);
-            w[343] = n[0]; w[344] = n[1]; w[345] = n[2];
-        }
-        if (opts['lifetime'] === undefined) {
-            throw new TypeError('createParticleSystem requires lifetime');
-        }
-        var life = __efxPartRange(opts['lifetime'], 'lifetime');
-        w[4] = life[0]; w[5] = life[1];
-        if (opts['emissionRate'] !== undefined) {
-            w[6] = __efxFinite(opts['emissionRate'], 'emissionRate must be a finite number');
-        }
-        if (opts['emitterLifetime'] !== undefined) {
-            w[7] = __efxFinite(opts['emitterLifetime'], 'emitterLifetime must be a finite number');
-        }
-        if (opts['speedScale'] !== undefined) {
-            w[8] = __efxFinite(opts['speedScale'], 'speedScale must be a finite number');
-        }
-        if (opts['spread'] !== undefined) {
-            w[9] = __efxFinite(opts['spread'], 'spread must be a finite number');
-        }
-        if (opts['position'] !== undefined) {
-            var p = __efxPartVec(opts['position'], 'position', true);
-            w[21] = p[0]; w[22] = p[1]; w[23] = p[2];
-        }
-        if (opts['direction'] !== undefined) {
-            var dir = __efxPartVec(opts['direction'], 'direction', true);
-            w[24] = dir[0]; w[25] = dir[1]; w[26] = dir[2];
-        }
-        if (opts['speed'] !== undefined) {
-            var sp = __efxPartRange(opts['speed'], 'speed');
-            w[27] = sp[0]; w[28] = sp[1];
-        }
-        if (opts['gravity'] !== undefined) {
-            var g = __efxPartVec(opts['gravity'], 'gravity', true);
-            w[29] = g[0]; w[30] = g[1]; w[31] = g[2];
-        }
-        if (opts['linearAcceleration'] !== undefined) {
-            var la = __efxPartVec(opts['linearAcceleration'], 'linearAcceleration', false);
-            for (i = 0; i < 3; i++) { w[32 + i] = la[i]; w[35 + i] = la[i]; }
-        }
-        if (opts['radialAcceleration'] !== undefined) {
-            var ra = __efxPartRange(opts['radialAcceleration'], 'radialAcceleration');
-            w[38] = ra[0]; w[39] = ra[1];
-        }
-        if (opts['tangentialAcceleration'] !== undefined) {
-            var ta = __efxPartRange(opts['tangentialAcceleration'], 'tangentialAcceleration');
-            w[40] = ta[0]; w[41] = ta[1];
-        }
-        if (opts['linearDamping'] !== undefined) {
-            var ld = __efxPartRange(opts['linearDamping'], 'linearDamping');
-            w[42] = ld[0]; w[43] = ld[1];
-        }
-        if (opts['sizes'] !== undefined) {
-            var sizes = Array.isArray(opts['sizes']) ? opts['sizes'] : [opts['sizes']];
-            if (sizes.length < 1 || sizes.length > 8) {
-                throw new RangeError('sizes must hold 1..8 entries');
-            }
-            for (i = 0; i < sizes.length; i++) {
-                var sv = __efxFinite(sizes[i], 'sizes must be finite numbers');
-                if (sv <= 0) {
-                    throw new RangeError('sizes must be > 0');
-                }
-                w[44 + i] = sv;
-            }
-            w[10] = sizes.length;
-        }
-        if (opts['sizeVariation'] !== undefined) {
-            w[11] = __efxFinite(opts['sizeVariation'], 'sizeVariation must be a finite number');
-        }
-        if (opts['colors'] !== undefined) {
-            var cols = (Array.isArray(opts['colors']) && opts['colors'].length &&
-                        Array.isArray(opts['colors'][0]))
-                ? opts['colors'] : [opts['colors']];
-            if (cols.length < 1 || cols.length > 8) {
-                throw new RangeError('colors must hold 1..8 entries');
-            }
-            for (i = 0; i < cols.length; i++) {
-                var col = __efxFloatArray(cols[i], 4);
-                for (var k = 0; k < 4; k++) {
-                    w[52 + i * 4 + k] = col[k];
-                }
-            }
-            w[12] = cols.length;
-        }
-        if (opts['rotation'] !== undefined) {
-            var ro = __efxPartRange(opts['rotation'], 'rotation');
-            w[16] = ro[0]; w[17] = ro[1];
-        }
-        if (opts['spin'] !== undefined) {
-            var spin = __efxPartRange(opts['spin'], 'spin');
-            w[18] = spin[0]; w[19] = spin[1];
-        }
-        if (opts['spinVariation'] !== undefined) {
-            w[20] = __efxFinite(opts['spinVariation'], 'spinVariation must be a finite number');
-        }
-        if (opts['relativeRotation'] !== undefined) {
-            if (typeof opts['relativeRotation'] !== 'boolean') {
-                throw new TypeError('relativeRotation must be a boolean');
-            }
-            w[13] = opts['relativeRotation'] ? 1 : 0;
-        }
-        if (opts['emissionShape'] !== undefined) {
-            var es = opts['emissionShape'];
-            if (!__efxIsObject(es)) {
-                throw new TypeError('emissionShape must be an object');
-            }
-            var ekn = { shape: 1, size: 1 };
-                        __efxCheckKnown(es, ekn, 'emissionShape');
-            w[14] = __efxPartEnum(es['shape'],
-                { point: 0, box: 1, sphere: 2, sphereSurface: 3, disc: 4 }, 0,
-                'emissionShape.shape');
-            if (es['size'] !== undefined) {
-                var ss = __efxPartVec(es['size'], 'emissionShape.size', false);
-                w[84] = ss[0]; w[85] = ss[1]; w[86] = ss[2];
-            }
-        }
-        if (opts['quads'] !== undefined) {
-            var quads = opts['quads'];
-            if (!Array.isArray(quads)) {
-                throw new TypeError('quads must be an array');
-            }
-            if (quads.length > 64) {
-                throw new RangeError('quads must hold at most 64 entries');
-            }
-            for (i = 0; i < quads.length; i++) {
-                var q = quads[i];
-                var rect;
-                if (Array.isArray(q)) {
-                    rect = __efxFloatArray(q, 4);
-                } else if (__efxIsObject(q)) {
-                    rect = [
-                        __efxFinite(q['x'], 'quad rect fields must be finite numbers'),
-                        __efxFinite(q['y'], 'quad rect fields must be finite numbers'),
-                        __efxFinite(q['w'], 'quad rect fields must be finite numbers'),
-                        __efxFinite(q['h'], 'quad rect fields must be finite numbers'),
-                    ];
-                } else {
-                    throw new TypeError('each quad must be an object or [x,y,w,h]');
-                }
-                for (k = 0; k < 4; k++) {
-                    w[87 + i * 4 + k] = rect[k];
-                }
-            }
-            w[15] = quads.length;
-        }
-        if (opts['insertMode'] !== undefined) {
-            w[346] = __efxPartEnum(opts['insertMode'],
-                { top: 0, bottom: 1, random: 2 }, 0, 'insertMode');
-        }
-        return { wire: w, texture: tex.handle };
-    }
-
     function livePS(v) {
         return EfxParticleSystem.__live(v);
     }
 
     var EfxParticleSystem = __efxResourceClass('EfxParticleSystem', {
         typeMsg: 'expected a ParticleSystem',
-        init: function (handle, texture, opts) {
+        init: function (handle) {
             this.__handle = handle;
-            this.__texture = texture;
-            this.__opts = opts;
         },
         destroy: function () {
             bridge['_efx_bridge_particles_destroy'](this.__handle);
@@ -1267,33 +994,6 @@ function __efxEnsureApi() {
             reset: function () {
                 bridge['_efx_bridge_particles_reset'](this.__handle);
             },
-            set: function (opts) {
-                if (!__efxIsObject(opts)) {
-                    throw new TypeError('set requires an options object');
-                }
-                var merged = {};
-                var k;
-                for (k in this.__opts) {
-                    if (Object.prototype.hasOwnProperty.call(this.__opts, k)) {
-                        merged[k] = this.__opts[k];
-                    }
-                }
-                for (k in opts) {
-                    if (Object.prototype.hasOwnProperty.call(opts, k)) {
-                        merged[k] = opts[k];
-                    }
-                }
-                var parsed = __efxParticleWire(merged);
-                var ptr = mallocCopyF32(parsed.wire);
-                var rc = bridge['_efx_bridge_particles_set'](this.__handle, ptr,
-                                                             parsed.texture);
-                bridge['_free'](ptr);
-                if (rc !== 0) {
-                    throw new RangeError('invalid particle configuration');
-                }
-                this.__opts = merged;
-                this.__texture = parsed.texture;
-            },
         },
         getters: {
             count: {
@@ -1310,9 +1010,6 @@ function __efxEnsureApi() {
                         throw new RangeError('speedScale must be a finite number > 0');
                     }
                     bridge['_efx_bridge_particles_set_speed_scale'](this.__handle, v);
-                    if (this.__opts) {
-                        this.__opts['speedScale'] = v;
-                    }
                 },
             },
         },

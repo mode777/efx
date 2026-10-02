@@ -1,28 +1,4 @@
-        createRenderTarget: function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('createRenderTarget requires an options object');
-            }
-            var known = { width: 1, height: 1 };
-            __efxCheckKnown(opts, known, 'createRenderTarget');
-            var dims = [];
-            for (var k = 0; k < 2; k++) {
-                var key = k === 0 ? 'width' : 'height';
-                var v = opts[key];
-                if (v === undefined) {
-                    throw new TypeError('createRenderTarget requires width and height');
-                }
-                if (typeof v !== 'number' || !isFinite(v) || v <= 0 ||
-                    (v | 0) !== v || v > 4096) {
-                    throw new RangeError('width and height must be integers in 1..4096');
-                }
-                dims.push(v | 0);
-            }
-            var handle = bridge['_efx_bridge_target_create'](dims[0], dims[1]);
-            if (!handle) {
-                throw new Error('render target creation failed (no GPU context?)');
-            }
-            return new EfxRenderTarget(handle);
-        },
+                /* createRenderTarget is installed by the shared prelude (ADR 0049) */
         beginRenderTarget: function (rt) {
             if (arguments.length < 1) {
                 throw new TypeError('beginRenderTarget requires a RenderTarget');
@@ -46,36 +22,7 @@
                 8: [TypeError, 'no render target is active'],
             });
         },
-        setPostEffects: function (list) {
-            if (arguments.length < 1) {
-                throw new TypeError('setPostEffects requires an array or null');
-            }
-            if (list === null || list === undefined) {
-                bridge['_efx_bridge_set_post_effects'](0, 0);
-                return;
-            }
-            if (!Array.isArray(list)) {
-                throw new TypeError('setPostEffects requires an array or null');
-            }
-            if (list.length > 8) {
-                throw new RangeError('post-effect chain is limited to 8 entries');
-            }
-            var wire = new Float32Array(list.length * 9);
-            for (var i = 0; i < list.length; i++) {
-                var e = __efxPostEntry(list[i]);
-                wire.set(e, i * 9);
-            }
-            var ptr = wire.length ? mallocCopyF32(wire) : 0;
-            var rc = bridge['_efx_bridge_set_post_effects'](ptr, list.length);
-            if (ptr) {
-                bridge['_free'](ptr);
-            }
-            __efxRc(rc, 'setPostEffects', {
-                1: [TypeError, 'unknown post effect'],
-                2: [RangeError, 'post-effect chain is limited to 8 entries'],
-                3: [RangeError, 'post-effect option out of range'],
-            });
-        },
+        /* setPostEffects is installed by the shared prelude (ADR 0049) */
         setRenderScale: function (scale, opts) {
             if (arguments.length < 1) {
                 throw new TypeError('setRenderScale requires a scale number');

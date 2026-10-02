@@ -638,6 +638,18 @@ production code moves.
 
 ## 5. Part 2 — validate once (ADR-gated, behavior-changing)
 
+> **Status: done** (change `shared-option-validation`, 2026-10-01). ADR 0049
+> accepted after the R22 spike (measured on Linux Release, cold
+> `createParticleSystem` +75–80 µs/call through the prelude vs native, hot
+> `drawQuad` 9–14× — hot paths stay native). All seven domains migrated:
+> particles, post effects, fonts, physics, audio, resource construction,
+> lights/cameras. The error catalog's `DIVERGENT` map is empty (all 18 message
+> divergences plus the desktop numeric-coercion divergence resolved); strict
+> numbers (`typeof === 'number'`) apply to every migrated field. Measured
+> Δ −358 non-blank lines (39 349 → 38 991): the per-binding readers deleted
+> outweigh the ~1 000-line prelude growth only partially — the win is that
+> every future option is validated once.
+
 Part 1 trims each binding, but the binding layer stays about 11 800 lines that
 implement one API twice. The largest remaining saving is to validate option bags
 **once**, in the shared pure-JS prelude that both runtimes already evaluate.

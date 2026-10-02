@@ -46,4 +46,7 @@ int efx_runtime_quit_code(const efx_runtime *rt);
 int efx_runtime_in_error(const efx_runtime *rt);
 void efx_runtime_collect(efx_runtime *rt); /* frame-end GC (finalizers) */
 
+/* R22 spike-only (throwaway branch): context accessor for the timing harness */
+JSContext *efx_runtime_context(efx_runtime *rt);
+
 #endif

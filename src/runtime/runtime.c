@@ -175,35 +175,28 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("registerUpdateHook", 1, efx_js_registerUpdateHook),
     JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
     JS_CFUNC_DEF("setClearColor", 1, efx_js_setClearColor),
-    JS_CFUNC_DEF("setCamera2D", 1, efx_js_setCamera2D),
-    JS_CFUNC_DEF("createImageData", 1, efx_js_createImageData),
-    JS_CFUNC_DEF("createTexture", 1, efx_js_createTexture),
+    /* createImageData/createTexture are installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawQuad", 4, efx_js_drawQuad),
     JS_CFUNC_DEF("setBlendMode", 1, efx_js_setBlendMode),
     JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
-    JS_CFUNC_DEF("setCamera3D", 1, efx_js_setCamera3D),
-    JS_CFUNC_DEF("createMeshData", 1, efx_js_createMeshData),
+    /* createMeshData is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
     JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
     JS_CFUNC_DEF("poseMesh", 2, efx_js_poseMesh),
-    JS_CFUNC_DEF("setLight", 2, efx_js_setLight),
-    JS_CFUNC_DEF("setDirectionalLight", 1, efx_js_setDirectionalLight),
     JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
-    JS_CFUNC_DEF("createRenderTarget", 1, efx_js_createRenderTarget),
+    /* createRenderTarget is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
     JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
-    JS_CFUNC_DEF("setPostEffects", 1, efx_js_setPostEffects),
+    /* setPostEffects is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
     JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
-    JS_CFUNC_DEF("loadImage", 1, efx_js_loadImage),
-    JS_CFUNC_DEF("loadMeshData", 2, efx_js_loadMeshData),
     JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
-    JS_CFUNC_DEF("createFont", 2, efx_js_createFont),
+    /* createFont is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
     JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
     JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
     JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
-    JS_CFUNC_DEF("createParticleSystem", 1, efx_js_createParticleSystem),
+    /* createParticleSystem is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
 };
 
@@ -263,13 +256,98 @@ static int install_efx_api(efx_runtime *rt) {
     return 0;
 }
 
+/* build the private natives object handed to the prelude wrapper (design
+ * D1). Never stored on the global object. */
+static JSValue build_prelude_natives(efx_runtime *rt) {
+    JSValue natives = JS_NewObject(rt->ctx);
+    JSValue live = JS_NewCFunction(rt->ctx, efx_js_live_sample, "liveSample", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "liveSample", live);
+    JSValue wire = JS_NewCFunction(rt->ctx, efx_js_create_particle_system_wire,
+                                   "createParticleSystemWire", 2);
+    JS_SetPropertyStr(rt->ctx, natives, "createParticleSystemWire", wire);
+    JSValue psset = JS_NewCFunction(rt->ctx, efx_js_ps_set_wire, "psSet", 3);
+    JS_SetPropertyStr(rt->ctx, natives, "psSet", psset);
+    JSValue psproto = JS_NewCFunction(rt->ctx, efx_js_ps_proto, "psProto", 0);
+    JS_SetPropertyStr(rt->ctx, natives, "psProto", psproto);
+    JSValue post = JS_NewCFunction(rt->ctx, efx_js_set_post_effects_wire,
+                                   "setPostEffects", 2);
+    JS_SetPropertyStr(rt->ctx, natives, "setPostEffects", post);
+    JSValue fd = JS_NewCFunction(rt->ctx, efx_js_check_font_data,
+                                 "checkFontData", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkFontData", fd);
+    JSValue font = JS_NewCFunction(rt->ctx, efx_js_create_font_wire,
+                                   "createFont", 11);
+    JS_SetPropertyStr(rt->ctx, natives, "createFont", font);
+    JSValue n;
+    n = JS_NewCFunction(rt->ctx, efx_js_check_mesh, "checkMesh", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkMesh", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_create_body_wire,
+                        "createBody", 17);
+    JS_SetPropertyStr(rt->ctx, natives, "createBody", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_create_static_mesh_wire,
+                        "createStaticMesh", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "createStaticMesh", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_create_character_wire,
+                        "createCharacter", 15);
+    JS_SetPropertyStr(rt->ctx, natives, "createCharacter", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_step_wire, "physicsStep", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "physicsStep", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_raycast_wire, "raycast", 10);
+    JS_SetPropertyStr(rt->ctx, natives, "raycast", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_overlap_wire, "overlap", 11);
+    JS_SetPropertyStr(rt->ctx, natives, "overlap", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_shape_cast_wire,
+                        "shapeCast", 15);
+    JS_SetPropertyStr(rt->ctx, natives, "shapeCast", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_point_light_wire, "setPointLight", 10);
+    JS_SetPropertyStr(rt->ctx, natives, "setPointLight", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_directional_light_wire,
+                        "setDirectionalLight", 8);
+    JS_SetPropertyStr(rt->ctx, natives, "setDirectionalLight", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_camera2d_wire, "setCamera2D", 6);
+    JS_SetPropertyStr(rt->ctx, natives, "setCamera2D", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_camera3d_wire, "setCamera3D", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "setCamera3D", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_check_image_data, "checkImageData", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkImageData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_image_data_wire,
+                        "createImageData", 3);
+    JS_SetPropertyStr(rt->ctx, natives, "createImageData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_texture_wire, "createTexture", 4);
+    JS_SetPropertyStr(rt->ctx, natives, "createTexture", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_render_target_wire,
+                        "createRenderTarget", 2);
+    JS_SetPropertyStr(rt->ctx, natives, "createRenderTarget", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_load_image_wire, "loadImage", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "loadImage", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_load_meshdata_wire, "loadMeshData", 5);
+    JS_SetPropertyStr(rt->ctx, natives, "loadMeshData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_meshdata_wire, "createMeshData", 12);
+    JS_SetPropertyStr(rt->ctx, natives, "createMeshData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_load_data_wire,
+                        "loadAudioData", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "loadAudioData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_load_stream_wire,
+                        "loadAudioStream", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "loadAudioStream", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_check_source,
+                        "checkAudioSource", 1);
+    JS_SetPropertyStr(rt->ctx, natives, "checkAudioSource", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_audio_play_wire, "playAudio", 5);
+    JS_SetPropertyStr(rt->ctx, natives, "playAudio", n);
+    return natives;
+}
+
 /* evaluate the engine-bundled pure-JS layer (F3 math + primitives, F10
- * CommonJS runtime) and instantiate its module-runtime factory */
+ * CommonJS runtime) and instantiate its module-runtime factory. The wrapper
+ * is evaluated as a function value and called with (efx, natives) (R22
+ * spike, design D1). */
 static int eval_prelude(efx_runtime *rt) {
     static const char wrapper[] =
-        "(function(efx){\n";
+        "(function(efx, natives){\n";
+    static const char tail[] = "\n})";
     size_t wrap_len = sizeof(wrapper) - 1;
-    size_t total = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + 16;
+    size_t total = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + sizeof(tail);
     char *code = malloc(total);
     if (!code) {
         fprintf(stderr, "player: out of memory\n");
@@ -277,8 +355,8 @@ static int eval_prelude(efx_runtime *rt) {
     }
     memcpy(code, wrapper, wrap_len);
     memcpy(code + wrap_len, EFX_JS_PRELUDE, (size_t)EFX_JS_PRELUDE_LEN);
-    memcpy(code + wrap_len + (size_t)EFX_JS_PRELUDE_LEN, "\n})(efx);\n", 11);
-    size_t code_len = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + 10;
+    memcpy(code + wrap_len + (size_t)EFX_JS_PRELUDE_LEN, tail, sizeof(tail));
+    size_t code_len = wrap_len + (size_t)EFX_JS_PRELUDE_LEN + sizeof(tail) - 1;
     JSValue factory =
         JS_Eval(rt->ctx, code, code_len, "<prelude>", JS_EVAL_TYPE_GLOBAL);
     free(code);
@@ -287,11 +365,29 @@ static int eval_prelude(efx_runtime *rt) {
         finish_exception(rt);
         return -1;
     }
+    if (!JS_IsFunction(rt->ctx, factory)) {
+        fprintf(stderr, "player: prelude did not evaluate to a function\n");
+        JS_FreeValue(rt->ctx, factory);
+        return -1;
+    }
     JSValue glob2 = JS_GetGlobalObject(rt->ctx);
     JSValue efx_obj = JS_GetPropertyStr(rt->ctx, glob2, "efx");
     JS_FreeValue(rt->ctx, glob2);
-    rt->module_runtime = JS_Call(rt->ctx, factory, JS_UNDEFINED, 1, &efx_obj);
+    JSValue natives = build_prelude_natives(rt);
+    JSValue args[2] = { efx_obj, natives };
+    JSValue mod_factory = JS_Call(rt->ctx, factory, JS_UNDEFINED, 2, args);
     JS_FreeValue(rt->ctx, factory);
+    JS_FreeValue(rt->ctx, natives);
+    if (JS_IsException(mod_factory)) {
+        fprintf(stderr, "player: module runtime init failed\n");
+        finish_exception(rt);
+        JS_FreeValue(rt->ctx, efx_obj);
+        return -1;
+    }
+    /* the wrapper returns the module-runtime factory; instantiate it with
+     * (efx, opts) as before (desktop passes no opts) */
+    rt->module_runtime = JS_Call(rt->ctx, mod_factory, JS_UNDEFINED, 1, &efx_obj);
+    JS_FreeValue(rt->ctx, mod_factory);
     JS_FreeValue(rt->ctx, efx_obj);
     if (JS_IsException(rt->module_runtime)) {
         fprintf(stderr, "player: module runtime init failed\n");

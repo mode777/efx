@@ -46,25 +46,6 @@ var C = function (name, fn, divergent) {
  * green; the actual drift is recorded here and in docs/refactoring.md
  * section 4, and is not fixed by this behavior-preserving change. */
 var DIVERGENT = {
-    '4a.light-slot': 'desktop: light slot must be an integer 0..3 / web: light slot out of range (0..3)',
-    '4a.light-slot-neg': 'same as 4a.light-slot',
-    '4a.light-pos-short': 'desktop: expected 3 numbers / web: pos must hold 3 numbers',
-    '6a.loadimage-missing': 'desktop: resource not found / web: image decode failed',
-    '6b.loadmesh-missing': 'desktop: glTF resource could not be read / web: glTF import failed',
-    '6b.loadmesh-corrupt': 'desktop: invalid or malformed glTF asset / web: glTF import failed',
-    '11.ps-max-range': 'desktop: createParticleSystem requires a positive max / web: max must be in 1..65536',
-    '11.ps-bad-facing': "desktop: facing must be 'view', 'y', or 'plane' / web: facing has an unknown value",
-    '11.ps-set-max': 'desktop: invalid particle configuration / web: max must be in 1..65536',
-    '11.billboard-pos': 'desktop: drawBillboard pos must be [x,y,z] / web: pos must be [x,y] or [x,y,z]',
-    '12.createbody-noshape': 'desktop: shape must be an options object / web: createBody requires a shape',
-    '12.createstaticmesh-noopts': 'desktop: createStaticMesh requires a Mesh / web: expected a Mesh',
-    '12.raycast-noopts': 'desktop: raycast requires origin and direction / web: expected an array',
-    '12.overlap-noopts': 'desktop: overlap requires a shape / web: shape must be an options object',
-    '12.shapecast-noopts': 'desktop: shapeCast requires shape, from and motion / web: shape must be an options object',
-    '12.step-nodt': 'desktop: step requires dt / web: dt must be a finite number',
-    '14.loadaudiodata-missing': 'desktop: cannot read audio: <path> / web: cannot decode audio: <path>',
-    '14.loadaudiostream-missing': 'same as 14.loadaudiodata-missing',
-    'coercion.phys-number-string': 'desktop coerces numeric strings via JS_ToFloat64; web requires typeof number (docs/refactoring.md section 4.1)',
 };
 
 /* ------------------------------------------------------------- 2D layer */

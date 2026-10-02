@@ -202,15 +202,17 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_load_meshdata(const char *path, int has_mesh
     opts.mesh_name = name;
     int e = EFX_GLTF_OK;
     efx_meshdata *md = efx_gltf_load_meshdata(W.resource, path, &opts, &e);
+    /* negative codes are loader failures the prelude maps to messages
+     * (ADR 0049 D4): -err for glTF errors */
     if (!md) {
-        return 0;
+        return -e;
     }
     if (WMD.count >= WMD.cap) {
         int cap = WMD.cap ? WMD.cap * 2 : 16;
         wmd_slot *grown = realloc(WMD.slots, (size_t)cap * sizeof(wmd_slot));
         if (!grown) {
             efx_meshdata_destroy(md);
-            return 0;
+            return -6;
         }
         WMD.slots = grown;
         WMD.cap = cap;

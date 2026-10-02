@@ -785,6 +785,23 @@ JSValue efx_api_plain_error(JSContext *ctx, const char *msg) {
 }
 
 
+/* natives.liveSample (R22 spike): resolve a live Texture/RenderTarget to its
+ * handle for the shared prelude validators; throws on the same conditions as
+ * efx_api_get_live_sample */
+JSValue efx_js_live_sample(JSContext *ctx, JSValueConst this_val, int argc,
+                           JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1) {
+        return efx_api_type_error(ctx, "expected a Texture or RenderTarget");
+    }
+    uint64_t handle = 0;
+    if (efx_api_get_live_sample(ctx, argv[0], &handle) != 0) {
+        return JS_EXCEPTION;
+    }
+    return JS_NewFloat64(ctx, (double)handle);
+}
+
+
 #define EFX_ARRAY_COUNT(a) ((int)(sizeof(a) / sizeof((a)[0])))
 
 

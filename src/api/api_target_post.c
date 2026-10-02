@@ -3,39 +3,18 @@
 
 /* -------------------------------------------------------- F5a bindings */
 
-JSValue efx_js_createRenderTarget(JSContext *ctx, JSValueConst this_val,
-                                  int argc, JSValueConst *argv) {
+/* (width, height) — validated by the shared prelude (ADR 0049) */
+JSValue efx_js_create_render_target_wire(JSContext *ctx, JSValueConst this_val,
+                                         int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1 || !JS_IsObject(argv[0])) {
-        return efx_api_type_error(ctx, "createRenderTarget requires an options object");
+    if (argc < 2) {
+        return efx_api_type_error(ctx, "render target wire native requires (w, h)");
     }
-    JSValueConst opts = argv[0];
-    static const char *known[] = {"width", "height"};
-    if (efx_api_check_known_fields(ctx, opts, known, 2, "createRenderTarget") != 0) {
+    int32_t w = 0, h = 0;
+    if (JS_ToInt32(ctx, &w, argv[0]) < 0 || JS_ToInt32(ctx, &h, argv[1]) < 0) {
         return JS_EXCEPTION;
     }
-    double w = 0, h = 0;
-    static const char *keys[] = {"width", "height"};
-    double *outs[] = {&w, &h};
-    for (int i = 0; i < 2; i++) {
-        JSValue v = JS_GetPropertyStr(ctx, opts, keys[i]);
-        if (JS_IsUndefined(v)) {
-            JS_FreeValue(ctx, v);
-            return efx_api_type_error(ctx, "createRenderTarget requires width and height");
-        }
-        int bad = !JS_IsNumber(v) || JS_ToFloat64(ctx, outs[i], v) < 0;
-        JS_FreeValue(ctx, v);
-        if (bad) {
-            return efx_api_type_error(ctx, "width and height must be numbers");
-        }
-        if (!isfinite(*outs[i]) || *outs[i] <= 0 ||
-            *outs[i] != floor(*outs[i]) ||
-            *outs[i] > (double)EFX_RENDER_MAX_TARGET_SIZE) {
-            return efx_api_range_error(
-                ctx, "width and height must be integers in 1..4096");
-        }
-    }
-    uint64_t handle = efx_render_target_create((int)w, (int)h);
+    uint64_t handle = efx_render_target_create(w, h);
     if (!handle) {
         return efx_api_generic_error(ctx, "render target creation failed (no GPU context?)");
     }
@@ -87,176 +66,67 @@ JSValue efx_js_endRenderTarget(JSContext *ctx, JSValueConst this_val,
 
 /* -------------------------------------------------------- F5b bindings */
 
-/* optional finite-number field: absent -> *present = 0; non-number ->
- * TypeError; non-finite -> RangeError (the F2 array precedent) */
-static int post_number(JSContext *ctx, JSValueConst obj, const char *key,
-                       float *out, int *present) {
-    *present = 0;
-    JSValue v = JS_GetPropertyStr(ctx, obj, key);
-    if (JS_IsUndefined(v)) {
-        JS_FreeValue(ctx, v);
-        return 0;
-    }
-    if (!JS_IsNumber(v)) {
-        JS_FreeValue(ctx, v);
-        JS_ThrowTypeError(ctx, "%s must be a number", key);
-        return -1;
-    }
-    double d = 0;
-    if (JS_ToFloat64(ctx, &d, v) < 0) {
-        JS_FreeValue(ctx, v);
-        return -1;
-    }
-    JS_FreeValue(ctx, v);
-    if (!isfinite(d)) {
-        JS_ThrowRangeError(ctx, "%s must be a finite number", key);
-        return -1;
-    }
-    *out = (float)d;
-    *present = 1;
-    return 0;
-}
+/* the 9-float wire layout (prelude writer + src/web/bridge_target_post.c) */
+#define EFX_POST_WIRE_STRIDE 9
 
-
-/* parse one chain entry into the engine snapshot (F5b spec: registered
- * effect name, effect-specific options, mix; unknown field -> TypeError) */
-static int read_post_entry(JSContext *ctx, JSValueConst v, efx_post_entry *out) {
-    memset(out, 0, sizeof(*out));
-    out->mix = 1.0f;
-    if (!JS_IsObject(v)) {
-        efx_api_type_error(ctx, "post-effect entry must be an object");
-        return -1;
-    }
-    JSValue ev = JS_GetPropertyStr(ctx, v, "effect");
-    if (!JS_IsString(ev)) {
-        JS_FreeValue(ctx, ev);
-        efx_api_type_error(ctx, "post-effect entry requires an effect name");
-        return -1;
-    }
-    const char *name = JS_ToCString(ctx, ev);
-    JS_FreeValue(ctx, ev);
-    if (!name) {
-        return -1;
-    }
-    int known = 0;
-    if (strcmp(name, "colorFilter") == 0) {
-        out->effect = EFX_POST_COLOR_FILTER;
-        out->u.color_filter.brightness = 1.0f;
-        out->u.color_filter.contrast = 1.0f;
-        out->u.color_filter.saturation = 1.0f;
-        out->u.color_filter.tint[0] = 1.0f;
-        out->u.color_filter.tint[1] = 1.0f;
-        out->u.color_filter.tint[2] = 1.0f;
-        out->u.color_filter.tint[3] = 1.0f;
-        known = 1;
-    } else if (strcmp(name, "blur") == 0) {
-        out->effect = EFX_POST_BLUR;
-        out->u.blur.radius = 1.0f;
-        known = 1;
-    } else if (strcmp(name, "bloom") == 0) {
-        out->effect = EFX_POST_BLOOM;
-        out->u.bloom.threshold = 0.8f;
-        out->u.bloom.strength = 0.5f;
-        known = 1;
-    }
-    JS_FreeCString(ctx, name);
-    if (!known) {
-        efx_api_type_error(ctx, "unknown post effect");
-        return -1;
-    }
-
-    static const char *color_keys[] = {"effect", "mix", "brightness",
-                                       "contrast", "saturation", "tint"};
-    static const char *blur_keys[] = {"effect", "mix", "radius"};
-    static const char *bloom_keys[] = {"effect", "mix", "threshold",
-                                       "strength"};
-    const char **keys;
-    int nkeys;
-    if (out->effect == EFX_POST_COLOR_FILTER) {
-        keys = color_keys;
-        nkeys = 6;
-    } else if (out->effect == EFX_POST_BLUR) {
-        keys = blur_keys;
-        nkeys = 3;
-    } else {
-        keys = bloom_keys;
-        nkeys = 4;
-    }
-    if (efx_api_check_known_fields(ctx, v, keys, nkeys, "post effect") != 0) {
-        return -1;
-    }
-
-    float f = 0;
-    int present = 0;
-    if (post_number(ctx, v, "mix", &f, &present) != 0) {
-        return -1;
-    }
-    if (present) {
-        out->mix = f;
-    }
-    if (out->effect == EFX_POST_COLOR_FILTER) {
-        if (post_number(ctx, v, "brightness", &f, &present) != 0) return -1;
-        if (present) out->u.color_filter.brightness = f;
-        if (post_number(ctx, v, "contrast", &f, &present) != 0) return -1;
-        if (present) out->u.color_filter.contrast = f;
-        if (post_number(ctx, v, "saturation", &f, &present) != 0) return -1;
-        if (present) out->u.color_filter.saturation = f;
-        JSValue tv = JS_GetPropertyStr(ctx, v, "tint");
-        if (!JS_IsUndefined(tv)) {
-            int rc = efx_api_get_float_array(ctx, tv, out->u.color_filter.tint, 4);
-            JS_FreeValue(ctx, tv);
-            if (rc != 0) {
-                return -1;
-            }
-        } else {
-            JS_FreeValue(ctx, tv);
-        }
-    } else if (out->effect == EFX_POST_BLUR) {
-        if (post_number(ctx, v, "radius", &f, &present) != 0) return -1;
-        if (present) out->u.blur.radius = f;
-    } else {
-        if (post_number(ctx, v, "threshold", &f, &present) != 0) return -1;
-        if (present) out->u.bloom.threshold = f;
-        if (post_number(ctx, v, "strength", &f, &present) != 0) return -1;
-        if (present) out->u.bloom.strength = f;
-    }
-    return 0;
-}
-
-
-JSValue efx_js_setPostEffects(JSContext *ctx, JSValueConst this_val,
-                              int argc, JSValueConst *argv) {
+/* native set from the prelude's normalized wire (ADR 0049): the chain was
+ * validated and marshalled by the shared prelude validator */
+JSValue efx_js_set_post_effects_wire(JSContext *ctx, JSValueConst this_val,
+                                     int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 1) {
-        return efx_api_type_error(ctx, "setPostEffects requires an array or null");
+    if (argc < 2) {
+        return efx_api_type_error(ctx, "post wire native requires (wire, count)");
     }
     if (JS_IsNull(argv[0]) || JS_IsUndefined(argv[0])) {
         efx_render_set_post_effects(NULL, 0);
         return JS_UNDEFINED;
     }
-    if (!JS_IsArray(argv[0])) {
-        return efx_api_type_error(ctx, "setPostEffects requires an array or null");
+    size_t blen = 0;
+    uint8_t *bytes = NULL;
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, argv[0], NULL, NULL, NULL);
+    if (JS_IsException(ab)) {
+        return ab;
     }
-    JSValue lenv = JS_GetPropertyStr(ctx, argv[0], "length");
-    int32_t len = -1;
-    JS_ToInt32(ctx, &len, lenv);
-    JS_FreeValue(ctx, lenv);
-    if (len < 0) {
-        return efx_api_type_error(ctx, "setPostEffects requires an array or null");
+    bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+    JS_FreeValue(ctx, ab);
+    int32_t count = 0;
+    if (JS_ToInt32(ctx, &count, argv[1]) < 0) {
+        return JS_EXCEPTION;
     }
-    if (len > EFX_POST_MAX_ENTRIES) {
+    if (count < 0 || count > EFX_POST_MAX_ENTRIES) {
         return efx_api_range_error(ctx, "post-effect chain is limited to 8 entries");
     }
+    if (!bytes || blen < (size_t)count * EFX_POST_WIRE_STRIDE * sizeof(float)) {
+        return efx_api_type_error(ctx, "post wire must be a Float32Array");
+    }
+    const float *w = (const float *)bytes;
     efx_post_entry entries[EFX_POST_MAX_ENTRIES];
-    for (int i = 0; i < len; i++) {
-        JSValue ev = JS_GetPropertyUint32(ctx, argv[0], (uint32_t)i);
-        int rc = read_post_entry(ctx, ev, &entries[i]);
-        JS_FreeValue(ctx, ev);
-        if (rc != 0) {
-            return JS_EXCEPTION;
+    memset(entries, 0, sizeof(entries));
+    for (int i = 0; i < count; i++) {
+        const float *e = w + (size_t)i * EFX_POST_WIRE_STRIDE;
+        entries[i].effect = (int)e[0];
+        entries[i].mix = e[1];
+        switch (entries[i].effect) {
+        case EFX_POST_COLOR_FILTER:
+            entries[i].u.color_filter.brightness = e[2];
+            entries[i].u.color_filter.contrast = e[3];
+            entries[i].u.color_filter.saturation = e[4];
+            for (int k = 0; k < 4; k++) {
+                entries[i].u.color_filter.tint[k] = e[5 + k];
+            }
+            break;
+        case EFX_POST_BLUR:
+            entries[i].u.blur.radius = e[2];
+            break;
+        case EFX_POST_BLOOM:
+            entries[i].u.bloom.threshold = e[2];
+            entries[i].u.bloom.strength = e[3];
+            break;
+        default:
+            break;
         }
     }
-    int rc = efx_render_set_post_effects(entries, (int)len);
+    int rc = efx_render_set_post_effects(entries, (int)count);
     if (rc == EFX_POST_ERR_UNKNOWN) {
         return efx_api_type_error(ctx, "unknown post effect");
     }
