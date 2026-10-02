@@ -1,3 +1,13 @@
+    /* hot accessor helper (ADR 0049: stays with the native-backed accessors) */
+    function __physBodyVec3(fn, handle) {
+        var ptr = bridge['_malloc'](12);
+        var base = ptr >> 2;
+        fn(handle, ptr);
+        var out = [HEAPF32[base], HEAPF32[base + 1], HEAPF32[base + 2]];
+        bridge['_free'](ptr);
+        return out;
+    }
+
     var EfxBody = __efxResourceClass('EfxBody', {
         typeMsg: 'expected a Body',
         deadMsg: 'using a destroyed Body',
