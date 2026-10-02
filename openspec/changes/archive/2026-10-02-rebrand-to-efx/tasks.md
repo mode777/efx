@@ -101,5 +101,5 @@
 
 ## 7. Archive
 
-- [ ] 7.1 Archive the change (`npx openspec archive rebrand-to-efx`) once the
+- [x] 7.1 Archive the change (`npx openspec archive rebrand-to-efx`) once the
   gate is green and the rename is confirmed, and push the archive.
