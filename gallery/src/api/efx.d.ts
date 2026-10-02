@@ -38,8 +38,8 @@ type Vec3 = [number, number, number];
  *
  * @example
  * ```js
- * const model = efx.mat4.translate(
- *   efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]),
+ * const model = efx.math.mat4.translate(
+ *   efx.math.mat4.rotate(efx.math.mat4.identity(), 45, [0, 1, 0]),
  *   [0, 0.5, 0],
  * );
  * efx.graphics.drawMesh(mesh, { transform: model });
@@ -57,8 +57,8 @@ type Mat4 = [
  *
  * @example
  * ```js
- * const q = efx.quat.fromAxisAngle(90, [0, 1, 0]);
- * const m = efx.quat.toMat4(q);
+ * const q = efx.math.quat.fromAxisAngle(90, [0, 1, 0]);
+ * const m = efx.math.quat.toMat4(q);
  * ```
  */
 type Quat = [number, number, number, number];
@@ -849,7 +849,7 @@ type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
  * @example
  * ```js
  * efx.graphics.drawMesh(cube, {
- *   transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]),
+ *   transform: efx.math.mat4.rotate(efx.math.mat4.identity(), yaw, [0, 1, 0]),
  *   color: [0.95, 0.5, 0.2, 1],
  * });
  * ```
@@ -1438,6 +1438,20 @@ interface EfxQuat {
    * @returns The equivalent rotation `Mat4`.
    */
   toMat4(q: Quat): Mat4;
+}
+
+/**
+ * Pure-JS math helpers, reached as `efx.math`. Each helper is a pure
+ * function that never mutates its arguments and returns plain JS data
+ * (column-major `Mat4` arrays, `Vec3` arrays, `Quat` arrays).
+ */
+interface EfxMath {
+  /** Pure-JS 4×4 matrix helpers. */
+  mat4: EfxMat4;
+  /** Pure-JS 3-component vector helpers. */
+  vec3: EfxVec3;
+  /** Pure-JS quaternion helpers. */
+  quat: EfxQuat;
 }
 
 // ---------------------------------------------------------------------------
@@ -2107,6 +2121,80 @@ interface EfxGraphics {
    * @param system - System whose live particles to draw.
    */
   drawParticles(system: EfxParticleSystem): void;
+  /**
+   * Engine-owned 1×1 opaque-white texture usable in any draw (read-only;
+   * `destroy()` on it throws).
+   */
+  readonly whiteTexture: EfxTexture;
+}
+
+// ---------------------------------------------------------------------------
+// Resource loading (efx.io) and named colors (efx.color)
+// ---------------------------------------------------------------------------
+
+/**
+ * Synchronous resource loaders, reached as `efx.io`. Paths are relative to
+ * the resource root (directory or zip) and obey its escape rules; a non-string
+ * path throws `TypeError` and a missing, unreadable, or escaping path throws
+ * a standard `Error`.
+ */
+interface EfxIo {
+  /**
+   * Read a UTF-8 text resource.
+   *
+   * @param path - Resource-root-relative path.
+   * @returns The decoded text.
+   */
+  loadText(path: string): string;
+  /**
+   * Read a resource as raw bytes.
+   *
+   * @param path - Resource-root-relative path.
+   * @returns A fresh `Uint8Array` copy of the file's bytes, with no decoding applied.
+   */
+  loadData(path: string): Uint8Array;
+}
+
+/**
+ * Named color constants, reached as `efx.color`: the CSS basic 16 plus
+ * `transparent`. Each is a `Color` (`[r, g, b, a]`) frozen at runtime, so a
+ * script cannot mutate engine state through it. There are no functions here.
+ */
+interface EfxColor {
+  /** `[0, 1, 1, 1]`. */
+  readonly aqua: Color;
+  /** `[0, 0, 0, 1]`. */
+  readonly black: Color;
+  /** `[0, 0, 1, 1]`. */
+  readonly blue: Color;
+  /** `[1, 0, 1, 1]`. */
+  readonly fuchsia: Color;
+  /** `[0.5, 0.5, 0.5, 1]`. */
+  readonly gray: Color;
+  /** `[0, 0.5, 0, 1]`. */
+  readonly green: Color;
+  /** `[0, 1, 0, 1]`. */
+  readonly lime: Color;
+  /** `[0.5, 0, 0, 1]`. */
+  readonly maroon: Color;
+  /** `[0, 0, 0.5, 1]`. */
+  readonly navy: Color;
+  /** `[0.5, 0.5, 0, 1]`. */
+  readonly olive: Color;
+  /** `[0.5, 0, 0.5, 1]`. */
+  readonly purple: Color;
+  /** `[1, 0, 0, 1]`. */
+  readonly red: Color;
+  /** `[0.75, 0.75, 0.75, 1]`. */
+  readonly silver: Color;
+  /** `[0, 0.5, 0.5, 1]`. */
+  readonly teal: Color;
+  /** `[1, 1, 1, 1]`. */
+  readonly white: Color;
+  /** `[1, 1, 0, 1]`. */
+  readonly yellow: Color;
+  /** `[0, 0, 0, 0]`. */
+  readonly transparent: Color;
 }
 
 // ---------------------------------------------------------------------------
@@ -2135,7 +2223,7 @@ interface EfxGraphics {
  * let t = 0;
  * function update(dt) { t += dt; }
  * function render() {
- *   const model = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
+ *   const model = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 40, [0, 1, 0]);
  *   efx.graphics.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
  * }
  * ```
@@ -2157,11 +2245,15 @@ interface Efx {
    */
   quit(code?: number): never;
   /**
-   * Get the host arguments passed to the script run.
+   * The host arguments passed to the script run (read-only). A fresh array is
+   * returned on every access, so mutating it never affects the engine.
    *
-   * @returns The `--script <file> [args...]` tail, or an empty array when none were given.
+   * @example
+   * ```js
+   * const argv = efx.args; // e.g. ['one', 'two'] for --script main.js one two
+   * ```
    */
-  args(): string[];
+  readonly args: string[];
   /**
    * Register a per-frame update hook.
    *
@@ -2177,34 +2269,19 @@ interface Efx {
    */
   registerRenderHook(fn: () => void): () => void;
 
-  // Engine-owned state
-
-  /** Engine-owned 1×1 white texture (read-only; `destroy()` throws). */
-  readonly whiteTexture: EfxTexture;
-
   // Graphics sub-namespace (ADR 0050)
 
   /** Graphics drawing, state, and resources. */
   readonly graphics: EfxGraphics;
 
-  // Pure-JS math layer
+  // Math, IO, and color sub-namespaces (ADR 0051)
 
-  /** Pure-JS 4×4 matrix helpers. */
-  mat4: EfxMat4;
-  /** Pure-JS 3-component vector helpers. */
-  vec3: EfxVec3;
-  /** Pure-JS quaternion helpers. */
-  quat: EfxQuat;
-
-  // Resource loading (paths relative to the resource root)
-
-  /**
-   * Read a UTF-8 text resource.
-   *
-   * @param path - Resource-root-relative path.
-   * @returns The decoded text.
-   */
-  loadText(path: string): string;
+  /** Pure-JS math helpers. */
+  readonly math: EfxMath;
+  /** Synchronous resource loaders. */
+  readonly io: EfxIo;
+  /** Named color constants. */
+  readonly color: EfxColor;
 
   // Input: sub-namespaces of the single efx object
 

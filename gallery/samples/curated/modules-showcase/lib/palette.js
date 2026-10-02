@@ -19,7 +19,7 @@ exports.material = function (color) {
     return {
         ambient: { color: exports.shade(color, 0.16) },
         diffuse: { color: color },
-        specular: { color: [1, 1, 1, 1], shininess: 40 },
-        emissive: { color: [0, 0, 0, 1] },
+        specular: { color: efx.color.white, shininess: 40 },
+        emissive: { color: efx.color.black },
     };
 };

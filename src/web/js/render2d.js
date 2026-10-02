@@ -18,29 +18,44 @@
             bridge['_efx_bridge_quit'](c);
             throw __efxState().quitSentinel;
         },
-        args: function () {
-            var n = bridge['_efx_bridge_arg_count']();
-            var out = new Array(n);
-            for (var i = 0; i < n; i++) {
-                out[i] = UTF8ToString(bridge['_efx_bridge_arg'](i));
-            }
-            return out;
-        },
         registerUpdateHook: makeRegister(1),
         registerRenderHook: makeRegister(0),
-        loadText: function (path) {
-            if (arguments.length < 1 || typeof path !== 'string') {
-                throw new TypeError('loadText requires a path string');
-            }
-            var p = __efxAllocCStr(path);
-            var ptr = bridge['_efx_bridge_load_text'](p);
-            bridge['_free'](p);
-            if (!ptr) {
-                throw new Error('resource not found');
-            }
-            var s = UTF8ToString(ptr);
-            bridge['_free'](ptr);
-            return s;
+        /* efx.io sub-namespace: resource loaders. `loadText` moved off the
+         * root; `loadData` returns raw bytes as a Uint8Array copy. */
+        io: {
+            loadText: function (path) {
+                if (arguments.length < 1 || typeof path !== 'string') {
+                    throw new TypeError('loadText requires a path string');
+                }
+                var p = __efxAllocCStr(path);
+                var ptr = bridge['_efx_bridge_load_text'](p);
+                bridge['_free'](p);
+                if (!ptr) {
+                    throw new Error('resource not found');
+                }
+                var s = UTF8ToString(ptr);
+                bridge['_free'](ptr);
+                return s;
+            },
+            loadData: function (path) {
+                if (arguments.length < 1 || typeof path !== 'string') {
+                    throw new TypeError('loadData requires a path string');
+                }
+                var p = __efxAllocCStr(path);
+                var lenPtr = bridge['_malloc'](4);
+                var ptr = bridge['_efx_bridge_load_data'](p, lenPtr);
+                bridge['_free'](p);
+                if (!ptr) {
+                    bridge['_free'](lenPtr);
+                    throw new Error('resource not found');
+                }
+                var n = HEAPU32[lenPtr >> 2];
+                var out = new Uint8Array(n);
+                out.set(HEAPU8.subarray(ptr, ptr + n));
+                bridge['_free'](ptr);
+                bridge['_free'](lenPtr);
+                return out;
+            },
         },
         /* graphics sub-namespace (ADR 0050); prelude members are installed
          * onto this same object (ADR 0049) */

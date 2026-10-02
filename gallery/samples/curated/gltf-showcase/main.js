@@ -14,6 +14,6 @@ let t = 0;
 function update(dt) { t += dt; }
 
 function render() {
-    const spin = efx.mat4.rotate(efx.mat4.identity(), t * 30, [0, 1, 0]);
-    efx.graphics.drawMesh(avocado, { transform: efx.mat4.scale(spin, [8, 8, 8]) });
+    const spin = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 30, [0, 1, 0]);
+    efx.graphics.drawMesh(avocado, { transform: efx.math.mat4.scale(spin, [8, 8, 8]) });
 }

@@ -16,7 +16,7 @@ const FH = 480;
 let whiteTex = null;
 function white() {
     if (!whiteTex) {
-        whiteTex = efx.whiteTexture;
+        whiteTex = efx.graphics.whiteTexture;
     }
     return whiteTex;
 }
@@ -147,7 +147,7 @@ function update(dt) {
 }
 
 function render() {
-    efx.graphics.drawText('Audio Showcase', fontTitle, 24, 20, { color: [1, 1, 1, 1] });
+    efx.graphics.drawText('Audio Showcase', fontTitle, 24, 20, { color: efx.color.white });
     efx.graphics.drawText('F14: one streamed track + decoded effects, controlled through handles.',
                  fontSmall, 24, 52, { color: [0.7, 0.75, 0.85, 1] });
 

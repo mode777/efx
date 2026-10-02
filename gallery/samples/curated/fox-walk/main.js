@@ -11,7 +11,7 @@ const fox = efx.graphics.createMesh(efx.graphics.loadMeshData('Fox.glb'));
 
 // The mesh is authored in a small FBX space under a 100x, Z-up node; apply
 // that node's transform so the walk reads upright at world scale.
-const model = efx.mat4.scale(efx.mat4.rotate(efx.mat4.identity(), -90, [1, 0, 0]),
+const model = efx.math.mat4.scale(efx.math.mat4.rotate(efx.math.mat4.identity(), -90, [1, 0, 0]),
                              [100, 100, 100]);
 
 let t = 0;

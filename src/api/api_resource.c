@@ -47,6 +47,33 @@ JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc,
 }
 
 
+JSValue efx_js_loadData(JSContext *ctx, JSValueConst this_val, int argc,
+                        JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return efx_api_type_error(ctx, "loadData requires a path string");
+    }
+    struct efx_host_state *h = efx_api_host_state(ctx);
+    if (!h->resource) {
+        return efx_api_plain_error(ctx, "no resource root");
+    }
+    const char *path = JS_ToCString(ctx, argv[0]);
+    if (!path) {
+        return JS_EXCEPTION;
+    }
+    size_t size = 0;
+    int err = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(h->resource, path, &size, &err);
+    JS_FreeCString(ctx, path);
+    if (!bytes) {
+        return efx_api_plain_error(ctx, resource_err_text(err));
+    }
+    JSValue out = JS_NewUint8ArrayCopy(ctx, bytes, size);
+    efx_resource_free(bytes);
+    return out;
+}
+
+
 /* natives for the shared prelude validator (ADR 0049): return the wrapper
  * object, or the NEGATED engine error code for the prelude's message table */
 JSValue efx_js_load_image_wire(JSContext *ctx, JSValueConst this_val,

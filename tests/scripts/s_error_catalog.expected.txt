@@ -129,6 +129,8 @@
 5b.scale-unknown-field: TypeError: unknown setRenderScale option 'frob'
 6a.loadtext-type: TypeError: loadText requires a path string
 6a.loadtext-missing: Error: resource not found
+6a.loaddata-type: TypeError: loadData requires a path string
+6a.loaddata-missing: Error: resource not found
 6a.loadimage-type: TypeError: loadImage requires a path string
 6a.loadimage-missing: Error: resource not found
 6b.loadmesh-type: TypeError: loadMeshData requires a path string

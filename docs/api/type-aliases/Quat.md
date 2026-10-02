@@ -13,6 +13,6 @@ A quaternion `[x, y, z, w]`.
 ## Example
 
 ```js
-const q = efx.quat.fromAxisAngle(90, [0, 1, 0]);
-const m = efx.quat.toMat4(q);
+const q = efx.math.quat.fromAxisAngle(90, [0, 1, 0]);
+const m = efx.math.quat.toMat4(q);
 ```

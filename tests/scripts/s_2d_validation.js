@@ -24,7 +24,7 @@ expectThrow('img-size', () => efx.graphics.createImageData({ width: 0, height: 8
 
 // drawQuad(x, y, texture, opts?): texture required live; size/origin
 // validation; a created texture works headless (uploads queue until a
-// GPU surface exists), efx.whiteTexture needs a window and is covered by
+// GPU surface exists), efx.graphics.whiteTexture needs a window and is covered by
 // the unit/golden suites
 const img = efx.graphics.createImageData({ width: 8, height: 4, pixels: new Uint8Array(8 * 4 * 4) });
 const tex = efx.graphics.createTexture(img);

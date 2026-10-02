@@ -15,7 +15,7 @@ efx.graphics.setMeshSurfaceMaterial(cube, 0, {
   diffuse: { color: [1, 1, 1, 1] },
   specular: { color: [1, 1, 1, 1], shininess: 32 },
 });
-efx.graphics.drawMesh(cube, { transform: efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]) });
+efx.graphics.drawMesh(cube, { transform: efx.math.mat4.rotate(efx.math.mat4.identity(), 45, [0, 1, 0]) });
 efx.graphics.drawMesh(cube);
 
 // Primitives bind an optional material to their single surface.
@@ -73,7 +73,7 @@ efx.graphics.loadMeshData('models/quad.glb', { mesh: {} });
 efx.graphics.poseMesh(cube, { clip: 'Walk', time: 1 });
 efx.graphics.poseMesh(cube, [{ clip: 0, time: 1, weight: 0.5 }]);
 efx.graphics.drawMesh(cube, { skinned: true });
-efx.graphics.drawMesh(cube, { transform: efx.mat4.identity(), color: [1, 1, 1, 1], skinned: false });
+efx.graphics.drawMesh(cube, { transform: efx.math.mat4.identity(), color: [1, 1, 1, 1], skinned: false });
 // @ts-expect-error — an unknown pose sample field is rejected
 efx.graphics.poseMesh(cube, { clip: 'Walk', time: 1, bogus: true });
 // @ts-expect-error — skinned is a boolean
@@ -180,3 +180,27 @@ efx.require('./lib/math.js');
 efx.graphics.setClearColor([0, 0, 0]);
 // @ts-expect-error — a transform is a fixed-length 16-number matrix
 efx.graphics.drawMesh(cube, { transform: [1, 0, 0] });
+
+// ADR 0051 — math/io/color sub-namespaces and the args property. The moved
+// names are gone from the root, so the old call shapes fail to compile.
+const mv: Mat4 = efx.math.mat4.identity();
+const vv: Vec3 = efx.math.vec3.add([1, 0, 0], [0, 1, 0]);
+const qq: Quat = efx.math.quat.fromAxisAngle(90, [0, 1, 0]);
+const text: string = efx.io.loadText('data.txt');
+const bytes: Uint8Array = efx.io.loadData('blob.bin');
+const white: Color = efx.color.white;
+const transparent: Color = efx.color.transparent;
+efx.graphics.setClearColor(efx.color.navy);
+efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { color: efx.color.red });
+const argv: string[] = efx.args;
+mv; vv; qq; text; bytes; white; transparent; argv;
+// @ts-expect-error — whiteTexture moved into efx.graphics
+efx.whiteTexture;
+// @ts-expect-error — loadText moved into efx.io
+efx.loadText('data.txt');
+// @ts-expect-error — mat4 moved into efx.math
+efx.mat4.identity();
+// @ts-expect-error — args is a property, not a function
+efx.args();
+// @ts-expect-error — efx.color holds constants, not a constructor
+new efx.color();

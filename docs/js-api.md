@@ -20,13 +20,14 @@ behavior.
   pure-JS high-level — live on a single global object `efx`, available to
   every script without imports or setup. Scripts reach engine functionality
   only through `efx` and standard ES6 built-ins. The namespace is organized
-  into domain sub-namespaces (ADR 0050): graphics drawing, state, and
-  resources live under `efx.graphics`, and further domains such as
-  `efx.keyboard`, `efx.physics`, and `efx.gamepad` are members of that one
-  object; sub-namespaces add no free globals, and the root keeps the
-  runtime/lifecycle facilities (`log`, `quit`, `args`, hook registration,
-  `whiteTexture`, `loadText`, the `efx.mat4` / `efx.vec3` / `efx.quat`
-  helpers). The CommonJS facilities `require`,
+  into domain sub-namespaces (ADR 0050, ADR 0051): graphics drawing, state,
+  and resources live under `efx.graphics`, the pure-JS math helpers under
+  `efx.math`, the resource loaders under `efx.io`, the named color constants
+  under `efx.color`, and further domains such as `efx.keyboard`,
+  `efx.physics`, and `efx.gamepad` are members of that one object;
+  sub-namespaces add no free globals, and the root keeps only the
+  runtime/lifecycle facilities (`log`, `quit`, the read-only `args`
+  property, and hook registration). The CommonJS facilities `require`,
   `module`, and `exports` are module-scoped authoring facilities, never
   members of `efx` and never free globals.
 - **Two layers.** Every API function belongs to exactly one of two layers:
@@ -34,8 +35,9 @@ behavior.
     through the engine binding (`drawQuad`, `drawMesh`,
     `setMeshSurfaceMaterial`, `drawText`, …).
   - `[JS]` — high-level conveniences implemented in pure ES6
-    (`makeCube`/`makePlane`/`makeSphere`/`makeCapsule`, the `efx.mat4` /
-    `efx.vec3` / `efx.quat` helpers). A `[JS]` function MUST be built only on
+    (`makeCube`/`makePlane`/`makeSphere`/`makeCapsule`, the `efx.math.mat4` /
+    `efx.math.vec3` / `efx.math.quat` helpers, the `efx.color` constants). A
+    `[JS]` function MUST be built only on
     the public `[C]` API and standard ES6 — never on private bindings or host
     facilities.
   The layer is an implementation concern: the generated reference is
@@ -92,7 +94,10 @@ behavior.
 - **Units.** Angles in **degrees** (radians never appear in the API), time in
   **seconds**, positions and sizes in world units.
 - **Colors.** `[r, g, b, a]` arrays of normalized floats in `0..1`
-  (e.g. `[1, 0.5, 0, 1]`). Channel alpha is ignored by shading.
+  (e.g. `[1, 0.5, 0, 1]`). Channel alpha is ignored by shading. The
+  `efx.color` namespace provides frozen named constants — the CSS basic 16
+  plus `transparent` — for the common colors; they are ordinary `Color`
+  values usable anywhere a color array is accepted.
 - **Errors.** Invalid input throws standard ES6 errors (`TypeError` for wrong
   types, `RangeError` for out-of-range slots/indices). An uncaught exception
   stops the run with a non-zero exit code and the error on stderr — in
@@ -186,7 +191,7 @@ fixed light bank is slot-based.
 | MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive); skinned meshes add `joints`/`weights` per surface | Native class | CPU | `createMeshData` / `loadMeshData`; read-only `surfaceCount` |
 | ImageData | Raw pixels + size + format | Native class | CPU | `createImageData` / `loadImage`; read-only `width` / `height` (throw `TypeError` when destroyed) |
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally; per-surface material binding slot | Native class | GPU | `createMesh(meshData)`; read-only `surfaceCount` |
-| Texture | GPU texture | Native class | GPU | `createTexture(imageData, opts?)` (`wrap`/`filter`/`mipmaps`); read-only `width` / `height`; `efx.whiteTexture` is an engine-owned instance (destroy throws) |
+| Texture | GPU texture | Native class | GPU | `createTexture(imageData, opts?)` (`wrap`/`filter`/`mipmaps`); read-only `width` / `height`; `efx.graphics.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | `createRenderTarget({ width, height })` (1..4096 per side); read-only `width` / `height`; a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with no alias Texture object |
 | Materials (Phong parameter objects) | — | JS-managed | — | Bound per surface via `setMeshSurfaceMaterial` / the `materials` array; per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | Snapshotted at `setPostEffects` call time; no native handle and no `destroy()` |
@@ -356,14 +361,14 @@ in the generated reference (or to an open question below):
 | 1 camera fixed | `efx.graphics.setCamera2D`, `efx.graphics.setCamera3D`, fixed limits |
 | Rendering meshes | `efx.graphics.createMesh` / `efx.graphics.drawMesh` |
 | Vertex colours | `MeshSurfaceData.colors`, `DrawMeshCallOptions.color` |
-| Matrix math | `efx.mat4` / `efx.vec3` / `efx.quat` |
+| Matrix math | `efx.math.mat4` / `efx.math.vec3` / `efx.math.quat` |
 | Procedural primitives | `makeCube` / `makePlane` / `makeSphere` / `makeCapsule` |
 | 4 point lights, 1 directional light | `efx.graphics.setLight`, `efx.graphics.setDirectionalLight`, fixed limits |
 | Phong material system, 4 channels + maps | `efx.graphics.setMeshSurfaceMaterial`, `Material` |
 | Alpha masks | `Material.alphaMask` |
 | Rendering to textures | `efx.graphics.createRenderTarget` / `efx.graphics.beginRenderTarget` |
 | Simple post processing | `efx.graphics.setPostEffects`, `efx.graphics.setRenderScale` |
-| Resource folder / zip root (`res://`-like) | `efx.loadText` / `efx.graphics.loadImage` / `efx.graphics.loadMeshData` |
+| Resource folder / zip root (`res://`-like) | `efx.io.loadText` / `efx.io.loadData` / `efx.graphics.loadImage` / `efx.graphics.loadMeshData` |
 | REPL console mode | the `--repl` run mode (no new API) |
 | Skinning and animations | `efx.graphics.poseMesh`, `DrawMeshCallOptions.skinned` |
 | PS2-era particle effects | `efx.graphics.createParticleSystem` / `efx.graphics.drawParticles` |

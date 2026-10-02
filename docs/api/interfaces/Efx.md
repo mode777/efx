@@ -28,18 +28,41 @@ efx.graphics.setMeshSurfaceMaterial(cube, 0, {
 let t = 0;
 function update(dt) { t += dt; }
 function render() {
-  const model = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
+  const model = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 40, [0, 1, 0]);
   efx.graphics.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
 }
 ```
 
 ## Properties
 
+### args
+
+> `readonly` **args**: `string`[]
+
+The host arguments passed to the script run (read-only). A fresh array is
+returned on every access, so mutating it never affects the engine.
+
+#### Example
+
+```js
+const argv = efx.args; // e.g. ['one', 'two'] for --script main.js one two
+```
+
+***
+
 ### audio
 
 > **audio**: [`EfxAudio`](EfxAudio.md)
 
 Streamed background music and sound effects.
+
+***
+
+### color
+
+> `readonly` **color**: [`EfxColor`](EfxColor.md)
+
+Named color constants.
 
 ***
 
@@ -59,6 +82,14 @@ Graphics drawing, state, and resources.
 
 ***
 
+### io
+
+> `readonly` **io**: [`EfxIo`](EfxIo.md)
+
+Synchronous resource loaders.
+
+***
+
 ### keyboard
 
 > **keyboard**: [`EfxKeyboard`](EfxKeyboard.md)
@@ -67,11 +98,11 @@ Keyboard queries and events.
 
 ***
 
-### mat4
+### math
 
-> **mat4**: [`EfxMat4`](EfxMat4.md)
+> `readonly` **math**: [`EfxMath`](EfxMath.md)
 
-Pure-JS 4×4 matrix helpers.
+Pure-JS math helpers.
 
 ***
 
@@ -91,30 +122,6 @@ The single physics world.
 
 ***
 
-### quat
-
-> **quat**: [`EfxQuat`](EfxQuat.md)
-
-Pure-JS quaternion helpers.
-
-***
-
-### vec3
-
-> **vec3**: [`EfxVec3`](EfxVec3.md)
-
-Pure-JS 3-component vector helpers.
-
-***
-
-### whiteTexture
-
-> `readonly` **whiteTexture**: [`EfxTexture`](EfxTexture.md)
-
-Engine-owned 1×1 white texture (read-only; `destroy()` throws).
-
-***
-
 ### window
 
 > **window**: [`EfxWindow`](EfxWindow.md)
@@ -122,42 +129,6 @@ Engine-owned 1×1 white texture (read-only; `destroy()` throws).
 Read-only window metrics.
 
 ## Methods
-
-### args()
-
-> **args**(): `string`[]
-
-Get the host arguments passed to the script run.
-
-#### Returns
-
-`string`[]
-
-The `--script <file> [args...]` tail, or an empty array when none were given.
-
-***
-
-### loadText()
-
-> **loadText**(`path`): `string`
-
-Read a UTF-8 text resource.
-
-#### Parameters
-
-##### path
-
-`string`
-
-Resource-root-relative path.
-
-#### Returns
-
-`string`
-
-The decoded text.
-
-***
 
 ### log()
 

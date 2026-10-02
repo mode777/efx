@@ -6,7 +6,7 @@
  * C++-compiled (GLM is C++-only); GLM types never appear here — matrices
  * are float[16] column-major, vectors float[3]/float[4], angles degrees.
  *
- * Conventions (match the script-side efx.mat4 helpers and GLM's storage):
+ * Conventions (match the script-side efx.math.mat4 helpers and GLM's storage):
  * column-major float[16], right-handed, OpenGL depth range (-1..+1).
  * Composition: efx_math_mul(out, a, b) computes a·b (b applies to the
  * vector first), efx_math_rotate computes m·R (rotation applied first).

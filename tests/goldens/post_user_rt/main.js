@@ -16,7 +16,7 @@ function update() {}
 function render() {
     efx.graphics.beginRenderTarget(rt);
     efx.graphics.drawQuad(0, 0, tex, { size: [640, 480] });
-    efx.graphics.drawQuad(160, 120, efx.whiteTexture, { size: [320, 100], color: [1, 1, 1, 1] });
+    efx.graphics.drawQuad(160, 120, efx.graphics.whiteTexture, { size: [320, 100], color: [1, 1, 1, 1] });
     efx.graphics.endRenderTarget();
     efx.graphics.drawQuad(160, 120, rt);
 }

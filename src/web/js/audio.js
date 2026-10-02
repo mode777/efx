@@ -116,7 +116,7 @@
     });
 
     var whiteTex = null;
-    Object.defineProperty(api, 'whiteTexture', {
+    Object.defineProperty(api.graphics, 'whiteTexture', {
         get: function () {
             if (!whiteTex) {
                 var handle = bridge['_efx_bridge_white_texture']();
@@ -126,6 +126,18 @@
                 whiteTex = new EfxTexture(handle, true);
             }
             return whiteTex;
+        },
+    });
+
+    /* read-only script arguments: a fresh array on every access */
+    Object.defineProperty(api, 'args', {
+        get: function () {
+            var n = bridge['_efx_bridge_arg_count']();
+            var out = new Array(n);
+            for (var i = 0; i < n; i++) {
+                out[i] = UTF8ToString(bridge['_efx_bridge_arg'](i));
+            }
+            return out;
         },
     });
 

@@ -6,8 +6,8 @@ const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.6, segm
 efx.graphics.setMeshSurfaceMaterial(ball, 0, {
     ambient:  { color: [0.02, 0.02, 0.03, 1] },
     diffuse:  { color: [0.6, 0.6, 0.65, 1] },
-    specular: { color: [1, 1, 1, 1], shininess: 48 },
-    emissive: { color: [0, 0, 0, 1] },
+    specular: { color: efx.color.white, shininess: 48 },
+    emissive: { color: efx.color.black },
 });
 
 const colors = [

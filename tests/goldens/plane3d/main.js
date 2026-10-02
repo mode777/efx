@@ -19,12 +19,12 @@ const plane = efx.graphics.createMesh(efx.graphics.makePlane({ size: 4, segments
 const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 0.7, segments: 24 }));
 efx.graphics.setMeshSurfaceMaterial(plane, 0, MATP);
 efx.graphics.setMeshSurfaceMaterial(ball, 0, MATB);
-const tilt = efx.mat4.rotate(efx.mat4.identity(), 12, [1, 0, 0]);
+const tilt = efx.math.mat4.rotate(efx.math.mat4.identity(), 12, [1, 0, 0]);
 function update() {}
 function render() {
     efx.graphics.drawMesh(plane, { transform: tilt,
                    color: [0.55, 0.62, 0.75, 1] });
-    const up = efx.mat4.translate(efx.mat4.identity(), [0, 0.7, 0]);
+    const up = efx.math.mat4.translate(efx.math.mat4.identity(), [0, 0.7, 0]);
     efx.graphics.drawMesh(ball, { transform: up,
                    color: [0.95, 0.8, 0.25, 1] });
 }
