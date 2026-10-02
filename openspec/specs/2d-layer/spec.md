@@ -265,7 +265,7 @@ plain engine state: the most recent value at frame start applies.
 
 ### Requirement: Batched 2D sprite drawing
 
-`efx.drawSprites(texture, sprites)` SHALL record one textured 2D quad per
+`efx.graphics.drawSprites(texture, sprites)` SHALL record one textured 2D quad per
 entry in `sprites`, each exactly equivalent to a `drawQuad(sprite.x, sprite.y,
 texture, sprite)` call with the entry's fields. It SHALL be C-implemented
 mid-level and 2D-only: sprites SHALL be placed and transformed in the current

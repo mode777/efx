@@ -11,7 +11,7 @@ and the engine-bundled pure-JS math layer.
 ## Requirements
 
 ### Requirement: 3D camera
-`efx.setCamera3D(opts)` SHALL configure the engine's single 3D camera from an
+`efx.graphics.setCamera3D(opts)` SHALL configure the engine's single 3D camera from an
 option object `{ pos, target, fov, near?, far? }`: `pos` and `target` are
 `[x, y, z]` world points (the eye position and the looked-at point), `fov` is
 the **vertical** field of view in **degrees**, `near` and `far` are the depth
@@ -58,7 +58,7 @@ Calling `setCamera3D` with a malformed bag (missing or non-array `pos`/
 
 ### Requirement: Multi-surface mesh data
 
-`efx.createMeshData(data)` SHALL build a CPU-side MeshData (native-backed
+`efx.graphics.createMeshData(data)` SHALL build a CPU-side MeshData (native-backed
 class, ADR 0011/0013) holding 1..16 **surfaces**. Two construction forms
 SHALL be accepted: a batch bag `{ surfaces: [surface, ...] }`, or a
 single-surface shorthand `{ positions, normals?, uvs?, colors?, indices? }`
@@ -150,7 +150,7 @@ using a destroyed MeshData SHALL throw.
   `TypeError`
 
 ### Requirement: Mesh upload and lifecycle
-`efx.createMesh(meshData)` SHALL upload a live MeshData's **every** surface
+`efx.graphics.createMesh(meshData)` SHALL upload a live MeshData's **every** surface
 CPU → GPU into one Mesh (native-backed class, ADR 0011/0013: deterministic
 `destroy()`, idempotent, GC-finalizer backstop, display-list references keep
 it alive until playback completes). The Mesh SHALL expose the read-only
@@ -159,7 +159,7 @@ throws `TypeError` when destroyed). A Mesh is a copy: later changes to the
 source MeshData object MUST NOT affect the Mesh. Passing a non-MeshData or a
 destroyed MeshData SHALL throw `TypeError`. Surface material bindings
 carried by the MeshData (from F4) SHALL carry over to the Mesh at upload;
-from F4, `efx.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)` SHALL rebind
+from F4, `efx.graphics.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)` SHALL rebind
 one surface's material after upload (the Godot `surface_set_material`
 analog: `mat` is a JS-managed object snapshotted at call time; an index out
 of range throws `RangeError`); a surface without a bound material SHALL
@@ -186,7 +186,7 @@ taxonomy).
 
 ### Requirement: Whole-mesh drawing with depth
 
-`efx.drawMesh(mesh, opts?)` SHALL record one draw for the whole mesh, with
+`efx.graphics.drawMesh(mesh, opts?)` SHALL record one draw for the whole mesh, with
 `mesh` as a required first positional argument that MUST be a live Mesh
 (nothing, a non-Mesh, or a destroyed Mesh throws `TypeError`). `opts?` is an
 optional option bag restricted to `{ transform?, color?, skinned? }`: `transform?`
@@ -275,8 +275,8 @@ draws participate in the per-frame record budget like any record.
 
 ### Requirement: Procedural primitives
 
-The engine-bundled pure-JS primitives `efx.makeCube(opts?)`,
-`efx.makePlane(opts?)`, and `efx.makeSphere(opts?)` SHALL each return a
+The engine-bundled pure-JS primitives `efx.graphics.makeCube(opts?)`,
+`efx.graphics.makePlane(opts?)`, and `efx.graphics.makeSphere(opts?)` SHALL each return a
 single-surface MeshData (directly usable by `createMesh`), with pinned
 defaults so scenes are reproducible:
 
@@ -305,7 +305,7 @@ rules (unknown material/channel fields and non-`null`/`undefined` values
 that are not material objects throw `TypeError`).
 
 #### Scenario: Defaults produce a usable mesh
-- **WHEN** `efx.makeCube()` is called with no arguments
+- **WHEN** `efx.graphics.makeCube()` is called with no arguments
 - **THEN** the result is a single-surface MeshData with `surfaceCount` 1
   that uploads and draws like any other MeshData
 

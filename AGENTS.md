@@ -35,7 +35,7 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
 - F8a font + text — `2026-09-28-f8a-font-typesetting` (ADR 0038; the former
   F8b slice is retired, superseded by ADR 0024)
 - F9 input — `2026-09-28-f9-input` (ADR 0036); iframe-focus follow-up
-  `openspec/changes/web-keyboard-focus` (ADR 0043)
+  `openspec/changes/archive/2026-10-02-web-keyboard-focus` (ADR 0043)
 - F10 CommonJS modules — `2026-09-28-f10-commonjs-modules` (ADR 0037)
 - F11 particles + billboards — `2026-09-29-f11-particles-billboards`
   (ADR 0039)
@@ -45,7 +45,7 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
 - F14 audio — `2026-09-30-f14-audio` (ADR 0042); source-model revision
   `2026-09-30-audio-source-model` (ADR 0047)
 - Gallery — `2026-09-27-web-gallery` (ADR 0030); curated sample directories
-  `openspec/changes/curated-sample-dirs` (ADR 0044)
+  `openspec/changes/archive/2026-10-02-curated-sample-dirs` (ADR 0044)
 - Post-roadmap API reorganization — the 33 graphics drawing/state/resource
   functions live under `efx.graphics`, not the `efx` root
   (`efx-graphics-namespace`, ADR 0050; hard cut, no root aliases, error

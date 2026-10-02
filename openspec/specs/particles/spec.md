@@ -10,7 +10,7 @@ through a single options object and advanced by the engine frame loop.
 
 ### Requirement: Particle system creation and configuration
 
-`efx.createParticleSystem(opts)` SHALL create and return a `ParticleSystem`.
+`efx.graphics.createParticleSystem(opts)` SHALL create and return a `ParticleSystem`.
 `opts` SHALL be a required object; a missing required field or a wrongly-typed
 value SHALL throw `TypeError`; an out-of-range value SHALL throw `RangeError`;
 on failure no system SHALL be created. Unknown fields SHALL throw `TypeError`.
@@ -189,7 +189,7 @@ while keeping their orientation fixed.
 
 ### Requirement: Particle rendering and batching
 
-`efx.drawParticles(sys)` SHALL record a single display-list batch for the live
+`efx.graphics.drawParticles(sys)` SHALL record a single display-list batch for the live
 particles of a system. On playback the engine SHALL draw all live particles,
 each as a textured quad sized by the lifetime-interpolated `sizes`, tinted by
 the lifetime-interpolated `colors`, rotated by its simulated angle, and

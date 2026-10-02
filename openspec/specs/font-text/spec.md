@@ -10,7 +10,7 @@ aligned) 2D text as display-list quads, with measurement.
 
 ### Requirement: Font data loading
 
-The script API SHALL provide `efx.loadFontData(path)`, a C-implemented,
+The script API SHALL provide `efx.graphics.loadFontData(path)`, a C-implemented,
 synchronous loader that reads a TrueType/OpenType font (`.ttf`/`.otf`) from
 the resource root by relative path and returns an opaque, native-backed
 `FontData` resource carrying the parsed font (no GPU resource). Loading SHALL
@@ -23,8 +23,8 @@ properties; it is released by `destroy()` with the GC-finalizer backstop
 resources.
 
 #### Scenario: Font file loads into FontData
-- **WHEN** a script calls `efx.loadFontData('fonts/perfect.ttf')` for a font in the resource root
-- **THEN** it receives a live `FontData` that can be passed to `efx.createFont`, and `destroy()` on it succeeds and is idempotent
+- **WHEN** a script calls `efx.graphics.loadFontData('fonts/perfect.ttf')` for a font in the resource root
+- **THEN** it receives a live `FontData` that can be passed to `efx.graphics.createFont`, and `destroy()` on it succeeds and is idempotent
 
 #### Scenario: Missing or malformed font throws
 - **WHEN** a script loads a path that does not exist or is not a parsable font
@@ -36,7 +36,7 @@ resources.
 
 ### Requirement: Fixed glyph atlas baking
 
-The script API SHALL provide `efx.createFont(fontData, opts)`, a C-implemented
+The script API SHALL provide `efx.graphics.createFont(fontData, opts)`, a C-implemented
 function that bakes a **fixed** glyph atlas from a live `FontData` and returns
 an opaque, native-backed `Font`. `opts` SHALL require `size` (a positive pixel
 size) and SHALL accept `glyphs` (the set of codepoints to bake), `padding`
@@ -57,7 +57,7 @@ properties `size`, `lineHeight`, `ascent`, and `descent`; reading a query
 property on a destroyed `Font` SHALL throw `TypeError`.
 
 #### Scenario: A font bakes from font data
-- **WHEN** a script calls `efx.createFont(fontData, { size: 32 })` with a valid `FontData`
+- **WHEN** a script calls `efx.graphics.createFont(fontData, { size: 32 })` with a valid `FontData`
 - **THEN** it receives a live `Font` whose `size` is 32 and whose `lineHeight` is positive
 
 #### Scenario: Default charset is Latin-1
@@ -82,7 +82,7 @@ property on a destroyed `Font` SHALL throw `TypeError`.
 
 ### Requirement: Typesetting and word wrapping
 
-`efx.drawText` and `efx.measureText` SHALL lay out the input string
+`efx.graphics.drawText` and `efx.graphics.measureText` SHALL lay out the input string
 deterministically using the font's baked metrics and kerning. A newline
 character (`\n`) SHALL start a new line. When a wrap `width` is supplied, the
 layout SHALL greedily break lines at whitespace so that a line's width does
@@ -106,7 +106,7 @@ overridable) multiplied by any uniform `scale`.
 
 ### Requirement: Horizontal and vertical alignment
 
-`efx.drawText` SHALL accept `align` (`'left'` default, `'center'`, `'right'`,
+`efx.graphics.drawText` SHALL accept `align` (`'left'` default, `'center'`, `'right'`,
 or `'justify'`) and `valign` (`'top'` default, `'middle'`, `'bottom'`).
 Horizontal alignment SHALL position each line within the block's width
 relative to the anchor `x`; `justify` SHALL distribute the extra space between
@@ -134,7 +134,7 @@ center for `center`/`middle`, and its right/bottom for `right`/`bottom`.
 
 ### Requirement: Opaque 2D text drawing
 
-`efx.drawText(text, font, x, y, opts?)` SHALL be a C-implemented, 2D-only
+`efx.graphics.drawText(text, font, x, y, opts?)` SHALL be a C-implemented, 2D-only
 operation that records the laid-out glyphs as quads into the engine display
 list (the same re-orderable list as `drawQuad`), with no script-visible
 geometry, glyph table, or shader. It SHALL return the laid-out bounds
@@ -167,8 +167,8 @@ option field SHALL throw `TypeError`.
 
 ### Requirement: Text measurement
 
-`efx.measureText(text, font, opts?)` SHALL compute and return the same
-`{ width, height, lines }` bounds as `efx.drawText` for the same `text`,
+`efx.graphics.measureText(text, font, opts?)` SHALL compute and return the same
+`{ width, height, lines }` bounds as `efx.graphics.drawText` for the same `text`,
 `font`, and layout options (`align`, `valign`, `width`, `lineHeight`,
 `scale`) without recording any draw or otherwise mutating render state. The
 measurement SHALL agree with the drawn layout.

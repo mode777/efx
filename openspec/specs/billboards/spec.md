@@ -10,7 +10,7 @@ render policy.
 
 ### Requirement: World-space billboard drawing
 
-`efx.drawBillboard(pos, opts)` SHALL record one textured quad placed at the
+`efx.graphics.drawBillboard(pos, opts)` SHALL record one textured quad placed at the
 world position `pos` (a `[x, y, z]` array of finite numbers) and oriented by
 the engine using the **3D camera recorded at call time**. The function SHALL be
 C-implemented mid-level and SHALL have identical names, signatures, semantics,

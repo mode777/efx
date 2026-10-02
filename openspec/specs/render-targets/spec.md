@@ -10,7 +10,7 @@ through the existing texture-consuming calls.
 ## Requirements
 
 ### Requirement: Render target resources
-`efx.createRenderTarget(opts)` SHALL create a GPU RenderTarget from the bag
+`efx.graphics.createRenderTarget(opts)` SHALL create a GPU RenderTarget from the bag
 `{ width, height }`. Both fields are required positive integers; the
 documented hard maximum for either is **4096**. A non-integer,
 non-positive, or oversized value SHALL throw `RangeError`; a missing value
@@ -39,8 +39,8 @@ further script use of the destroyed target SHALL throw.
 - **THEN** the frame renders with the target's contents, the native release happens after playback, and further use of the target throws
 
 ### Requirement: Render redirection
-`efx.beginRenderTarget(rt)` SHALL redirect all subsequently recorded draws
-into `rt` until `efx.endRenderTarget()`; `endRenderTarget` SHALL return
+`efx.graphics.beginRenderTarget(rt)` SHALL redirect all subsequently recorded draws
+into `rt` until `efx.graphics.endRenderTarget()`; `endRenderTarget` SHALL return
 recording to the default target (the window). `rt` MUST be a live
 RenderTarget (`TypeError` otherwise). Calling `beginRenderTarget` while a
 begin is already active SHALL throw `TypeError` and change nothing (no

@@ -10,7 +10,7 @@ decoupling from the output surface.
 ## Requirements
 
 ### Requirement: Post-effect chain declaration
-`efx.setPostEffects(list)` SHALL set the frame's post-effect chain; `list`
+`efx.graphics.setPostEffects(list)` SHALL set the frame's post-effect chain; `list`
 SHALL be `null`, an empty array (both mean no chain), or an array of at
 most **8** entry objects. Each entry SHALL be an object
 `{ effect: <name>, ...options, mix? }` where `effect` names a registered
@@ -102,7 +102,7 @@ env-default attachment rule (ADR 0025).
 - **THEN** the target's scene-side contents are unfiltered; only the final screen resolve passes through the chain
 
 ### Requirement: Render scale
-`efx.setRenderScale(scale, opts?)` SHALL set the ratio between the scene
+`efx.graphics.setRenderScale(scale, opts?)` SHALL set the ratio between the scene
 render resolution and the default target's size: `scale` a finite number in
 (0, 2] (`RangeError` otherwise; default 1), `opts.filter` one of
 `'nearest'` or `'linear'` (default `'linear'`; unknown fields or values

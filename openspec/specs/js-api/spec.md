@@ -15,8 +15,11 @@ well-known global namespace object (the `efx` object established by F1),
 available to every script without imports or setup. Scripts SHALL access
 engine functionality only through this namespace and standard ES6 built-ins;
 the reference document SHALL state this rule. This covers both C-implemented
-functions and engine-provided high-level JS functions. The CommonJS module
-facilities `require`, `module`, and `exports` (F10) are module-scoped
+functions and engine-provided high-level JS functions. Domain functionality
+SHALL be organized in sub-namespaces of this one object; the graphics
+drawing, state, and resource functions SHALL live in the `efx.graphics`
+sub-namespace (see the Graphics namespace API requirement). The CommonJS
+module facilities `require`, `module`, and `exports` (F10) are module-scoped
 authoring facilities and SHALL NOT be members of the `efx` namespace or free
 globals; `require` returns a module's exports and is not an engine API entry.
 
@@ -34,11 +37,67 @@ globals; `require` returns a module's exports and is not an engine API entry.
 - **THEN** those objects are members of the single `efx` namespace object and
   add no free global
 
+#### Scenario: Graphics functions are members of the single namespace
+- **WHEN** a script reaches graphics functionality through `efx.graphics`
+- **THEN** `efx.graphics` is a member of the single `efx` namespace object
+  (one level deep) and adds no free global
+
 #### Scenario: Module facilities are not engine globals
 - **WHEN** a script inspects the `efx` namespace and the global scope outside a
   module's scope
 - **THEN** `require`, `module`, and `exports` are absent from both; they exist
   only inside a module's own scope
+
+## ADDED Requirements
+
+### Requirement: Graphics namespace API
+The script API SHALL expose the graphics drawing, state, and resource
+functions as the sub-namespace `efx.graphics` of the single `efx` object,
+with no new free globals. `efx.graphics` SHALL contain exactly these
+members, each with its unchanged name, signature, semantics, defaults,
+layer tag, and error behavior: `beginRenderTarget`, `createFont`,
+`createImageData`, `createMesh`, `createMeshData`, `createParticleSystem`,
+`createRenderTarget`, `createTexture`, `drawBillboard`, `drawMesh`,
+`drawParticles`, `drawQuad`, `drawSprites`, `drawText`, `endRenderTarget`,
+`loadFontData`, `loadImage`, `loadMeshData`, `makeCapsule`, `makeCube`,
+`makePlane`, `makeSphere`, `measureText`, `poseMesh`, `setBlendMode`,
+`setCamera2D`, `setCamera3D`, `setClearColor`, `setDirectionalLight`,
+`setLight`, `setMeshSurfaceMaterial`, `setPostEffects`, and
+`setRenderScale`. These names SHALL NOT also exist as members of the `efx`
+root: the move is a hard cut with no deprecated root aliases and no
+compatibility shims. `loadText`, `whiteTexture`, `log`, `quit`, `args`,
+`registerUpdateHook`, `registerRenderHook`, the math helpers
+(`mat4`/`vec3`/`quat`), and the other domain namespaces
+(`keyboard`/`mouse`/`window`/`physics`/`gamepad`/`audio`) remain root
+members unchanged. The sub-namespace SHALL exist on every runtime binding
+(quickjs desktop and the Emscripten web bridge) with identical membership,
+and every entry SHALL behave identically across them. The generated
+reference (`docs/api/` from `gallery/src/api/efx.d.ts`), the guidelines
+(`docs/js-api.md`), and this capability's sibling requirements SHALL use
+the `efx.graphics.*` paths.
+
+#### Scenario: Graphics functions are reachable through the sub-namespace
+- **WHEN** a script calls `efx.graphics.drawQuad(...)` — and likewise every
+  other listed member — without imports or setup
+- **THEN** the call succeeds on every target platform with the exact
+  behavior it had at the root before the move
+
+#### Scenario: No root aliases remain
+- **WHEN** a script reads any moved name at the root (for example
+  `efx.drawQuad` or `efx.makeCube`) and enumerates `efx.graphics`
+- **THEN** the moved names are absent from the root, `efx.graphics` holds
+  exactly the listed members, and the root still exposes `loadText`,
+  `whiteTexture`, the lifecycle hooks, and the math helpers
+
+#### Scenario: The move changes no observable behavior
+- **WHEN** the in-repo script corpus (golden scenes, portable script tests,
+  curated samples) is re-pathed from `efx.<fn>` to `efx.graphics.<fn>` and
+  run through both runtimes
+- **THEN** every golden frame stays pixel-identical, the cross-runtime
+  error catalog stays byte-identical, and no signature, default, or error
+  message changes
+
+## MODIFIED Requirements
 
 ### Requirement: Two-layer API with strict layering
 The script API SHALL consist of exactly two layers: low/mid-level functions
@@ -100,7 +159,7 @@ skins, skeletons,
 and animation
 clips are
 implicit Mesh payload — loaded with the mesh and posed by the script
-(`efx.poseMesh`) — and are not script resources; extending the class list
+(`efx.graphics.poseMesh`) — and are not script resources; extending the class list
 requires a `js-api` delta. A live RenderTarget SHALL be accepted wherever a
 live Texture is accepted (quad drawing, material channel `map`s, and
 `alphaMask`), referenced directly by handle with identical validation and
@@ -386,7 +445,7 @@ attributes for skinned meshes (four influences per vertex, glTF-style), with
 the same count as the surface's positions. The skeleton and animation clips
 associated with an imported skinned asset SHALL remain implicit `MeshData`/`Mesh`
 payload — no separate script resource and no read-only clip or joint query
-property — while posing is exposed through `efx.poseMesh` and the `skinned`
+property — while posing is exposed through `efx.graphics.poseMesh` and the `skinned`
 `drawMesh` option (F7). The native-backed class list and the `destroy()`
 lifecycle are unchanged.
 
@@ -412,15 +471,16 @@ lifecycle are unchanged.
 
 The script API SHALL provide a resource-loading layer that reads files from
 the resource root by relative path and returns engine resources. Each function
-SHALL be tagged with its layer in the reference: `loadText` and `loadImage`
-are C-implemented loaders. There SHALL be no separate texture loader: a
-texture is created by composing the public API,
-`createTexture(loadImage(path), opts?)`, matching the mesh flow where
-`createMesh` consumes `loadMeshData`. Loading SHALL be synchronous from the
-script's point of view on every target. A missing, unreadable, or undecodable
-resource SHALL throw a standard ES6 `Error`; a malformed path argument SHALL
-throw `TypeError`. The reference document (`docs/js-api.md`) and the gallery
-type document (`gallery/src/api/efx.d.ts`) SHALL be updated in the same change
+SHALL be tagged with its layer in the reference: `loadText` — a root member of
+the single `efx` object — and `efx.graphics.loadImage` are C-implemented
+loaders. There SHALL be no separate texture loader: a texture is created by
+composing the public API, `efx.graphics.createTexture(efx.graphics.loadImage(path), opts?)`,
+matching the mesh flow where `createMesh` consumes `loadMeshData`. Loading
+SHALL be synchronous from the script's point of view on every target. A
+missing, unreadable, or undecodable resource SHALL throw a standard ES6
+`Error`; a malformed path argument SHALL throw `TypeError`. The reference
+document (`docs/js-api.md`) and the gallery type document
+(`gallery/src/api/efx.d.ts`) SHALL be updated in the same change
 that delivers these functions.
 
 #### Scenario: loadText returns decoded text
@@ -428,12 +488,12 @@ that delivers these functions.
 - **THEN** it receives the file's contents as a string
 
 #### Scenario: loadImage returns ImageData
-- **WHEN** a script calls `efx.loadImage(path)` for a PNG or JPEG in the root
+- **WHEN** a script calls `efx.graphics.loadImage(path)` for a PNG or JPEG in the root
 - **THEN** it receives an `ImageData` with read-only pixel dimensions and
   decoded RGBA pixels, releasable with `destroy()`
 
 #### Scenario: Texture creation composes loadImage and createTexture
-- **WHEN** a script calls `efx.createTexture(efx.loadImage(path), opts?)`
+- **WHEN** a script calls `efx.graphics.createTexture(efx.graphics.loadImage(path), opts?)`
 - **THEN** it receives a live `Texture` carrying the image's pixels plus any
   requested sampler and mipmap options, with the same `destroy()` lifecycle
 
@@ -466,34 +526,34 @@ MUST agree with that reference document.
 
 #### Scenario: Batch form does not require shorthand fields
 
-- **WHEN** `efx.createMeshData({ surfaces: [surface, surface] })` is
+- **WHEN** `efx.graphics.createMeshData({ surfaces: [surface, surface] })` is
   type-checked
 - **THEN** it compiles without supplying top-level `positions` or other
   shorthand attributes
 
 #### Scenario: Mixing construction forms is rejected
 
-- **WHEN** `efx.createMeshData({ surfaces: [surface], positions })` combines
+- **WHEN** `efx.graphics.createMeshData({ surfaces: [surface], positions })` combines
   the batch bag and the shorthand fields in one call
 - **THEN** the type document reports a compile-time error
 
 #### Scenario: drawMesh takes a positional mesh
 
-- **WHEN** `efx.drawMesh(mesh, { transform, color, skinned })` and
-  `efx.drawMesh(mesh)` are type-checked
+- **WHEN** `efx.graphics.drawMesh(mesh, { transform, color, skinned })` and
+  `efx.graphics.drawMesh(mesh)` are type-checked
 - **THEN** both compile, and the former option bag holds only
   `transform`/`color`/`skinned` (a `mesh` field in the bag is rejected)
 
 #### Scenario: Posing API is typed
 
-- **WHEN** `efx.poseMesh(mesh, { clip: 'Walk', time: 1 })` and
-  `efx.poseMesh(mesh, [{ clip: 0, time: 1, weight: 0.5 }])` are type-checked
+- **WHEN** `efx.graphics.poseMesh(mesh, { clip: 'Walk', time: 1 })` and
+  `efx.graphics.poseMesh(mesh, [{ clip: 0, time: 1, weight: 0.5 }])` are type-checked
 - **THEN** both compile, the sample `clip` accepts a name or index, and an
   unknown sample field is rejected
 
 #### Scenario: Primitive material option is typed
 
-- **WHEN** `efx.makeCube({ size: 1, material })` is type-checked with a
+- **WHEN** `efx.graphics.makeCube({ size: 1, material })` is type-checked with a
   material object
 - **THEN** it compiles and the material argument is accepted as a material
   object or `null`
@@ -570,20 +630,20 @@ in the gallery type document, both updated in the same change.
 ### Requirement: Font and text API
 
 The script API SHALL expose font loading, font creation, text drawing, and
-text measurement as C-implemented members of the single `efx` namespace, with
-identical names, signatures, semantics, and error behavior across the desktop
-and web bindings:
+text measurement as C-implemented members of the `efx.graphics`
+sub-namespace, with identical names, signatures, semantics, and error
+behavior across the desktop and web bindings:
 
-- `efx.loadFontData(path)` → a native-backed `FontData` resource (the parsed
+- `efx.graphics.loadFontData(path)` → a native-backed `FontData` resource (the parsed
   font, no GPU resource), released by `destroy()`.
-- `efx.createFont(fontData, opts)` → a native-backed `Font` that bakes a
+- `efx.graphics.createFont(fontData, opts)` → a native-backed `Font` that bakes a
   fixed glyph atlas at the requested size and optional baked outline/shadow
   effects; released by `destroy()`; read-only `size`, `lineHeight`, `ascent`,
   `descent`.
-- `efx.drawText(text, font, x, y, opts?)` → lays out and draws the text as
+- `efx.graphics.drawText(text, font, x, y, opts?)` → lays out and draws the text as
   display-list quads and returns the laid-out bounds
   `{ width, height, lines }`.
-- `efx.measureText(text, font, opts?)` → returns the same bounds without
+- `efx.graphics.measureText(text, font, opts?)` → returns the same bounds without
   drawing.
 
 Text drawing SHALL be a mid-level C facility (like `drawQuad`/`drawMesh`) —
@@ -599,7 +659,7 @@ provisional `loadFont` entry SHALL be removed.
 
 #### Scenario: Font pipeline is exposed
 - **WHEN** the API reference is read after this change
-- **THEN** it catalogs `loadFontData`, `createFont`, `drawText`, and `measureText`, each tagged C-implemented and F8, and does not catalog a `loadFont` convenience
+- **THEN** it catalogs `loadFontData`, `createFont`, `drawText`, and `measureText` under `efx.graphics`, each tagged C-implemented and F8, and does not catalog a `loadFont` convenience
 
 #### Scenario: Text drawing is mid-level C
 - **WHEN** a reviewer checks the layer of the text entries
@@ -616,19 +676,19 @@ provisional `loadFont` entry SHALL be removed.
 ### Requirement: Billboard, sprite-batch, and particle API
 
 The script API SHALL expose world-space billboard drawing, batched 2D sprite
-drawing, and CPU particle systems as C-implemented members of the single `efx`
-namespace, with identical names, signatures, semantics, and error behavior
-across the desktop and web bindings:
+drawing, and CPU particle systems as C-implemented members of the
+`efx.graphics` sub-namespace, with identical names, signatures, semantics,
+and error behavior across the desktop and web bindings:
 
-- `efx.drawBillboard(pos, opts)` → records one world-space textured quad at a
+- `efx.graphics.drawBillboard(pos, opts)` → records one world-space textured quad at a
   3D position, oriented by the engine from the recorded 3D camera. `opts`
   carries `texture`, `size`, `color`, `sourceRect`, `rotation`, `facing`
   (`'view'` default or `'y'`), and `depthTest`, per the `billboards`
   capability.
-- `efx.drawSprites(texture, sprites)` → records one 2D textured quad per entry
+- `efx.graphics.drawSprites(texture, sprites)` → records one 2D textured quad per entry
   with `drawQuad` semantics, per the `2d-layer` capability.
-- `efx.createParticleSystem(opts)` → a native-backed `ParticleSystem`.
-- `efx.drawParticles(sys)` → records one particle batch for a live system.
+- `efx.graphics.createParticleSystem(opts)` → a native-backed `ParticleSystem`.
+- `efx.graphics.drawParticles(sys)` → records one particle batch for a live system.
 
 `ParticleSystem` SHALL be a native-backed class exposing a read-only `count`,
 a read-write `speedScale`, an `emit(n)` burst, `start`/`stop`/`pause`/`reset`,
@@ -643,7 +703,7 @@ reflected in the fixed-limits table and the native-backed class list.
 
 - **WHEN** the API reference is read after this change
 - **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
-  and `drawParticles`, each tagged C-implemented and F11
+  and `drawParticles` under `efx.graphics`, each tagged C-implemented and F11
 
 #### Scenario: Billboard is a 3D primitive
 
@@ -884,7 +944,7 @@ values keep their documented error class.
 
 #### Scenario: Same message on both runtimes
 - **WHEN** the same script performs an invalid call (for example
-  `efx.setLight(7, { … })` with a slot outside 0..3) on the desktop player and
+  `efx.graphics.setLight(7, { … })` with a slot outside 0..3) on the desktop player and
   in the web player
 - **THEN** both throw an error of the same class whose `message` is
   byte-identical

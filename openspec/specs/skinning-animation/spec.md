@@ -32,7 +32,7 @@ than fail.
 
 ### Requirement: Script-driven posing with poseMesh
 
-`efx.poseMesh(mesh, pose)` SHALL CPU-pose a live skinned `Mesh` in place. `pose`
+`efx.graphics.poseMesh(mesh, pose)` SHALL CPU-pose a live skinned `Mesh` in place. `pose`
 SHALL be either a single sample `{ clip, time, weight? }` or an array of such
 samples (a weighted blend). `clip` SHALL be a clip name (the glTF `name`, or
 the stable internal `clipN` when unnamed) or a clip index. `time` SHALL be in
@@ -45,7 +45,7 @@ playback state — the script owns the clock.
 
 #### Scenario: Single-clip sample
 
-- **WHEN** a script calls `efx.poseMesh(mesh, { clip: 'Walk', time: t })`
+- **WHEN** a script calls `efx.graphics.poseMesh(mesh, { clip: 'Walk', time: t })`
 - **THEN** the mesh's posed buffer reflects the clip sampled at `t`
 
 #### Scenario: Clip lookup by name or index
@@ -79,7 +79,7 @@ playback state — the script owns the clock.
 ### Requirement: Posed and bind-pose vertex buffers
 
 A skinned `Mesh` SHALL retain its immutable bind-pose vertex buffer and SHALL
-own a separate posed vertex buffer that `poseMesh` writes. `efx.drawMesh(mesh,
+own a separate posed vertex buffer that `poseMesh` writes. `efx.graphics.drawMesh(mesh,
 { skinned: true })` SHALL draw the posed buffer; a draw without `skinned` (or
 with `skinned: false`) SHALL draw the bind-pose buffer. `skinned: true` on a
 mesh without a rig SHALL throw `TypeError`. The extra posed buffer's CPU memory

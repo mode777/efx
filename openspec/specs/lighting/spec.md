@@ -11,7 +11,7 @@ that verifies the lighting math.
 
 ### Requirement: Point light bank
 
-`efx.setLight(slot, opts)` SHALL configure one of exactly **four** fixed
+`efx.graphics.setLight(slot, opts)` SHALL configure one of exactly **four** fixed
 point-light slots (vision.md fixed limits). `slot` SHALL be an integer `0..3`;
 any other value SHALL throw `RangeError` and change nothing. `opts` SHALL be
 `null` (disable the slot) or a bag `{ pos, color, range? }`:
@@ -49,7 +49,7 @@ pre-allocated bank — the only slot-based resource (ADR 0011).
 
 ### Requirement: Directional light
 
-`efx.setDirectionalLight(opts)` SHALL configure the engine's **single**
+`efx.graphics.setDirectionalLight(opts)` SHALL configure the engine's **single**
 directional light (vision.md fixed limits). `opts` SHALL be `null` (disable
 the light, the startup default) or a bag `{ dir, color }`:
 
@@ -144,14 +144,14 @@ handle. An omitted or `null` map means no modulation.
 ### Requirement: Per-surface material binding
 
 Materials SHALL bind to mesh **surfaces**, never to global engine state
-(ADR 0024). `efx.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)` SHALL bind a
+(ADR 0024). `efx.graphics.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)` SHALL bind a
 snapshot of `mat` to surface `surfaceIndex` of a live `mesh`; `mat` SHALL be
 a material object or `null` (bind the engine default material). `mesh` MUST be
 a live Mesh (`TypeError` otherwise), `surfaceIndex` an integer in
 `0..surfaceCount-1` (`RangeError` otherwise), and `mat` an object or `null`
 (`TypeError` otherwise). The call changes only that surface's binding.
 
-`efx.createMeshData(data)` SHALL accept a parallel `materials` array on the
+`efx.graphics.createMeshData(data)` SHALL accept a parallel `materials` array on the
 batch form and the single-surface shorthand: `materials[i]` (a material object
 or `null` for the default) becomes surface `i`'s initial binding. When present,
 `materials` MUST have exactly one entry per surface (wrong length SHALL throw
