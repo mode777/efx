@@ -85,18 +85,18 @@
 
 ## 6. Repository rename and hosting
 
-- [ ] 6.1 Merge the branch into `main` and push (triggers the Pages deploy).
+- [x] 6.1 Merge the branch into `main` and push (triggers the Pages deploy).
   Verify `git log` on `main` includes the change.
-- [ ] 6.2 Rename the GitHub repository with `gh repo rename efx`. Verify
+- [x] 6.2 Rename the GitHub repository with `gh repo rename efx`. Verify
   `gh repo view mode777/efx` resolves and the old `mode777/emotion-fx` URL
   still redirects.
-- [ ] 6.3 Update the local remote (`git remote set-url origin
+- [x] 6.3 Update the local remote (`git remote set-url origin
   https://github.com/mode777/efx.git`). Verify `git fetch` succeeds.
-- [ ] 6.4 Confirm the gallery redeploys at `https://mode777.github.io/efx/`
+- [x] 6.4 Confirm the gallery redeploys at `https://mode777.github.io/efx/`
   after the next `main` push; verify the README links resolve and the gallery
   loads with its bundled player. Record the old Pages path as intentionally
   broken if GitHub does not redirect it.
-- [ ] 6.5 Optionally set the repo `description` and `homepageUrl` on GitHub to
+- [x] 6.5 Optionally set the repo `description` and `homepageUrl` on GitHub to
   the new EFX identity.
 
 ## 7. Archive

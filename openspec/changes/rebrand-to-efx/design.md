@@ -90,7 +90,9 @@ and manual dispatch only (ADR 0023); Pages deploys separately on pushes to
 - [Old Pages URL may 404 after rename] → update all internal links in this
   change, verify `mode777.github.io/efx/` after the next `main` push, and
   accept that external inbound links to the old project-site path may break
-  (GitHub does not guarantee a Pages redirect).
+  (GitHub does not guarantee a Pages redirect). **Observed (2026-10-02):** the
+  old `mode777.github.io/emotion-fx/` path returns 404 and is intentionally
+  left broken; the new `/efx/` and `/efx/api/` paths return 200.
 - [`docs:check` or `gen_prelude.py --check` fails on drift] → regenerate and
   commit both in the same change; the Linux gate job is the backstop.
 - [`text_basic` golden mismatch on non-Linux targets] → re-baseline on the
