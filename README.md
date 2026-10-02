@@ -1,135 +1,165 @@
 # EmotionFX
 
-An old-school, PS2-era 3D engine: fixed-function pipeline, super lightweight,
-scripted in ES6. See `vision.md` for the product vision and
-`openspec/specs/feature-roadmap` for the milestone ladder. Current status:
-**F2 (2D layer) done; gate verified via CI**.
+An old-school, PS2-era 3D game engine: a fixed-function renderer, super
+lightweight, scripted in ES6. Games are plain folders (or zips) of assets plus
+a `main.js`, run by a single portable `player` binary — no IDE, no build step
+for your game code.
 
-## What F2 delivers (on top of F1)
+```js
+// main.js
+efx.graphics.setCamera3D({ pos: [0, 1.6, 4.4], target: [0, 0, 0], fov: 60 });
+efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
 
-- The **2D drawing layer**: a virtual-pixel projection frame
-  (`efx.graphics.setCamera2D`), `efx.graphics.drawQuad` with derived size (`size` /
-  `sourceRect` / texture pixels), tint / rotation / scale / `origin` pivot,
-  CPU→GPU textures (`createImageData`, `createTexture` — textures expose
-  read-only `width`/`height`), blending modes (`alpha`, `additive`,
-  `subtractive`), and the engine-owned `efx.graphics.whiteTexture` for solid rects.
-- The **re-orderable display list** between the immediate-mode API and sokol
-  (ADR 0019), unit-tested headlessly (record → assert, no GPU).
-- The **golden-image verification harness** (ADR 0020): capture run mode
-  (`--capture-frame N --capture-output file`), committed PNG goldens under
-  `tests/goldens/`, tolerance comparator (`tests/imgdiff.c`), and
-  software-rendered, toolchain-pinned CI jobs.
+const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.5 }));
 
-- A single-binary **player** built with CMake for Windows, Linux, macOS, and
-  Emscripten.
-- Embedded **quickjs-ng** ES6 runtime on desktop; on Emscripten the browser's
-  native JS engine drives the same core through the `src/web/` bridge, with no
-  quickjs in the wasm (ADR 0022).
-- A resource root (folder) loaded from the command line, with a `main.js`
-  entry script providing `update`/`render` frame hooks.
-- A headless `--script` run mode that executes one script and propagates its
-  exit code (the automated-test vehicle).
-- The engine JS API namespace `efx`: `efx.log(msg)`, `efx.quit(code)`,
-  `efx.args` — the binding pattern all future engine functions follow.
-## JavaScript API
-
-The normative script-facing API reference — current behavior plus the
-provisional F8 catalog — lives in [`docs/js-api.md`](docs/js-api.md).
-
-Scripts are **CommonJS modules** loaded synchronously from the resource root
-(a directory or zip): every script file is a module, `require(path)` returns
-its `module.exports`, and `main.js` is the entry module. Module caching,
-circular-require partial exports, `__esModule` interop, and `.json` modules
-are supported; there is no Node/npm compatibility. TypeScript authors write
-`import`/`export` and compile to CommonJS before packaging. See the "Script
-modules" section of [`docs/js-api.md`](docs/js-api.md) and ADR 0037.
-
-## Repository layout
-
-```
-src/            C11 core (api, runtime, player, platform modules)
-vendor/         vendored pinned dependencies (sokol, quickjs-ng)
-tests/          ctest smoke suite + temporary dev harness
-examples/       sample resource roots
-openspec/       OpenSpec specs and change artifacts
+let t = 0;
+function update(dt) { t += dt; }
+function render() {
+    efx.graphics.drawMesh(cube, {
+        transform: efx.math.mat4.rotate(efx.math.mat4.identity(), t * 35, [0, 1, 0]),
+        color: [0.95, 0.5, 0.2, 1],
+    });
+}
 ```
 
-## Building
+## Try it in the browser
 
-Requirements: CMake ≥ 3.21 and a C11 toolchain.
+The [sample gallery](https://mode777.github.io/emotion-fx/) runs examples live
+in the browser with an editable source pane, so you can see the API in action
+without installing anything. The generated API reference is served alongside it
+at [`/api`](https://mode777.github.io/emotion-fx/api/).
 
-| Target | Commands |
+## Capabilities
+
+- **Rendering** — fixed-function pipeline (scripts never see shaders), meshes
+  with multiple surfaces, vertex colors, 2D quads and sprites, world-space
+  billboards, particles, render-to-texture, and additive/subtractive blending.
+- **Lighting** — exactly 4 point lights + 1 directional light, with a simple
+  Phong material: ambient, diffuse, specular, and emissive channels, each with
+  an optional map, plus alpha masks.
+- **Post-processing** — a declarative full-screen effect chain (color filter,
+  blur, bloom) at a configurable render scale.
+- **Assets** — load everything from a resource root (folder or zip), including
+  glTF 2.0 meshes, materials, textures, skinned rigs, and animation clips.
+- **Animation** — CPU skinning and script-driven clip sampling/posing.
+- **Text** — baked-font atlas drawing with wrapping, alignment, and
+  measurement.
+- **Input** — keyboard, mouse, and gamepad, with both polling queries and
+  event callbacks.
+- **Audio** — WAV/MP3 playback with engine-owned mixing: streamed sources and
+  one-shot effects, no channels or voices in your code.
+- **Physics** — sphere/box/capsule/triangle-mesh colliders, one script-stepped
+  world with impulse dynamics, a capsule character controller, and
+  raycast/overlap/shape-cast queries.
+- **Scripting** — CommonJS modules loaded synchronously from the root;
+  TypeScript is supported as an authoring language (`import`/`export` compiled
+  to CommonJS). Scripts are pure ES6 with zero browser or Node dependencies.
+
+## Get EmotionFX
+
+- **In your browser:** open the [sample gallery](https://mode777.github.io/emotion-fx/).
+- **Native player:** download the prebuilt archive for your platform from the
+  [Releases page](https://github.com/mode777/emotion-fx/releases), unpack it,
+  and run the `player` binary.
+- **From source:** see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Your first game
+
+A game is a **resource root**: a folder (or a zip archive) containing a
+`main.js` entry script plus any asset files it needs. The player loads the root
+and runs `main.js`.
+
+Create a folder with a `main.js`:
+
+```js
+let frames = 0;
+
+// Called once per frame with the elapsed time in seconds.
+function update(dt) {
+    frames++;
+    if (frames >= 60) {
+        efx.quit(0);
+    }
+}
+
+// Record draw calls here; the renderer replays them.
+function render() {
+    efx.graphics.setClearColor([0.05, 0.06, 0.1, 1]);
+}
+```
+
+Run it by pointing the player at the resource root:
+
+```sh
+player path/to/your-game
+```
+
+A source build uses `build/player` in place of `player`.
+
+Defining global `update`/`render` functions is load-time sugar; you can also
+register hooks explicitly with `efx.registerUpdateHook(fn)` /
+`efx.registerRenderHook(fn)`, which return unsubscribe functions. See
+[`examples/hooks`](examples/hooks) for that form.
+
+### Modules
+
+Script files are CommonJS modules: `require('./thing')` returns a module's
+`module.exports`, with module caching, circular-require support, `__esModule`
+interop, and `.json` modules. There is no Node/npm compatibility — no
+`node_modules`, no Node built-ins. TypeScript authors write `import`/`export`
+and compile to CommonJS before packaging. See
+[`docs/js-api.md`](docs/js-api.md) for the module model.
+
+## The `efx` API
+
+Everything is reached through one global `efx` object — no imports or setup.
+
+- **Runtime** — `efx.log`, `efx.quit`, `efx.args`, and the hook registrars.
+- **`efx.graphics`** — drawing, state, and resources: `setCamera2D` /
+  `setCamera3D`, `drawQuad`, `drawMesh`, `drawBillboard`, `drawSprites`,
+  `drawText`, `drawParticles`, `createMesh`, `createTexture`, `createFont`,
+  render targets, lights, post effects, and more.
+- **`efx.math`** — pure-JS `mat4`, `vec3`, and `quat` helpers.
+- **`efx.io`** — synchronous resource loaders.
+- **`efx.color`** — named color constants such as `white` and `black`.
+- **`efx.keyboard` / `efx.mouse` / `efx.window` / `efx.gamepad`** — input and
+  window metrics.
+- **`efx.physics`** — the single collision world, bodies, the character
+  controller, and spatial queries.
+- **`efx.audio`** — load and play streamed or static sources.
+
+## Run modes
+
+```sh
+player <resource-root>                 # windowed: run a game
+player --script <file> [args…]         # headless: run one script and exit with its code
+player --repl [<root>]                 # interactive console against the efx API
+```
+
+## Learn more
+
+- [Sample gallery](https://mode777.github.io/emotion-fx/) — runnable,
+  editable examples. Their sources are the curated sample directories under
+  [`gallery/samples/curated/`](gallery/samples/curated).
+- [`examples/hello`](examples/hello), [`examples/hooks`](examples/hooks), and
+  [`examples/browser`](examples/browser) — minimal resource roots to start from.
+- [`docs/api/`](docs/api/) — the generated per-symbol API reference.
+- [`docs/js-api.md`](docs/js-api.md) — API design guidelines and conventions.
+- [`vision.md`](vision.md) — the product vision behind the engine.
+
+## Platform support
+
+| Platform | Status |
 |---|---|
-| Linux | `sudo apt install libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev` then `cmake -B build && cmake --build build` |
-| Windows (VS 2022) | `cmake -B build && cmake --build build --config Release` |
-| macOS (Xcode toolchain) | `cmake -B build && cmake --build build` |
-| Emscripten | `emcmake cmake -B build-em && cmake --build build-em` |
+| Windows | Native player |
+| Linux | Native player |
+| macOS | Native player |
+| Web (Emscripten) | Browser player + sample gallery |
 
-## Running
+## Building from source / Contributing
 
-```sh
-build/player examples/hello          # window + frame loop
-build/player --script tests/scripts/s_quit3.js   # headless; exits 3
-```
-
-## Testing / the F2 gate
-
-The suite is ctest-based: headless smoke tests (`--script` mode), headless
-display-list + JS-API unit tests (mock GPU sink, no window needed), and —
-where a GPU/display exists — golden-image capture tests:
-
-```sh
-cmake -B build -DEFX_BUILD_GOLDEN_TESTS=ON
-cmake --build build
-ctest --test-dir build -C Release --output-on-failure
-```
-
-`EFX_BUILD_GOLDEN_TESTS` defaults OFF (CI turns it on; Linux CI renders
-under `xvfb-run` with `LIBGL_ALWAYS_SOFTWARE=1`). The Emscripten job runs
-its goldens through pinned headless Chrome with SwiftShader
-(`tools/run_web_goldens.mjs`).
-
-**Regenerating goldens** — only when intended output changed:
-
-```sh
-cmake -B build -DEFX_BUILD_GOLDEN_TESTS=ON && cmake --build build
-./build/player --capture-frame 2 --capture-output tests/goldens/<scene>/golden.png tests/goldens/<scene>
-```
-
-Review the regenerated `golden.png` carefully before committing: goldens are
-the reference, so a diff here is a deliberate rendering change. CI fails if
-the toolchain or a code change alters output without a committed regen.
-
-Window behavior (window opens, hooks run per frame, clean exit on close) is
-verified manually per desktop platform — CI runners have no real display.
-Checklist: launch `build/player examples/hello`, confirm a window opens with
-frame logs on stdout and clean exit 0 on close after the 60-frame auto-quit.
-
-## Continuous integration
-
-CI is the four-target gate (Windows, Linux, macOS, Emscripten). It is
-**not** run on every push: the workflow triggers on version tags (`v*`)
-and on manual dispatch only (ADR 0023). The smoke suite, golden-image
-checks, and web comparison harness all run inside those triggered runs.
-
-```sh
-gh workflow run ci.yml            # start the full gate on the current ref
-gh run list --workflow ci.yml     # list runs and their status
-```
-
-Every completed run publishes four downloadable archives — the native
-player for Linux, Windows, and macOS, plus the Emscripten web bundle
-(HTML + JS + wasm + data) — under the run's **Artifacts**. A run triggered
-by a `v*` tag additionally creates a GitHub Release for that tag with the
-same four archives attached, so tagged versions are directly downloadable
-from the release page. Manual runs use a `dev-<sha>` version token in the
-archive names; tag runs use the tag name.
-
-## Notes
-
-- Dependencies are vendored and pinned in `vendor/` (see `vendor/README.md`);
-  builds are fully offline.
-- sokol's Linux backend needs X11/GL dev packages at build time; no display
-  is needed for headless runs and tests.
-- The Emscripten toolchain is pinned to an exact emsdk version in
-  `.github/workflows/ci.yml` (golden-image determinism, ADR 0020).
+Build instructions, the test and golden-image harness, the four-target CI gate,
+and the repository/architecture guide live in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Working conventions for agents and
+maintainers are in [`AGENTS.md`](AGENTS.md), and required behavior is pinned by
+the specs under [`openspec/`](openspec/).

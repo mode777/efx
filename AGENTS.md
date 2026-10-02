@@ -243,6 +243,9 @@ settled — see `docs/decisions/`.
 > `npm --prefix gallery run docs:markdown`. To change the reference, edit the
 > declaration and regenerate; `docs:check` fails the build on drift.
 
+- `README.md` — end-user onboarding (what the engine is, how to get it, first
+  script); `CONTRIBUTING.md` — the from-source build, test/golden harness,
+  verification server, and CI gate for human contributors.
 - `vision.md` — product goals; the source of truth for intent.
 - `docs/js-api.md` — the script-facing API **design guidelines** (conventions,
   layering, resource model, limits, and the process for adding API); the
