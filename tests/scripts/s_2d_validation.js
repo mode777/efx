@@ -23,11 +23,13 @@ expectThrow('img-unknown', () => efx.graphics.createImageData({ width: 1, height
 expectThrow('img-size', () => efx.graphics.createImageData({ width: 0, height: 8, pixels: [] }));
 
 // drawQuad(x, y, texture, opts?): texture required live; size/origin
-// validation; a created texture works headless (uploads queue until a
-// GPU surface exists), efx.graphics.whiteTexture needs a window and is covered by
-// the unit/golden suites
+// validation; created textures and the engine whiteTexture both work
+// headless as CPU-only resources (ADR 0052)
 const img = efx.graphics.createImageData({ width: 8, height: 4, pixels: new Uint8Array(8 * 4 * 4) });
 const tex = efx.graphics.createTexture(img);
+const white = efx.graphics.whiteTexture;
+if (white.width !== 1 || white.height !== 1) { efx.log('FAIL white dims'); efx.quit(4); }
+efx.graphics.drawQuad(0, 0, white, { size: [4, 4] });
 if (tex.width !== 8 || tex.height !== 4) { efx.log('FAIL texture size getters'); efx.quit(3); }
 expectThrow('quad-few', () => efx.graphics.drawQuad(0, 0));
 expectThrow('quad-nontexture', () => efx.graphics.drawQuad(0, 0, {}));

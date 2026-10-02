@@ -4,7 +4,6 @@ render_state R;
 
 void efx_render_install_sink(const efx_render_sink *sink) {
     R.sink = sink;
-    flush_pending_uploads();
 }
 
 void efx_render_set_viewport(int w, int h) {
@@ -452,7 +451,6 @@ void efx_render_shutdown(void) {
             if (R.slots[i].used && R.slots[i].native) {
                 R.sink->destroy_texture(R.sink->ud, R.slots[i].native);
             }
-            free(R.slots[i].pending);
         }
         for (int i = 0; i < R.mesh_count; i++) {
             if (R.meshes[i].used && R.meshes[i].native &&

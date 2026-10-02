@@ -55,6 +55,12 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
   `whiteTexture` under `efx.graphics`, frozen color constants under
   `efx.color`, and `args` is a read-only property
   (`efx-namespace-consolidation`, ADR 0051; hard cut, no root aliases)
+- Initialization ordering — the entry script is evaluated after the rendering
+  surface exists in surface-bearing run modes (`entry-after-gpu-init`, ADR 0016
+  amended); surface-less modes (`--script`, web Node) create CPU-only resources
+  through the one creation path, the deferred pre-GPU upload queue is gone, and
+  `efx.graphics.whiteTexture` works in every run mode
+  (`collapse-pre-gpu-queue`, ADR 0052)
 
 **Codebase map:**
 

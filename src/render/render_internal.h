@@ -34,13 +34,12 @@ typedef struct {
     int wrap, filter; /* F6b sampler (immutable creation state) */
     int mipmaps;      /* F6e: build + use a mip chain (immutable) */
     void *native;
-    uint8_t *pending; /* RGBA bytes queued before a sink existed */
 } tex_slot;
 
 /* F5a render target: an offscreen color+depth attachment pair; native is
  * owned by the sink and doubles as the sampling source (texture coercion,
- * ADR 0028). No CPU-side pixel payload: before a sink exists only the
- * slot (with its size) is allocated. */
+ * ADR 0028). No CPU-side pixel payload: without a sink only the slot (with
+ * its size) is allocated (ADR 0052). */
 typedef struct {
     int used;
     int alive;
@@ -51,7 +50,9 @@ typedef struct {
     void *native;
 } rt_slot;
 
-/* pending mesh upload: interleaved surfaces queued before a sink existed */
+/* retained mesh CPU geometry: interleaved surfaces built at mesh creation and
+ * kept for skinned bind data and F12 static-mesh colliders; uploaded only when
+ * a sink exists (ADR 0052) */
 typedef struct {
     int count;
     efx_mesh_gpu_surface *surfs; /* count entries; pointers into data */
@@ -261,7 +262,6 @@ static inline ps_slot *ps_get(uint64_t h) {
 /* ------------------------------------------- cross-fragment declarations */
 
 void ensure_state(void);
-void flush_pending_uploads(void);
 void post_reset(void);
 void post_clear(void);
 int post_scene_size(int surface);

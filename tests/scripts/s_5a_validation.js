@@ -11,12 +11,12 @@ function expectThrow(name, kind, fn) {
 }
 const TE = TypeError, RE = RangeError;
 
-// script mode has no GPU sink, so the white texture is unavailable — any
-// live texture works as the quad source (F2 white-texture rule is
-// windowed-run only)
+// the engine whiteTexture is available headless too (CPU-only, ADR 0052);
+// any live texture works as the quad source
 const tex = efx.graphics.createTexture(efx.graphics.createImageData({
     width: 2, height: 2, pixels: new Uint8Array(16),
 }));
+efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [4, 4] });
 
 // lifecycle + query properties
 const rt = efx.graphics.createRenderTarget({ width: 256, height: 128 });

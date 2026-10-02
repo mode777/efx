@@ -124,6 +124,40 @@ static int white(void) {
     return 0;
 }
 
+/* ADR 0052: without a rendering surface the white texture is still available
+ * (CPU-only) and drawable; destroy() still throws */
+static int white_sinkless(void) {
+    efx_render_install_sink(NULL);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    efx_runtime *rt = efx_runtime_new(NULL, 0);
+    if (!rt) {
+        return fail("runtime");
+    }
+    const char *code =
+        "const w = efx.graphics.whiteTexture;"
+        "if (w.width !== 1 || w.height !== 1) throw new Error('white dims');"
+        "try { w.destroy(); throw new Error('destroy did not throw'); }"
+        "catch (e) { if (!(e instanceof TypeError)) throw e; }"
+        "efx.graphics.drawQuad(0, 0, w, { size: [4, 4] });";
+    int rc = efx_runtime_eval_string(rt, "sinkless", code);
+    if (rc == 0) {
+        efx_runtime_collect(rt);
+    }
+    int n = rec_count();
+    efx_runtime_destroy(rt);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    if (rc != 0) {
+        return fail("white sinkless js");
+    }
+    if (n != 1) {
+        return fail("white sinkless record count");
+    }
+    return 0;
+}
+
 /* end-to-end: JS camera + quad options land in the composed record */
 static int quad_record(void) {
     const char *code =
@@ -1885,6 +1919,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(physics_js),
     EFX_CASE(audio_js),
     EFX_CASE(destroy_no_pending_exception),
+    EFX_CASE(white_sinkless),
 };
 
 int main(int argc, char **argv) {

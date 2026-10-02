@@ -1,29 +1,15 @@
 /* Headless desktop runner for the error catalog (ADR 0049 work): runs a
- * script through the real quickjs runtime + bindings with a mock GPU sink —
- * the `player --script` output contract (efx.log lines on stdout, exit 0)
- * without a display, so the catalog's byte-compare runs in EFX_HEADLESS
- * builds too. Not a player replacement: no window, hooks, or run modes. */
+ * script through the real quickjs runtime + bindings with no GPU sink — the
+ * `player --script` output contract (efx.log lines on stdout, exit 0) without
+ * a display, so the catalog's byte-compare runs in EFX_HEADLESS builds too.
+ * Resources are CPU-only (ADR 0052). Not a player replacement: no window,
+ * hooks, or run modes. */
 #include "render/render.h"
 #include "resource/resource.h"
 #include "runtime/runtime.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-
-static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
-                         int wrap, int filter, int mipmaps) {
-    (void)ud; (void)rgba; (void)wrap; (void)filter; (void)mipmaps;
-    return malloc((size_t)(w * h * 4 > 0 ? w * h * 4 : 1));
-}
-
-static void mock_destroy(void *ud, void *native) {
-    (void)ud;
-    free(native);
-}
-
-static const efx_render_sink g_sink = {
-    NULL, mock_create, mock_destroy, NULL, NULL, NULL, NULL, NULL,
-};
 
 int main(int argc, char **argv) {
     if (argc < 3) {
@@ -46,7 +32,6 @@ int main(int argc, char **argv) {
     code[n] = '\0';
     fclose(f);
 
-    efx_render_install_sink(&g_sink);
     efx_render_reset_state();
     efx_render_set_viewport(1024, 600);
     efx_render_begin_frame();

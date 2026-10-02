@@ -288,38 +288,34 @@ static int texture_lifecycle(void) {
     efx_render_end_frame();
     efx_render_shutdown();
     efx_render_install_sink(NULL);
-    if (efx_render_white_texture() != 0) return fail("white after shutdown");
+    /* after shutdown a sink-less white texture is still available (CPU-only,
+       ADR 0052) */
+    uint64_t white2 = efx_render_white_texture();
+    if (!white2 || !efx_render_texture_alive(white2))
+        return fail("white after shutdown (CPU-only)");
+    efx_render_texture_size(white2, &w, &h);
+    if (w != 1 || h != 1) return fail("white after shutdown size");
     return 0;
 }
 
-/* P12: queued (sink-less) texture creation always appends a fresh slot and
- * never reuses a freed one; the resulting handle sequence is observable, so
- * pin it before unifying the slot initialisation. */
-static int texture_queued_handles(void) {
+/* sink-less texture creation is CPU-only: a live slot with the requested size
+ * and no native object (ADR 0052). */
+static int texture_sinkless(void) {
     uint8_t px[4] = {1, 2, 3, 4};
-    uint64_t t1 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+    uint64_t t1 = efx_render_texture_create(2, 3, px, EFX_TEX_WRAP_REPEAT,
                                             EFX_FILTER_LINEAR, 0);
+    if (!t1 || !efx_render_texture_alive(t1)) return fail("sinkless create");
+    int w = 0, h = 0;
+    efx_render_texture_size(t1, &w, &h);
+    if (w != 2 || h != 3) return fail("sinkless size");
+    if (efx_render_texture_native(t1) != NULL) return fail("sinkless native");
+    /* destroy without a sink is safe and leaves no native release pending */
+    if (efx_render_texture_destroy(t1) != EFX_RENDER_OK)
+        return fail("sinkless destroy");
+    if (efx_render_texture_alive(t1)) return fail("sinkless alive after destroy");
     uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
                                             EFX_FILTER_LINEAR, 0);
-    if (t1 != (((uint64_t)1 << 32) | 1)) return fail("queued handle 1");
-    if (t2 != (((uint64_t)1 << 32) | 2)) return fail("queued handle 2");
-    /* destroying a queued texture frees its pending bytes but leaves the slot
-       consumed; the next create appends rather than reusing it */
-    if (efx_render_texture_destroy(t1) != EFX_RENDER_OK)
-        return fail("destroy queued");
-    uint64_t t3 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
-                                            EFX_FILTER_LINEAR, 0);
-    if (t3 != (((uint64_t)1 << 32) | 3)) return fail("queued handle 3 (append)");
-    if (t1 == t3 || t2 == t3) return fail("queued handle reuse");
-    /* growth past the initial capacity keeps the append-only sequence */
-    uint64_t last = 0;
-    for (int i = 0; i < 70; i++) {
-        last = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
-                                         EFX_FILTER_LINEAR, 0);
-        if (!last) return fail("queued grow");
-    }
-    if (last != (((uint64_t)1 << 32) | 73))
-        return fail("queued handle after grow");
+    if (!t2) return fail("sinkless recreate");
     efx_render_shutdown();
     return 0;
 }
@@ -580,9 +576,9 @@ static int mesh_lifecycle(void) {
     return 0;
 }
 
-static int mesh_pending_upload(void) {
-    /* no sink: create queues; installing the sink flushes (headless
-       parity with texture pending uploads) */
+static int mesh_sinkless(void) {
+    /* no sink: the mesh is CPU-only (native NULL) but retains its interleaved
+       CPU geometry; a later sink install does not upload it (ADR 0052) */
     g_tex_created = g_mesh_created = 0;
     uint8_t px[4] = {255, 0, 0, 255};
     uint64_t t = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
@@ -592,15 +588,14 @@ static int mesh_pending_upload(void) {
     if (!md) return fail("fixture");
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
-    if (!m) return fail("pending mesh create");
-    if (g_mesh_created != 0) return fail("created without sink");
+    if (!m) return fail("sinkless mesh create");
+    if (g_mesh_created != 0) return fail("mesh created without sink");
     static const efx_render_sink sink = {
         NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
         NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
-    if (g_mesh_created != 1) return fail("pending flush");
-    if (g_last_mesh_surf_count != 2) return fail("flushed surface count");
+    if (g_mesh_created != 0) return fail("mesh uploaded after late sink");
     if (efx_render_mesh_destroy(m) != EFX_RENDER_OK) return fail("destroy");
     efx_render_end_frame();
     efx_render_shutdown();
@@ -2205,14 +2200,14 @@ static const efx_test_case cases[] = {
     EFX_CASE(blend_snapshot),
     EFX_CASE(record_budget),
     EFX_CASE(texture_lifecycle),
-    EFX_CASE(texture_queued_handles),
+    EFX_CASE(texture_sinkless),
     EFX_CASE(texture_mipmaps),
     EFX_CASE(record_fields),
     EFX_CASE(batching),
     EFX_CASE(meshdata_validation),
     EFX_CASE(meshdata_skinning),
     EFX_CASE(mesh_lifecycle),
-    EFX_CASE(mesh_pending_upload),
+    EFX_CASE(mesh_sinkless),
     EFX_CASE(mesh_record_fields),
     EFX_CASE(mesh_record_order),
     EFX_CASE(mesh_record_budget),

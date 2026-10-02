@@ -505,6 +505,8 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
         pending_free(&pending);
         return 0;
     }
+    /* without a sink the mesh is CPU-only: native stays NULL and the
+       interleaved CPU copy is retained below (ADR 0052) */
     if (R.sink && R.sink->create_mesh) {
         native = R.sink->create_mesh(R.sink->ud, pending.surfs, pending.count);
         if (!native) {
