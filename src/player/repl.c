@@ -22,6 +22,7 @@
 
 typedef struct {
     efx_runtime *rt;
+    char *entry_code; /* optional root main.js, evaluated in on_init */
     char line[EFX_REPL_LINE_MAX];
     size_t len;
     int interactive; /* stdin is a TTY: show a prompt and banner */
@@ -216,31 +217,41 @@ static int repl_on_frame(void *ud, double dt) {
     return 0;
 }
 
+/* the optional root entry is evaluated here, after the window and GPU context
+ * exist (ADR 0016); efx_player_run_entry frees the source */
+static int repl_init(void *ud) {
+    efx_repl *r = (efx_repl *)ud;
+    if (r->entry_code) {
+        char *code = r->entry_code;
+        r->entry_code = NULL;
+        int exit_code = 0;
+        if (efx_player_run_entry(r->rt, code, &exit_code)) {
+            efx_platform_set_exit_code(exit_code);
+            return 1;
+        }
+    }
+    int has_update = 0;
+    int has_render = 0;
+    efx_runtime_pick_hooks(r->rt, &has_update, &has_render);
+    return 0;
+}
+
 int efx_repl_run(struct efx_resource *resource) {
     efx_runtime *rt = efx_runtime_new(NULL, 0);
     if (!rt) {
         return 1;
     }
-    if (resource) {
-        efx_runtime_set_resource(rt, resource);
-        /* run the root's entry script once, if present; a bare root (or no
-           root) starts with the namespace only */
-        int eerr = EFX_RESOURCE_OK;
-        char *code = efx_resource_read_text(resource, "main.js", &eerr);
-        int exit_code = 0;
-        if (code && efx_player_run_entry(rt, code, &exit_code)) {
-            efx_runtime_destroy(rt);
-            return exit_code;
-        }
-    }
-
-    int has_update = 0;
-    int has_render = 0;
-    efx_runtime_pick_hooks(rt, &has_update, &has_render);
-
     efx_repl r;
     memset(&r, 0, sizeof(r));
     r.rt = rt;
+    if (resource) {
+        efx_runtime_set_resource(rt, resource);
+        /* the root's entry script, if present, is evaluated in repl_init once
+           the surface exists; a bare root (or no root) starts with the
+           namespace only */
+        int eerr = EFX_RESOURCE_OK;
+        r.entry_code = efx_resource_read_text(resource, "main.js", &eerr);
+    }
     r.interactive = repl_is_tty();
     if (r.interactive) {
         fprintf(stderr, "EmotionFX REPL - .help for commands, .exit to quit\n");
@@ -250,6 +261,7 @@ int efx_repl_run(struct efx_resource *resource) {
     memset(&desc, 0, sizeof(desc));
     efx_frame_hooks hooks;
     hooks.ud = &r;
+    hooks.on_init = repl_init;
     hooks.on_frame = repl_on_frame;
     efx_platform_run(&desc, hooks);
 

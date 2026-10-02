@@ -55,7 +55,7 @@ function __efxResolveAssets() {
         }
     }
     if (url === null || url === '') {
-        __efxEvaluateEntry();
+        __efxStartAfterAssets();
         return;
     }
     /* consume the host channel before anything else runs */
@@ -75,11 +75,47 @@ function __efxResolveAssets() {
         if (!ok) {
             throw new Error('asset archive could not be opened');
         }
-        __efxEvaluateEntry();
+        __efxStartAfterAssets();
     }).catch(function (e) {
         __efxFail('player: asset root fetch failed: ' +
             (e && e.message ? e.message : e));
     });
+}
+
+/* ADR 0016: on the DOM the sokol loop starts first and the C init callback
+   evaluates the entry once WebGL and the engine pipelines are up; the Node
+   harness has no rendering surface, so it evaluates directly and drives the
+   frame loop itself. */
+function __efxStartAfterAssets() {
+    var dom = false;
+    try {
+        dom = typeof document !== 'undefined';
+    } catch (e) {
+        dom = false;
+    }
+    if (dom) {
+        Module['_efx_web_start_loop']();
+        return;
+    }
+    __efxEvaluateEntry();
+    __efxNodeFrameLoop();
+}
+
+function __efxNodeFrameLoop() {
+    __efxSyncExit();
+    var maxFrames = 100000;
+    try {
+        if (typeof process !== 'undefined' && process.env && process.env['EFX_WEB_MAX_FRAMES']) {
+            maxFrames = parseInt(process.env['EFX_WEB_MAX_FRAMES'], 10) || maxFrames;
+        }
+    } catch (e) {}
+    var guard = 0;
+    while (guard < maxFrames && Module['_efx_bridge_frame']() === 0) {
+        guard++;
+    }
+    __efxSyncExit();
+    __efxMarkEnded();
+    __efxNodeExit();
 }
 
 /* F10: report a module-runtime/entry failure through the same error/exit
@@ -100,6 +136,10 @@ function __efxModuleFail(st, e) {
 
 function __efxEvaluateEntry() {
     var st = __efxState();
+    if (st.evaluated) {
+        return;
+    }
+    st.evaluated = true;
     /* host-global shadow: the entry (and every module it requires) is
        evaluated with these free globals denied, so host/browser/Node
        facilities stay unreachable even though module bodies compile through
@@ -201,27 +241,4 @@ function __efxEvaluateEntry() {
         st.renderHooks.push({ fn: res.render, active: true });
     }
     __efxSyncExit();
-    var dom = false;
-    try {
-        dom = typeof document !== 'undefined';
-    } catch (e) {
-        dom = false;
-    }
-    if (dom) {
-        Module['_efx_web_start_loop']();
-        return;
-    }
-    var maxFrames = 100000;
-    try {
-        if (typeof process !== 'undefined' && process.env && process.env['EFX_WEB_MAX_FRAMES']) {
-            maxFrames = parseInt(process.env['EFX_WEB_MAX_FRAMES'], 10) || maxFrames;
-        }
-    } catch (e) {}
-    var guard = 0;
-    while (guard < maxFrames && Module['_efx_bridge_frame']() === 0) {
-        guard++;
-    }
-    __efxSyncExit();
-    __efxMarkEnded();
-    __efxNodeExit();
 }

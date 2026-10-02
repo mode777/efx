@@ -10,6 +10,14 @@ EM_JS(int, efx_web_call_hook_js, (int which, double dt), {
     return globalThis.__efxDispatchHook(which, dt);
 });
 
+/* ADR 0016: the entry is evaluated from the platform init callback, after
+ * WebGL is initialized; the JS boot owns the evaluation body */
+EM_JS(void, efx_web_eval_entry_js, (void), {
+    if (typeof globalThis.__efxEvaluateEntry === 'function') {
+        globalThis.__efxEvaluateEntry();
+    }
+});
+
 EM_JS(void, efx_web_publish_exit, (int code), {
     Module['efxExitCode'] = code;
     Module['efxRunEnded'] = true;
@@ -183,6 +191,14 @@ int efx_web_main(int argc, char *const *argv) {
     return 0;
 }
 
+/* ADR 0016: run the entry from the init callback, once WebGL and the engine
+ * pipelines exist; a failure or quit stops the run */
+static int web_on_init(void *ud) {
+    (void)ud;
+    efx_web_eval_entry_js();
+    return (W.in_error || W.quit_requested) ? 1 : 0;
+}
+
 EMSCRIPTEN_KEEPALIVE void efx_web_start_loop(void) {
     if (!W.dom) {
         return;
@@ -192,6 +208,7 @@ EMSCRIPTEN_KEEPALIVE void efx_web_start_loop(void) {
     desc.capture = W.capture;
     efx_frame_hooks hooks;
     hooks.ud = NULL;
+    hooks.on_init = web_on_init;
     hooks.on_frame = web_frame;
     efx_platform_run(&desc, hooks);
 }

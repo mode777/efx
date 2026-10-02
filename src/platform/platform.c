@@ -236,6 +236,17 @@ static void efx_init_cb(void) {
         efx_capture_setup();
     }
 #endif
+    /* the rendering surface and engine subsystems are ready: make the window
+       size visible to the script and run the entry evaluation, which now
+       happens after the surface exists (ADR 0016) */
+    efx_input_set_window(sapp_width(), sapp_height(), sapp_dpi_scale());
+    if (g_hooks.on_init && g_hooks.on_init(g_hooks.ud)) {
+#if defined(__APPLE__)
+        _exit(g_exit_code);
+#else
+        sapp_quit();
+#endif
+    }
 }
 
 static void efx_frame_cb(void) {

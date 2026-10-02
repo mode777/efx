@@ -191,6 +191,29 @@ static int on_frame(void *ud, double dt) {
     return efx_player_frame(ud, dt);
 }
 
+/* Entry evaluation runs from the platform init callback, after the window and
+ * GPU context exist (ADR 0016). The source is read before efx_platform_run so
+ * a missing main.js still fails without opening a window; it is handed over
+ * here and freed by efx_player_run_entry. */
+static char *g_root_entry;
+
+static int on_init_root(void *ud) {
+    efx_runtime *rt = (efx_runtime *)ud;
+    if (g_root_entry) {
+        char *code = g_root_entry;
+        g_root_entry = NULL;
+        int exit_code = 0;
+        if (efx_player_run_entry(rt, code, &exit_code)) {
+            efx_platform_set_exit_code(exit_code);
+            return 1;
+        }
+    }
+    int has_update = 0;
+    int has_render = 0;
+    efx_runtime_pick_hooks(rt, &has_update, &has_render);
+    return 0;
+}
+
 static int run_root_mode(const char *root, const efx_platform_capture *capture) {
     if (!is_dir(root) && !is_file(root)) {
         fprintf(stderr, "player: resource root is not a directory: %s\n", root);
@@ -219,15 +242,8 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     /* F14: set up the audio device before the script runs, so load-time audio
        calls (e.g. background music at boot) use the real device sample rate */
     efx_audio_backend_init();
-    int exit_code = 0;
-    if (efx_player_run_entry(rt, code, &exit_code)) {
-        efx_runtime_destroy(rt);
-        efx_resource_close(res);
-        return exit_code;
-    }
-    int has_update = 0;
-    int has_render = 0;
-    efx_runtime_pick_hooks(rt, &has_update, &has_render);
+    /* evaluation is deferred to on_init_root, once the surface exists */
+    g_root_entry = code;
     efx_platform_desc desc;
     memset(&desc, 0, sizeof(desc));
     if (capture) {
@@ -235,9 +251,10 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     }
     efx_frame_hooks hooks;
     hooks.ud = rt;
+    hooks.on_init = on_init_root;
     hooks.on_frame = on_frame;
     efx_platform_run(&desc, hooks);
-    exit_code = efx_player_exit_code(rt);
+    int exit_code = efx_player_exit_code(rt);
     /* release native resources while the GPU context is still alive:
        runtime destroy runs finalizers -> deferred texture releases, then
        render shutdown flushes them, then sokol goes down */

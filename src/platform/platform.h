@@ -3,6 +3,10 @@
 
 typedef struct efx_frame_hooks {
     void *ud;
+    /* called once after the rendering surface and engine subsystems are ready,
+     * before the first frame; a non-zero return stops the run (the callback
+     * has recorded the exit code via efx_platform_set_exit_code) */
+    int (*on_init)(void *ud);
     int (*on_frame)(void *ud, double dt); /* dt: seconds since previous frame */
 } efx_frame_hooks;
 

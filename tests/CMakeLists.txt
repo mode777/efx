@@ -107,6 +107,9 @@ add_player_test(smoke_root_ok ARGS "${F}/root_ok" EXPECT 0 EXPECT_OUT "entry-ok"
 add_player_test(smoke_root_no_entry ARGS "${F}/root_no_entry" EXPECT nonzero EXPECT_ERR "no main.js in resource root")
 add_player_test(smoke_root_missing_dir ARGS "${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 add_player_test(smoke_root_eval_throw ARGS "${F}/web/root_eval_throw" EXPECT nonzero EXPECT_ERR "intentional-smoke-throw")
+# display-required: the entry script runs after the window/GPU surface exists,
+# so a top-level GPU resource access succeeds (ADR 0016)
+add_player_test(smoke_root_top_gpu ARGS "${F}/top_gpu" EXPECT 0 EXPECT_OUT "top-gpu-ok")
 add_player_test(smoke_no_args EXPECT nonzero EXPECT_ERR "usage")
 add_player_test(smoke_unknown_option ARGS --frobnicate EXPECT nonzero EXPECT_ERR "unknown option")
 add_player_test(smoke_6a_resource ARGS "--script;${S}/s_6a_resource.js" EXPECT 0 EXPECT_OUT "s-6a-resource-ok")

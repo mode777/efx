@@ -3,7 +3,10 @@
 Status: Accepted (2026-09, change `js-api-reference`; amended 2026-09,
 change `explicit-hook-registration`: the readiness guarantee is scoped to
 the script-visible API; amended 2026-09, change `f6a-resource-loading`: a
-host-provided resource archive may be fetched and mounted before evaluation)
+host-provided resource archive may be fetched and mounted before evaluation;
+amended 2026-10-02, change `entry-after-gpu-init`: surface creation is moved
+ahead of evaluation in surface-bearing run modes, adopting the reordering
+originally deferred here)
 Supersedes: the `init()` hook portion of the D9 sketch in
 `openspec/changes/archive/2026-09-21-js-api-reference/design.md`
 
@@ -33,13 +36,16 @@ readiness before script evaluation, top-level code *is* the init.
   script-visible engine — the `efx` namespace, every API function, and the
   bundled high-level layer — is ready *before* `main.js` executes; top-level
   code is setup, and the separate `init()` hook is dropped as redundant.
-  The rendering surface is initialized when the frame loop starts and is not
-  script-visible at load time, so moving window/GL-context creation ahead of
-  evaluation is **not** required for this contract and stays deferred (see
-  Consequences). On the web the boot may first fetch and mount a
-  host-provided resource archive (F6a, ADR 0031); that delays evaluation but
-  does not change the guarantee — `efx` is still fully ready before
-  `main.js` runs, and the load API stays synchronous.
+  The rendering surface is initialized *before* `main.js` executes in every
+  run mode that has one — desktop resource-root/capture, `--repl <root>`, and
+  the DOM web player — so top-level code may create or sample engine-owned GPU
+  resources such as `efx.graphics.whiteTexture` (amended by
+  `entry-after-gpu-init`, adopting the reordering originally deferred here).
+  Run modes without a rendering surface (`--script`, the web Node harness)
+  still evaluate with no surface, by design (ADR 0007). On the web the boot
+  may first fetch and mount a host-provided resource archive (F6a, ADR 0031);
+  that delays evaluation but does not change the guarantee — `efx` is still
+  fully ready before `main.js` runs, and the load API stays synchronous.
 - **F1's global `update`/`render` remain supported as load-time sugar**: if
   defined after evaluation, the engine registers them in load order. F1
   examples, the smoke suite, and the player-runtime gate contract stay
@@ -51,9 +57,10 @@ readiness before script evaluation, top-level code *is* the init.
 
 - Player runtime: hook pickup is a dynamic list, not a one-time property
   read; the registration pair shipped in the `explicit-hook-registration`
-  change. The readiness-before-eval reordering of window/GL-context creation
-  remains deferred — it is not script-visible and can be revisited if a
-  future feature needs load-time GPU access.
+  change. The window/GL-context creation reordering is now adopted for
+  surface-bearing run modes (`entry-after-gpu-init`); the deferred pre-GPU
+  resource upload queue it left behind is removed by the follow-up change
+  `collapse-pre-gpu-queue`.
 - Callback count is unbounded and order matters; an exception in any hook
   halts the run (existing error contract applies).
 - REPL sessions that re-register accumulate hooks; unsubscribe (or session

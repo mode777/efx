@@ -109,8 +109,12 @@ behavior.
 
 The entry script is `main.js` at the resource root (a directory or zip).
 **Loading `main.js` is the implicit init**: the `efx` namespace and every
-engine function are ready before the script executes, and top-level code is
-where setup happens. There is no separate `init()` hook.
+engine function are ready before the script executes, and in run modes with a
+rendering surface the window, GPU context, and engine pipelines are
+initialized first — so top-level code may create or sample engine-owned GPU
+resources such as `efx.graphics.whiteTexture`. (`--script` and the web Node
+harness run without a rendering surface, by design.) Top-level code is where
+setup happens. There is no separate `init()` hook.
 
 Frame callbacks are registered explicitly and stack in registration order:
 
