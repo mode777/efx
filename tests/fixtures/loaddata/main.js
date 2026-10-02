@@ -31,3 +31,4 @@ if (threw !== 1) {
     throw new Error('missing loadData not Error (' + threw + ')');
 }
 efx.log('s-6a-loaddata-ok');
+efx.quit(0);
