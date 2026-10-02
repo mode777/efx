@@ -147,7 +147,7 @@ add_web_test(web_root_eval_throw ${WEBF}/root_eval_throw EXPECT nonzero EXPECT_E
 add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
 add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
-add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin)
+add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin ${S}/gltf_probe.glb ${S}/gltf_corrupt.gltf)
 add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
