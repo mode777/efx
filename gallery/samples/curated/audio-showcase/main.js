@@ -6,8 +6,8 @@
 // (efx.audio.resume is called for you). Everything is mixed by the engine — no
 // channels here.
 
-efx.setClearColor([0.03, 0.035, 0.06, 1]);
-efx.setCamera2D({ frame: [640, 480] });
+efx.graphics.setClearColor([0.03, 0.035, 0.06, 1]);
+efx.graphics.setCamera2D({ frame: [640, 480] });
 
 const FW = 640;
 const FH = 480;
@@ -22,10 +22,10 @@ function white() {
 }
 
 // ---- assets from the sample's pack (mounted as the resource root) ----
-const fd = efx.loadFontData('font.ttf');
-const fontTitle = efx.createFont(fd, { size: 24 });
-const font = efx.createFont(fd, { size: 15 });
-const fontSmall = efx.createFont(fd, { size: 12 });
+const fd = efx.graphics.loadFontData('font.ttf');
+const fontTitle = efx.graphics.createFont(fd, { size: 24 });
+const font = efx.graphics.createFont(fd, { size: 15 });
+const fontSmall = efx.graphics.createFont(fd, { size: 12 });
 
 // ---- audio ----
 // A streamed source is decoded incrementally by each playhead; playAudio
@@ -147,8 +147,8 @@ function update(dt) {
 }
 
 function render() {
-    efx.drawText('Audio Showcase', fontTitle, 24, 20, { color: [1, 1, 1, 1] });
-    efx.drawText('F14: one streamed track + decoded effects, controlled through handles.',
+    efx.graphics.drawText('Audio Showcase', fontTitle, 24, 20, { color: [1, 1, 1, 1] });
+    efx.graphics.drawText('F14: one streamed track + decoded effects, controlled through handles.',
                  fontSmall, 24, 52, { color: [0.7, 0.75, 0.85, 1] });
 
     const playing = music.playing;
@@ -160,16 +160,16 @@ function render() {
     } else {
         status = 'paused';
     }
-    efx.drawText('Music  ' + status + '   vol ' + Math.round(music.volume * 100) + '%' +
+    efx.graphics.drawText('Music  ' + status + '   vol ' + Math.round(music.volume * 100) + '%' +
                  (muted ? '  (muted)' : ''),
                  font, 24, 92,
                  { color: playing ? [0.55, 1, 0.7, 1] : [1, 0.8, 0.5, 1] });
 
     // A visual-only level meter: it animates while the stream is playing.
     const meterW = 320;
-    efx.drawQuad(24, 114, white(), { size: [meterW, 10], color: [0.14, 0.17, 0.24, 1] });
+    efx.graphics.drawQuad(24, 114, white(), { size: [meterW, 10], color: [0.14, 0.17, 0.24, 1] });
     const lvl = music.volume;
-    efx.drawQuad(24, 114, white(), {
+    efx.graphics.drawQuad(24, 114, white(), {
         size: [meterW * Math.max(0.02, lvl), 10],
         color: [0.35, 0.85, 1, 0.9],
     });
@@ -178,28 +178,28 @@ function render() {
         const x = PAD_X0 + i * (PAD_W + PAD_GAP);
         const c = PADS[i].color;
         const pulse = pulses[i];
-        efx.drawQuad(x, PAD_Y, white(), {
+        efx.graphics.drawQuad(x, PAD_Y, white(), {
             size: [PAD_W, PAD_H],
             color: [c[0] * 0.22, c[1] * 0.22, c[2] * 0.22, 1],
         });
         const b = 2 + pulse * 7;
-        efx.drawQuad(x - b, PAD_Y - b, white(), {
+        efx.graphics.drawQuad(x - b, PAD_Y - b, white(), {
             size: [PAD_W + 2 * b, PAD_H + 2 * b],
             color: [c[0], c[1], c[2], 0.2 + 0.6 * pulse],
         });
-        efx.drawText(PADS[i].label, font, x + 14, PAD_Y + 16,
+        efx.graphics.drawText(PADS[i].label, font, x + 14, PAD_Y + 16,
                      { color: [1, 1, 1, 0.95] });
-        efx.drawText('pan = x, pitch = y', fontSmall, x + 14, PAD_Y + PAD_H - 26,
+        efx.graphics.drawText('pan = x, pitch = y', fontSmall, x + 14, PAD_Y + PAD_H - 26,
                      { color: [0.8, 0.85, 0.95, 0.8] });
     }
 
-    efx.drawText('Click a pad (or 1/2/3) to fire an effect. Space = pause/resume music.',
+    efx.graphics.drawText('Click a pad (or 1/2/3) to fire an effect. Space = pause/resume music.',
                  fontSmall, 24, 386, { color: [0.75, 0.8, 0.9, 1] });
-    efx.drawText('M = mute.  [ / ] = volume (the handle fades toward it).',
+    efx.graphics.drawText('M = mute.  [ / ] = volume (the handle fades toward it).',
                  fontSmall, 24, 406, { color: [0.55, 0.6, 0.7, 1] });
 
     const a = 0.35 + 0.3 * Math.sin(t * 3.0);
-    efx.drawQuad(24, 438, white(), { size: [FW - 48, 2], color: [0.3, 0.6, 1, a] });
+    efx.graphics.drawQuad(24, 438, white(), { size: [FW - 48, 2], color: [0.3, 0.6, 1, a] });
 }
 
 efx.registerUpdateHook(update);

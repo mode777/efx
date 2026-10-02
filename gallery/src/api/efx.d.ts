@@ -21,8 +21,8 @@
  *
  * @example
  * ```js
- * efx.setClearColor([0.05, 0.05, 0.1, 1]);
- * efx.drawQuad(0, 0, tex, { color: [1, 0.5, 0, 1] });
+ * efx.graphics.setClearColor([0.05, 0.05, 0.1, 1]);
+ * efx.graphics.drawQuad(0, 0, tex, { color: [1, 0.5, 0, 1] });
  * ```
  */
 type Color = [number, number, number, number];
@@ -42,7 +42,7 @@ type Vec3 = [number, number, number];
  *   efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]),
  *   [0, 0.5, 0],
  * );
- * efx.drawMesh(mesh, { transform: model });
+ * efx.graphics.drawMesh(mesh, { transform: model });
  * ```
  */
 type Mat4 = [
@@ -521,12 +521,12 @@ interface FontShadow {
  *
  * @example
  * ```js
- * const title = efx.createFont(efx.loadFontData('font.ttf'), {
+ * const title = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
  *   size: 44,
  *   outline: { width: 2 },
  *   shadow: { blur: 3, offset: [2, 2] },
  * });
- * const body = efx.createFont(efx.loadFontData('font.ttf'), { size: 24 });
+ * const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 24 });
  * ```
  */
 interface CreateFontOptions {
@@ -549,7 +549,7 @@ interface CreateFontOptions {
  *
  * @example
  * ```js
- * efx.drawText(paragraph, body, 40, 168, {
+ * efx.graphics.drawText(paragraph, body, 40, 168, {
  *   width: 560,
  *   align: 'justify',
  *   color: [0.85, 0.88, 0.95, 1],
@@ -597,9 +597,9 @@ interface TextBounds {
  * @example
  * ```js
  * // a 48x48 tinted sprite (see the "Bouncing Sprites" sample)
- * efx.drawQuad(d.x, d.y, tex, { size: [48, 48], color: d.c });
+ * efx.graphics.drawQuad(d.x, d.y, tex, { size: [48, 48], color: d.c });
  * // a cropped atlas region with an explicit pivot
- * efx.drawQuad(160, 16, tex, {
+ * efx.graphics.drawQuad(160, 16, tex, {
  *   size: [128, 128],
  *   sourceRect: { x: 128, y: 128, w: 256, h: 256 },
  * });
@@ -625,8 +625,8 @@ interface DrawQuadOptions {
  *
  * @example
  * ```js
- * efx.setCamera2D({ frame: [640, 480] });          // virtual 640x480 frame
- * efx.setCamera2D({ frame: [640, 480], zoom: 2 }); // 2x zoom about the center
+ * efx.graphics.setCamera2D({ frame: [640, 480] });          // virtual 640x480 frame
+ * efx.graphics.setCamera2D({ frame: [640, 480], zoom: 2 }); // 2x zoom about the center
  * ```
  */
 interface Camera2DOptions {
@@ -657,7 +657,7 @@ interface Camera2DOptions {
  *     px[i + 3] = 255; // ...compute coverage from the distance to center
  *   }
  * }
- * const glow = efx.createImageData({ width: size, height: size, pixels: px });
+ * const glow = efx.graphics.createImageData({ width: size, height: size, pixels: px });
  * ```
  */
 interface CreateImageDataOptions {
@@ -677,7 +677,7 @@ interface CreateImageDataOptions {
  * @example
  * ```js
  * // tiled, minified ground texture: repeat wrap plus a mip chain
- * const tex = efx.createTexture(efx.loadImage('paving_color.jpg'),
+ * const tex = efx.graphics.createTexture(efx.graphics.loadImage('paving_color.jpg'),
  *                               { mipmaps: true });
  * ```
  */
@@ -711,7 +711,7 @@ interface SourceRect {
  *
  * @example
  * ```js
- * efx.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+ * efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
  * ```
  */
 interface Camera3DOptions {
@@ -776,7 +776,7 @@ interface SpecularChannel {
  *
  * @example
  * ```js
- * efx.setMeshSurfaceMaterial(cube, 0, {
+ * efx.graphics.setMeshSurfaceMaterial(cube, 0, {
  *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
  *   diffuse:  { color: [1, 1, 1, 1] },
  *   specular: { color: [1, 1, 1, 1], shininess: 32 },
@@ -827,7 +827,7 @@ interface MeshDataShorthand extends MeshSurfaceData {
  * @example
  * ```js
  * // shorthand: one surface
- * const quad = efx.createMeshData({
+ * const quad = efx.graphics.createMeshData({
  *   positions: [-4, 0, -4, 4, 0, -4, 4, 0, 4, -4, 0, 4],
  *   normals:   [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
  *   uvs:       [0, 0, 6, 0, 6, 6, 0, 6],
@@ -835,7 +835,7 @@ interface MeshDataShorthand extends MeshSurfaceData {
  * });
  *
  * // batch: several surfaces with per-surface materials
- * const mesh = efx.createMeshData({
+ * const mesh = efx.graphics.createMeshData({
  *   surfaces: [{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] }],
  *   materials: [null],
  * });
@@ -848,7 +848,7 @@ type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
  *
  * @example
  * ```js
- * efx.drawMesh(cube, {
+ * efx.graphics.drawMesh(cube, {
  *   transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]),
  *   color: [0.95, 0.5, 0.2, 1],
  * });
@@ -868,7 +868,7 @@ interface DrawMeshCallOptions {
  *
  * @example
  * ```js
- * const cube = efx.createMesh(efx.makeCube({ size: 1.4 }));
+ * const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
  * ```
  */
 interface MakeCubeOptions {
@@ -883,7 +883,7 @@ interface MakeCubeOptions {
  *
  * @example
  * ```js
- * const ground = efx.createMesh(efx.makePlane({ size: 10, segments: 4 }));
+ * const ground = efx.graphics.createMesh(efx.graphics.makePlane({ size: 10, segments: 4 }));
  * ```
  */
 interface MakePlaneOptions {
@@ -900,7 +900,7 @@ interface MakePlaneOptions {
  *
  * @example
  * ```js
- * const ball = efx.createMesh(efx.makeSphere({ radius: 1.6, segments: 32 }));
+ * const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.6, segments: 32 }));
  * ```
  */
 interface MakeSphereOptions {
@@ -918,7 +918,7 @@ interface MakeSphereOptions {
  * @example
  * ```js
  * // a capsule matching a physics character (radius 0.4, height 1.8)
- * const body = efx.createMesh(efx.makeCapsule({ radius: 0.4, height: 1.8 }));
+ * const body = efx.graphics.createMesh(efx.graphics.makeCapsule({ radius: 0.4, height: 1.8 }));
  * ```
  */
 interface MakeCapsuleOptions {
@@ -941,7 +941,7 @@ interface MakeCapsuleOptions {
  *
  * @example
  * ```js
- * efx.setLight(0, { pos: [3, 4, 2], color: [1, 0.95, 0.9, 1], range: 20 });
+ * efx.graphics.setLight(0, { pos: [3, 4, 2], color: [1, 0.95, 0.9, 1], range: 20 });
  * ```
  */
 interface PointLightOptions {
@@ -958,7 +958,7 @@ interface PointLightOptions {
  *
  * @example
  * ```js
- * efx.setDirectionalLight({ dir: [-0.5, -1, -0.3], color: [0.2, 0.25, 0.35, 1] });
+ * efx.graphics.setDirectionalLight({ dir: [-0.5, -1, -0.3], color: [0.2, 0.25, 0.35, 1] });
  * ```
  */
 interface DirectionalLightOptions {
@@ -977,7 +977,7 @@ interface DirectionalLightOptions {
  *
  * @example
  * ```js
- * const scene = efx.createRenderTarget({ width: 512, height: 512 });
+ * const scene = efx.graphics.createRenderTarget({ width: 512, height: 512 });
  * ```
  */
 interface RenderTargetOptions {
@@ -1037,8 +1037,8 @@ type EfxPostEffect = ColorFilterPostEffect | BlurPostEffect | BloomPostEffect;
  *
  * @example
  * ```js
- * efx.setRenderScale(0.5, { filter: 'nearest' }); // crisp half-res pixels
- * efx.setRenderScale(1);                          // back to native
+ * efx.graphics.setRenderScale(0.5, { filter: 'nearest' }); // crisp half-res pixels
+ * efx.graphics.setRenderScale(1);                          // back to native
  * ```
  */
 interface RenderScaleOptions {
@@ -1055,9 +1055,9 @@ interface RenderScaleOptions {
  *
  * @example
  * ```js
- * const first = efx.loadMeshData('scene.gltf');
- * const named = efx.loadMeshData('scene.gltf', { mesh: 'Teapot' });
- * const byIndex = efx.loadMeshData('scene.gltf', { mesh: 2 });
+ * const first = efx.graphics.loadMeshData('scene.gltf');
+ * const named = efx.graphics.loadMeshData('scene.gltf', { mesh: 'Teapot' });
+ * const byIndex = efx.graphics.loadMeshData('scene.gltf', { mesh: 2 });
  * ```
  */
 interface LoadMeshDataOptions {
@@ -1077,7 +1077,7 @@ interface LoadMeshDataOptions {
  * @example
  * ```js
  * // cross-fade walk -> run over two seconds
- * efx.poseMesh(hero, [
+ * efx.graphics.poseMesh(hero, [
  *   { clip: 'Walk', time: t, weight: 1 - k },
  *   { clip: 'Run',  time: t, weight: k },
  * ]);
@@ -1107,7 +1107,7 @@ type EfxBlendMode = 'alpha' | 'additive' | 'subtractive';
  *
  * @example
  * ```js
- * efx.drawBillboard([0, 0.4, 0], {
+ * efx.graphics.drawBillboard([0, 0.4, 0], {
  *   texture: spark,
  *   size: 0.9,
  *   color: [1, 0.7, 0.3, 0.9],
@@ -1138,7 +1138,7 @@ interface DrawBillboardOptions {
  *
  * @example
  * ```js
- * efx.drawSprites(spark, [
+ * efx.graphics.drawSprites(spark, [
  *   { x: 20,  y: 20, size: [48, 48], color: [1, 0.4, 0.2, 0.9] },
  *   { x: 74,  y: 20, size: [48, 48], color: [1, 0.7, 0.3, 0.9] },
  * ]);
@@ -1178,7 +1178,7 @@ interface EmissionShapeOptions {
  * @example
  * ```js
  * // an additive fire (see the "Particle Showcase" sample)
- * const fire = efx.createParticleSystem({
+ * const fire = efx.graphics.createParticleSystem({
  *   texture: spark,
  *   max: 600,
  *   lifetime: [0.4, 0.9],
@@ -1837,73 +1837,16 @@ interface EfxPhysics {
 }
 
 // ---------------------------------------------------------------------------
-// The single `efx` namespace
+// Graphics sub-namespace (ADR 0050)
 // ---------------------------------------------------------------------------
 
 /**
- * The engine-provided script surface; the only global scripts use.
- *
- * @example
- * ```js
- * // the smallest complete 3D scene (the "Hello Cube" sample)
- * efx.setClearColor([0.03, 0.04, 0.09, 1]);
- * efx.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
- * efx.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
- * efx.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
- *
- * const cube = efx.createMesh(efx.makeCube({ size: 1.4 }));
- * efx.setMeshSurfaceMaterial(cube, 0, {
- *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
- *   diffuse:  { color: [1, 1, 1, 1] },
- *   specular: { color: [1, 1, 1, 1], shininess: 32 },
- *   emissive: { color: [0, 0, 0, 1] },
- * });
- *
- * let t = 0;
- * function update(dt) { t += dt; }
- * function render() {
- *   const model = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
- *   efx.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
- * }
- * ```
+ * The graphics surface: 2D and 3D drawing, camera and light state, post
+ * processing, and the graphics resource factories. Reached as
+ * `efx.graphics`; names, signatures, semantics, and error behavior are
+ * unchanged by the move from the `efx` root.
  */
-interface Efx {
-  // Environment & lifecycle
-
-  /**
-   * Print a message to stdout followed by a newline and flush.
-   *
-   * @param msg - Value to print; non-strings use their standard string representation, and omitting it prints an empty line.
-   */
-  log(msg?: unknown): void;
-  /**
-   * Request engine termination with an exit code.
-   *
-   * @param code - Exit code (default 0).
-   * @returns Never returns normally: the engine unwinds and exits with `code`.
-   */
-  quit(code?: number): never;
-  /**
-   * Get the host arguments passed to the script run.
-   *
-   * @returns The `--script <file> [args...]` tail, or an empty array when none were given.
-   */
-  args(): string[];
-  /**
-   * Register a per-frame update hook.
-   *
-   * @param fn - Called once per frame with `dt` seconds since the previous frame (0 on the first).
-   * @returns An idempotent unsubscribe function.
-   */
-  registerUpdateHook(fn: (dt: number) => void): () => void;
-  /**
-   * Register a per-frame render hook.
-   *
-   * @param fn - Called once per frame after update hooks; takes no arguments.
-   * @returns An idempotent unsubscribe function.
-   */
-  registerRenderHook(fn: () => void): () => void;
-
+interface EfxGraphics {
   // 2D drawing
 
   /**
@@ -1933,8 +1876,6 @@ interface Efx {
    * @returns The new texture.
    */
   createTexture(imageData: EfxImageData, opts?: TextureOptions): EfxTexture;
-  /** Engine-owned 1×1 white texture (read-only; `destroy()` throws). */
-  readonly whiteTexture: EfxTexture;
   /**
    * Record one textured quad.
    *
@@ -2009,15 +1950,6 @@ interface Efx {
    */
   makeCapsule(opts?: MakeCapsuleOptions): EfxMeshData;
 
-  // Pure-JS math layer
-
-  /** Pure-JS 4×4 matrix helpers. */
-  mat4: EfxMat4;
-  /** Pure-JS 3-component vector helpers. */
-  vec3: EfxVec3;
-  /** Pure-JS quaternion helpers. */
-  quat: EfxQuat;
-
   // Lights & per-surface Phong materials
 
   /**
@@ -2078,13 +2010,6 @@ interface Efx {
 
   // Resource loading (paths relative to the resource root)
 
-  /**
-   * Read a UTF-8 text resource.
-   *
-   * @param path - Resource-root-relative path.
-   * @returns The decoded text.
-   */
-  loadText(path: string): string;
   /**
    * Decode a PNG/JPEG image resource to RGBA8.
    *
@@ -2153,17 +2078,6 @@ interface Efx {
    */
   poseMesh(mesh: EfxMesh, pose: PoseSample | PoseSample[]): void;
 
-  // Input: sub-namespaces of the single efx object
-
-  /** Keyboard queries and events. */
-  keyboard: EfxKeyboard;
-  /** Mouse queries and events. */
-  mouse: EfxMouse;
-  /** Read-only window metrics. */
-  window: EfxWindow;
-  /** Gamepad bank queries and connect/disconnect events. */
-  gamepad: EfxGamepad;
-
   // World-space billboards, batched 2D sprites, CPU particles
 
   /**
@@ -2193,6 +2107,115 @@ interface Efx {
    * @param system - System whose live particles to draw.
    */
   drawParticles(system: EfxParticleSystem): void;
+}
+
+// ---------------------------------------------------------------------------
+// The single `efx` namespace
+// ---------------------------------------------------------------------------
+
+/**
+ * The engine-provided script surface; the only global scripts use.
+ *
+ * @example
+ * ```js
+ * // the smallest complete 3D scene (the "Hello Cube" sample)
+ * efx.graphics.setClearColor([0.03, 0.04, 0.09, 1]);
+ * efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+ * efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+ * efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
+ *
+ * const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
+ * efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+ *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
+ *   diffuse:  { color: [1, 1, 1, 1] },
+ *   specular: { color: [1, 1, 1, 1], shininess: 32 },
+ *   emissive: { color: [0, 0, 0, 1] },
+ * });
+ *
+ * let t = 0;
+ * function update(dt) { t += dt; }
+ * function render() {
+ *   const model = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
+ *   efx.graphics.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
+ * }
+ * ```
+ */
+interface Efx {
+  // Environment & lifecycle
+
+  /**
+   * Print a message to stdout followed by a newline and flush.
+   *
+   * @param msg - Value to print; non-strings use their standard string representation, and omitting it prints an empty line.
+   */
+  log(msg?: unknown): void;
+  /**
+   * Request engine termination with an exit code.
+   *
+   * @param code - Exit code (default 0).
+   * @returns Never returns normally: the engine unwinds and exits with `code`.
+   */
+  quit(code?: number): never;
+  /**
+   * Get the host arguments passed to the script run.
+   *
+   * @returns The `--script <file> [args...]` tail, or an empty array when none were given.
+   */
+  args(): string[];
+  /**
+   * Register a per-frame update hook.
+   *
+   * @param fn - Called once per frame with `dt` seconds since the previous frame (0 on the first).
+   * @returns An idempotent unsubscribe function.
+   */
+  registerUpdateHook(fn: (dt: number) => void): () => void;
+  /**
+   * Register a per-frame render hook.
+   *
+   * @param fn - Called once per frame after update hooks; takes no arguments.
+   * @returns An idempotent unsubscribe function.
+   */
+  registerRenderHook(fn: () => void): () => void;
+
+  // Engine-owned state
+
+  /** Engine-owned 1×1 white texture (read-only; `destroy()` throws). */
+  readonly whiteTexture: EfxTexture;
+
+  // Graphics sub-namespace (ADR 0050)
+
+  /** Graphics drawing, state, and resources. */
+  readonly graphics: EfxGraphics;
+
+  // Pure-JS math layer
+
+  /** Pure-JS 4×4 matrix helpers. */
+  mat4: EfxMat4;
+  /** Pure-JS 3-component vector helpers. */
+  vec3: EfxVec3;
+  /** Pure-JS quaternion helpers. */
+  quat: EfxQuat;
+
+  // Resource loading (paths relative to the resource root)
+
+  /**
+   * Read a UTF-8 text resource.
+   *
+   * @param path - Resource-root-relative path.
+   * @returns The decoded text.
+   */
+  loadText(path: string): string;
+
+  // Input: sub-namespaces of the single efx object
+
+  /** Keyboard queries and events. */
+  keyboard: EfxKeyboard;
+  /** Mouse queries and events. */
+  mouse: EfxMouse;
+  /** Read-only window metrics. */
+  window: EfxWindow;
+  /** Gamepad bank queries and connect/disconnect events. */
+  gamepad: EfxGamepad;
 
   // Collision, character & impulse dynamics (single world, script-stepped)
 

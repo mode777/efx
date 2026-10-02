@@ -11,7 +11,7 @@ Options for `drawText` / `measureText`.
 ## Example
 
 ```js
-efx.drawText(paragraph, body, 40, 168, {
+efx.graphics.drawText(paragraph, body, 40, 168, {
   width: 560,
   align: 'justify',
   color: [0.85, 0.88, 0.95, 1],

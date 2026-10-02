@@ -11,7 +11,7 @@ Options for `setCamera3D`.
 ## Example
 
 ```js
-efx.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
 ```
 
 ## Properties

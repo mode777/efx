@@ -11,7 +11,7 @@ Options for `createRenderTarget`.
 ## Example
 
 ```js
-const scene = efx.createRenderTarget({ width: 512, height: 512 });
+const scene = efx.graphics.createRenderTarget({ width: 512, height: 512 });
 ```
 
 ## Properties

@@ -11,7 +11,7 @@ Options for `setDirectionalLight`.
 ## Example
 
 ```js
-efx.setDirectionalLight({ dir: [-0.5, -1, -0.3], color: [0.2, 0.25, 0.35, 1] });
+efx.graphics.setDirectionalLight({ dir: [-0.5, -1, -0.3], color: [0.2, 0.25, 0.35, 1] });
 ```
 
 ## Properties

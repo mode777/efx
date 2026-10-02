@@ -14,7 +14,7 @@
 
 ```js
 // shorthand: one surface
-const quad = efx.createMeshData({
+const quad = efx.graphics.createMeshData({
   positions: [-4, 0, -4, 4, 0, -4, 4, 0, 4, -4, 0, 4],
   normals:   [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
   uvs:       [0, 0, 6, 0, 6, 6, 0, 6],
@@ -22,7 +22,7 @@ const quad = efx.createMeshData({
 });
 
 // batch: several surfaces with per-surface materials
-const mesh = efx.createMeshData({
+const mesh = efx.graphics.createMeshData({
   surfaces: [{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] }],
   materials: [null],
 });

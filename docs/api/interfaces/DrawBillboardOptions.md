@@ -11,7 +11,7 @@ Options for `drawBillboard`.
 ## Example
 
 ```js
-efx.drawBillboard([0, 0.4, 0], {
+efx.graphics.drawBillboard([0, 0.4, 0], {
   texture: spark,
   size: 0.9,
   color: [1, 0.7, 0.3, 0.9],

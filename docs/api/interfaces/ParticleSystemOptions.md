@@ -13,7 +13,7 @@ required).
 
 ```js
 // an additive fire (see the "Particle Showcase" sample)
-const fire = efx.createParticleSystem({
+const fire = efx.graphics.createParticleSystem({
   texture: spark,
   max: 600,
   lifetime: [0.4, 0.9],

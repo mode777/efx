@@ -46,6 +46,10 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
   `2026-09-30-audio-source-model` (ADR 0047)
 - Gallery — `2026-09-27-web-gallery` (ADR 0030); curated sample directories
   `openspec/changes/curated-sample-dirs` (ADR 0044)
+- Post-roadmap API reorganization — the 33 graphics drawing/state/resource
+  functions live under `efx.graphics`, not the `efx` root
+  (`efx-graphics-namespace`, ADR 0050; hard cut, no root aliases, error
+  text and golden pixels byte-identical)
 
 **Codebase map:**
 

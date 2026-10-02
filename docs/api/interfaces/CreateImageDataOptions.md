@@ -21,7 +21,7 @@ for (let y = 0; y < size; y++) {
     px[i + 3] = 255; // ...compute coverage from the distance to center
   }
 }
-const glow = efx.createImageData({ width: size, height: size, pixels: px });
+const glow = efx.graphics.createImageData({ width: size, height: size, pixels: px });
 ```
 
 ## Properties

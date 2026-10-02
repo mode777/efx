@@ -11,7 +11,7 @@ Options for `makeSphere`.
 ## Example
 
 ```js
-const ball = efx.createMesh(efx.makeSphere({ radius: 1.6, segments: 32 }));
+const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.6, segments: 32 }));
 ```
 
 ## Properties

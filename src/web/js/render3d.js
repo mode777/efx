@@ -161,5 +161,6 @@
             bridge['_free'](ptr);
             bridge['_free'](mapsptr);
         },
+        }, /* efx.graphics (ADR 0050) */
     };
 

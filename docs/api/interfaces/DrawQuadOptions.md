@@ -12,9 +12,9 @@ Options for `drawQuad`.
 
 ```js
 // a 48x48 tinted sprite (see the "Bouncing Sprites" sample)
-efx.drawQuad(d.x, d.y, tex, { size: [48, 48], color: d.c });
+efx.graphics.drawQuad(d.x, d.y, tex, { size: [48, 48], color: d.c });
 // a cropped atlas region with an explicit pivot
-efx.drawQuad(160, 16, tex, {
+efx.graphics.drawQuad(160, 16, tex, {
   size: [128, 128],
   sourceRect: { x: 128, y: 128, w: 256, h: 256 },
 });

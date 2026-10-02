@@ -8,7 +8,7 @@ scripted in ES6. See `vision.md` for the product vision and
 ## What F2 delivers (on top of F1)
 
 - The **2D drawing layer**: a virtual-pixel projection frame
-  (`efx.setCamera2D`), `efx.drawQuad` with derived size (`size` /
+  (`efx.graphics.setCamera2D`), `efx.graphics.drawQuad` with derived size (`size` /
   `sourceRect` / texture pixels), tint / rotation / scale / `origin` pivot,
   CPU→GPU textures (`createImageData`, `createTexture` — textures expose
   read-only `width`/`height`), blending modes (`alpha`, `additive`,

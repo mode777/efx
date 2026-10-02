@@ -4,15 +4,15 @@
 // for a new line, Backspace to delete, Tab to cycle the paragraph alignment.
 // The font is a CC0 Kenney font shipped in the sample's asset pack.
 
-efx.setClearColor([0.07, 0.08, 0.12, 1]);
-efx.setCamera2D({ frame: [640, 480] });
+efx.graphics.setClearColor([0.07, 0.08, 0.12, 1]);
+efx.graphics.setCamera2D({ frame: [640, 480] });
 
-const titleFont = efx.createFont(efx.loadFontData('font.ttf'), {
+const titleFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
     size: 44,
     outline: { width: 2 },
     shadow: { blur: 3, offset: [2, 2] },
 });
-const bodyFont = efx.createFont(efx.loadFontData('font.ttf'), { size: 24 });
+const bodyFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 24 });
 
 const ALIGNS = ['left', 'center', 'right', 'justify'];
 let alignIndex = 0;
@@ -39,32 +39,32 @@ const paragraph =
     'centers and justifies each line. Tab cycles the alignment.';
 
 efx.registerRenderHook(function () {
-    efx.drawText('Text Showcase', titleFont, 320, 20, {
+    efx.graphics.drawText('Text Showcase', titleFont, 320, 20, {
         align: 'center',
         color: [1, 0.85, 0.2, 1],
         outlineColor: [0.95, 0.25, 0.05, 1],
         shadowColor: [0, 0, 0, 0.85],
     });
-    efx.drawText('BAKED OUTLINE + SHADOW', titleFont, 320, 86, {
+    efx.graphics.drawText('BAKED OUTLINE + SHADOW', titleFont, 320, 86, {
         align: 'center',
         color: [0.85, 0.92, 1, 1],
         outlineColor: [0.1, 0.35, 0.8, 1],
         shadowColor: [0, 0, 0, 0.85],
     });
-    efx.drawText(paragraph, bodyFont, 40, 168, {
+    efx.graphics.drawText(paragraph, bodyFont, 40, 168, {
         width: 560,
         align: ALIGNS[alignIndex],
         color: [0.85, 0.88, 0.95, 1],
     });
-    efx.drawText('alignment: ' + ALIGNS[alignIndex] + '  (Tab to cycle)',
+    efx.graphics.drawText('alignment: ' + ALIGNS[alignIndex] + '  (Tab to cycle)',
         bodyFont, 40, 292, { color: [0.5, 0.7, 1, 1] });
-    efx.drawText('Wrapped + justified text from one baked atlas.',
+    efx.graphics.drawText('Wrapped + justified text from one baked atlas.',
         bodyFont, 40, 328, {
             width: 560,
             align: 'justify',
             color: [0.7, 0.85, 0.7, 1],
         });
-    efx.drawText(typed.length ? typed : PLACEHOLDER, bodyFont, 40, 396, {
+    efx.graphics.drawText(typed.length ? typed : PLACEHOLDER, bodyFont, 40, 396, {
         width: 560,
         color: typed.length ? [1, 1, 1, 1] : [0.45, 0.48, 0.55, 1],
     });

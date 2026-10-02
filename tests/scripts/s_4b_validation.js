@@ -13,7 +13,7 @@ const TE = TypeError, RE = RangeError;
 const P = [0, 0, 0, 1, 0, 0, 0, 1, 0];
 const UV = [0, 0, 1, 0, 0, 1];
 
-const tex = efx.createTexture(efx.createImageData({
+const tex = efx.graphics.createTexture(efx.graphics.createImageData({
     width: 2, height: 2,
     pixels: new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255,
                             0, 0, 255, 255, 255, 255, 255, 0]),
@@ -27,40 +27,40 @@ const M = {
     emissive: { color: [0, 0, 0, 1], map: tex },
     alphaMask: tex,
 };
-const md = efx.createMeshData({
+const md = efx.graphics.createMeshData({
     surfaces: [{ positions: P, uvs: UV, indices: [0, 1, 2] }],
     materials: [M],
 });
 if (md.surfaceCount !== 1) { efx.log('FAIL surface count'); efx.quit(3); }
-const mesh = efx.createMesh(md);
+const mesh = efx.graphics.createMesh(md);
 
 // binding, then script-object mutation must not change the binding
-efx.setMeshSurfaceMaterial(mesh, 0, M);
+efx.graphics.setMeshSurfaceMaterial(mesh, 0, M);
 M.diffuse.map = null;
 M.alphaMask = null;
-efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } });
-efx.setMeshSurfaceMaterial(mesh, 0, null);
+efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } });
+efx.graphics.setMeshSurfaceMaterial(mesh, 0, null);
 
 // alphaMask alone is valid; null map is treated as absent
-efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: null }, alphaMask: tex });
+efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: null }, alphaMask: tex });
 
 // non-Texture / destroyed-Texture maps and unknown fields throw
-expectThrow('map-number', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: 1 } }));
-expectThrow('map-object', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: {} } }));
-expectThrow('alphaMask-number', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { alphaMask: 5 }));
-expectThrow('channel-unknown', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } }));
-expectThrow('material-unknown', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { albedo: 1 }));
-expectThrow('md-map-length', RE, () => efx.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [] }));
+expectThrow('map-number', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: 1 } }));
+expectThrow('map-object', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: {} } }));
+expectThrow('alphaMask-number', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { alphaMask: 5 }));
+expectThrow('channel-unknown', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } }));
+expectThrow('material-unknown', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { albedo: 1 }));
+expectThrow('md-map-length', RE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [] }));
 
 // a texture destroyed while bound keeps shading; a freshly bound dead
 // texture throws TypeError
-efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex }, alphaMask: tex });
+efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex }, alphaMask: tex });
 tex.destroy();
-efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });
-efx.drawMesh(mesh);
-expectThrow('map-destroyed', TE, () => efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } }));
+efx.graphics.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });
+efx.graphics.drawMesh(mesh);
+expectThrow('map-destroyed', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } }));
 // rebind without the map releases it
-efx.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1] } });
+efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1] } });
 
 mesh.destroy();
 md.destroy();

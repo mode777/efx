@@ -2,8 +2,8 @@
 // (left) and with a generated mip chain (right). Without mips the minified
 // checker beats into moire; with mips the higher levels average it away.
 // The bottom row uses a stronger (4x) minification.
-efx.setClearColor([0.02, 0.03, 0.06, 1]);
-efx.setCamera2D({ frame: [640, 480] });
+efx.graphics.setClearColor([0.02, 0.03, 0.06, 1]);
+efx.graphics.setCamera2D({ frame: [640, 480] });
 
 const S = 256;
 const px = new Uint8Array(S * S * 4);
@@ -17,15 +17,15 @@ for (let y = 0; y < S; y++) {
         px[i + 3] = 255;
     }
 }
-const img = efx.createImageData({ width: S, height: S, pixels: px });
-const plain = efx.createTexture(img, { filter: 'linear' });
-const mips = efx.createTexture(img, { filter: 'linear', mipmaps: true });
+const img = efx.graphics.createImageData({ width: S, height: S, pixels: px });
+const plain = efx.graphics.createTexture(img, { filter: 'linear' });
+const mips = efx.graphics.createTexture(img, { filter: 'linear', mipmaps: true });
 
 function update() {}
 function render() {
-    efx.drawQuad(60, 70, plain, { size: [128, 128] });
-    efx.drawQuad(400, 70, mips, { size: [128, 128] });
-    efx.drawQuad(320, 40, efx.whiteTexture, { size: [2, 200], color: [0.8, 0.8, 0.8, 1] });
-    efx.drawQuad(60, 300, plain, { size: [64, 64] });
-    efx.drawQuad(400, 300, mips, { size: [64, 64] });
+    efx.graphics.drawQuad(60, 70, plain, { size: [128, 128] });
+    efx.graphics.drawQuad(400, 70, mips, { size: [128, 128] });
+    efx.graphics.drawQuad(320, 40, efx.whiteTexture, { size: [2, 200], color: [0.8, 0.8, 0.8, 1] });
+    efx.graphics.drawQuad(60, 300, plain, { size: [64, 64] });
+    efx.graphics.drawQuad(400, 300, mips, { size: [64, 64] });
 }

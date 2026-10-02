@@ -11,7 +11,7 @@ Options for `makePlane`.
 ## Example
 
 ```js
-const ground = efx.createMesh(efx.makePlane({ size: 10, segments: 4 }));
+const ground = efx.graphics.createMesh(efx.graphics.makePlane({ size: 10, segments: 4 }));
 ```
 
 ## Properties

@@ -134,7 +134,7 @@ check(threw, 'unknown shape field throws TypeError');
 /* physics-tunneling: a thin static mesh floor is not skipped at a large dt */
 efx.physics.clear();
 efx.physics.gravity = [0, -9.81, 0];
-var planeMesh = efx.createMesh(efx.makePlane({ size: 10 }));
+var planeMesh = efx.graphics.createMesh(efx.graphics.makePlane({ size: 10 }));
 var floorBody = efx.physics.createStaticMesh(planeMesh, { friction: 0.5 });
 var faller = efx.physics.createBody({
     dynamic: true, mass: 1, friction: 0.5, restitution: 0,
