@@ -88,8 +88,8 @@ On Emscripten the player SHALL expose every C-implemented engine function
 through the native bridge with the same name, signature, semantics and
 error behavior as the desktop binding, so that browser code and game
 scripts use one API. Resource objects (`createImageData`, `createTexture`,
-`whiteTexture`) SHALL wrap native handles as JS objects with the same
-`destroy()` semantics; the frame-end native release sweep SHALL continue
+`efx.graphics.whiteTexture`) SHALL wrap native handles as JS objects with the
+same `destroy()` semantics; the frame-end native release sweep SHALL continue
 to run in C. The bridge SHALL NOT require the embedded interpreter, and
 its presence MUST NOT reintroduce embedded-GC machinery into the web
 build.

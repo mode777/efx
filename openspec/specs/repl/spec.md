@@ -35,8 +35,9 @@ not available on Emscripten.
 When `--repl` names a resource root, the player SHALL set it as the resource
 root and, if the root contains `main.js`, evaluate that entry script before
 accepting input; otherwise it SHALL start with the bare namespace and the given
-root. The resource-loading functions (`loadText`, `loadImage`, glTF import)
-SHALL be usable from entered lines and resolve against that root.
+root. The resource-loading functions (`efx.io.loadText`, `efx.io.loadData`,
+`efx.graphics.loadImage`, glTF import) SHALL be usable from entered lines and
+resolve against that root.
 
 #### Scenario: Root with entry script
 - **WHEN** `--repl <root>` is given and the root has `main.js`
