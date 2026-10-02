@@ -88,9 +88,11 @@ for (const c of CASES) {
     let native;
     let web;
     if (c.root) {
-        /* resource-root mode on both runtimes (multi-module fixture graph) */
+        /* resource-root fixtures: run the native side as --script (surface-less,
+           ADR 0007) so the comparison needs no display, matching the web Node
+           harness, which is also surface-less (ADR 0016) */
         const rootPath = path.join(ROOT, c.root);
-        native = run(NATIVE, [rootPath]);
+        native = run(NATIVE, ['--script', path.join(rootPath, 'main.js')]);
         web = run(process.execPath, [WEB, rootPath]);
     } else {
         const script = path.join(ROOT, c.script);

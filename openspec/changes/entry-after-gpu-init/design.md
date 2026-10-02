@@ -102,7 +102,10 @@ it). macOS needs the same non-returning handling its `frame_cb` already uses.
 
 - [A top-level error or `efx.quit` now opens a window before exiting in
   surface-bearing modes] → Acceptable and documented as a minor breaking change;
-  `--script` (the CI harness) is unaffected.
+  `--script` (the CI harness) is unaffected. The headless cross-runtime compare
+  (`tools/run_web_compare.mjs`) previously ran its native baseline in windowed
+  root mode and relied on pre-window quit; it now runs that baseline as
+  `--script` (surface-less), matching the surface-less web Node harness.
 - [macOS's run loop never returns; its `_exit` handling lives in `frame_cb`] →
   Apply the same non-returning exit path when `on_init` fails.
 - [Emscripten `sapp_run` returns immediately and `init_cb` runs on the first
