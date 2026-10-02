@@ -100,13 +100,16 @@ the `efx.graphics.*` paths.
 ## MODIFIED Requirements
 
 ### Requirement: Two-layer API with strict layering
+
 The script API SHALL consist of exactly two layers: low/mid-level functions
 implemented in C/C++ and registered through the engine binding, and
 high-level convenience functions implemented in pure ES6. High-level
 functions MUST be implemented using only the public low/mid-level API and
 standard ES6 built-ins — they MUST NOT use private bindings or host
-facilities that are not part of the public API. Every API function in the
-reference SHALL be tagged with its layer.
+facilities that are not part of the public API. The API design guidelines
+SHALL state this two-layer rule. Because the layer is an implementation
+concern and the reference is end-user facing, the generated per-symbol
+reference SHALL NOT be required to tag entries by layer.
 
 A low/mid-level function MAY validate and normalize its arguments in the
 engine-bundled pure-ES6 layer before its C/C++ implementation runs. This
@@ -114,8 +117,8 @@ argument handling SHALL be written once and shared by every runtime, and it
 SHALL reach the native implementation only through an engine-internal binding
 object that is neither a member of the `efx` namespace nor a global. Such a
 function remains a low/mid-level, C-implemented function: its observable
-behavior, layer tag and reference entry are unchanged, and the shared argument
-handling SHALL NOT be callable by scripts on its own.
+behavior and its documented signature, defaults, and errors are unchanged,
+and the shared argument handling SHALL NOT be callable by scripts on its own.
 
 #### Scenario: High-level function built on public API
 - **WHEN** a high-level convenience function (e.g. a model or text drawer) is
@@ -123,19 +126,21 @@ handling SHALL NOT be callable by scripts on its own.
 - **THEN** it calls only documented public API functions and standard ES6
 
 #### Scenario: Layer tag present
-- **WHEN** a function entry is read in the API reference
-- **THEN** its entry marks it as either C-implemented or pure-JS
+- **WHEN** the API design guidelines are read
+- **THEN** they state the two-layer structure (C-implemented versus pure-JS)
+  and that high-level functions build only on the public low/mid-level API,
+  and no generated per-symbol entry carries a layer tag
 
 #### Scenario: Shared argument handling stays private
 - **WHEN** a script enumerates the `efx` namespace and the global scope
 - **THEN** no engine-internal binding object or argument validator used by a
   C-implemented function is reachable from either
 
-#### Scenario: Shared validation keeps the layer tag
+#### Scenario: Shared validation keeps the function's layer
 - **WHEN** a C-implemented function validates its option object in the shared
   pure-ES6 layer before entering native code
-- **THEN** its API reference entry is still tagged C-implemented and its
-  documented signature, defaults and errors are unchanged
+- **THEN** it remains a C-implemented function with its documented signature,
+  defaults and errors unchanged
 
 ### Requirement: Resource classification and fixed limits
 
@@ -315,96 +320,113 @@ the globals SHALL keep working (their update callback now also receives `dt`).
 
 ### Requirement: Normative API reference document
 
-The project SHALL maintain `docs/js-api.md` as the normative, developer-facing
-reference of the entire script API. It SHALL contain an entry for every public
-API function with a signature sketch, a description, its layer tag, and the
-roadmap milestone (F1–F14) that delivers it. Entries for functions whose
-milestone has not passed its verification gate SHALL be explicitly marked
-provisional. The document SHALL also document the lifecycle model — loading `main.js`
-as the implicit init, with the `efx` namespace and engine API ready before it
-executes (the rendering surface is initialized when the frame loop starts and
-is not script-visible at load time), plus explicit, stacking hook registration
-(`registerUpdateHook` / `registerRenderHook`, update hooks receiving `dt`,
-unsubscribe returned, F1 globals as load-time sugar) — and how API errors
-surface (exceptions, exit codes). It SHALL document the CommonJS module model
-(F10): the module format and synchronous `require` resolution, module caching
-and cycles, `module.exports`/`exports`, the JSON-module form, the restricted
-resolver and unsupported specifiers, the module-shaped `update`/`render`
-exports, and the unchanged no-browser/Node-dependency rule. It SHALL document
-the gamepad namespace (F13): the pad bank and `count`/`get`, the pad view and
-its query methods and read-only properties, the semantic button/axis name
-sets, the canonical axis range and trigger threshold, the raw fallback, and
-the error behavior. It SHALL document the audio namespace (F14): the
-`efx.audio` entry points, the `AudioData`/`AudioStream`/`Audio` classes and
-their properties, the static-versus-streamed source model, the decoded-PCM-only
-rule (no sequenced/modular formats), the no-device and web-unlock behavior, and
-the fixed limits. Any change that
-adds, modifies, or removes a public API function
-MUST update the document in the same change.
+The project SHALL maintain the script API's per-symbol reference as generated
+output, not hand-written prose. The TypeScript declaration
+`gallery/src/api/efx.d.ts` SHALL be the single source of truth for the
+reference: its TSDoc comments define each symbol's summary, parameters,
+return value, defaults, constraints, and examples. The reference SHALL be
+produced from that declaration by a pinned generator and published in two
+renderings: a Markdown rendering committed under `docs/api/`, and an HTML
+rendering published on the gallery site under `/api`.
+
+`docs/js-api.md` SHALL be maintained as the API **design guidelines**. It
+SHALL state the design rules future API additions must follow — the single
+namespace, the two-layer structure, naming and option-bag conventions, units
+and colors, the error model, the resource and memory model, the fixed limits,
+the lifecycle model (loading `main.js` as the implicit init, explicit
+stacking hook registration with `dt` and unsubscribe, and the load-time
+`update`/`render` sugar), the CommonJS module model, and the gamepad and
+audio namespace models — and it SHALL direct readers to the generated
+reference for per-symbol detail rather than cataloging every function itself.
+
+Any change that adds, modifies, or removes a public API function SHALL update
+the declaration in the same change and SHALL regenerate the committed
+Markdown reference from it. The generated Markdown SHALL NOT be hand-edited.
+The reference SHALL NOT tag entries by internal roadmap milestone, and
+entries SHALL NOT be marked provisional.
 
 #### Scenario: Callable-today vs planned is distinguishable
-
 - **WHEN** a reader opens the reference
-- **THEN** the F1 functions (`efx.log`, `efx.quit`, `efx.args`,
-  `efx.registerUpdateHook`, `efx.registerRenderHook`) are presented as current
-  behavior, and later-milestone entries are marked provisional
+- **THEN** every documented symbol describes current shipped behavior, and no
+  entry is marked provisional
 
 #### Scenario: Milestone change updates the reference
-
 - **WHEN** a feature change adds or changes an API function
-- **THEN** the same change contains the matching `docs/js-api.md` update with
-  the function's signature, layer, and milestone tags
+- **THEN** the same change updates the declaration and regenerates
+  `docs/api/`, with no internal milestone tag added to the reference
 
 #### Scenario: Input namespaces are documented
-
-- **WHEN** the reference is read after this change
-- **THEN** it catalogs `efx.keyboard`, `efx.mouse`, and `efx.window` with
+- **WHEN** the reference is read
+- **THEN** it documents `efx.keyboard`, `efx.mouse`, and `efx.window` with
   their query functions, event registrations, read-only properties, the
-  key/button name set, the surface-pixel coordinate rule, and the F9 milestone
-  tag
+  key/button name set, and the surface-pixel coordinate rule
 
 #### Scenario: Module model is documented
-
-- **WHEN** the reference is read after this change
-- **THEN** it documents the CommonJS module format, the synchronous resolver
+- **WHEN** the API design guidelines are read
+- **THEN** they document the CommonJS module format, the synchronous resolver
   and its supported/unsupported specifier forms, module caching and cycles,
-  JSON modules, the module-shaped entry hooks, and the F10 milestone tag, and
-  states that Node/npm compatibility is not provided
+  JSON modules, the module-shaped entry hooks, and that Node/npm
+  compatibility is not provided
 
 #### Scenario: Particle, billboard, and sprite API is documented
-
-- **WHEN** the reference is read after this change
-- **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
+- **WHEN** the reference is read
+- **THEN** it documents `drawBillboard`, `drawSprites`, `createParticleSystem`,
   and `drawParticles` with their options, error behavior, the `ParticleSystem`
-  class and its lifecycle, the `facing` render modes, and the F11 milestone
-  tag
+  class and its lifecycle, and the `facing` render modes
 
 #### Scenario: Gamepad namespace is documented
-
-- **WHEN** the reference is read after this change
-- **THEN** it catalogs `efx.gamepad` with its `count`/`get`, the pad view's
+- **WHEN** the reference is read
+- **THEN** it documents `efx.gamepad` with its `count`/`get`, the pad view's
   query methods and read-only properties, the semantic button/axis name sets,
-  the canonical range and trigger threshold, the raw fallback, and the F13
-  milestone tag
+  the canonical range and trigger threshold, and the raw fallback
 
 #### Scenario: Audio namespace is documented
-
-- **WHEN** the reference is read after this change
-- **THEN** it catalogs `efx.audio` with `loadAudioData`, `loadAudioStream`,
-  `playAudio`, the master output gain, and `resume`, the
+- **WHEN** the reference is read
+- **THEN** it documents `efx.audio` with its entry points, the
   `AudioData`/`AudioStream`/`Audio` classes and their properties, the
-  static-versus-streamed source model, the decoded-PCM-only rule, the no-device
-  and web-unlock behavior, the fixed limits, and the F14 milestone tag
+  decoded-PCM-only rule, the no-device and web-unlock behavior, and the fixed
+  limits
 
 #### Scenario: Catalog derived from vision
-
-- **WHEN** the document's function catalog is checked against vision.md
+- **WHEN** the guidelines' vision traceability is checked against vision.md
 - **THEN** every capability vision.md names for the consumer API (2D quads,
   meshes, vertex colors, cameras, lights, Phong materials with maps, alpha
   masks, blending modes, render targets, post FX, resource loading,
-  keyboard/mouse input query and events, gamepad input, audio playback, script
-  modules, skinning/animation, high-level text drawing) has a corresponding
-  catalog entry or an explicitly noted open question
+  keyboard/mouse input query and events, gamepad input, audio playback,
+  script modules, skinning/animation, high-level text drawing) has a
+  corresponding documented symbol or an explicitly noted open question
+
+#### Scenario: Reference is generated, not hand-written
+- **WHEN** a reader consults the per-symbol API reference
+- **THEN** it was generated from `gallery/src/api/efx.d.ts`, the committed
+  Markdown lives under `docs/api/`, and the published HTML is served under
+  `/api`
+
+#### Scenario: API change updates declaration and reference
+- **WHEN** a change adds, modifies, or removes a public API function
+- **THEN** the same change updates `gallery/src/api/efx.d.ts` and regenerates
+  `docs/api/` from it
+
+#### Scenario: Committed reference cannot go stale
+- **WHEN** the committed `docs/api/` is compared with a fresh generation from
+  the declaration
+- **THEN** any difference fails verification
+
+#### Scenario: Guidelines carry the design rules
+- **WHEN** `docs/js-api.md` is read
+- **THEN** it states the namespace, layering, conventions, units/colors,
+  error model, resource and memory model, fixed limits, lifecycle, module,
+  and gamepad and audio design rules, and points to the generated reference
+  rather than cataloging every function
+
+#### Scenario: No internal milestone tags
+- **WHEN** a symbol entry in the generated reference is read
+- **THEN** it carries no roadmap milestone tag and no provisional marker
+
+#### Scenario: Hand-written per-function catalog is retired
+- **WHEN** `docs/js-api.md` is searched for per-function signature catalogs
+- **THEN** none are present; per-symbol detail lives only in the generated
+  reference
 
 ### Requirement: glTF mesh import API
 
@@ -522,7 +544,9 @@ required fields are required only for that form (for example, the
 `createMeshData` batch bag versus its single-surface shorthand) and so that
 mixing forms is rejected. It SHALL be updated in the same change as any
 script-facing API change, alongside `docs/js-api.md`, and its declarations
-MUST agree with that reference document.
+MUST agree with that reference document. Because it is the source of truth
+for the generated reference, the committed Markdown reference `docs/api/`
+SHALL be regenerated from it in that same change.
 
 #### Scenario: Batch form does not require shorthand fields
 
@@ -560,9 +584,9 @@ MUST agree with that reference document.
 
 #### Scenario: Type document agrees with the reference
 
-- **WHEN** a script-facing API change updates `docs/js-api.md`
-- **THEN** the same change updates `gallery/src/api/efx.d.ts` so every
-  cataloged function has a matching declaration
+- **WHEN** a script-facing API change updates `gallery/src/api/efx.d.ts`
+- **THEN** the same change regenerates `docs/api/` so the published reference
+  matches the declaration
 
 ### Requirement: Input namespace API
 
