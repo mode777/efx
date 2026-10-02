@@ -10,13 +10,13 @@
 ## 2. Membership and behavior guard tests
 
 - [x] 2.1 `tests/unit/api_tests.c`: extend the namespace guard to assert `efx.math` is exactly `{mat4,vec3,quat}`, `efx.io` is exactly `{loadText,loadData}`, `efx.color` is exactly the 17 named constants with each value a frozen 4-number tuple, `efx.graphics` is the 33 functions plus `whiteTexture`, `efx.args` is a non-function array, the root exposes only the lifecycle members plus the domain namespaces, and no moved name exists at the root. Verify: the new case passes headless (`ctest -R api_tests`) and in the Emscripten ctest run (task 7.3).
-- [ ] 2.2 Add a portable `loadData` script case with a small binary fixture (register it in `tests/CMakeLists.txt`): assert the returned `Uint8Array` length and bytes match, that a second load is unaffected by mutating the first result, and that a missing path throws the same error on both runtimes. Verify: the case passes headless and in the Emscripten suite.
+- [x] 2.2 Add a portable `loadData` script case with a small binary fixture (register it in `tests/CMakeLists.txt`): assert the returned `Uint8Array` length and bytes match, that a second load is unaffected by mutating the first result, and that a missing path throws the same error on both runtimes. Verify: the case passes headless and in the Emscripten suite.
 
 ## 3. Test corpus migration
 
 - [x] 3.1 `tests/unit/api_tests.c`: re-path every `efx.whiteTexture` → `efx.graphics.whiteTexture`, `efx.loadText` → `efx.io.loadText`, `efx.mat4`/`efx.vec3`/`efx.quat` → `efx.math.*`, and the `efx.args()` call to the `efx.args` property. Verify: the full unit suite passes headless (`ctest --test-dir build -E golden`).
 - [x] 3.2 `tests/scripts/*.js`: rewrite `s_args.js` to read the `efx.args` property; re-path `whiteTexture`/`loadText`/math in the `s_*.js` suites; update `s_error_catalog.js` trigger lines to the new paths and append the `loadData` cases to `s_error_catalog.expected.txt`. Verify: script tests pass headless and the catalog output is byte-identical on both runtimes (task 7.3).
-- [ ] 3.3 `tests/goldens/<scene>/main.js`: re-path every `efx.whiteTexture` (~49 scenes; the `tests/CMakeLists.txt` scene list is unchanged). Verify: every golden ctest matches its committed PNG byte-identically on the verification server (task 7.3) — a diff means an accidental behavior change, never a re-baseline.
+- [x] 3.3 `tests/goldens/<scene>/main.js`: re-path every `efx.whiteTexture` (~49 scenes; the `tests/CMakeLists.txt` scene list is unchanged). Verify: every golden ctest matches its committed PNG byte-identically on the verification server (task 7.3) — a diff means an accidental behavior change, never a re-baseline.
 - [x] 3.4 `tests/fixtures/web/*/main.js`: re-path `whiteTexture`/`loadText`/math calls. Verify: the web fixtures run in the cross-runtime compare (task 7.3).
 
 ## 4. Samples and examples
@@ -40,7 +40,7 @@
 
 - [x] 7.1 Final audit: word-bounded repo grep for `efx.whiteTexture`, `efx.loadText`, `efx.mat4`, `efx.vec3`, `efx.quat`, and `efx.args(` — zero hits outside `openspec/changes/archive/`, historical ADR text, and this change folder. Verify: the grep output is empty (or only archived/historical lines).
 - [x] 7.2 Local headless suite: fresh `cmake -B build -DEFX_HEADLESS=ON`, build `-j4`, `ctest --test-dir build -E golden` (unit + portable script tests; no display). Verify: zero failures.
-- [ ] 7.3 Server pre-filter (per AGENTS.md): commit the change to a branch, push, and run `python3 tools/verify_remote.py all <branch>` — native ctest including all golden scenes (Xvfb/llvmpipe) and the Emscripten golden suite in pinned Chrome. Fix and re-verify until green; do not dispatch CI before this passes.
+- [x] 7.3 Server pre-filter (per AGENTS.md): commit the change to a branch, push, and run `python3 tools/verify_remote.py all <branch>` — native ctest including all golden scenes (Xvfb/llvmpipe) and the Emscripten golden suite in pinned Chrome. Fix and re-verify until green; do not dispatch CI before this passes.
 - [ ] 7.4 Four-target gate: dispatch `gh workflow run ci.yml --ref <branch>` and confirm Linux → Windows → macOS all green with artifacts published (the web bundle and curated-samples pack build from the migrated sources). Verify: the run summary shows all four targets green.
 - [ ] 7.5 After the gate is green, merge the branch to `main` and push (Pages deploys on push to `main`). Verify: `main` contains the change and the Pages workflow completes.
 - [x] 7.6 Reconcile the pre-existing malformed `openspec/specs/js-api/spec.md` (stray `## ADDED Requirements` / `## MODIFIED Requirements` headers from the not-yet-archived `efx-graphics-namespace` sync) — either archive `efx-graphics-namespace` first or normalize the main spec's headers — then confirm `npx openspec validate efx-namespace-consolidation --strict` reports no archive-refusal. Verify: the js-api delta can be applied and the change is ready for `/opsx-archive`.
