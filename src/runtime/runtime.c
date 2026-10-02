@@ -171,11 +171,16 @@ static int finish_exception(efx_runtime *rt) {
 static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("log", 1, efx_js_log),
     JS_CFUNC_DEF("quit", 1, efx_js_quit),
-    JS_CFUNC_DEF("args", 0, efx_js_args),
+    JS_CGETSET_DEF("args", efx_js_args, NULL),
     JS_CFUNC_DEF("registerUpdateHook", 1, efx_js_registerUpdateHook),
     JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
-    JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
+};
+
+/* efx.io sub-namespace (F6a): resource loaders. `loadText` moved off the
+ * root; `loadData` returns raw bytes. */
+static const JSCFunctionListEntry IO_FUNCS[] = {
     JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
+    JS_CFUNC_DEF("loadData", 1, efx_js_loadData),
 };
 
 /* graphics sub-namespace (ADR 0050): the natively-registered drawing,
@@ -204,6 +209,7 @@ static const JSCFunctionListEntry GRAPHICS_FUNCS[] = {
     JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
     /* createParticleSystem is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
+    JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
 };
 
 /* context + host state setup */
@@ -244,6 +250,10 @@ static int install_efx_api(efx_runtime *rt) {
                                (int)(sizeof(GRAPHICS_FUNCS) /
                                      sizeof(GRAPHICS_FUNCS[0])));
     JS_SetPropertyStr(rt->ctx, efx, "graphics", graphics);
+    JSValue io = JS_NewObject(rt->ctx);
+    JS_SetPropertyFunctionList(rt->ctx, io, IO_FUNCS,
+                               (int)(sizeof(IO_FUNCS) / sizeof(IO_FUNCS[0])));
+    JS_SetPropertyStr(rt->ctx, efx, "io", io);
     if (efx_api_register_input(rt->ctx, efx) < 0) {
         fprintf(stderr, "player: input api init failed\n");
         JS_FreeValue(rt->ctx, efx);

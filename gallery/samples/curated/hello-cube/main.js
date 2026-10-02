@@ -7,15 +7,15 @@ efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0
 const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
 efx.graphics.setMeshSurfaceMaterial(cube, 0, {
     ambient:  { color: [0.12, 0.12, 0.16, 1] },
-    diffuse:  { color: [1, 1, 1, 1] },
-    specular: { color: [1, 1, 1, 1], shininess: 32 },
-    emissive: { color: [0, 0, 0, 1] },
+    diffuse:  { color: efx.color.white },
+    specular: { color: efx.color.white, shininess: 32 },
+    emissive: { color: efx.color.black },
 });
 
 let t = 0;
 function update(dt) { t += dt; }
 function render() {
-    const spin = efx.mat4.rotate(efx.mat4.identity(), t * 40, [0, 1, 0]);
-    const tilt = efx.mat4.rotate(spin, 18, [1, 0, 0]);
+    const spin = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 40, [0, 1, 0]);
+    const tilt = efx.math.mat4.rotate(spin, 18, [1, 0, 0]);
     efx.graphics.drawMesh(cube, { transform: tilt, color: [0.95, 0.5, 0.2, 1] });
 }

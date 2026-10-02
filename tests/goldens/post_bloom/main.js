@@ -13,7 +13,7 @@ efx.graphics.setPostEffects([{ effect: 'bloom', threshold: 0.7, strength: 0.8 }]
 function update() {}
 function render() {
     efx.graphics.drawQuad(0, 0, tex, { size: [640, 480] });
-    efx.graphics.drawQuad(120, 110, efx.whiteTexture, { size: [170, 70], color: [1, 1, 1, 1] });
+    efx.graphics.drawQuad(120, 110, efx.graphics.whiteTexture, { size: [170, 70], color: [1, 1, 1, 1] });
     efx.graphics.drawQuad(350, 150, tex, { size: [150, 150], color: [0.9, 0.35, 0.2, 1], rotation: 18 });
     efx.graphics.drawQuad(180, 300, tex, { size: [130, 130], color: [0.2, 0.7, 0.95, 1], rotation: -12 });
     efx.graphics.drawQuad(430, 330, tex, { size: [110, 110], color: [0.6, 0.9, 0.3, 1] });

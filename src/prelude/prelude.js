@@ -355,7 +355,7 @@ function __efxMakeCapsule(opts) {
  *
  * A small, synchronous, provider-backed CommonJS implementation shared by both
  * bindings (ADR 0037). `require(path)` loads a file under the resource root via
- * the synchronous `efx.loadText` provider, evaluates it in a wrapper scope that
+ * the synchronous `efx.io.loadText` provider, evaluates it in a wrapper scope that
  * exposes `require`/`module`/`exports`, caches `module.exports` by resolved
  * path, and returns it. Specifiers are relative (`./`, `../`) or root-relative;
  * resolution tries the exact path then a deterministic `.js` fallback, and
@@ -434,7 +434,7 @@ function __efxCreateModuleRuntime(efx, opts) {
         var norm = __efxModuleResolve(fromPath, spec);
         var src = null;
         try {
-            src = efx.loadText(norm);
+            src = efx.io.loadText(norm);
         } catch (e) {
             src = null;
         }
@@ -443,7 +443,7 @@ function __efxCreateModuleRuntime(efx, opts) {
         }
         if (!/\.js$/.test(norm) && !/\.json$/.test(norm)) {
             try {
-                src = efx.loadText(norm + '.js');
+                src = efx.io.loadText(norm + '.js');
             } catch (e) {
                 src = null;
             }
@@ -486,7 +486,7 @@ function __efxCreateModuleRuntime(efx, opts) {
         cache[path] = moduleObj;
         var src = source;
         if (src === undefined || src === null) {
-            src = efx.loadText(path);
+            src = efx.io.loadText(path);
         }
         if (/\.json$/.test(path)) {
             var parsed;
@@ -1637,28 +1637,52 @@ function __efxPreludeInstall(efx, natives) {
         g = {};
         efx.graphics = g;
     }
-    efx.mat4 = {
-        identity: __efxM4Identity,
-        perspective: __efxM4Perspective,
-        ortho: __efxM4Ortho,
-        translate: __efxM4Translate,
-        rotate: __efxM4Rotate,
-        scale: __efxM4Scale,
-        multiply: __efxM4Mul,
+    efx.math = {
+        mat4: {
+            identity: __efxM4Identity,
+            perspective: __efxM4Perspective,
+            ortho: __efxM4Ortho,
+            translate: __efxM4Translate,
+            rotate: __efxM4Rotate,
+            scale: __efxM4Scale,
+            multiply: __efxM4Mul,
+        },
+        vec3: {
+            add: __efxV3Add,
+            sub: __efxV3Sub,
+            scale: __efxV3Scale,
+            normalize: __efxV3Normalize,
+            cross: __efxV3Cross,
+            dot: __efxV3Dot,
+        },
+        quat: {
+            identity: __efxQuatIdentity,
+            fromAxisAngle: __efxQuatFromAxisAngle,
+            multiply: __efxQuatMultiply,
+            toMat4: __efxQuatToMat4,
+        },
     };
-    efx.vec3 = {
-        add: __efxV3Add,
-        sub: __efxV3Sub,
-        scale: __efxV3Scale,
-        normalize: __efxV3Normalize,
-        cross: __efxV3Cross,
-        dot: __efxV3Dot,
-    };
-    efx.quat = {
-        identity: __efxQuatIdentity,
-        fromAxisAngle: __efxQuatFromAxisAngle,
-        multiply: __efxQuatMultiply,
-        toMat4: __efxQuatToMat4,
+    /* named color constants (CSS basic 16 + transparent): frozen plain
+     * [r, g, b, a] data, no functions. The 128/192 sRGB levels are
+     * expressed as 0.5/0.75 for readability. */
+    efx.color = {
+        aqua: Object.freeze([0, 1, 1, 1]),
+        black: Object.freeze([0, 0, 0, 1]),
+        blue: Object.freeze([0, 0, 1, 1]),
+        fuchsia: Object.freeze([1, 0, 1, 1]),
+        gray: Object.freeze([0.5, 0.5, 0.5, 1]),
+        green: Object.freeze([0, 0.5, 0, 1]),
+        lime: Object.freeze([0, 1, 0, 1]),
+        maroon: Object.freeze([0.5, 0, 0, 1]),
+        navy: Object.freeze([0, 0, 0.5, 1]),
+        olive: Object.freeze([0.5, 0.5, 0, 1]),
+        purple: Object.freeze([0.5, 0, 0.5, 1]),
+        red: Object.freeze([1, 0, 0, 1]),
+        silver: Object.freeze([0.75, 0.75, 0.75, 1]),
+        teal: Object.freeze([0, 0.5, 0.5, 1]),
+        white: Object.freeze([1, 1, 1, 1]),
+        yellow: Object.freeze([1, 1, 0, 1]),
+        transparent: Object.freeze([0, 0, 0, 0]),
     };
     g.makeCube = __efxMakeCube;
     g.makePlane = __efxMakePlane;

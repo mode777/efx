@@ -64,7 +64,7 @@ function rect(x, y, w, h, c, a) {
     if (w <= 0 || h <= 0) {
         return; // drawQuad rejects non-positive sizes (e.g. an at-rest trigger)
     }
-    efx.graphics.drawQuad(x, y, efx.whiteTexture, {
+    efx.graphics.drawQuad(x, y, efx.graphics.whiteTexture, {
         size: [w, h],
         origin: [0, 0],
         color: [c[0], c[1], c[2], a === undefined ? 1 : a],

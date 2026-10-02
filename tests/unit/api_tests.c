@@ -117,7 +117,7 @@ static int rec_count(void) {
 
 /* white texture: exists, stable identity, destroy() throws */
 static int white(void) {
-    REQUIRE(!ok_js("const a = efx.whiteTexture; const b = efx.whiteTexture; if (a !== b) throw new Error('identity');"
+    REQUIRE(!ok_js("const a = efx.graphics.whiteTexture; const b = efx.graphics.whiteTexture; if (a !== b) throw new Error('identity');"
                    "try { a.destroy(); throw new Error('no'); } catch (e) { if (!(e instanceof TypeError)) throw e; }"),
             "white texture identity/destroy");
     end_js();
@@ -128,7 +128,7 @@ static int white(void) {
 static int quad_record(void) {
     const char *code =
         "efx.graphics.setCamera2D({ frame: [640, 480], x: 320, y: 240, zoom: 2, rotation: 0 });"
-        "efx.graphics.drawQuad(0, 0, efx.whiteTexture,"
+        "efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture,"
         "  { rotation: 90, scale: 1.5, color: [1, 0, 0, 1], size: [64, 32],"
         "    sourceRect: { x: 0, y: 0, w: 1, h: 1 } });";
     REQUIRE(!ok_js(code), "snippet");
@@ -210,14 +210,14 @@ static int origin_pivot(void) {
 static int quad_validation(void) {
     const char *code =
         T_HELPER
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [0, 10] }), RangeError);"
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [10] }), RangeError);"
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: 'big' }), TypeError);"
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { origin: [NaN, 0] }), RangeError);"
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { origin: 'center' }), TypeError);"
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture,"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [0, 10] }), RangeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [10] }), RangeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: 'big' }), TypeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { origin: [NaN, 0] }), RangeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { origin: 'center' }), TypeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture,"
         "  { sourceRect: { x: 0, y: 0, w: 0, h: 1 } }), RangeError);"
-        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4], frobnicate: 1 }), TypeError);";
+        "t(() => efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [4, 4], frobnicate: 1 }), TypeError);";
     REQUIRE(!ok_js(code), "quad validation matrix");
     REQUIRE(rec_count() == 0, "failed calls must record nothing");
     end_js();
@@ -230,7 +230,7 @@ static int texture_size_getters(void) {
         "const img = efx.graphics.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
         "const tex = efx.graphics.createTexture(img);"
         "if (tex.width !== 64 || tex.height !== 32) throw new Error('texture size');"
-        "if (efx.whiteTexture.width !== 1 || efx.whiteTexture.height !== 1)"
+        "if (efx.graphics.whiteTexture.width !== 1 || efx.graphics.whiteTexture.height !== 1)"
         "  throw new Error('white texture size');"
         "tex.destroy();"
         "try { tex.width; throw new Error('no'); }"
@@ -246,9 +246,9 @@ static int texture_size_getters(void) {
 static int camera_snapshot(void) {
     const char *code =
         "efx.graphics.setCamera2D({ frame: [640, 480] });"
-        "efx.graphics.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });"
+        "efx.graphics.drawQuad(100, 0, efx.graphics.whiteTexture, { size: [8, 8] });"
         "efx.graphics.setCamera2D({ frame: [640, 480], x: 370, y: 0 });"
-        "efx.graphics.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });";
+        "efx.graphics.drawQuad(100, 0, efx.graphics.whiteTexture, { size: [8, 8] });";
     REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(r[0].u.quad.m.tx != r[1].u.quad.m.tx, "camera not snapshotted");
@@ -261,7 +261,7 @@ static int camera_snapshot(void) {
 
 /* out-of-bounds sourceRect throws RangeError */
 static int src_oob(void) {
-    REQUIRE(!err_js("efx.graphics.drawQuad(0, 0, efx.whiteTexture,"
+    REQUIRE(!err_js("efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture,"
                     "  { sourceRect: { x: 0, y: 0, w: 5, h: 5 } });", "oob sourceRect"),
             "oob sourceRect must throw");
     end_js();
@@ -272,7 +272,7 @@ static int src_oob(void) {
 static int budget(void) {
     const char *code =
         "try {"
-        "  for (let i = 0; i < 500000; i++) efx.graphics.drawQuad(0, 0, efx.whiteTexture);"
+        "  for (let i = 0; i < 500000; i++) efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture);"
         "  throw new Error('budget not enforced');"
         "} catch (e) { if (!(e instanceof RangeError)) throw e; }";
     REQUIRE(!ok_js(code), "budget RangeError");
@@ -297,9 +297,9 @@ static int texture_lifecycle(void) {
 /* blend snapshot at the JS level */
 static int blend_snapshot(void) {
     const char *code =
-        "efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"
+        "efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [4, 4] });"
         "efx.graphics.setBlendMode('subtractive');"
-        "efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });";
+        "efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [4, 4] });";
     REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(r[0].u.quad.blend == EFX_BLEND_ALPHA &&
@@ -321,7 +321,7 @@ static int clear_color_js(void) {
 
 /* default camera: frame == viewport, identity view */
 static int default_camera(void) {
-    REQUIRE(!ok_js("efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"),
+    REQUIRE(!ok_js("efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [4, 4] });"),
             "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(r[0].u.quad.frame_w == 1024 && r[0].u.quad.frame_h == 600 &&
@@ -592,7 +592,7 @@ static int f5a_js(void) {
         "t(()=>efx.graphics.drawQuad(0,0,{}), TypeError);"
         /* redirection: records land, nesting/balance throw */
         "efx.graphics.beginRenderTarget(live);"
-        "efx.graphics.drawQuad(0,0,efx.whiteTexture);"
+        "efx.graphics.drawQuad(0,0,efx.graphics.whiteTexture);"
         "t(()=>efx.graphics.beginRenderTarget(live), TypeError);"
         "t(()=>efx.graphics.drawQuad(0,0,live), TypeError);" /* feedback */
         "efx.graphics.endRenderTarget();"
@@ -728,19 +728,19 @@ static int resource_js(void) {
     REQUIRE(res, "open fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
-        "if (efx.loadText('hello.txt') !== 'hello efx\\n') throw new Error('text');"
+        "if (efx.io.loadText('hello.txt') !== 'hello efx\\n') throw new Error('text');"
         "var img = efx.graphics.loadImage('test_rgba.png');"
         "if (img.width !== 3 || img.height !== 2) throw new Error('dims');"
         "var px = efx.graphics.createTexture(img);"
         "if (px.width !== 3 || px.height !== 2) throw new Error('tex dims');"
         "var lt = efx.graphics.createTexture(efx.graphics.loadImage('test_rgba.png'));"
         "if (lt.width !== 3 || lt.height !== 2) throw new Error('composed tex dims');"
-        "if (typeof efx.loadTexture !== 'undefined') throw new Error('loadTexture still present');"
+        "if (typeof efx.io.loadTexture !== 'undefined') throw new Error('loadTexture still present');"
         "img.destroy(); px.destroy(); lt.destroy();"
-        "var e1 = 0; try { efx.loadText('nope.txt'); } catch (e) {"
+        "var e1 = 0; try { efx.io.loadText('nope.txt'); } catch (e) {"
         "  e1 = (e instanceof Error) ? 1 : 2; }"
         "if (e1 !== 1) throw new Error('missing not Error ('+e1+')');"
-        "var e2 = 0; try { efx.loadText(5); } catch (e) {"
+        "var e2 = 0; try { efx.io.loadText(5); } catch (e) {"
         "  e2 = (e instanceof TypeError) ? 1 : 2; }"
         "if (e2 !== 1) throw new Error('nonstring not TypeError ('+e2+')');");
     efx_runtime_destroy(g_rt);
@@ -1711,7 +1711,7 @@ static int destroy_no_pending_exception(void) {
         {NULL, "efx.graphics.createRenderTarget({ width: 8, height: 8 })"},
         {EFX_RES_FIXTURES, "efx.graphics.loadFontData('font.ttf')"},
         {EFX_RES_FIXTURES, "efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 16 })"},
-        {NULL, "efx.graphics.createParticleSystem({ texture: efx.whiteTexture, max: 4, lifetime: 1 })"},
+        {NULL, "efx.graphics.createParticleSystem({ texture: efx.graphics.whiteTexture, max: 4, lifetime: 1 })"},
         {EFX_AUDIO_FIXTURES, "efx.audio.loadAudioData('tone.wav')"},
         {EFX_AUDIO_FIXTURES, "efx.audio.loadAudioStream('tone.mp3')"},
         {EFX_AUDIO_FIXTURES, "efx.audio.playAudio(efx.audio.loadAudioData('tone.wav'))"},
@@ -1759,8 +1759,10 @@ static int destroy_no_pending_exception(void) {
     return failures ? fail("destroy left an exception pending") : 0;
 }
 
-/* ADR 0050 guard: efx.graphics holds exactly the 33 moved members, no
- * root alias survives, and the root keeps its own members. */
+/* ADR 0050/0051 guard: efx.graphics holds exactly the 33 functions plus the
+ * whiteTexture property; efx.math/efx.io/efx.color hold exactly their
+ * members; efx.args is a read-only array; the root keeps only the lifecycle
+ * members and the domain sub-namespaces. */
 static int graphics_ns_js(void) {
     int rc = run_js(
         "var g = efx.graphics;"
@@ -1779,17 +1781,67 @@ static int graphics_ns_js(void) {
         "    throw new Error('efx.graphics missing ' + names[i]);"
         "  if (names[i] in efx) throw new Error('root alias remains: ' + names[i]);"
         "}"
-        "if (Object.getOwnPropertyNames(g).length !== names.length)"
+        "if (!('whiteTexture' in g)) throw new Error('efx.graphics.whiteTexture missing');"
+        "if (g.whiteTexture.width !== 1 || g.whiteTexture.height !== 1)"
+        "  throw new Error('whiteTexture dims');"
+        "if ('whiteTexture' in efx) throw new Error('root whiteTexture remains');"
+        "if (Object.getOwnPropertyNames(g).length !== names.length + 1)"
         "  throw new Error('unexpected efx.graphics members');"
+        "var m = efx.math;"
+        "if (!m) throw new Error('efx.math missing');"
+        "var mn = ['mat4', 'vec3', 'quat'];"
+        "for (i = 0; i < mn.length; i++) {"
+        "  if (!m[mn[i]] || typeof m[mn[i]] !== 'object')"
+        "    throw new Error('efx.math missing ' + mn[i]);"
+        "  if (mn[i] in efx) throw new Error('root math alias remains: ' + mn[i]);"
+        "}"
+        "if (Object.getOwnPropertyNames(m).length !== mn.length)"
+        "  throw new Error('unexpected efx.math members');"
+        "var io = efx.io;"
+        "if (!io) throw new Error('efx.io missing');"
+        "var ion = ['loadText', 'loadData'];"
+        "for (i = 0; i < ion.length; i++) {"
+        "  if (typeof io[ion[i]] !== 'function')"
+        "    throw new Error('efx.io missing ' + ion[i]);"
+        "  if (ion[i] in efx) throw new Error('root io alias remains: ' + ion[i]);"
+        "}"
+        "if (Object.getOwnPropertyNames(io).length !== ion.length)"
+        "  throw new Error('unexpected efx.io members');"
+        "var c = efx.color;"
+        "if (!c) throw new Error('efx.color missing');"
+        "var cn = ['aqua', 'black', 'blue', 'fuchsia', 'gray', 'green', 'lime',"
+        "  'maroon', 'navy', 'olive', 'purple', 'red', 'silver', 'teal',"
+        "  'white', 'yellow', 'transparent'];"
+        "for (i = 0; i < cn.length; i++) {"
+        "  var v = c[cn[i]];"
+        "  if (!Array.isArray(v) || v.length !== 4) throw new Error('bad color ' + cn[i]);"
+        "  if (!Object.isFrozen(v)) throw new Error('unfrozen color ' + cn[i]);"
+        "}"
+        "if (Object.getOwnPropertyNames(c).length !== cn.length)"
+        "  throw new Error('unexpected efx.color members');"
+        "if (c.white[0] !== 1 || c.white[1] !== 1 || c.white[2] !== 1 || c.white[3] !== 1)"
+        "  throw new Error('color.white wrong');"
+        "if (c.gray[0] !== 0.5 || c.green[1] !== 0.5 || c.silver[0] !== 0.75)"
+        "  throw new Error('color level wrong');"
+        "if (c.transparent[3] !== 0) throw new Error('transparent wrong');"
+        "if (typeof efx.args === 'function') throw new Error('args still a function');"
+        "if (!Array.isArray(efx.args)) throw new Error('args not an array');"
+        "if (efx.args.length !== 0) throw new Error('args not empty');"
         "var root = ['log', 'quit', 'args', 'registerUpdateHook',"
-        "  'registerRenderHook', 'whiteTexture', 'loadText', 'mat4', 'vec3',"
-        "  'quat', 'keyboard', 'mouse', 'window', 'physics', 'gamepad',"
-        "  'audio', 'graphics'];"
+        "  'registerRenderHook', 'math', 'io', 'color', 'keyboard', 'mouse',"
+        "  'window', 'physics', 'gamepad', 'audio', 'graphics'];"
         "for (i = 0; i < root.length; i++) {"
         "  if (!(root[i] in efx)) throw new Error('root missing ' + root[i]);"
-        "}");
+        "}"
+        "var gone = ['whiteTexture', 'loadText', 'mat4', 'vec3', 'quat'];"
+        "for (i = 0; i < gone.length; i++) {"
+        "  if (gone[i] in efx) throw new Error('root alias remains: ' + gone[i]);"
+        "}"
+        "if (Object.getOwnPropertyNames(efx).length !== root.length)"
+        "  throw new Error('unexpected root members: ' +"
+        "    Object.getOwnPropertyNames(efx).join(','));");
     end_js();
-    return rc == 0 ? 0 : fail("graphics namespace shape");
+    return rc == 0 ? 0 : fail("namespace shape");
 }
 
 static const efx_test_case cases[] = {

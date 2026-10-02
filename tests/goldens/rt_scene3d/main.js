@@ -14,10 +14,10 @@ function update() {}
 function render() {
     efx.graphics.beginRenderTarget(rt);
     efx.graphics.drawMesh(ground, {
-                   transform: efx.mat4.translate(efx.mat4.identity(),
+                   transform: efx.math.mat4.translate(efx.math.mat4.identity(),
                                                  [0, -0.5, 0]) });
     efx.graphics.drawMesh(cube, {
-                   transform: efx.mat4.translate(efx.mat4.identity(),
+                   transform: efx.math.mat4.translate(efx.math.mat4.identity(),
                                                  [0, 0.2, 0]) });
     efx.graphics.endRenderTarget();
     efx.graphics.setCamera2D({ frame: [640, 480] });

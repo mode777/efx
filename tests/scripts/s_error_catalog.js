@@ -287,8 +287,10 @@ C('5b.scale-unknown-field', function () { efx.graphics.setRenderScale(1, { frob:
 
 /* ------------------------------------------- resources (F6a/F6b/F8a) */
 
-C('6a.loadtext-type', function () { efx.loadText(5); });
-C('6a.loadtext-missing', function () { efx.loadText('nope.txt'); });
+C('6a.loadtext-type', function () { efx.io.loadText(5); });
+C('6a.loadtext-missing', function () { efx.io.loadText('nope.txt'); });
+C('6a.loaddata-type', function () { efx.io.loadData(5); });
+C('6a.loaddata-missing', function () { efx.io.loadData('nope.bin'); });
 C('6a.loadimage-type', function () { efx.graphics.loadImage(5); });
 C('6a.loadimage-missing', function () { efx.graphics.loadImage('nope.png'); });
 C('6b.loadmesh-type', function () { efx.graphics.loadMeshData(5); });

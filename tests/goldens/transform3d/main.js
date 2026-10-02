@@ -15,16 +15,16 @@ function update() {}
 function render() {
     // translate only
     efx.graphics.drawMesh(cube, {
-        transform: efx.mat4.translate(efx.mat4.identity(), [-1.9, 0, 0]),
+        transform: efx.math.mat4.translate(efx.math.mat4.identity(), [-1.9, 0, 0]),
         color: [0.9, 0.3, 0.3, 1] });
     // translate + rotate 45 about Y
-    const rot = efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]);
+    const rot = efx.math.mat4.rotate(efx.math.mat4.identity(), 45, [0, 1, 0]);
     efx.graphics.drawMesh(cube, {
-        transform: efx.mat4.translate(rot, [0, 0, 0]),
+        transform: efx.math.mat4.translate(rot, [0, 0, 0]),
         color: [0.3, 0.9, 0.4, 1] });
     // translate + rotate + scale 1.8
-    const sc = efx.mat4.scale(rot, [1.8, 1.8, 1.8]);
+    const sc = efx.math.mat4.scale(rot, [1.8, 1.8, 1.8]);
     efx.graphics.drawMesh(cube, {
-        transform: efx.mat4.translate(sc, [1.9, 0, 0]),
+        transform: efx.math.mat4.translate(sc, [1.9, 0, 0]),
         color: [0.35, 0.45, 0.95, 1] });
 }

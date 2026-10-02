@@ -66,6 +66,6 @@ efx.registerRenderHook(function () {
         });
     efx.graphics.drawText(typed.length ? typed : PLACEHOLDER, bodyFont, 40, 396, {
         width: 560,
-        color: typed.length ? [1, 1, 1, 1] : [0.45, 0.48, 0.55, 1],
+        color: typed.length ? efx.color.white : [0.45, 0.48, 0.55, 1],
     });
 });

@@ -11,6 +11,15 @@ processing, and the graphics resource factories. Reached as
 `efx.graphics`; names, signatures, semantics, and error behavior are
 unchanged by the move from the `efx` root.
 
+## Properties
+
+### whiteTexture
+
+> `readonly` **whiteTexture**: [`EfxTexture`](EfxTexture.md)
+
+Engine-owned 1×1 opaque-white texture usable in any draw (read-only;
+`destroy()` on it throws).
+
 ## Methods
 
 ### beginRenderTarget()

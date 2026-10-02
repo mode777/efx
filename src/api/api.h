@@ -5,7 +5,7 @@
 
 JSValue efx_js_log(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_quit(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue efx_js_args(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_args(JSContext *ctx, JSValueConst this_val);
 
 /* F1 — lifecycle hooks (ADR 0016) */
 JSValue efx_js_registerUpdateHook(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
@@ -46,6 +46,7 @@ JSValue efx_js_setRenderScale(JSContext *ctx, JSValueConst this_val, int argc, J
 
 /* F6a — resource loading */
 JSValue efx_js_loadText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_loadData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_load_image_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F6b — glTF mesh import */

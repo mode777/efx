@@ -34,10 +34,8 @@ JSValue efx_js_quit(JSContext *ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 
-JSValue efx_js_args(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+JSValue efx_js_args(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;
-    (void)argc;
-    (void)argv;
     struct efx_host_state *h = efx_api_host_state(ctx);
     JSValue arr = JS_NewArray(ctx);
     for (int i = 0; i < h->arg_count; i++) {

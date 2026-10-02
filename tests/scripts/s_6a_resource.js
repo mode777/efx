@@ -3,7 +3,7 @@
  * default resource root in --script mode); a texture is the composed
  * createTexture(loadImage(path), opts?) flow (F6e).
  */
-var text = efx.loadText('resource_probe.txt');
+var text = efx.io.loadText('resource_probe.txt');
 if (text !== 'probe-text\n') {
     throw new Error('loadText: ' + JSON.stringify(text));
 }

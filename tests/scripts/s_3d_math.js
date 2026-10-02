@@ -6,13 +6,13 @@ function near(a, b) { return Math.abs(a - b) < 1e-4; }
 function fail(msg) { efx.log('FAIL ' + msg); efx.quit(2); }
 
 // identity
-const I = efx.mat4.identity();
+const I = efx.math.mat4.identity();
 const Iexpect = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 for (let i = 0; i < 16; i++) { if (!near(I[i], Iexpect[i])) fail('identity'); }
 
 // perspective (GL-style RH): m[0] = f/aspect, m[5] = f, m[11] = -1
 const f = 1 / Math.tan(Math.PI / 6); // fov 60
-const Pm = efx.mat4.perspective(60, 4 / 3, 0.1, 100);
+const Pm = efx.math.mat4.perspective(60, 4 / 3, 0.1, 100);
 if (!near(Pm[0], f / (4 / 3))) fail('perspective m[0]');
 if (!near(Pm[5], f)) fail('perspective m[5]');
 if (!near(Pm[10], -(100 + 0.1) / (100 - 0.1))) fail('perspective m[10]');
@@ -20,17 +20,17 @@ if (!near(Pm[11], -1)) fail('perspective m[11]');
 if (!near(Pm[14], -2 * 100 * 0.1 / (100 - 0.1))) fail('perspective m[14]');
 
 // ortho: 2/width, 2/height
-const Om = efx.mat4.ortho(4, 2, 1, 11);
+const Om = efx.math.mat4.ortho(4, 2, 1, 11);
 if (!near(Om[0], 0.5)) fail('ortho m[0]');
 if (!near(Om[5], 1)) fail('ortho m[5]');
 if (!near(Om[10], -2 / 10)) fail('ortho m[10]');
 if (!near(Om[14], -12 / 10)) fail('ortho m[14]');
 
 // multiply order: multiply(t, r) applies r first
-const T = efx.mat4.translate(efx.mat4.identity(), [5, 0, 0]);
-const R = efx.mat4.rotate(efx.mat4.identity(), 90, [0, 1, 0]);
-const TR = efx.mat4.multiply(T, R);
-const RT = efx.mat4.multiply(R, T);
+const T = efx.math.mat4.translate(efx.math.mat4.identity(), [5, 0, 0]);
+const R = efx.math.mat4.rotate(efx.math.mat4.identity(), 90, [0, 1, 0]);
+const TR = efx.math.mat4.multiply(T, R);
+const RT = efx.math.mat4.multiply(R, T);
 const v0 = [0, 0, 0];
 function xform(m, p) {
     return [
@@ -49,33 +49,33 @@ q = xform(R, [1, 0, 0]);
 if (!near(q[0], 0) || !near(q[1], 0) || !near(q[2], -1)) fail('rotate 90 Y');
 
 // purity: inputs untouched
-const M0 = efx.mat4.identity();
-const T1 = efx.mat4.translate(M0, [1, 2, 3]);
+const M0 = efx.math.mat4.identity();
+const T1 = efx.math.mat4.translate(M0, [1, 2, 3]);
 if (!near(M0[12], 0)) fail('translate mutated input');
 if (!near(T1[12], 1)) fail('translate result');
 const A = [3, 0, 4];
-const N = efx.vec3.normalize(A);
+const N = efx.math.vec3.normalize(A);
 if (!near(A[0], 3)) fail('normalize mutated input');
 if (!near(N[0], 0.6) || !near(N[2], 0.8)) fail('normalize values');
-if (efx.vec3.normalize([0, 0, 0]).some((x) => !near(x, 0))) fail('normalize zero');
-const cr = efx.vec3.cross([1, 0, 0], [0, 1, 0]);
+if (efx.math.vec3.normalize([0, 0, 0]).some((x) => !near(x, 0))) fail('normalize zero');
+const cr = efx.math.vec3.cross([1, 0, 0], [0, 1, 0]);
 if (!near(cr[2], 1)) fail('cross');
-if (!near(efx.vec3.dot([1, 2, 3], [4, 5, 6]), 32)) fail('dot');
-const sm = efx.mat4.scale(efx.mat4.identity(), [2, 3, 4]);
+if (!near(efx.math.vec3.dot([1, 2, 3], [4, 5, 6]), 32)) fail('dot');
+const sm = efx.math.mat4.scale(efx.math.mat4.identity(), [2, 3, 4]);
 if (!near(sm[0], 2) || !near(sm[5], 3) || !near(sm[10], 4)) fail('scale');
 
 // quat: axis angle -> mat4 rotates the same way
-const qid = efx.quat.identity();
+const qid = efx.math.quat.identity();
 if (!near(qid[3], 1)) fail('quat identity');
-const qy = efx.quat.fromAxisAngle(90, [0, 1, 0]);
-const Rq = efx.quat.toMat4(qy);
+const qy = efx.math.quat.fromAxisAngle(90, [0, 1, 0]);
+const Rq = efx.math.quat.toMat4(qy);
 const qr = xform(Rq, [1, 0, 0]);
 if (!near(qr[0], 0) || !near(qr[2], -1)) fail('quat toMat4 rotate');
-const qid2 = efx.quat.multiply(efx.quat.identity(), qy);
+const qid2 = efx.math.quat.multiply(efx.math.quat.identity(), qy);
 if (!near(qid2[1], qy[1]) || !near(qid2[3], qy[3])) fail('quat multiply identity');
 // 180+180 = identity (mod sign)
-const q180 = efx.quat.fromAxisAngle(180, [0, 0, 1]);
-const q360 = efx.quat.multiply(q180, q180);
+const q180 = efx.math.quat.fromAxisAngle(180, [0, 0, 1]);
+const q360 = efx.math.quat.multiply(q180, q180);
 if (!near(Math.abs(q360[3]), 1)) fail('quat 360');
 
 // primitives: pinned layouts (design D9) — inspected by wrapping the

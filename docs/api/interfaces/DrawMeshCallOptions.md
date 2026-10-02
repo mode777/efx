@@ -12,7 +12,7 @@ Options for `drawMesh`.
 
 ```js
 efx.graphics.drawMesh(cube, {
-  transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]),
+  transform: efx.math.mat4.rotate(efx.math.mat4.identity(), yaw, [0, 1, 0]),
   color: [0.95, 0.5, 0.2, 1],
 });
 ```

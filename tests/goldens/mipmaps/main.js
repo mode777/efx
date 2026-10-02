@@ -25,7 +25,7 @@ function update() {}
 function render() {
     efx.graphics.drawQuad(60, 70, plain, { size: [128, 128] });
     efx.graphics.drawQuad(400, 70, mips, { size: [128, 128] });
-    efx.graphics.drawQuad(320, 40, efx.whiteTexture, { size: [2, 200], color: [0.8, 0.8, 0.8, 1] });
+    efx.graphics.drawQuad(320, 40, efx.graphics.whiteTexture, { size: [2, 200], color: [0.8, 0.8, 0.8, 1] });
     efx.graphics.drawQuad(60, 300, plain, { size: [64, 64] });
     efx.graphics.drawQuad(400, 300, mips, { size: [64, 64] });
 }

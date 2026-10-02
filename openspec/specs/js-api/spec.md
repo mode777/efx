@@ -48,8 +48,6 @@ globals; `require` returns a module's exports and is not an engine API entry.
 - **THEN** `require`, `module`, and `exports` are absent from both; they exist
   only inside a module's own scope
 
-## ADDED Requirements
-
 ### Requirement: Graphics namespace API
 The script API SHALL expose the graphics drawing, state, and resource
 functions as the sub-namespace `efx.graphics` of the single `efx` object,
@@ -96,8 +94,6 @@ the `efx.graphics.*` paths.
 - **THEN** every golden frame stays pixel-identical, the cross-runtime
   error catalog stays byte-identical, and no signature, default, or error
   message changes
-
-## MODIFIED Requirements
 
 ### Requirement: Two-layer API with strict layering
 

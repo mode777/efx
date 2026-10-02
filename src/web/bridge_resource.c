@@ -33,6 +33,28 @@ EMSCRIPTEN_KEEPALIVE const char *efx_bridge_load_text(const char *path) {
     return efx_resource_read_text(W.resource, path, &e);
 }
 
+/* Returns a malloc'd byte buffer the JS side frees with _free and writes its
+ * length to *out_len, or NULL on failure. */
+EMSCRIPTEN_KEEPALIVE uint8_t *efx_bridge_load_data(const char *path,
+                                                   int *out_len) {
+    if (out_len) {
+        *out_len = 0;
+    }
+    if (!W.resource) {
+        return NULL;
+    }
+    size_t n = 0;
+    int e = EFX_RESOURCE_OK;
+    uint8_t *bytes = efx_resource_read(W.resource, path, &n, &e);
+    if (!bytes) {
+        return NULL;
+    }
+    if (out_len) {
+        *out_len = (int)n;
+    }
+    return bytes;
+}
+
 /* Decodes an image into an ImageData slot; returns the 1-based id or 0. */
 EMSCRIPTEN_KEEPALIVE int efx_bridge_load_image(const char *path) {
     if (!W.resource) {

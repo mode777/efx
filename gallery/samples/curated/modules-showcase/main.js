@@ -31,12 +31,12 @@ efx.registerUpdateHook((dt) => {
 
 efx.registerRenderHook(() => {
     efx.graphics.drawMesh(core, {
-        transform: efx.mat4.rotate(efx.mat4.identity(),
+        transform: efx.math.mat4.rotate(efx.math.mat4.identity(),
                                    orbit.spinDegrees(t, scene.coreSpin), [0, 1, 0]),
     });
     for (let i = 0; i < moons.length; i++) {
         efx.graphics.drawMesh(moons[i], {
-            transform: efx.mat4.translate(efx.mat4.identity(),
+            transform: efx.math.mat4.translate(efx.math.mat4.identity(),
                                            orbit.orbitPosition(t, scene.orbits[i])),
         });
     }

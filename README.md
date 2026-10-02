@@ -12,7 +12,7 @@ scripted in ES6. See `vision.md` for the product vision and
   `sourceRect` / texture pixels), tint / rotation / scale / `origin` pivot,
   CPU→GPU textures (`createImageData`, `createTexture` — textures expose
   read-only `width`/`height`), blending modes (`alpha`, `additive`,
-  `subtractive`), and the engine-owned `efx.whiteTexture` for solid rects.
+  `subtractive`), and the engine-owned `efx.graphics.whiteTexture` for solid rects.
 - The **re-orderable display list** between the immediate-mode API and sokol
   (ADR 0019), unit-tested headlessly (record → assert, no GPU).
 - The **golden-image verification harness** (ADR 0020): capture run mode
@@ -30,7 +30,7 @@ scripted in ES6. See `vision.md` for the product vision and
 - A headless `--script` run mode that executes one script and propagates its
   exit code (the automated-test vehicle).
 - The engine JS API namespace `efx`: `efx.log(msg)`, `efx.quit(code)`,
-  `efx.args()` — the binding pattern all future engine functions follow.
+  `efx.args` — the binding pattern all future engine functions follow.
 ## JavaScript API
 
 The normative script-facing API reference — current behavior plus the

@@ -19,7 +19,7 @@ let t = 0;
 function update(dt) { t += dt; }
 function render() {
     efx.graphics.drawQuad(0, 0, tex, { size: [640, 480] });
-    efx.graphics.drawQuad(120, 110, efx.whiteTexture, { size: [200, 80], color: [1, 1, 1, 1] });
+    efx.graphics.drawQuad(120, 110, efx.graphics.whiteTexture, { size: [200, 80], color: efx.color.white });
     efx.graphics.drawQuad(360, 180, tex, {
         size: [160, 160],
         rotation: t * 57.3,

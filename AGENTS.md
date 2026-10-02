@@ -50,6 +50,11 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
   functions live under `efx.graphics`, not the `efx` root
   (`efx-graphics-namespace`, ADR 0050; hard cut, no root aliases, error
   text and golden pixels byte-identical)
+- Namespace consolidation — `mat4`/`vec3`/`quat` live under `efx.math`,
+  loaders under `efx.io` (with `loadData` returning a `Uint8Array` copy),
+  `whiteTexture` under `efx.graphics`, frozen color constants under
+  `efx.color`, and `args` is a read-only property
+  (`efx-namespace-consolidation`, ADR 0051; hard cut, no root aliases)
 
 **Codebase map:**
 

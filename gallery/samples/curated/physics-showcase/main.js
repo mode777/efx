@@ -90,28 +90,28 @@ const sphere = efx.graphics.createMesh(efx.graphics.makeSphere());
 const capsule = efx.graphics.createMesh(efx.graphics.makeCapsule({ radius: 0.4, height: 1.8 }));
 efx.graphics.setMeshSurfaceMaterial(cube, 0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
-    diffuse: { color: [1, 1, 1, 1] },
-    specular: { color: [1, 1, 1, 1], shininess: 32 },
+    diffuse: { color: efx.color.white },
+    specular: { color: efx.color.white, shininess: 32 },
 });
 efx.graphics.setMeshSurfaceMaterial(rampMesh, 0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
     diffuse: { color: [0.9, 0.9, 0.95, 1] },
-    specular: { color: [1, 1, 1, 1], shininess: 16 },
+    specular: { color: efx.color.white, shininess: 16 },
 });
 efx.graphics.setMeshSurfaceMaterial(sphere, 0, {
     ambient: { color: [0.1, 0.1, 0.14, 1] },
-    diffuse: { color: [1, 1, 1, 1] },
-    specular: { color: [1, 1, 1, 1], shininess: 48 },
+    diffuse: { color: efx.color.white },
+    specular: { color: efx.color.white, shininess: 48 },
 });
 efx.graphics.setMeshSurfaceMaterial(capsule, 0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
-    diffuse: { color: [1, 1, 1, 1] },
-    specular: { color: [1, 1, 1, 1], shininess: 32 },
+    diffuse: { color: efx.color.white },
+    specular: { color: efx.color.white, shininess: 32 },
 });
 
 function trs(pos, scale) {
-    const t = efx.mat4.translate(efx.mat4.identity(), pos);
-    return efx.mat4.scale(t, scale);
+    const t = efx.math.mat4.translate(efx.math.mat4.identity(), pos);
+    return efx.math.mat4.scale(t, scale);
 }
 function drawBody(mesh, body, scale, color) {
     efx.graphics.drawMesh(mesh, { transform: trs(body.position, scale), color: color });
@@ -134,7 +134,7 @@ function render() {
         transform: trs([3, 0.15, 2.2], [2, 0.3, 3]),
         color: [0.3, 0.34, 0.4, 1],
     });
-    efx.graphics.drawMesh(rampMesh, { transform: efx.mat4.identity(),
+    efx.graphics.drawMesh(rampMesh, { transform: efx.math.mat4.identity(),
                              color: [0.55, 0.6, 0.68, 1] });
 
     efx.graphics.drawMesh(cube, {
