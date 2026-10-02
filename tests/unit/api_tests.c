@@ -127,8 +127,8 @@ static int white(void) {
 /* end-to-end: JS camera + quad options land in the composed record */
 static int quad_record(void) {
     const char *code =
-        "efx.setCamera2D({ frame: [640, 480], x: 320, y: 240, zoom: 2, rotation: 0 });"
-        "efx.drawQuad(0, 0, efx.whiteTexture,"
+        "efx.graphics.setCamera2D({ frame: [640, 480], x: 320, y: 240, zoom: 2, rotation: 0 });"
+        "efx.graphics.drawQuad(0, 0, efx.whiteTexture,"
         "  { rotation: 90, scale: 1.5, color: [1, 0, 0, 1], size: [64, 32],"
         "    sourceRect: { x: 0, y: 0, w: 1, h: 1 } });";
     REQUIRE(!ok_js(code), "snippet");
@@ -155,12 +155,12 @@ static int quad_record(void) {
  * scale applies after the size is determined */
 static int size_derivation(void) {
     const char *code =
-        "const img = efx.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
-        "const tex = efx.createTexture(img);"
-        "efx.drawQuad(0, 0, tex);"                                                    /* texture pixels */
-        "efx.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 4 } });"        /* src extent */
-        "efx.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 4 }, size: [50, 20] });"
-        "efx.drawQuad(0, 0, tex, { size: [32, 16], scale: 2 });";                     /* scale after size */
+        "const img = efx.graphics.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
+        "const tex = efx.graphics.createTexture(img);"
+        "efx.graphics.drawQuad(0, 0, tex);"                                                    /* texture pixels */
+        "efx.graphics.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 4 } });"        /* src extent */
+        "efx.graphics.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 4 }, size: [50, 20] });"
+        "efx.graphics.drawQuad(0, 0, tex, { size: [32, 16], scale: 2 });";                     /* scale after size */
     REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(rec_count() == 4, "record count");
@@ -181,11 +181,11 @@ static int size_derivation(void) {
  * rotation/scale; rotation around origin [0,0] fixes the top-left corner */
 static int origin_pivot(void) {
     const char *code =
-        "const img = efx.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
-        "const tex = efx.createTexture(img);"
-        "efx.drawQuad(10, 20, tex);"
-        "efx.drawQuad(10, 20, tex, { origin: [50, 100] });"              /* no transform: same */
-        "efx.drawQuad(10, 20, tex, { origin: [0, 0], rotation: 90 });";  /* pivot at top-left */
+        "const img = efx.graphics.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
+        "const tex = efx.graphics.createTexture(img);"
+        "efx.graphics.drawQuad(10, 20, tex);"
+        "efx.graphics.drawQuad(10, 20, tex, { origin: [50, 100] });"              /* no transform: same */
+        "efx.graphics.drawQuad(10, 20, tex, { origin: [0, 0], rotation: 90 });";  /* pivot at top-left */
     REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(rec_count() == 3, "record count");
@@ -210,14 +210,14 @@ static int origin_pivot(void) {
 static int quad_validation(void) {
     const char *code =
         T_HELPER
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: [0, 10] }), RangeError);"
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: [10] }), RangeError);"
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: 'big' }), TypeError);"
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { origin: [NaN, 0] }), RangeError);"
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { origin: 'center' }), TypeError);"
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture,"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [0, 10] }), RangeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [10] }), RangeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: 'big' }), TypeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { origin: [NaN, 0] }), RangeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { origin: 'center' }), TypeError);"
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture,"
         "  { sourceRect: { x: 0, y: 0, w: 0, h: 1 } }), RangeError);"
-        "t(() => efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4], frobnicate: 1 }), TypeError);";
+        "t(() => efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4], frobnicate: 1 }), TypeError);";
     REQUIRE(!ok_js(code), "quad validation matrix");
     REQUIRE(rec_count() == 0, "failed calls must record nothing");
     end_js();
@@ -227,15 +227,15 @@ static int quad_validation(void) {
 /* Texture width/height getters: values, whiteTexture, destroyed throws */
 static int texture_size_getters(void) {
     const char *code =
-        "const img = efx.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
-        "const tex = efx.createTexture(img);"
+        "const img = efx.graphics.createImageData({ width: 64, height: 32, pixels: new Uint8Array(64 * 32 * 4) });"
+        "const tex = efx.graphics.createTexture(img);"
         "if (tex.width !== 64 || tex.height !== 32) throw new Error('texture size');"
         "if (efx.whiteTexture.width !== 1 || efx.whiteTexture.height !== 1)"
         "  throw new Error('white texture size');"
         "tex.destroy();"
         "try { tex.width; throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
-        "try { efx.drawQuad(0, 0, tex); throw new Error('no'); }"
+        "try { efx.graphics.drawQuad(0, 0, tex); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
     REQUIRE(!ok_js(code), "texture size getters");
     end_js();
@@ -245,10 +245,10 @@ static int texture_size_getters(void) {
 /* camera is snapshotted per record */
 static int camera_snapshot(void) {
     const char *code =
-        "efx.setCamera2D({ frame: [640, 480] });"
-        "efx.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });"
-        "efx.setCamera2D({ frame: [640, 480], x: 370, y: 0 });"
-        "efx.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });";
+        "efx.graphics.setCamera2D({ frame: [640, 480] });"
+        "efx.graphics.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });"
+        "efx.graphics.setCamera2D({ frame: [640, 480], x: 370, y: 0 });"
+        "efx.graphics.drawQuad(100, 0, efx.whiteTexture, { size: [8, 8] });";
     REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(r[0].u.quad.m.tx != r[1].u.quad.m.tx, "camera not snapshotted");
@@ -261,7 +261,7 @@ static int camera_snapshot(void) {
 
 /* out-of-bounds sourceRect throws RangeError */
 static int src_oob(void) {
-    REQUIRE(!err_js("efx.drawQuad(0, 0, efx.whiteTexture,"
+    REQUIRE(!err_js("efx.graphics.drawQuad(0, 0, efx.whiteTexture,"
                     "  { sourceRect: { x: 0, y: 0, w: 5, h: 5 } });", "oob sourceRect"),
             "oob sourceRect must throw");
     end_js();
@@ -272,7 +272,7 @@ static int src_oob(void) {
 static int budget(void) {
     const char *code =
         "try {"
-        "  for (let i = 0; i < 500000; i++) efx.drawQuad(0, 0, efx.whiteTexture);"
+        "  for (let i = 0; i < 500000; i++) efx.graphics.drawQuad(0, 0, efx.whiteTexture);"
         "  throw new Error('budget not enforced');"
         "} catch (e) { if (!(e instanceof RangeError)) throw e; }";
     REQUIRE(!ok_js(code), "budget RangeError");
@@ -283,11 +283,11 @@ static int budget(void) {
 /* texture resource lifecycle at the JS level */
 static int texture_lifecycle(void) {
     const char *code =
-        "const img = efx.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) });"
-        "const tex = efx.createTexture(img);"
+        "const img = efx.graphics.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) });"
+        "const tex = efx.graphics.createTexture(img);"
         "tex.destroy();"
         "tex.destroy();" /* idempotent */
-        "try { efx.drawQuad(0, 0, tex); throw new Error('no'); }"
+        "try { efx.graphics.drawQuad(0, 0, tex); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
     REQUIRE(!ok_js(code), "texture lifecycle");
     end_js();
@@ -297,9 +297,9 @@ static int texture_lifecycle(void) {
 /* blend snapshot at the JS level */
 static int blend_snapshot(void) {
     const char *code =
-        "efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"
-        "efx.setBlendMode('subtractive');"
-        "efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });";
+        "efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"
+        "efx.graphics.setBlendMode('subtractive');"
+        "efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });";
     REQUIRE(!ok_js(code), "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(r[0].u.quad.blend == EFX_BLEND_ALPHA &&
@@ -310,7 +310,7 @@ static int blend_snapshot(void) {
 
 /* setClearColor stores through the JS binding */
 static int clear_color_js(void) {
-    REQUIRE(!ok_js("efx.setClearColor([0.1, 0.7, 0.3, 1]);"), "snippet");
+    REQUIRE(!ok_js("efx.graphics.setClearColor([0.1, 0.7, 0.3, 1]);"), "snippet");
     float c[4];
     efx_render_clear_color(c);
     REQUIRE(feq(c[0], 0.1f) && feq(c[1], 0.7f) && feq(c[2], 0.3f) &&
@@ -321,7 +321,7 @@ static int clear_color_js(void) {
 
 /* default camera: frame == viewport, identity view */
 static int default_camera(void) {
-    REQUIRE(!ok_js("efx.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"),
+    REQUIRE(!ok_js("efx.graphics.drawQuad(0, 0, efx.whiteTexture, { size: [4, 4] });"),
             "snippet");
     const efx_record *r = efx_render_records(NULL);
     REQUIRE(r[0].u.quad.frame_w == 1024 && r[0].u.quad.frame_h == 600 &&
@@ -377,7 +377,7 @@ static int hooks_registration(void) {
 static int meshdata_js(void) {
     const char *code =
         "const P = [0,0,0, 1,0,0, 0,1,0];"
-        "const md = efx.createMeshData({"
+        "const md = efx.graphics.createMeshData({"
         "  surfaces: ["
         "    { positions: P, normals: P, uvs: [0,0, 1,0, 0,1],"
         "      colors: [1,0,0,1, 0,1,0,1, 0,0,1,1], indices: [0,1,2] },"
@@ -385,21 +385,21 @@ static int meshdata_js(void) {
         "  ],"
         "});"
         "if (md.surfaceCount !== 2) throw new Error('surfaceCount');"
-        "const one = efx.createMeshData({ positions: P, indices: [0,1,2] });"
+        "const one = efx.graphics.createMeshData({ positions: P, indices: [0,1,2] });"
         "if (one.surfaceCount !== 1) throw new Error('shorthand');"
         T_HELPER
-        "t(() => efx.createMeshData({}), TypeError);"
-        "t(() => efx.createMeshData({ surfaces: [], positions: P }), TypeError);"
-        "t(() => efx.createMeshData({ surfaces: [] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: [0,0,0] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: [0,0,0, 1,0,1] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, indices: [0,1,3] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, indices: [0,1] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, frobnicate: 1 }), TypeError);"
-        "t(() => efx.createMeshData({ positions: P, materials: [] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: ['a',0,0, 1,0,0, 0,1,0] }), TypeError);"
-        "t(() => efx.createMeshData({ positions: [NaN,0,0, 1,0,0, 0,1,0] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, normals: [0,0,1] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({}), TypeError);"
+        "t(() => efx.graphics.createMeshData({ surfaces: [], positions: P }), TypeError);"
+        "t(() => efx.graphics.createMeshData({ surfaces: [] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: [0,0,0] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: [0,0,0, 1,0,1] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, indices: [0,1,3] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, indices: [0,1] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, frobnicate: 1 }), TypeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, materials: [] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: ['a',0,0, 1,0,0, 0,1,0] }), TypeError);"
+        "t(() => efx.graphics.createMeshData({ positions: [NaN,0,0, 1,0,0, 0,1,0] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, normals: [0,0,1] }), RangeError);"
         "one.destroy();"
         "try { one.surfaceCount; throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
@@ -414,10 +414,10 @@ static int meshdata_cap_js(void) {
         "const P = [0,0,0, 1,0,0, 0,1,0];"
         "const S = [];"
         "for (let i = 0; i < 17; i++) S.push({ positions: P, indices: [0,1,2] });"
-        "try { efx.createMeshData({ surfaces: S }); throw new Error('no'); }"
+        "try { efx.graphics.createMeshData({ surfaces: S }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof RangeError)) throw e; }"
         "S.pop();"
-        "if (efx.createMeshData({ surfaces: S }).surfaceCount !== 16)"
+        "if (efx.graphics.createMeshData({ surfaces: S }).surfaceCount !== 16)"
         "  throw new Error('16 must be accepted');";
     REQUIRE(!ok_js(code), "meshdata cap");
     end_js();
@@ -428,30 +428,30 @@ static int meshdata_cap_js(void) {
 static int mesh_js(void) {
     const char *code =
         "const P = [0,0,0, 1,0,0, 0,1,0];"
-        "const md = efx.createMeshData({ positions: P, indices: [0,1,2] });"
-        "const mesh = efx.createMesh(md);"
+        "const md = efx.graphics.createMeshData({ positions: P, indices: [0,1,2] });"
+        "const mesh = efx.graphics.createMesh(md);"
         "if (mesh.surfaceCount !== 1) throw new Error('mesh surfaceCount');"
         "md.destroy();" /* Mesh is a copy */
         "if (mesh.surfaceCount !== 1) throw new Error('after source destroy');"
-        "efx.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });"
-        "efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,1],"
+        "efx.graphics.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });"
+        "efx.graphics.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,1],"
         "  color: [0.5, 0.25, 1, 1] });"
         T_HELPER
-        "t(() => efx.drawMesh(), TypeError);"
-        "t(() => efx.drawMesh({}), TypeError);"
-        "t(() => efx.drawMesh(null), TypeError);"
-        "t(() => efx.drawMesh(mesh, 5), TypeError);"
-        "t(() => efx.drawMesh(mesh, { mesh }), TypeError);"
-        "t(() => efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3] }), RangeError);"
-        "t(() => efx.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,'x',1] }), TypeError);"
-        "t(() => efx.drawMesh(mesh, { color: [1, 0, 1] }), RangeError);"
-        "t(() => efx.drawMesh(mesh, { frobnicate: 1 }), TypeError);"
-        "const t2 = efx.createTexture("
-        "  efx.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) }));"
+        "t(() => efx.graphics.drawMesh(), TypeError);"
+        "t(() => efx.graphics.drawMesh({}), TypeError);"
+        "t(() => efx.graphics.drawMesh(null), TypeError);"
+        "t(() => efx.graphics.drawMesh(mesh, 5), TypeError);"
+        "t(() => efx.graphics.drawMesh(mesh, { mesh }), TypeError);"
+        "t(() => efx.graphics.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3] }), RangeError);"
+        "t(() => efx.graphics.drawMesh(mesh, { transform: [1,0,0,0, 0,1,0,0, 0,0,1,0, 1,2,3,'x',1] }), TypeError);"
+        "t(() => efx.graphics.drawMesh(mesh, { color: [1, 0, 1] }), RangeError);"
+        "t(() => efx.graphics.drawMesh(mesh, { frobnicate: 1 }), TypeError);"
+        "const t2 = efx.graphics.createTexture("
+        "  efx.graphics.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) }));"
         "t2.destroy();"
-        "efx.drawMesh(mesh);"
+        "efx.graphics.drawMesh(mesh);"
         "mesh.destroy(); mesh.destroy();" /* idempotent */
-        "t(() => efx.drawMesh(mesh), TypeError);"
+        "t(() => efx.graphics.drawMesh(mesh), TypeError);"
         "try { mesh.surfaceCount; throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }";
     REQUIRE(!ok_js(code), "mesh js");
@@ -480,15 +480,15 @@ static int mesh_js(void) {
 /* setCamera3D: defaults, validation, separate from the 2D camera */
 static int camera3d_js(void) {
     const char *code =
-        "efx.setCamera3D({ pos: [0, 1, 4], target: [0, 0, 0], fov: 90 });"
+        "efx.graphics.setCamera3D({ pos: [0, 1, 4], target: [0, 0, 0], fov: 90 });"
         T_HELPER
-        "t(() => efx.setCamera3D(), TypeError);"
-        "t(() => efx.setCamera3D({ target: [0,0,0], fov: 60 }), TypeError);"
-        "t(() => efx.setCamera3D({ pos: [0,0,0], target: [0,0,0], fov: 'wide' }), TypeError);"
-        "t(() => efx.setCamera3D({ pos: [0,0,0], target: [0,0,0], fov: 60, frobnicate: 1 }), TypeError);"
-        "efx.setCamera3D({ pos: [0, 0, 2], target: [0, 0, 0], fov: 45 });"
+        "t(() => efx.graphics.setCamera3D(), TypeError);"
+        "t(() => efx.graphics.setCamera3D({ target: [0,0,0], fov: 60 }), TypeError);"
+        "t(() => efx.graphics.setCamera3D({ pos: [0,0,0], target: [0,0,0], fov: 'wide' }), TypeError);"
+        "t(() => efx.graphics.setCamera3D({ pos: [0,0,0], target: [0,0,0], fov: 60, frobnicate: 1 }), TypeError);"
+        "efx.graphics.setCamera3D({ pos: [0, 0, 2], target: [0, 0, 0], fov: 45 });"
         /* defaults accepted for near/far */
-        "efx.setCamera3D({ pos: [0, 0, 2], target: [0, 0, 0], fov: 45, near: 0.5, far: 50 });";
+        "efx.graphics.setCamera3D({ pos: [0, 0, 2], target: [0, 0, 0], fov: 45, near: 0.5, far: 50 });";
     REQUIRE(!ok_js(code), "camera3d js");
     float pos[3], target[3], fov, nearz, farz;
     efx_render_camera3d(pos, target, &fov, &nearz, &farz);
@@ -501,28 +501,28 @@ static int camera3d_js(void) {
 /* F4a: lights + per-surface materials through the real JS runtime */
 static int f4a_js(void) {
     const char *code =
-        "efx.setLight(0, { pos: [3,4,2], color: [1,0.95,0.9,1], range: 20 });"
-        "efx.setDirectionalLight({ dir: [-0.5,-1,-0.3], color: [0.2,0.25,0.35,1] });"
+        "efx.graphics.setLight(0, { pos: [3,4,2], color: [1,0.95,0.9,1], range: 20 });"
+        "efx.graphics.setDirectionalLight({ dir: [-0.5,-1,-0.3], color: [0.2,0.25,0.35,1] });"
         "const P=[0,0,0, 1,0,0, 0,1,0];"
         "const M={ ambient:{color:[0.05,0.05,0.05,1]},"
         "  diffuse:{color:[0.8,0.3,0.2,1]},"
         "  specular:{color:[1,1,1,1], shininess:64},"
         "  emissive:{color:[0,0,0,1]} };"
-        "const md=efx.createMeshData({"
+        "const md=efx.graphics.createMeshData({"
         "  surfaces:[{positions:P, indices:[0,1,2]}], materials:[M] });"
-        "const mesh=efx.createMesh(md);"
-        "efx.setMeshSurfaceMaterial(mesh, 0, { diffuse:{color:[0.1,0.2,0.3,1]} });"
-        "efx.setCamera3D({pos:[0,2,5], target:[0,0,0], fov:60});"
-        "efx.drawMesh(mesh);"
+        "const mesh=efx.graphics.createMesh(md);"
+        "efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse:{color:[0.1,0.2,0.3,1]} });"
+        "efx.graphics.setCamera3D({pos:[0,2,5], target:[0,0,0], fov:60});"
+        "efx.graphics.drawMesh(mesh);"
         T_HELPER
-        "t(()=>efx.setLight(4,{pos:[0,0,0],color:[1,1,1,1]}), RangeError);"
-        "t(()=>efx.setLight(0,{color:[1,1,1,1]}), TypeError);"
-        "t(()=>efx.setLight(0,{pos:[0,0,0],color:[1,1,1,1],range:-1}), RangeError);"
-        "t(()=>efx.setDirectionalLight({dir:[0,0,0],color:[1,1,1,1]}), TypeError);"
-        "t(()=>efx.setMeshSurfaceMaterial(mesh, 1, M), RangeError);"
-        "t(()=>efx.setMeshSurfaceMaterial(mesh, 0, {diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
-        "t(()=>efx.createMeshData({positions:P, materials:[]}), RangeError);"
-        "t(()=>efx.createMeshData({positions:P, materials:[{specular:{color:[1,1,1,1],shininess:0}}]}), RangeError);"
+        "t(()=>efx.graphics.setLight(4,{pos:[0,0,0],color:[1,1,1,1]}), RangeError);"
+        "t(()=>efx.graphics.setLight(0,{color:[1,1,1,1]}), TypeError);"
+        "t(()=>efx.graphics.setLight(0,{pos:[0,0,0],color:[1,1,1,1],range:-1}), RangeError);"
+        "t(()=>efx.graphics.setDirectionalLight({dir:[0,0,0],color:[1,1,1,1]}), TypeError);"
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh, 1, M), RangeError);"
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh, 0, {diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
+        "t(()=>efx.graphics.createMeshData({positions:P, materials:[]}), RangeError);"
+        "t(()=>efx.graphics.createMeshData({positions:P, materials:[{specular:{color:[1,1,1,1],shininess:0}}]}), RangeError);"
         "mesh.destroy(); md.destroy();";
     REQUIRE(!ok_js(code), "f4a js");
     const efx_record *r = efx_render_records(NULL);
@@ -540,27 +540,27 @@ static int f4a_js(void) {
  * a destroyed-but-bound texture (desktop binding) */
 static int f4b_js(void) {
     const char *code =
-        "const img=efx.createImageData({width:1,height:1,"
+        "const img=efx.graphics.createImageData({width:1,height:1,"
         "  pixels:new Uint8Array([255,255,255,255])});"
-        "const tex=efx.createTexture(img);"
+        "const tex=efx.graphics.createTexture(img);"
         "const P=[0,0,0, 1,0,0, 0,1,0];"
         "const M={ diffuse:{color:[0.8,0.8,0.8,1], map:tex},"
         "  specular:{color:[1,1,1,1], shininess:32, map:tex},"
         "  alphaMask:tex };"
-        "const md=efx.createMeshData({"
+        "const md=efx.graphics.createMeshData({"
         "  surfaces:[{positions:P, uvs:[0,0, 1,0, 0,1], indices:[0,1,2]}],"
         "  materials:[M] });"
-        "const mesh=efx.createMesh(md);"
-        "efx.setCamera3D({pos:[0,0,5], target:[0,0,0], fov:60});"
-        "efx.drawMesh(mesh);"
+        "const mesh=efx.graphics.createMesh(md);"
+        "efx.graphics.setCamera3D({pos:[0,0,5], target:[0,0,0], fov:60});"
+        "efx.graphics.drawMesh(mesh);"
         "tex.destroy();"                 /* retained by the bound map */
-        "efx.drawMesh(mesh);"        /* still renders (no throw) */
+        "efx.graphics.drawMesh(mesh);"        /* still renders (no throw) */
         T_HELPER
-        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:tex}}), TypeError);"
-        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
-        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{alphaMask:5}), TypeError);"
-        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],frob:1}}), TypeError);"
-        "efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1]}});" /* release */
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:tex}}), TypeError);"
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:1}}), TypeError);"
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh,0,{alphaMask:5}), TypeError);"
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],frob:1}}), TypeError);"
+        "efx.graphics.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1]}});" /* release */
         "mesh.destroy(); md.destroy();";
     REQUIRE(!ok_js(code), "f4b js");
     REQUIRE(rec_count() >= 2, "f4b records");
@@ -574,43 +574,43 @@ static int f5a_js(void) {
     const char *code =
         T_HELPER
         /* validation matrix */
-        "t(()=>efx.createRenderTarget({height:8}), TypeError);"
-        "t(()=>efx.createRenderTarget({width:0,height:8}), RangeError);"
-        "t(()=>efx.createRenderTarget({width:8,height:10.5}), RangeError);"
-        "t(()=>efx.createRenderTarget({width:8,height:4097}), RangeError);"
-        "t(()=>efx.createRenderTarget({width:8,height:8,frob:1}), TypeError);"
+        "t(()=>efx.graphics.createRenderTarget({height:8}), TypeError);"
+        "t(()=>efx.graphics.createRenderTarget({width:0,height:8}), RangeError);"
+        "t(()=>efx.graphics.createRenderTarget({width:8,height:10.5}), RangeError);"
+        "t(()=>efx.graphics.createRenderTarget({width:8,height:4097}), RangeError);"
+        "t(()=>efx.graphics.createRenderTarget({width:8,height:8,frob:1}), TypeError);"
         /* lifecycle + query properties */
-        "const rt=efx.createRenderTarget({width:256,height:128});"
+        "const rt=efx.graphics.createRenderTarget({width:256,height:128});"
         "if(rt.width!==256||rt.height!==128) throw new Error('size');"
         "rt.destroy(); rt.destroy();"
         "t(()=>rt.width, TypeError);"
         /* coercion: an RT drives drawQuad size derivation + sourceRect */
-        "const live=efx.createRenderTarget({width:64,height:32});"
-        "efx.drawQuad(0,0,live);"
-        "efx.drawQuad(0,0,live,{sourceRect:{x:0,y:0,w:16,h:16}});"
-        "t(()=>efx.drawQuad(0,0,live,{sourceRect:{x:0,y:0,w:65,h:4}}), RangeError);"
-        "t(()=>efx.drawQuad(0,0,{}), TypeError);"
+        "const live=efx.graphics.createRenderTarget({width:64,height:32});"
+        "efx.graphics.drawQuad(0,0,live);"
+        "efx.graphics.drawQuad(0,0,live,{sourceRect:{x:0,y:0,w:16,h:16}});"
+        "t(()=>efx.graphics.drawQuad(0,0,live,{sourceRect:{x:0,y:0,w:65,h:4}}), RangeError);"
+        "t(()=>efx.graphics.drawQuad(0,0,{}), TypeError);"
         /* redirection: records land, nesting/balance throw */
-        "efx.beginRenderTarget(live);"
-        "efx.drawQuad(0,0,efx.whiteTexture);"
-        "t(()=>efx.beginRenderTarget(live), TypeError);"
-        "t(()=>efx.drawQuad(0,0,live), TypeError);" /* feedback */
-        "efx.endRenderTarget();"
-        "t(()=>efx.endRenderTarget(), TypeError);"
-        "t(()=>efx.beginRenderTarget({}), TypeError);"
+        "efx.graphics.beginRenderTarget(live);"
+        "efx.graphics.drawQuad(0,0,efx.whiteTexture);"
+        "t(()=>efx.graphics.beginRenderTarget(live), TypeError);"
+        "t(()=>efx.graphics.drawQuad(0,0,live), TypeError);" /* feedback */
+        "efx.graphics.endRenderTarget();"
+        "t(()=>efx.graphics.endRenderTarget(), TypeError);"
+        "t(()=>efx.graphics.beginRenderTarget({}), TypeError);"
         /* material maps accept a live RT, reject a destroyed one */
-        "const mesh=efx.createMesh(efx.createMeshData({"
+        "const mesh=efx.graphics.createMesh(efx.graphics.createMeshData({"
         "  positions:[0,0,0, 1,0,0, 0,1,0], uvs:[0,0, 1,0, 0,1], indices:[0,1,2]}));"
-        "efx.setCamera3D({pos:[0,0,5],target:[0,0,0],fov:60});"
-        "efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:live}});"
-        "efx.drawMesh(mesh);"
-        "efx.beginRenderTarget(live);"
-        "t(()=>efx.drawMesh(mesh), TypeError);" /* mesh feedback */
-        "efx.endRenderTarget();"
-        "const dead=efx.createRenderTarget({width:8,height:8});"
+        "efx.graphics.setCamera3D({pos:[0,0,5],target:[0,0,0],fov:60});"
+        "efx.graphics.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:live}});"
+        "efx.graphics.drawMesh(mesh);"
+        "efx.graphics.beginRenderTarget(live);"
+        "t(()=>efx.graphics.drawMesh(mesh), TypeError);" /* mesh feedback */
+        "efx.graphics.endRenderTarget();"
+        "const dead=efx.graphics.createRenderTarget({width:8,height:8});"
         "dead.destroy();"
-        "t(()=>efx.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:dead}}), TypeError);"
-        "t(()=>efx.beginRenderTarget(dead), TypeError);"
+        "t(()=>efx.graphics.setMeshSurfaceMaterial(mesh,0,{diffuse:{color:[1,1,1,1],map:dead}}), TypeError);"
+        "t(()=>efx.graphics.beginRenderTarget(dead), TypeError);"
         "mesh.destroy(); live.destroy();";
     REQUIRE(!ok_js(code), "f5a js");
     /* records: drawQuad(rt) x2, BEGIN, white quad, END, mesh, BEGIN, END */
@@ -639,29 +639,29 @@ static int f5a_js(void) {
 static int f5b_js(void) {
     const char *matrix =
         T_HELPER
-        "t(()=>efx.setPostEffects('x'), TypeError);"
-        "t(()=>efx.setPostEffects([1]), TypeError);"
-        "t(()=>efx.setPostEffects([{effect:'vortex'}]), TypeError);"
-        "t(()=>efx.setPostEffects([{effect:'blur',radius:0}]), RangeError);"
-        "t(()=>efx.setPostEffects([{effect:'blur',radius:65}]), RangeError);"
-        "t(()=>efx.setPostEffects([{effect:'blur',radius:'x'}]), TypeError);"
-        "t(()=>efx.setPostEffects([{effect:'blur',frob:1}]), TypeError);"
-        "t(()=>efx.setPostEffects([{effect:'bloom',strength:1.5}]), RangeError);"
-        "t(()=>efx.setPostEffects([{effect:'colorFilter',tint:[1,1]}]), RangeError);"
-        "t(()=>efx.setPostEffects([{effect:'blur',mix:2}]), RangeError);"
-        "t(()=>efx.setPostEffects(new Array(9).fill({effect:'blur'})), RangeError);"
-        "t(()=>efx.setRenderScale(0), RangeError);"
-        "t(()=>efx.setRenderScale(2.5), RangeError);"
-        "t(()=>efx.setRenderScale('x'), TypeError);"
-        "t(()=>efx.setRenderScale(1,{filter:'bogus'}), TypeError);"
-        "t(()=>efx.setRenderScale(1,{frob:1}), TypeError);"
+        "t(()=>efx.graphics.setPostEffects('x'), TypeError);"
+        "t(()=>efx.graphics.setPostEffects([1]), TypeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'vortex'}]), TypeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'blur',radius:0}]), RangeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'blur',radius:65}]), RangeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'blur',radius:'x'}]), TypeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'blur',frob:1}]), TypeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'bloom',strength:1.5}]), RangeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'colorFilter',tint:[1,1]}]), RangeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'blur',mix:2}]), RangeError);"
+        "t(()=>efx.graphics.setPostEffects(new Array(9).fill({effect:'blur'})), RangeError);"
+        "t(()=>efx.graphics.setRenderScale(0), RangeError);"
+        "t(()=>efx.graphics.setRenderScale(2.5), RangeError);"
+        "t(()=>efx.graphics.setRenderScale('x'), TypeError);"
+        "t(()=>efx.graphics.setRenderScale(1,{filter:'bogus'}), TypeError);"
+        "t(()=>efx.graphics.setRenderScale(1,{frob:1}), TypeError);"
         /* atomicity: a failed set leaves the previous chain */
-        "efx.setPostEffects([{effect:'blur',radius:5,mix:0.25}]);"
-        "t(()=>efx.setPostEffects([{effect:'nope'}]), TypeError);"
-        "t(()=>efx.setPostEffects([{effect:'blur',radius:0}]), RangeError);"
+        "efx.graphics.setPostEffects([{effect:'blur',radius:5,mix:0.25}]);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'nope'}]), TypeError);"
+        "t(()=>efx.graphics.setPostEffects([{effect:'blur',radius:0}]), RangeError);"
         /* snapshot: later mutation of the entry must not change the chain */
         "const entry={effect:'blur',radius:3,mix:0.5};"
-        "efx.setPostEffects([entry]);"
+        "efx.graphics.setPostEffects([entry]);"
         "entry.radius=60; entry.mix=0.1; entry.effect='bloom';";
     REQUIRE(!ok_js(matrix), "f5b js matrix");
     efx_post_entry got[EFX_POST_MAX_ENTRIES];
@@ -674,7 +674,7 @@ static int f5b_js(void) {
     end_js();
 
     /* defaults are neutral and the chain persists across frames */
-    REQUIRE(!ok_js("efx.setPostEffects([{effect:'colorFilter'}]);"),
+    REQUIRE(!ok_js("efx.graphics.setPostEffects([{effect:'colorFilter'}]);"),
             "f5b js defaults");
     efx_render_post_effects(got, &n);
     if (n != 1 || got[0].effect != EFX_POST_COLOR_FILTER)
@@ -692,20 +692,20 @@ static int f5b_js(void) {
     end_js();
 
     /* null and [] both clear */
-    REQUIRE(!ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects(null);"),
+    REQUIRE(!ok_js("efx.graphics.setPostEffects([{effect:'bloom'}]);efx.graphics.setPostEffects(null);"),
             "f5b js null clear");
     efx_render_post_effects(got, &n);
     if (n != 0) return fail("null did not clear");
     end_js();
-    REQUIRE(!ok_js("efx.setPostEffects([{effect:'bloom'}]);efx.setPostEffects([]);"),
+    REQUIRE(!ok_js("efx.graphics.setPostEffects([{effect:'bloom'}]);efx.graphics.setPostEffects([]);"),
             "f5b js empty clear");
     efx_render_post_effects(got, &n);
     if (n != 0) return fail("[] did not clear");
     end_js();
 
     /* render scale persists and a rejected call leaves it in effect */
-    REQUIRE(!ok_js("efx.setRenderScale(0.5,{filter:'nearest'});"
-                   "try{efx.setRenderScale(0);}catch(e){}"), "f5b js scale");
+    REQUIRE(!ok_js("efx.graphics.setRenderScale(0.5,{filter:'nearest'});"
+                   "try{efx.graphics.setRenderScale(0);}catch(e){}"), "f5b js scale");
     float sc = 0;
     int f = -1;
     efx_render_render_scale(&sc, &f);
@@ -729,11 +729,11 @@ static int resource_js(void) {
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
         "if (efx.loadText('hello.txt') !== 'hello efx\\n') throw new Error('text');"
-        "var img = efx.loadImage('test_rgba.png');"
+        "var img = efx.graphics.loadImage('test_rgba.png');"
         "if (img.width !== 3 || img.height !== 2) throw new Error('dims');"
-        "var px = efx.createTexture(img);"
+        "var px = efx.graphics.createTexture(img);"
         "if (px.width !== 3 || px.height !== 2) throw new Error('tex dims');"
-        "var lt = efx.createTexture(efx.loadImage('test_rgba.png'));"
+        "var lt = efx.graphics.createTexture(efx.graphics.loadImage('test_rgba.png'));"
         "if (lt.width !== 3 || lt.height !== 2) throw new Error('composed tex dims');"
         "if (typeof efx.loadTexture !== 'undefined') throw new Error('loadTexture still present');"
         "img.destroy(); px.destroy(); lt.destroy();"
@@ -811,22 +811,22 @@ static int audio_js(void) {
 /* F6b/F6e: createTexture sampler + mipmap options reach the native create */
 static int createTexture_js(void) {
     const char *code =
-        "var img = efx.createImageData({ width: 1, height: 1,"
+        "var img = efx.graphics.createImageData({ width: 1, height: 1,"
         "  pixels: new Uint8Array([1, 2, 3, 4]) });"
-        "efx.createTexture(img);"
-        "efx.createTexture(img, { wrap: 'clamp', filter: 'nearest' });"
-        "efx.createTexture(img, { wrap: 'mirror', filter: 'nearest' });"
-        "efx.createTexture(img, { mipmaps: true });"
-        "efx.createTexture(img, { mipmaps: false, filter: 'nearest' });"
+        "efx.graphics.createTexture(img);"
+        "efx.graphics.createTexture(img, { wrap: 'clamp', filter: 'nearest' });"
+        "efx.graphics.createTexture(img, { wrap: 'mirror', filter: 'nearest' });"
+        "efx.graphics.createTexture(img, { mipmaps: true });"
+        "efx.graphics.createTexture(img, { mipmaps: false, filter: 'nearest' });"
         "function boom(fn) { try { fn(); } catch (e) {"
         "  return (e instanceof TypeError) ? 1 : 2; } return 0; }"
-        "if (boom(function () { efx.createTexture(img, { wrap: 'bogus' }); }) !== 1)"
+        "if (boom(function () { efx.graphics.createTexture(img, { wrap: 'bogus' }); }) !== 1)"
         "  throw new Error('bad wrap');"
-        "if (boom(function () { efx.createTexture(img, { filter: 'bogus' }); }) !== 1)"
+        "if (boom(function () { efx.graphics.createTexture(img, { filter: 'bogus' }); }) !== 1)"
         "  throw new Error('bad filter');"
-        "if (boom(function () { efx.createTexture(img, { nope: 1 }); }) !== 1)"
+        "if (boom(function () { efx.graphics.createTexture(img, { nope: 1 }); }) !== 1)"
         "  throw new Error('unknown field');"
-        "if (boom(function () { efx.createTexture(img, { mipmaps: 'yes' }); }) !== 1)"
+        "if (boom(function () { efx.graphics.createTexture(img, { mipmaps: 'yes' }); }) !== 1)"
         "  throw new Error('non-boolean mipmaps');";
     g_seq_n = 0;
     REQUIRE(!ok_js(code), "createTexture options snippet");
@@ -859,41 +859,41 @@ static int font_js(void) {
     REQUIRE(res, "open fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
-        "var fd = efx.loadFontData('font.ttf');"
-        "var font = efx.createFont(fd, { size: 32 });"
+        "var fd = efx.graphics.loadFontData('font.ttf');"
+        "var font = efx.graphics.createFont(fd, { size: 32 });"
         "if (font.size !== 32) throw new Error('size');"
         "if (!(font.lineHeight > 0)) throw new Error('lineHeight');"
         "if (!(font.ascent > 0)) throw new Error('ascent');"
         "if (!(font.descent < 0)) throw new Error('descent');"
-        "var b = efx.measureText('hello world', font);"
+        "var b = efx.graphics.measureText('hello world', font);"
         "if (!(b.width > 0) || b.lines !== 1) throw new Error('measure');"
-        "var bw = efx.measureText('hello world', font, { width: 40 });"
+        "var bw = efx.graphics.measureText('hello world', font, { width: 40 });"
         "if (bw.lines < 2) throw new Error('wrap lines');"
-        "var bd = efx.drawText('AB', font, 10, 10, { color: [1, 0, 0, 1] });"
+        "var bd = efx.graphics.drawText('AB', font, 10, 10, { color: [1, 0, 0, 1] });"
         "if (bd.lines !== 1) throw new Error('draw bounds');"
-        "var fx = efx.createFont(fd, { size: 24, outline: { width: 2 },"
+        "var fx = efx.graphics.createFont(fd, { size: 24, outline: { width: 2 },"
         "  shadow: { blur: 2, offset: [2, 2] } });"
-        "efx.drawText('Hi', fx, 0, 0, { align: 'center',"
+        "efx.graphics.drawText('Hi', fx, 0, 0, { align: 'center',"
         "  outlineColor: [0, 0, 0, 1], shadowColor: [0, 0, 0, 1] });"
         "function boom(fn) { try { fn(); } catch (e) {"
         "  return e && e.constructor ? e.constructor.name : 'Error'; }"
         "  return 'none'; }"
-        "if (boom(function () { efx.createFont(fd, {}); }) !== 'TypeError')"
+        "if (boom(function () { efx.graphics.createFont(fd, {}); }) !== 'TypeError')"
         "  throw new Error('missing size');"
-        "if (boom(function () { efx.createFont(fd, { size: 0 }); }) !== 'RangeError')"
+        "if (boom(function () { efx.graphics.createFont(fd, { size: 0 }); }) !== 'RangeError')"
         "  throw new Error('size 0');"
-        "if (boom(function () { efx.createFont(fd, { size: 16, nope: 1 }); })"
+        "if (boom(function () { efx.graphics.createFont(fd, { size: 16, nope: 1 }); })"
         "    !== 'TypeError') throw new Error('unknown option');"
-        "if (boom(function () { efx.createFont(fd, { size: 16,"
+        "if (boom(function () { efx.graphics.createFont(fd, { size: 16,"
         "    outline: { width: 0 } }); }) !== 'RangeError')"
         "  throw new Error('outline width');"
-        "if (boom(function () { efx.drawText('x', font, 0, 0,"
+        "if (boom(function () { efx.graphics.drawText('x', font, 0, 0,"
         "    { align: 'justify' }); }) !== 'TypeError')"
         "  throw new Error('justify without width');"
-        "if (boom(function () { efx.measureText('x', font,"
+        "if (boom(function () { efx.graphics.measureText('x', font,"
         "    { align: 'bogus' }); }) !== 'TypeError')"
         "  throw new Error('bad align');"
-        "if (boom(function () { efx.drawText('x', {}, 0, 0); }) !== 'TypeError')"
+        "if (boom(function () { efx.graphics.drawText('x', {}, 0, 0); }) !== 'TypeError')"
         "  throw new Error('non-font');"
         "font.destroy(); fx.destroy(); fd.destroy();"
         "if (boom(function () { font.size; }) !== 'TypeError')"
@@ -920,30 +920,30 @@ static int gltf_js(void) {
     REQUIRE(res, "open gltf fixtures");
     efx_runtime_set_resource(g_rt, res);
     int rc = efx_runtime_eval_string(g_rt, "test",
-        "var md = efx.loadMeshData('triangle.gltf');"
+        "var md = efx.graphics.loadMeshData('triangle.gltf');"
         "if (!(md instanceof Object) || md.surfaceCount !== 1) throw new Error('tri surfaceCount');"
-        "var mesh = efx.createMesh(md);"
+        "var mesh = efx.graphics.createMesh(md);"
         "if (mesh.surfaceCount !== 1) throw new Error('mesh surfaceCount');"
         "mesh.destroy(); md.destroy();"
-        "var q = efx.loadMeshData('quad.glb', { mesh: 'm' });"
+        "var q = efx.graphics.loadMeshData('quad.glb', { mesh: 'm' });"
         "if (q.surfaceCount !== 2) throw new Error('quad surfaceCount');"
         "q.destroy();"
-        "var q2 = efx.loadMeshData('quad.glb', { mesh: 0 });"
+        "var q2 = efx.graphics.loadMeshData('quad.glb', { mesh: 0 });"
         "if (q2.surfaceCount !== 2) throw new Error('quad index select');"
         "q2.destroy();"
         "function kind(fn) { try { fn(); } catch (e) {"
         "  if (e instanceof TypeError) return 'TypeError';"
         "  if (e instanceof Error) return 'Error';"
         "  return 'other'; } return 'none'; }"
-        "if (kind(function () { efx.loadMeshData('corrupt.gltf'); }) !== 'Error')"
+        "if (kind(function () { efx.graphics.loadMeshData('corrupt.gltf'); }) !== 'Error')"
         "  throw new Error('corrupt not Error');"
-        "if (kind(function () { efx.loadMeshData('triangle.gltf', { mesh: 'nope' }); }) !== 'Error')"
+        "if (kind(function () { efx.graphics.loadMeshData('triangle.gltf', { mesh: 'nope' }); }) !== 'Error')"
         "  throw new Error('unknown mesh not Error');"
-        "if (kind(function () { efx.loadMeshData('triangle.gltf', { nope: 1 }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.loadMeshData('triangle.gltf', { nope: 1 }); }) !== 'TypeError')"
         "  throw new Error('unknown field not TypeError');"
-        "if (kind(function () { efx.loadMeshData('triangle.gltf', { mesh: {} }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.loadMeshData('triangle.gltf', { mesh: {} }); }) !== 'TypeError')"
         "  throw new Error('bad mesh type not TypeError');"
-        "if (kind(function () { efx.loadMeshData(5); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.loadMeshData(5); }) !== 'TypeError')"
         "  throw new Error('bad path not TypeError');");
     efx_runtime_destroy(g_rt);
     g_rt = NULL;
@@ -961,7 +961,7 @@ static int skin_js(void) {
         "const P = [0,0,0, 1,0,0, 0,1,0];"
         "const J = [0,1,2,0, 1,0,0,0, 0,0,0,0];"
         "const W = [1,0,0,0, 0.5,0.5,0,0, 1,0,0,0];"
-        "const md = efx.createMeshData({ positions: P, joints: J, weights: W,"
+        "const md = efx.graphics.createMeshData({ positions: P, joints: J, weights: W,"
         "  indices: [0,1,2] });"
         "if (md.surfaceCount !== 1) throw new Error('skinned surfaceCount');"
         "if (md.joints !== undefined || md.weights !== undefined)"
@@ -969,25 +969,25 @@ static int skin_js(void) {
         "if (md.clips !== undefined || md.jointCount !== undefined ||"
         "    md.clipCount !== undefined || md.skeleton !== undefined)"
         "  throw new Error('no rig query property');"
-        "const mesh = efx.createMesh(md);"
+        "const mesh = efx.graphics.createMesh(md);"
         "if (mesh.clips !== undefined || mesh.jointCount !== undefined ||"
         "    mesh.skeleton !== undefined)"
         "  throw new Error('no rig query property on Mesh');"
-        "if (typeof efx.poseMesh !== 'function')"
+        "if (typeof efx.graphics.poseMesh !== 'function')"
         "  throw new Error('poseMesh missing in F7');"
         "if (efx.playAnimation !== undefined || efx.pauseAnimation !== undefined ||"
         "    efx.blendAnimations !== undefined)"
         "  throw new Error('no playback helper');"
         "md.destroy(); mesh.destroy();"
         T_HELPER
-        "t(() => efx.createMeshData({ positions: P, joints: J }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, weights: W }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, joints: J, weights: [1,0,0,0] }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, joints: [0,1,2], weights: W }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, joints: ['a',0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), TypeError);"
-        "t(() => efx.createMeshData({ positions: P, joints: [0.5,0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), RangeError);"
-        "t(() => efx.createMeshData({ positions: P, joints: J, weights: ['x',0,0,0, 0,0,0,0, 0,0,0,0] }), TypeError);"
-        "t(() => efx.createMeshData({ positions: P, joints: J, weights: W, bogus: 1 }), TypeError);";
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: J }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, weights: W }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: J, weights: [1,0,0,0] }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: [0,1,2], weights: W }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: ['a',0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), TypeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: [0.5,0,0,0, 1,0,0,0, 0,0,0,0], weights: W }), RangeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: J, weights: ['x',0,0,0, 0,0,0,0, 0,0,0,0] }), TypeError);"
+        "t(() => efx.graphics.createMeshData({ positions: P, joints: J, weights: W, bogus: 1 }), TypeError);";
     REQUIRE(!ok_js(code), "skin js");
     end_js();
     return 0;
@@ -1010,40 +1010,40 @@ static int pose_js(void) {
         "  if (e instanceof TypeError) return 'TypeError';"
         "  if (e instanceof RangeError) return 'RangeError';"
         "  if (e instanceof Error) return 'Error'; return 'other'; } return 'none'; }"
-        "var md = efx.loadMeshData('skin.gltf');"
-        "var mesh = efx.createMesh(md); md.destroy();"
+        "var md = efx.graphics.loadMeshData('skin.gltf');"
+        "var mesh = efx.graphics.createMesh(md); md.destroy();"
         "if (mesh.clips !== undefined || mesh.jointCount !== undefined)"
         "  throw new Error('rig must stay opaque');"
-        "efx.poseMesh(mesh, { clip: 'move', time: 0.25 });"
-        "efx.poseMesh(mesh, { clip: 0, time: 0.5 });"
-        "efx.poseMesh(mesh, [{ clip: 'move', time: 0.1, weight: 1 },"
+        "efx.graphics.poseMesh(mesh, { clip: 'move', time: 0.25 });"
+        "efx.graphics.poseMesh(mesh, { clip: 0, time: 0.5 });"
+        "efx.graphics.poseMesh(mesh, [{ clip: 'move', time: 0.1, weight: 1 },"
         "                    { clip: 'turn', time: 0.6, weight: 2 }]);"
-        "efx.poseMesh(mesh, { clip: 'move', time: 5.5 });"
-        "if (kind(function () { efx.poseMesh(mesh, { clip: 'nope', time: 0 }); }) !== 'Error')"
+        "efx.graphics.poseMesh(mesh, { clip: 'move', time: 5.5 });"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, { clip: 'nope', time: 0 }); }) !== 'Error')"
         "  throw new Error('unknown clip name');"
-        "if (kind(function () { efx.poseMesh(mesh, { clip: 9, time: 0 }); }) !== 'RangeError')"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, { clip: 9, time: 0 }); }) !== 'RangeError')"
         "  throw new Error('clip index range');"
-        "if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 0, weight: -1 }); }) !== 'RangeError')"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, { clip: 'move', time: 0, weight: -1 }); }) !== 'RangeError')"
         "  throw new Error('negative weight');"
-        "if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 0, bogus: 1 }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, { clip: 'move', time: 0, bogus: 1 }); }) !== 'TypeError')"
         "  throw new Error('unknown sample field');"
-        "if (kind(function () { efx.poseMesh(mesh, { clip: 'move', time: 'x' }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, { clip: 'move', time: 'x' }); }) !== 'TypeError')"
         "  throw new Error('time type');"
-        "if (kind(function () { efx.poseMesh(mesh, { clip: {}, time: 0 }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, { clip: {}, time: 0 }); }) !== 'TypeError')"
         "  throw new Error('clip type');"
-        "if (kind(function () { efx.poseMesh(mesh, 5); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.poseMesh(mesh, 5); }) !== 'TypeError')"
         "  throw new Error('pose type');"
-        "efx.drawMesh(mesh, { skinned: true });"
-        "efx.drawMesh(mesh);"
-        "if (kind(function () { efx.drawMesh(mesh, { skinned: 1 }); }) !== 'TypeError')"
+        "efx.graphics.drawMesh(mesh, { skinned: true });"
+        "efx.graphics.drawMesh(mesh);"
+        "if (kind(function () { efx.graphics.drawMesh(mesh, { skinned: 1 }); }) !== 'TypeError')"
         "  throw new Error('skinned type');"
-        "if (kind(function () { efx.drawMesh(mesh, { bogus: 1 }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.drawMesh(mesh, { bogus: 1 }); }) !== 'TypeError')"
         "  throw new Error('draw unknown field');"
-        "var plain = efx.createMesh(efx.createMeshData({"
+        "var plain = efx.graphics.createMesh(efx.graphics.createMeshData({"
         "  positions: [0,0,0, 1,0,0, 0,1,0], indices: [0,1,2] }));"
-        "if (kind(function () { efx.poseMesh(plain, { clip: 0, time: 0 }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.poseMesh(plain, { clip: 0, time: 0 }); }) !== 'TypeError')"
         "  throw new Error('rig-less pose');"
-        "if (kind(function () { efx.drawMesh(plain, { skinned: true }); }) !== 'TypeError')"
+        "if (kind(function () { efx.graphics.drawMesh(plain, { skinned: true }); }) !== 'TypeError')"
         "  throw new Error('rig-less skinned draw');"
         "plain.destroy(); mesh.destroy();";
     int rc = efx_runtime_eval_string(g_rt, "test", code);
@@ -1570,15 +1570,15 @@ static int module_hooks_js(void) {
 /* F11: drawBillboard records a world-space quad with the 3D camera */
 static int billboard_js(void) {
     const char *code =
-        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "const t = efx.graphics.createTexture(efx.graphics.createImageData({ width: 4, height: 4,"
         "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
-        "efx.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });"
-        "efx.setBlendMode('additive');"
-        "efx.drawBillboard([1, 2, 3], { texture: t, size: [2, 3], facing: 'y',"
+        "efx.graphics.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });"
+        "efx.graphics.setBlendMode('additive');"
+        "efx.graphics.drawBillboard([1, 2, 3], { texture: t, size: [2, 3], facing: 'y',"
         "  rotation: 45, color: [0.5, 0.25, 0.1, 0.8] });"
-        "try { efx.drawBillboard([0,0,0], { size: [1,1] }); throw new Error('no'); }"
+        "try { efx.graphics.drawBillboard([0,0,0], { size: [1,1] }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
-        "try { efx.drawBillboard([0,0,0], { texture: t, size: [0,1] }); throw new Error('no'); }"
+        "try { efx.graphics.drawBillboard([0,0,0], { texture: t, size: [0,1] }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof RangeError)) throw e; }";
     REQUIRE(!ok_js(code), "billboard js snippet");
     REQUIRE(rec_count() == 1, "billboard record count");
@@ -1596,9 +1596,9 @@ static int billboard_js(void) {
 /* F11: createParticleSystem config, emit/count/speedScale/destroy lifecycle */
 static int particles_js(void) {
     const char *code =
-        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "const t = efx.graphics.createTexture(efx.graphics.createImageData({ width: 4, height: 4,"
         "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
-        "const ps = efx.createParticleSystem({ texture: t, max: 32,"
+        "const ps = efx.graphics.createParticleSystem({ texture: t, max: 32,"
         "  lifetime: [1, 2], emissionRate: 10, position: [0, 0, 0],"
         "  direction: [0, 1, 0], speed: [1, 2], gravity: [0, -1, 0],"
         "  sizes: [1, 3], colors: [[1, 0, 0, 1], [1, 1, 0, 0]],"
@@ -1608,16 +1608,16 @@ static int particles_js(void) {
         "if (ps.count !== 5) throw new Error('emit count ' + ps.count);"
         "ps.speedScale = 2;"
         "if (ps.speedScale !== 2) throw new Error('speedScale');"
-        "efx.drawParticles(ps);"
+        "efx.graphics.drawParticles(ps);"
         "ps.set({ emissionRate: 0, position: [1, 0, 0] });"
         "ps.pause(); ps.start(); ps.reset();"
         "if (ps.count !== 0) throw new Error('reset');"
         "ps.destroy();"
         "try { ps.emit(1); throw new Error('no'); } catch (e) {"
         "  if (!(e instanceof TypeError)) throw e; }"
-        "try { efx.createParticleSystem({ max: 4 }); throw new Error('no'); }"
+        "try { efx.graphics.createParticleSystem({ max: 4 }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof TypeError)) throw e; }"
-        "try { efx.createParticleSystem({ texture: t, max: 0, lifetime: 1 }); throw new Error('no'); }"
+        "try { efx.graphics.createParticleSystem({ texture: t, max: 0, lifetime: 1 }); throw new Error('no'); }"
         "catch (e) { if (!(e instanceof RangeError)) throw e; }";
     REQUIRE(!ok_js(code), "particles js snippet");
     REQUIRE(rec_count() == 1, "particle record count");
@@ -1632,10 +1632,10 @@ static int particles_js(void) {
  * Single runtime: the harness registers resource classes once per process. */
 static int sprites_js(void) {
     const char *code =
-        "const t = efx.createTexture(efx.createImageData({ width: 4, height: 4,"
+        "const t = efx.graphics.createTexture(efx.graphics.createImageData({ width: 4, height: 4,"
         "  pixels: new Uint8Array(4 * 4 * 4).fill(255) }));"
-        "efx.drawSprites(t, [{ x: 0, y: 0, size: [4, 4] }, { x: 10, y: 0, rotation: 45 }]);"
-        "try { efx.drawSprites(t, [{ x: 0, y: 0 }, { x: 1, y: 1, size: [0, 5] }]);"
+        "efx.graphics.drawSprites(t, [{ x: 0, y: 0, size: [4, 4] }, { x: 10, y: 0, rotation: 45 }]);"
+        "try { efx.graphics.drawSprites(t, [{ x: 0, y: 0 }, { x: 1, y: 1, size: [0, 5] }]);"
         "  throw new Error('no'); } catch (e) {"
         "  if (!(e instanceof RangeError)) throw e; }";
     REQUIRE(!ok_js(code), "sprites js snippet");
@@ -1705,13 +1705,13 @@ static int destroy_no_pending_exception(void) {
         const char *root;
         const char *expr;
     } rows[] = {
-        {NULL, "efx.createImageData({ width: 1, height: 1, pixels: new Uint8Array(4) })"},
-        {NULL, "efx.createMeshData({ positions: [0,0,0, 1,0,0, 0,1,0] })"},
-        {NULL, "efx.createMesh(efx.createMeshData({ positions: [0,0,0, 1,0,0, 0,1,0] }))"},
-        {NULL, "efx.createRenderTarget({ width: 8, height: 8 })"},
-        {EFX_RES_FIXTURES, "efx.loadFontData('font.ttf')"},
-        {EFX_RES_FIXTURES, "efx.createFont(efx.loadFontData('font.ttf'), { size: 16 })"},
-        {NULL, "efx.createParticleSystem({ texture: efx.whiteTexture, max: 4, lifetime: 1 })"},
+        {NULL, "efx.graphics.createImageData({ width: 1, height: 1, pixels: new Uint8Array(4) })"},
+        {NULL, "efx.graphics.createMeshData({ positions: [0,0,0, 1,0,0, 0,1,0] })"},
+        {NULL, "efx.graphics.createMesh(efx.graphics.createMeshData({ positions: [0,0,0, 1,0,0, 0,1,0] }))"},
+        {NULL, "efx.graphics.createRenderTarget({ width: 8, height: 8 })"},
+        {EFX_RES_FIXTURES, "efx.graphics.loadFontData('font.ttf')"},
+        {EFX_RES_FIXTURES, "efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 16 })"},
+        {NULL, "efx.graphics.createParticleSystem({ texture: efx.whiteTexture, max: 4, lifetime: 1 })"},
         {EFX_AUDIO_FIXTURES, "efx.audio.loadAudioData('tone.wav')"},
         {EFX_AUDIO_FIXTURES, "efx.audio.loadAudioStream('tone.mp3')"},
         {EFX_AUDIO_FIXTURES, "efx.audio.playAudio(efx.audio.loadAudioData('tone.wav'))"},
@@ -1759,7 +1759,41 @@ static int destroy_no_pending_exception(void) {
     return failures ? fail("destroy left an exception pending") : 0;
 }
 
+/* ADR 0050 guard: efx.graphics holds exactly the 33 moved members, no
+ * root alias survives, and the root keeps its own members. */
+static int graphics_ns_js(void) {
+    int rc = run_js(
+        "var g = efx.graphics;"
+        "if (!g || typeof g !== 'object') throw new Error('efx.graphics missing');"
+        "var names = ['beginRenderTarget', 'createFont', 'createImageData',"
+        "  'createMesh', 'createMeshData', 'createParticleSystem',"
+        "  'createRenderTarget', 'createTexture', 'drawBillboard', 'drawMesh',"
+        "  'drawParticles', 'drawQuad', 'drawSprites', 'drawText',"
+        "  'endRenderTarget', 'loadFontData', 'loadImage', 'loadMeshData',"
+        "  'makeCapsule', 'makeCube', 'makePlane', 'makeSphere', 'measureText',"
+        "  'poseMesh', 'setBlendMode', 'setCamera2D', 'setCamera3D',"
+        "  'setClearColor', 'setDirectionalLight', 'setLight',"
+        "  'setMeshSurfaceMaterial', 'setPostEffects', 'setRenderScale'];"
+        "for (var i = 0; i < names.length; i++) {"
+        "  if (typeof g[names[i]] !== 'function')"
+        "    throw new Error('efx.graphics missing ' + names[i]);"
+        "  if (names[i] in efx) throw new Error('root alias remains: ' + names[i]);"
+        "}"
+        "if (Object.getOwnPropertyNames(g).length !== names.length)"
+        "  throw new Error('unexpected efx.graphics members');"
+        "var root = ['log', 'quit', 'args', 'registerUpdateHook',"
+        "  'registerRenderHook', 'whiteTexture', 'loadText', 'mat4', 'vec3',"
+        "  'quat', 'keyboard', 'mouse', 'window', 'physics', 'gamepad',"
+        "  'audio', 'graphics'];"
+        "for (i = 0; i < root.length; i++) {"
+        "  if (!(root[i] in efx)) throw new Error('root missing ' + root[i]);"
+        "}");
+    end_js();
+    return rc == 0 ? 0 : fail("graphics namespace shape");
+}
+
 static const efx_test_case cases[] = {
+    EFX_CASE(graphics_ns_js),
     EFX_CASE(white),
     EFX_CASE(quad_record),
     EFX_CASE(size_derivation),

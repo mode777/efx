@@ -11,8 +11,8 @@ Options for `setCamera2D`.
 ## Example
 
 ```js
-efx.setCamera2D({ frame: [640, 480] });          // virtual 640x480 frame
-efx.setCamera2D({ frame: [640, 480], zoom: 2 }); // 2x zoom about the center
+efx.graphics.setCamera2D({ frame: [640, 480] });          // virtual 640x480 frame
+efx.graphics.setCamera2D({ frame: [640, 480], zoom: 2 }); // 2x zoom about the center
 ```
 
 ## Properties

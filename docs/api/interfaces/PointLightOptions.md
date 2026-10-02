@@ -11,7 +11,7 @@ Options for `setLight` (a point light).
 ## Example
 
 ```js
-efx.setLight(0, { pos: [3, 4, 2], color: [1, 0.95, 0.9, 1], range: 20 });
+efx.graphics.setLight(0, { pos: [3, 4, 2], color: [1, 0.95, 0.9, 1], range: 20 });
 ```
 
 ## Properties

@@ -1,14 +1,14 @@
 // F4b golden: a specular map modulates the specular highlight color. A sphere
 // with a black diffuse and a red specular map lit by a point light shows a
 // red highlight instead of the default white one.
-efx.setClearColor([0.05, 0.05, 0.08, 1]);
-efx.setCamera3D({ pos: [0, 0, 4], target: [0, 0, 0], fov: 55 });
-efx.setLight(0, { pos: [2.0, 3.0, 3.0], color: [1, 1, 1, 1], range: 30 });
-const specMap = efx.createTexture(efx.createImageData({
+efx.graphics.setClearColor([0.05, 0.05, 0.08, 1]);
+efx.graphics.setCamera3D({ pos: [0, 0, 4], target: [0, 0, 0], fov: 55 });
+efx.graphics.setLight(0, { pos: [2.0, 3.0, 3.0], color: [1, 1, 1, 1], range: 30 });
+const specMap = efx.graphics.createTexture(efx.graphics.createImageData({
     width: 1, height: 1, pixels: [255, 32, 32, 255],
 }));
-const ball = efx.createMesh(efx.makeSphere({ radius: 1.4, segments: 24 }));
-efx.setMeshSurfaceMaterial(ball, 0, {
+const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.4, segments: 24 }));
+efx.graphics.setMeshSurfaceMaterial(ball, 0, {
     ambient:  { color: [0, 0, 0, 1] },
     diffuse:  { color: [0.05, 0.05, 0.06, 1] },
     specular: { color: [1, 1, 1, 1], shininess: 32, map: specMap },
@@ -16,5 +16,5 @@ efx.setMeshSurfaceMaterial(ball, 0, {
 });
 function update() {}
 function render() {
-    efx.drawMesh(ball);
+    efx.graphics.drawMesh(ball);
 }

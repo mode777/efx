@@ -20,14 +20,14 @@ function radial(size) {
     return px;
 }
 
-const tex = efx.createTexture(
-    efx.createImageData({ width: 32, height: 32, pixels: radial(32) }),
+const tex = efx.graphics.createTexture(
+    efx.graphics.createImageData({ width: 32, height: 32, pixels: radial(32) }),
 );
 
-efx.setClearColor([0.01, 0.03, 0.06, 1]);
-efx.setCamera3D({ pos: [0, 3, 8], target: [0, 0, 0], fov: 60 });
+efx.graphics.setClearColor([0.01, 0.03, 0.06, 1]);
+efx.graphics.setCamera3D({ pos: [0, 3, 8], target: [0, 0, 0], fov: 60 });
 
-const water = efx.createParticleSystem({
+const water = efx.graphics.createParticleSystem({
     texture: tex,
     max: 400,
     lifetime: 1000,
@@ -44,7 +44,7 @@ const water = efx.createParticleSystem({
 });
 water.emit(220);
 
-const spray = efx.createParticleSystem({
+const spray = efx.graphics.createParticleSystem({
     texture: tex,
     max: 120,
     lifetime: [0.6, 1.4],
@@ -64,7 +64,7 @@ let t = 0;
 efx.registerUpdateHook((dt) => {
     t += dt;
     const a = t * 0.5;
-    efx.setCamera3D({
+    efx.graphics.setCamera3D({
         pos: [Math.cos(a) * 8, 2.8, Math.sin(a) * 8],
         target: [0, 0.2, 0],
         fov: 60,
@@ -72,9 +72,9 @@ efx.registerUpdateHook((dt) => {
 });
 
 efx.registerRenderHook(() => {
-    efx.drawParticles(water); // fixed oriented planes
-    efx.drawParticles(spray); // camera-facing spray above the surface
-    efx.drawBillboard([0, 1.1, 0], {
+    efx.graphics.drawParticles(water); // fixed oriented planes
+    efx.graphics.drawParticles(spray); // camera-facing spray above the surface
+    efx.graphics.drawBillboard([0, 1.1, 0], {
         texture: tex,
         size: 0.5,
         color: [0.6, 0.9, 1, 0.9],

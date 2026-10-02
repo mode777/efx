@@ -1,8 +1,8 @@
 // A declarative post-effect chain: bloom plus a color filter.
-efx.setClearColor([0.02, 0.02, 0.05, 1]);
-efx.setCamera2D({ frame: [640, 480] });
+efx.graphics.setClearColor([0.02, 0.02, 0.05, 1]);
+efx.graphics.setCamera2D({ frame: [640, 480] });
 
-const tex = efx.createTexture(efx.createImageData({
+const tex = efx.graphics.createTexture(efx.graphics.createImageData({
     width: 2, height: 2,
     pixels: [
         230, 40, 40, 255,   40, 210, 80, 255,
@@ -10,7 +10,7 @@ const tex = efx.createTexture(efx.createImageData({
     ],
 }));
 
-efx.setPostEffects([
+efx.graphics.setPostEffects([
     { effect: 'bloom', threshold: 0.6, strength: 0.9 },
     { effect: 'colorFilter', saturation: 1.1, contrast: 1.15 },
 ]);
@@ -18,9 +18,9 @@ efx.setPostEffects([
 let t = 0;
 function update(dt) { t += dt; }
 function render() {
-    efx.drawQuad(0, 0, tex, { size: [640, 480] });
-    efx.drawQuad(120, 110, efx.whiteTexture, { size: [200, 80], color: [1, 1, 1, 1] });
-    efx.drawQuad(360, 180, tex, {
+    efx.graphics.drawQuad(0, 0, tex, { size: [640, 480] });
+    efx.graphics.drawQuad(120, 110, efx.whiteTexture, { size: [200, 80], color: [1, 1, 1, 1] });
+    efx.graphics.drawQuad(360, 180, tex, {
         size: [160, 160],
         rotation: t * 57.3,
         color: [0.9, 0.35, 0.2, 1],

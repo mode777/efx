@@ -61,6 +61,7 @@ directory holds only what stays true after a change is archived.
 | [0047](0047-audio-source-model.md) | Accepted | F14 audio is two source kinds (`AudioData` static, `AudioStream` streamed) loaded separately from playback over one `playAudio` verb returning an `Audio` handle; start options are initial values only, a single master gain is the only grouping control (no channels/buses), and the fixed 32-voice bank caps concurrent streams at 4 (supersedes ADR 0042's music/effect script surface) |
 | [0048](0048-api-reference-generated-from-type-doc.md) | Accepted | The API reference is generated from `gallery/src/api/efx.d.ts` into committed Markdown (`docs/api/`) and published HTML (`/api`); `docs/js-api.md` is design guidelines, not a catalog |
 | [0049](0049-shared-option-validation.md) | Accepted | Cold-path option-bag validation is written once in the shared prelude behind a private `natives` wrapper parameter (hot paths stay native); strict numbers everywhere; one return-code → error table; the 18 catalog message divergences converge to one canonical text each |
+| [0050](0050-graphics-namespace.md) | Accepted | The 33 graphics drawing/state/resource functions live in the `efx.graphics` sub-namespace (bindings create the object, prelude augments it — the audio/physics pattern); the `efx` root holds only runtime/lifecycle facilities plus domain sub-namespaces; hard cut with no aliases, byte-identical error text, and new domains follow the same organization rule |
 
 ## Adding a decision
 

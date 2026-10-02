@@ -11,12 +11,12 @@ Options for `createFont`.
 ## Example
 
 ```js
-const title = efx.createFont(efx.loadFontData('font.ttf'), {
+const title = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
   size: 44,
   outline: { width: 2 },
   shadow: { blur: 3, offset: [2, 2] },
 });
-const body = efx.createFont(efx.loadFontData('font.ttf'), { size: 24 });
+const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 24 });
 ```
 
 ## Properties

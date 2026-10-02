@@ -1,9 +1,9 @@
 // F4a golden: per-surface materials — surface 0 explicitly bound, surface 1
 // uses the engine default material (white diffuse Phong)
-efx.setClearColor([0.06, 0.05, 0.09, 1]);
-efx.setCamera3D({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
-efx.setLight(0, { pos: [2.0, 3.0, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
-efx.setDirectionalLight({ dir: [-0.3, -0.6, -0.7], color: [0.18, 0.2, 0.28, 1] });
+efx.graphics.setClearColor([0.06, 0.05, 0.09, 1]);
+efx.graphics.setCamera3D({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+efx.graphics.setLight(0, { pos: [2.0, 3.0, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+efx.graphics.setDirectionalLight({ dir: [-0.3, -0.6, -0.7], color: [0.18, 0.2, 0.28, 1] });
 function card(x, hex) {
     return {
         positions: [x - 0.9, -0.9, 0, x + 0.9, -0.9, 0,
@@ -12,7 +12,7 @@ function card(x, hex) {
         indices: [0, 1, 2, 0, 2, 3],
     };
 }
-const pair = efx.createMesh(efx.createMeshData({
+const pair = efx.graphics.createMesh(efx.graphics.createMeshData({
     surfaces: [card(-1.05, 0), card(1.05, 0)],
     materials: [
         { ambient: { color: [0.1, 0.1, 0.12, 1] },
@@ -24,5 +24,5 @@ const pair = efx.createMesh(efx.createMeshData({
 }));
 function update() {}
 function render() {
-    efx.drawMesh(pair);
+    efx.graphics.drawMesh(pair);
 }

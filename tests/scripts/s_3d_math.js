@@ -81,32 +81,32 @@ if (!near(Math.abs(q360[3]), 1)) fail('quat 360');
 // primitives: pinned layouts (design D9) — inspected by wrapping the
 // public createMeshData entry the primitives call
 function spyPrim(fn) {
-    const orig = efx.createMeshData;
+    const orig = efx.graphics.createMeshData;
     let captured = null;
-    efx.createMeshData = function (data) { captured = data; return orig(data); };
+    efx.graphics.createMeshData = function (data) { captured = data; return orig(data); };
     const md = fn();
-    efx.createMeshData = orig;
+    efx.graphics.createMeshData = orig;
     if (md.surfaceCount !== 1) fail('primitive surfaceCount');
     return captured;
 }
 
 // cube: 24 verts / 36 indices; corners at +-size/2
-const cube = spyPrim(() => efx.makeCube());
+const cube = spyPrim(() => efx.graphics.makeCube());
 if (cube.positions.length !== 72 || cube.indices.length !== 36) fail('cube layout');
 if (!cube.normals || cube.normals.length !== 72) fail('cube normals');
 if (!cube.uvs || cube.uvs.length !== 48) fail('cube uvs');
 // face +X first corner is (h, -h, h) for size 1
 if (!near(cube.positions[0], 0.5) || !near(cube.positions[1], -0.5) ||
     !near(cube.positions[2], 0.5)) fail('cube corner');
-const cube2 = spyPrim(() => efx.makeCube({ size: 2 }));
+const cube2 = spyPrim(() => efx.graphics.makeCube({ size: 2 }));
 if (!near(cube2.positions[0], 1) || !near(cube2.positions[1], -1) ||
     !near(cube2.positions[2], 1)) fail('cube size');
 
 // plane: (segments+1)^2 grid on XZ facing +Y; z rows from -h to +h
-const plane = spyPrim(() => efx.makePlane());
+const plane = spyPrim(() => efx.graphics.makePlane());
 if (plane.positions.length !== 4 * 3) fail('plane 1x1 grid'); // (1+1)^2 = 4
 if (!near(plane.positions[1], 0)) fail('plane on XZ');
-const plane3 = spyPrim(() => efx.makePlane({ size: 4, segments: 3 }));
+const plane3 = spyPrim(() => efx.graphics.makePlane({ size: 4, segments: 3 }));
 if (plane3.positions.length !== 16 * 3) fail('plane 3x3 grid'); // (3+1)^2
 const np = plane3.positions.length / 3;
 let maxY = 0, minZ = 1e9, maxZ = -1e9;
@@ -119,9 +119,9 @@ if (!near(maxY, 0)) fail('plane flat');
 if (!near(minZ, -2) || !near(maxZ, 2)) fail('plane size 4 extent');
 
 // sphere: (segments+1)*segments verts; radius-2 points on the sphere
-const sphere = spyPrim(() => efx.makeSphere());
+const sphere = spyPrim(() => efx.graphics.makeSphere());
 if (sphere.positions.length !== (16 + 1) * 16 * 3) fail('sphere 16 bands');
-const sphere24 = spyPrim(() => efx.makeSphere({ radius: 2, segments: 24 }));
+const sphere24 = spyPrim(() => efx.graphics.makeSphere({ radius: 2, segments: 24 }));
 if (sphere24.positions.length !== (24 + 1) * 24 * 3) fail('sphere 24 bands');
 // every vertex lies on the radius-2 sphere and equals its normal
 for (let i = 0; i < sphere24.positions.length; i += 3) {
@@ -133,7 +133,7 @@ for (let i = 0; i < sphere24.positions.length; i += 3) {
 
 // capsule: vertical, radius 1 / total height 4 => segment y in [-1, 1];
 // every surface point lies radius 1 from that segment
-const capsule = spyPrim(() => efx.makeCapsule({ radius: 1, height: 4 }));
+const capsule = spyPrim(() => efx.graphics.makeCapsule({ radius: 1, height: 4 }));
 if (capsule.positions.length === 0 ||
     capsule.positions.length % 3 !== 0) fail('capsule verts');
 if (!near(capsule.positions[0], 0) || !near(capsule.positions[1], 2) ||
@@ -151,17 +151,17 @@ for (let i = 0; i < capsule.positions.length; i += 3) {
 
 // primitive material option: bound to the single surface at creation
 const primMat = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
-const cubeMat = spyPrim(() => efx.makeCube({ size: 1, material: primMat }));
+const cubeMat = spyPrim(() => efx.graphics.makeCube({ size: 1, material: primMat }));
 if (!cubeMat.materials || cubeMat.materials.length !== 1 ||
     cubeMat.materials[0] !== primMat) fail('cube material binding');
-const sphereNoMat = spyPrim(() => efx.makeSphere());
+const sphereNoMat = spyPrim(() => efx.graphics.makeSphere());
 if (sphereNoMat.materials !== undefined) fail('sphere default material');
 
 // primitives draw like any MeshData
-efx.drawMesh(efx.createMesh(efx.makeCube({ size: 2 })));
-efx.drawMesh(efx.createMesh(efx.makePlane({ size: 4, segments: 3 })));
-efx.drawMesh(efx.createMesh(efx.makeSphere({ radius: 2, segments: 24 })));
-efx.drawMesh(efx.createMesh(efx.makeCapsule({ radius: 1, height: 4 })));
+efx.graphics.drawMesh(efx.graphics.createMesh(efx.graphics.makeCube({ size: 2 })));
+efx.graphics.drawMesh(efx.graphics.createMesh(efx.graphics.makePlane({ size: 4, segments: 3 })));
+efx.graphics.drawMesh(efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 2, segments: 24 })));
+efx.graphics.drawMesh(efx.graphics.createMesh(efx.graphics.makeCapsule({ radius: 1, height: 4 })));
 
 function expectThrow(name, kind, fn) {
     try { fn(); efx.log('FAIL no-throw ' + name); efx.quit(1); }
@@ -171,15 +171,15 @@ function expectThrow(name, kind, fn) {
         }
     }
 }
-expectThrow('cube-zero', RangeError, () => efx.makeCube({ size: 0 }));
-expectThrow('plane-frac', RangeError, () => efx.makePlane({ segments: 1.5 }));
-expectThrow('sphere-neg', RangeError, () => efx.makeSphere({ radius: -1 }));
+expectThrow('cube-zero', RangeError, () => efx.graphics.makeCube({ size: 0 }));
+expectThrow('plane-frac', RangeError, () => efx.graphics.makePlane({ segments: 1.5 }));
+expectThrow('sphere-neg', RangeError, () => efx.graphics.makeSphere({ radius: -1 }));
 expectThrow('capsule-short', RangeError,
-            () => efx.makeCapsule({ radius: 1, height: 1 }));
+            () => efx.graphics.makeCapsule({ radius: 1, height: 1 }));
 expectThrow('capsule-unknown', TypeError,
-            () => efx.makeCapsule({ radius: 1, height: 3, bogus: 1 }));
-expectThrow('cube-unknown', TypeError, () => efx.makeCube({ radius: 1 }));
-expectThrow('plane-seg-type', RangeError, () => efx.makePlane({ segments: 'many' }));
-expectThrow('prim-material-bad', TypeError, () => efx.makePlane({ material: 42 }));
+            () => efx.graphics.makeCapsule({ radius: 1, height: 3, bogus: 1 }));
+expectThrow('cube-unknown', TypeError, () => efx.graphics.makeCube({ radius: 1 }));
+expectThrow('plane-seg-type', RangeError, () => efx.graphics.makePlane({ segments: 'many' }));
+expectThrow('prim-material-bad', TypeError, () => efx.graphics.makePlane({ material: 42 }));
 
 efx.log('s-3d-math-ok');

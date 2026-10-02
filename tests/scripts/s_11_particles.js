@@ -12,10 +12,10 @@ function kind(fn) {
     }
 }
 
-const img = efx.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) });
-const tex = efx.createTexture(img);
+const img = efx.graphics.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) });
+const tex = efx.graphics.createTexture(img);
 
-const ps = efx.createParticleSystem({
+const ps = efx.graphics.createParticleSystem({
     texture: tex,
     max: 64,
     lifetime: [1, 2],
@@ -42,30 +42,30 @@ ps.reset();
 if (ps.count !== 0) throw new Error('reset count ' + ps.count);
 
 // validation matrix (missing/typed/ranged)
-if (kind(() => efx.createParticleSystem({ max: 4, lifetime: 1 })) !== 'TypeError') throw new Error('missing texture');
-if (kind(() => efx.createParticleSystem({ texture: tex, lifetime: 1 })) !== 'TypeError') throw new Error('missing max');
-if (kind(() => efx.createParticleSystem({ texture: tex, max: 0, lifetime: 1 })) !== 'RangeError') throw new Error('max range');
-if (kind(() => efx.createParticleSystem({ texture: tex, max: 4 })) !== 'TypeError') throw new Error('missing lifetime');
-if (kind(() => efx.createParticleSystem({ texture: tex, max: 4, lifetime: [2, 1] })) !== 'RangeError') throw new Error('bad lifetime order');
-if (kind(() => efx.createParticleSystem({ texture: tex, max: 4, lifetime: 1, bogus: 1 })) !== 'TypeError') throw new Error('unknown field');
-if (kind(() => efx.createParticleSystem({ texture: tex, max: 4, lifetime: 1, facing: 'sideways' })) !== 'TypeError') throw new Error('bad facing');
-if (kind(() => efx.createParticleSystem({ texture: tex, max: 4, lifetime: 1, space: 'screen', facing: 'plane' })) !== 'TypeError') throw new Error('plane+screen');
+if (kind(() => efx.graphics.createParticleSystem({ max: 4, lifetime: 1 })) !== 'TypeError') throw new Error('missing texture');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, lifetime: 1 })) !== 'TypeError') throw new Error('missing max');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, max: 0, lifetime: 1 })) !== 'RangeError') throw new Error('max range');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, max: 4 })) !== 'TypeError') throw new Error('missing lifetime');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: [2, 1] })) !== 'RangeError') throw new Error('bad lifetime order');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1, bogus: 1 })) !== 'TypeError') throw new Error('unknown field');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1, facing: 'sideways' })) !== 'TypeError') throw new Error('bad facing');
+if (kind(() => efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1, space: 'screen', facing: 'plane' })) !== 'TypeError') throw new Error('plane+screen');
 if (kind(() => {
-    const p = efx.createParticleSystem({ texture: tex, max: 4, lifetime: 1 });
+    const p = efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1 });
     p.set({ max: 0 });
 }) !== 'RangeError') throw new Error('bad set');
 if (kind(() => {
-    const p = efx.createParticleSystem({ texture: tex, max: 4, lifetime: 1 });
+    const p = efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1 });
     p.destroy();
     p.emit(1);
 }) !== 'TypeError') throw new Error('destroyed use');
 
 // billboards/sprites validate before recording (no surface needed to throw)
-if (kind(() => efx.drawBillboard([0, 0, 0], { size: [1, 1] })) !== 'TypeError') throw new Error('billboard texture');
-if (kind(() => efx.drawBillboard([0, 0], { texture: tex })) !== 'TypeError') throw new Error('billboard pos');
-if (kind(() => efx.drawBillboard([0, 0, 0], { texture: tex, size: [0, 1] })) !== 'RangeError') throw new Error('billboard size');
-if (kind(() => efx.drawSprites(tex, 'nope')) !== 'TypeError') throw new Error('sprites array');
-if (kind(() => efx.drawSprites(tex, [{ size: [1, 1] }])) !== 'TypeError') throw new Error('sprite x/y');
+if (kind(() => efx.graphics.drawBillboard([0, 0, 0], { size: [1, 1] })) !== 'TypeError') throw new Error('billboard texture');
+if (kind(() => efx.graphics.drawBillboard([0, 0], { texture: tex })) !== 'TypeError') throw new Error('billboard pos');
+if (kind(() => efx.graphics.drawBillboard([0, 0, 0], { texture: tex, size: [0, 1] })) !== 'RangeError') throw new Error('billboard size');
+if (kind(() => efx.graphics.drawSprites(tex, 'nope')) !== 'TypeError') throw new Error('sprites array');
+if (kind(() => efx.graphics.drawSprites(tex, [{ size: [1, 1] }])) !== 'TypeError') throw new Error('sprite x/y');
 
 ps.destroy();
 tex.destroy();

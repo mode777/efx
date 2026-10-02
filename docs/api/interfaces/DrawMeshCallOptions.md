@@ -11,7 +11,7 @@ Options for `drawMesh`.
 ## Example
 
 ```js
-efx.drawMesh(cube, {
+efx.graphics.drawMesh(cube, {
   transform: efx.mat4.rotate(efx.mat4.identity(), yaw, [0, 1, 0]),
   color: [0.95, 0.5, 0.2, 1],
 });

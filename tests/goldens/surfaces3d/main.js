@@ -12,10 +12,10 @@ const MAT1 = {
     specular: { color: [1, 1, 1, 1], shininess: 48 },
     emissive: { color: [0, 0, 0, 1] },
 };
-efx.setClearColor([0.08, 0.05, 0.11, 1]);
-efx.setCamera3D({ pos: [0, 0, 4], target: [0, 0, 0], fov: 55 });
-efx.setLight(0, { pos: [2.0, 2.5, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
-efx.setDirectionalLight({ dir: [-0.3, -0.5, -0.8], color: [0.2, 0.24, 0.32, 1] });
+efx.graphics.setClearColor([0.08, 0.05, 0.11, 1]);
+efx.graphics.setCamera3D({ pos: [0, 0, 4], target: [0, 0, 0], fov: 55 });
+efx.graphics.setLight(0, { pos: [2.0, 2.5, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+efx.graphics.setDirectionalLight({ dir: [-0.3, -0.5, -0.8], color: [0.2, 0.24, 0.32, 1] });
 function card(z, s, rgb) {
     return {
         positions: [-s, -s, z, s, -s, z, s, s, z, -s, s, z],
@@ -25,7 +25,7 @@ function card(z, s, rgb) {
         indices: [0, 1, 2, 0, 2, 3],
     };
 }
-const two = efx.createMesh(efx.createMeshData({
+const two = efx.graphics.createMesh(efx.graphics.createMeshData({
     surfaces: [
         card(0, 1.0, [0.2, 0.55, 0.95]),   // surface 0: far, blue
         card(1.2, 0.55, [1.0, 0.6, 0.1]),  // surface 1: near, orange
@@ -34,5 +34,5 @@ const two = efx.createMesh(efx.createMeshData({
 }));
 function update() {}
 function render() {
-    efx.drawMesh(two);
+    efx.graphics.drawMesh(two);
 }

@@ -12,7 +12,7 @@ Options for `makeCapsule`.
 
 ```js
 // a capsule matching a physics character (radius 0.4, height 1.8)
-const body = efx.createMesh(efx.makeCapsule({ radius: 0.4, height: 1.8 }));
+const body = efx.graphics.createMesh(efx.graphics.makeCapsule({ radius: 0.4, height: 1.8 }));
 ```
 
 ## Properties

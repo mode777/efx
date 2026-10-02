@@ -1,0 +1,480 @@
+# Spec Delta
+
+## MODIFIED Requirements
+
+### Requirement: Single global API namespace
+All engine-provided script functions SHALL be exposed as members of one
+well-known global namespace object (the `efx` object established by F1),
+available to every script without imports or setup. Scripts SHALL access
+engine functionality only through this namespace and standard ES6 built-ins;
+the reference document SHALL state this rule. This covers both C-implemented
+functions and engine-provided high-level JS functions. Domain functionality
+SHALL be organized in sub-namespaces of this one object; the graphics
+drawing, state, and resource functions SHALL live in the `efx.graphics`
+sub-namespace (see the Graphics namespace API requirement). The CommonJS
+module facilities `require`, `module`, and `exports` (F10) are module-scoped
+authoring facilities and SHALL NOT be members of the `efx` namespace or free
+globals; `require` returns a module's exports and is not an engine API entry.
+
+#### Scenario: Namespace available without setup
+- **WHEN** a script calls `efx.log` without any import or setup code
+- **THEN** the call succeeds on every target platform
+
+#### Scenario: No scattered engine globals
+- **WHEN** a reviewer checks how a script reaches an engine function
+- **THEN** every engine-provided function is reachable as a member of the
+  single namespace, not as an additional free global
+
+#### Scenario: Sub-namespaces are members of the single namespace
+- **WHEN** a script reaches input through `efx.keyboard`, `efx.mouse`, or `efx.window`
+- **THEN** those objects are members of the single `efx` namespace object and
+  add no free global
+
+#### Scenario: Graphics functions are members of the single namespace
+- **WHEN** a script reaches graphics functionality through `efx.graphics`
+- **THEN** `efx.graphics` is a member of the single `efx` namespace object
+  (one level deep) and adds no free global
+
+#### Scenario: Module facilities are not engine globals
+- **WHEN** a script inspects the `efx` namespace and the global scope outside a
+  module's scope
+- **THEN** `require`, `module`, and `exports` are absent from both; they exist
+  only inside a module's own scope
+
+## ADDED Requirements
+
+### Requirement: Graphics namespace API
+The script API SHALL expose the graphics drawing, state, and resource
+functions as the sub-namespace `efx.graphics` of the single `efx` object,
+with no new free globals. `efx.graphics` SHALL contain exactly these
+members, each with its unchanged name, signature, semantics, defaults,
+layer tag, and error behavior: `beginRenderTarget`, `createFont`,
+`createImageData`, `createMesh`, `createMeshData`, `createParticleSystem`,
+`createRenderTarget`, `createTexture`, `drawBillboard`, `drawMesh`,
+`drawParticles`, `drawQuad`, `drawSprites`, `drawText`, `endRenderTarget`,
+`loadFontData`, `loadImage`, `loadMeshData`, `makeCapsule`, `makeCube`,
+`makePlane`, `makeSphere`, `measureText`, `poseMesh`, `setBlendMode`,
+`setCamera2D`, `setCamera3D`, `setClearColor`, `setDirectionalLight`,
+`setLight`, `setMeshSurfaceMaterial`, `setPostEffects`, and
+`setRenderScale`. These names SHALL NOT also exist as members of the `efx`
+root: the move is a hard cut with no deprecated root aliases and no
+compatibility shims. `loadText`, `whiteTexture`, `log`, `quit`, `args`,
+`registerUpdateHook`, `registerRenderHook`, the math helpers
+(`mat4`/`vec3`/`quat`), and the other domain namespaces
+(`keyboard`/`mouse`/`window`/`physics`/`gamepad`/`audio`) remain root
+members unchanged. The sub-namespace SHALL exist on every runtime binding
+(quickjs desktop and the Emscripten web bridge) with identical membership,
+and every entry SHALL behave identically across them. The generated
+reference (`docs/api/` from `gallery/src/api/efx.d.ts`), the guidelines
+(`docs/js-api.md`), and this capability's sibling requirements SHALL use
+the `efx.graphics.*` paths.
+
+#### Scenario: Graphics functions are reachable through the sub-namespace
+- **WHEN** a script calls `efx.graphics.drawQuad(...)` — and likewise every
+  other listed member — without imports or setup
+- **THEN** the call succeeds on every target platform with the exact
+  behavior it had at the root before the move
+
+#### Scenario: No root aliases remain
+- **WHEN** a script reads any moved name at the root (for example
+  `efx.drawQuad` or `efx.makeCube`) and enumerates `efx.graphics`
+- **THEN** the moved names are absent from the root, `efx.graphics` holds
+  exactly the listed members, and the root still exposes `loadText`,
+  `whiteTexture`, the lifecycle hooks, and the math helpers
+
+#### Scenario: The move changes no observable behavior
+- **WHEN** the in-repo script corpus (golden scenes, portable script tests,
+  curated samples) is re-pathed from `efx.<fn>` to `efx.graphics.<fn>` and
+  run through both runtimes
+- **THEN** every golden frame stays pixel-identical, the cross-runtime
+  error catalog stays byte-identical, and no signature, default, or error
+  message changes
+
+## MODIFIED Requirements
+
+### Requirement: Resource classification and fixed limits
+
+Every engine resource type that scripts can create or reference SHALL be
+classified in the reference as exactly one of: JS-managed (plain script
+objects, garbage collected), native-backed class (an opaque JS object
+wrapping a native handle with an explicit `destroy()` release method; such
+a class MAY additionally expose documented read-only query properties, which
+MUST be listed in the reference — the instances are Texture's `width` and
+`height`, MeshData's and Mesh's read-only `surfaceCount` delivered by F3,
+RenderTarget's `width` and `height` delivered by F5a, Font's `size`,
+`lineHeight`, `ascent`, and `descent` delivered by F8, ParticleSystem's
+`count` delivered by F11, and the physics
+`Body`'s `position`, `velocity`, `contacts`, and `transform` and `Character`'s
+`position`, `velocity`, and `onFloor` delivered by F12), or slot-based
+(a fixed pre-allocated bank of indexed resources).
+The native-backed classes SHALL be exactly: MeshData, ImageData, Mesh,
+Texture, RenderTarget, FontData, Font, ParticleSystem, Body, Character,
+AudioData, AudioStream, and Audio;
+skins, skeletons,
+and animation
+clips are
+implicit Mesh payload — loaded with the mesh and posed by the script
+(`efx.graphics.poseMesh`) — and are not script resources; extending the class list
+requires a `js-api` delta. A live RenderTarget SHALL be accepted wherever a
+live Texture is accepted (quad drawing, material channel `map`s, and
+`alphaMask`), referenced directly by handle with identical validation and
+error behavior — the engine SHALL NOT create or expose any alias Texture
+object for a RenderTarget. Phong **materials** (the parameter objects bound
+per mesh surface from F4a) SHALL be classified as JS-managed: the engine
+snapshots their channel values at binding time and they hold no native handle
+or `destroy()`. A JS-managed material MAY carry per-channel maps that
+reference native-backed `Texture` or `RenderTarget` objects (F4b; RenderTargets
+accepted from F5a); the engine snapshots the texture handles at binding time
+and **retains** the referenced resources while the material stays bound, so
+the material does not own them and its
+classification and release contract are unchanged. Post-effect chain entries
+and their option bags (F5b) SHALL be classified JS-managed: plain objects
+snapshotted at `setPostEffects` call time, holding no native handle and no
+`destroy()`. A `ParticleSystem` SHALL be a native-backed class (F11) whose
+configuration is plain value state snapshotted by the engine; it SHALL retain
+the `Texture` or `RenderTarget` it draws with until the system is destroyed.
+The audio classes SHALL be native-backed (F14): `AudioData` holds fully-decoded
+PCM and exposes no query properties; `AudioStream` holds a compressed resource
+plus an incremental decoder and exposes no query properties; `Audio` is one
+playback handle with a read-only `playing` and `paused` and read-write
+`volume`, `pan`, `pitch`, and `loop`, plus `stop`, `pause`, `resume`, and
+`destroy()`. The engine's fixed playback bank is engine-owned and SHALL NOT be
+a script-visible slot bank; scripts hold per-playback handles, not indices.
+Every resource requiring
+native storage MUST be a
+native-backed class — released deterministically by its `destroy()`,
+reclaimed by its GC finalizer if the script never calls it, and finalized
+at runtime teardown — unless its count is fixed by design, in which case it
+is slot-based. The runtime MUST factor native allocation sizes (CPU and GPU)
+into GC pressure and MUST run collection at frame end, bounding
+unreferenced native waste to roughly one frame. Resources recorded into the
+display list MUST stay alive until playback completes, and a `Texture` or
+`RenderTarget` referenced by a bound material map MUST stay alive until that
+binding is released. The reference SHALL
+document the engine's fixed limits: 4 point lights, 1 directional light,
+1 camera, 16 surfaces per mesh (F3), a post-effect chain of at most
+8 entries (F5b), at most 65536 particles per particle system (F11), a cap of
+4 concurrent streamed sources and 32 playback voices (F14);
+lights are the only slot bank.
+
+#### Scenario: Fixed limits stated
+
+- **WHEN** the reference document's limits section is read
+- **THEN** it states 4 point lights, 1 directional light, 1 camera, 16 surfaces per mesh, the 8-entry post-effect chain cap, the 65536-particle system cap, the concurrent streamed-source cap, and 32 playback voices, matching vision.md and the 3d-core, post-fx, particles, and audio capabilities
+
+#### Scenario: Unreleased native resource is reclaimed
+
+- **WHEN** a script creates textures in a loop and never calls `destroy()` on them
+- **THEN** the native sizes drive GC pressure, finalizers reclaim the objects within roughly a frame of them becoming unreachable, and nothing leaks at runtime shutdown
+
+#### Scenario: Destroyed resource is safe
+
+- **WHEN** a script calls `destroy()` on a resource that the display list recorded earlier in the same frame
+- **THEN** the native release is deferred until playback completes, and subsequent use of the destroyed resource throws
+
+#### Scenario: Query properties are documented per class
+
+- **WHEN** the reference document's native-backed class entries are read
+- **THEN** the Texture and RenderTarget entries list the read-only `width` and `height`, the MeshData and Mesh entries list the read-only `surfaceCount`, the Font entry lists the read-only `size`, `lineHeight`, `ascent`, and `descent`, the ParticleSystem entry lists the read-only `count`, the Body entry lists `position`, `velocity`, `contacts`, and `transform`, the Character entry lists `position`, `velocity`, and `onFloor`, the Audio entry lists the read-only `playing` and `paused` and the read-write `volume`, `pan`, `pitch`, and `loop`, the AudioData, AudioStream, and FontData entries list none, and every other entry states that it has none
+
+#### Scenario: Render targets are accepted wherever textures are
+
+- **WHEN** the reference document's render-target and texture entries are read
+- **THEN** they state that a live RenderTarget is accepted wherever a live Texture is accepted — `drawQuad`, material `map`s, `alphaMask` — with identical error behavior, and that no alias Texture object exists for a target
+
+#### Scenario: Materials are classified JS-managed
+
+- **WHEN** the reference document's material entries are read
+- **THEN** materials are stated to be plain JS objects with no native handle and no `destroy()`, and lights are stated to be the only slot-based bank
+
+#### Scenario: Material maps reference native textures
+
+- **WHEN** a material with a map is bound and the reference document's material entry is read
+- **THEN** it states that the map references a native-backed `Texture` or `RenderTarget` that the engine retains while bound, and that the material itself remains JS-managed with no `destroy()`
+
+#### Scenario: Post-effect entries are classified JS-managed
+
+- **WHEN** the reference document's post-effect entries are read
+- **THEN** chain entries and option bags are stated to be plain JS objects snapshotted at call time, with no native handle and no `destroy()`, and the native effect passes are stated to be engine-owned (never script-visible)
+
+#### Scenario: Particle system is a native-backed class
+
+- **WHEN** the reference document's particle entries are read
+- **THEN** `ParticleSystem` is listed as a native-backed class with a `count` query property, a `destroy()` release, and a retained texture, and its configuration is stated to be plain value state snapshotted by the engine
+
+#### Scenario: Audio classes are classified native-backed
+
+- **WHEN** the reference document's audio entries are read
+- **THEN** `AudioData`, `AudioStream`, and `Audio` are stated to be native-backed classes with an idempotent `destroy()` and a GC-finalizer backstop, the fixed playback bank is stated to be engine-owned (not a script slot bank), and the fixed-limits table lists the concurrent streamed-source cap and 32 playback voices
+
+#### Scenario: Resource without a classification
+
+- **WHEN** a change proposes exposing a new resource type to scripts without classifying it as JS-managed, native-backed class, or slot-based
+- **THEN** the change is incomplete and MUST NOT update the API reference
+
+#### Scenario: Physics classes are classified native-backed
+
+- **WHEN** the reference document's physics entries are read
+- **THEN** `Body` and `Character` are stated to be native-backed classes with an idempotent `destroy()` that the world holds while live (an unreferenced one keeps simulating until `destroy()` or `efx.physics.clear()`), and the fixed-limits table is unchanged (physics uses dynamic allocation with a documented soft guidance, not a fixed cap)
+
+### Requirement: Skinned mesh data and implicit rig payload
+
+`createMeshData` surfaces SHALL accept optional `joints` and `weights`
+attributes for skinned meshes (four influences per vertex, glTF-style), with
+the same count as the surface's positions. The skeleton and animation clips
+associated with an imported skinned asset SHALL remain implicit `MeshData`/`Mesh`
+payload — no separate script resource and no read-only clip or joint query
+property — while posing is exposed through `efx.graphics.poseMesh` and the `skinned`
+`drawMesh` option (F7). The native-backed class list and the `destroy()`
+lifecycle are unchanged.
+
+#### Scenario: Skinned surface accepted
+- **WHEN** `createMeshData` receives a surface with `joints` and `weights`
+  arrays matching its vertex count
+- **THEN** the MeshData is built and `createMesh` carries the attributes and
+  any imported rig payload onto the `Mesh`
+
+#### Scenario: Attribute count mismatch rejected
+- **WHEN** a surface's `joints` or `weights` count does not match its vertex
+  count
+- **THEN** `createMeshData` throws `RangeError` and records nothing
+
+#### Scenario: No new rig API
+- **WHEN** the API reference and gallery type document are read after this
+  change
+- **THEN** they catalog the joints/weights surface attributes, `poseMesh`, and
+  the `skinned` draw option, and no skeleton/clip resource, clip/joint query
+  property, or playback function
+
+### Requirement: Resource loading and texture composition
+
+The script API SHALL provide a resource-loading layer that reads files from
+the resource root by relative path and returns engine resources. Each function
+SHALL be tagged with its layer in the reference: `loadText` — a root member of
+the single `efx` object — and `efx.graphics.loadImage` are C-implemented
+loaders. There SHALL be no separate texture loader: a texture is created by
+composing the public API, `efx.graphics.createTexture(efx.graphics.loadImage(path), opts?)`,
+matching the mesh flow where `createMesh` consumes `loadMeshData`. Loading
+SHALL be synchronous from the script's point of view on every target. A
+missing, unreadable, or undecodable resource SHALL throw a standard ES6
+`Error`; a malformed path argument SHALL throw `TypeError`. The reference
+document (`docs/js-api.md`) and the gallery type document
+(`gallery/src/api/efx.d.ts`) SHALL be updated in the same change
+that delivers these functions.
+
+#### Scenario: loadText returns decoded text
+- **WHEN** a script calls `efx.loadText(path)` for a text resource in the root
+- **THEN** it receives the file's contents as a string
+
+#### Scenario: loadImage returns ImageData
+- **WHEN** a script calls `efx.graphics.loadImage(path)` for a PNG or JPEG in the root
+- **THEN** it receives an `ImageData` with read-only pixel dimensions and
+  decoded RGBA pixels, releasable with `destroy()`
+
+#### Scenario: Texture creation composes loadImage and createTexture
+- **WHEN** a script calls `efx.graphics.createTexture(efx.graphics.loadImage(path), opts?)`
+- **THEN** it receives a live `Texture` carrying the image's pixels plus any
+  requested sampler and mipmap options, with the same `destroy()` lifecycle
+
+#### Scenario: No texture-loading convenience
+- **WHEN** the API reference and gallery type document are read after this
+  change
+- **THEN** they catalog `loadImage` and `createTexture` and do not catalog a
+  `loadTexture` function
+
+#### Scenario: Undecodable or missing resource throws
+- **WHEN** a script loads a path that does not exist or is not a decodable
+  image (for `loadImage`)
+- **THEN** the call throws an `Error` and no resource object is returned
+
+#### Scenario: Malformed argument throws TypeError
+- **WHEN** a script passes a non-string path to a load function
+- **THEN** the call throws `TypeError`
+
+### Requirement: Gallery type document accuracy
+
+The gallery type document `gallery/src/api/efx.d.ts` SHALL accurately
+describe the valid call shapes of the public script API: every documented
+call form MUST type-check, and invalid calls MUST be rejected at compile
+time. It MUST type a function's alternative call forms so that each form's
+required fields are required only for that form (for example, the
+`createMeshData` batch bag versus its single-surface shorthand) and so that
+mixing forms is rejected. It SHALL be updated in the same change as any
+script-facing API change, alongside `docs/js-api.md`, and its declarations
+MUST agree with that reference document.
+
+#### Scenario: Batch form does not require shorthand fields
+
+- **WHEN** `efx.graphics.createMeshData({ surfaces: [surface, surface] })` is
+  type-checked
+- **THEN** it compiles without supplying top-level `positions` or other
+  shorthand attributes
+
+#### Scenario: Mixing construction forms is rejected
+
+- **WHEN** `efx.graphics.createMeshData({ surfaces: [surface], positions })` combines
+  the batch bag and the shorthand fields in one call
+- **THEN** the type document reports a compile-time error
+
+#### Scenario: drawMesh takes a positional mesh
+
+- **WHEN** `efx.graphics.drawMesh(mesh, { transform, color, skinned })` and
+  `efx.graphics.drawMesh(mesh)` are type-checked
+- **THEN** both compile, and the former option bag holds only
+  `transform`/`color`/`skinned` (a `mesh` field in the bag is rejected)
+
+#### Scenario: Posing API is typed
+
+- **WHEN** `efx.graphics.poseMesh(mesh, { clip: 'Walk', time: 1 })` and
+  `efx.graphics.poseMesh(mesh, [{ clip: 0, time: 1, weight: 0.5 }])` are type-checked
+- **THEN** both compile, the sample `clip` accepts a name or index, and an
+  unknown sample field is rejected
+
+#### Scenario: Primitive material option is typed
+
+- **WHEN** `efx.graphics.makeCube({ size: 1, material })` is type-checked with a
+  material object
+- **THEN** it compiles and the material argument is accepted as a material
+  object or `null`
+
+#### Scenario: Type document agrees with the reference
+
+- **WHEN** a script-facing API change updates `docs/js-api.md`
+- **THEN** the same change updates `gallery/src/api/efx.d.ts` so every
+  cataloged function has a matching declaration
+
+### Requirement: Font and text API
+
+The script API SHALL expose font loading, font creation, text drawing, and
+text measurement as C-implemented members of the `efx.graphics`
+sub-namespace, with identical names, signatures, semantics, and error
+behavior across the desktop and web bindings:
+
+- `efx.graphics.loadFontData(path)` → a native-backed `FontData` resource (the parsed
+  font, no GPU resource), released by `destroy()`.
+- `efx.graphics.createFont(fontData, opts)` → a native-backed `Font` that bakes a
+  fixed glyph atlas at the requested size and optional baked outline/shadow
+  effects; released by `destroy()`; read-only `size`, `lineHeight`, `ascent`,
+  `descent`.
+- `efx.graphics.drawText(text, font, x, y, opts?)` → lays out and draws the text as
+  display-list quads and returns the laid-out bounds
+  `{ width, height, lines }`.
+- `efx.graphics.measureText(text, font, opts?)` → returns the same bounds without
+  drawing.
+
+Text drawing SHALL be a mid-level C facility (like `drawQuad`/`drawMesh`) —
+not a pure-JS high-level convenience — and SHALL be 2D-only. Formatting SHALL
+be limited to newlines, greedy word wrapping, horizontal alignment
+(`left`/`center`/`right`/`justify`), and vertical alignment
+(`top`/`middle`/`bottom`); there SHALL be no rich text (per-span styles or
+markup), no 3D/world-space text, and no script-visible glyph metrics, atlas,
+or shader. The font/text behavior SHALL be defined by the `font-text`
+capability. `docs/js-api.md` and the gallery type document
+(`gallery/src/api/efx.d.ts`) SHALL be updated in the same change, and the
+provisional `loadFont` entry SHALL be removed.
+
+#### Scenario: Font pipeline is exposed
+- **WHEN** the API reference is read after this change
+- **THEN** it catalogs `loadFontData`, `createFont`, `drawText`, and `measureText` under `efx.graphics`, each tagged C-implemented and F8, and does not catalog a `loadFont` convenience
+
+#### Scenario: Text drawing is mid-level C
+- **WHEN** a reviewer checks the layer of the text entries
+- **THEN** `drawText` and `measureText` are tagged C-implemented mid-level functions, distinct from the pure-JS high-level layer
+
+#### Scenario: No rich text or 3D text
+- **WHEN** the API reference's font/text section is read
+- **THEN** it documents wrapping and the four horizontal and three vertical alignment modes, and states that rich text, 3D text, and script-visible glyph metrics are not provided
+
+#### Scenario: Type document is updated in the same change
+- **WHEN** this change updates `docs/js-api.md`
+- **THEN** `gallery/src/api/efx.d.ts` (and its type-test) declare `FontData`, `Font`, `drawText`, and `measureText` consistently with the reference
+
+### Requirement: Billboard, sprite-batch, and particle API
+
+The script API SHALL expose world-space billboard drawing, batched 2D sprite
+drawing, and CPU particle systems as C-implemented members of the
+`efx.graphics` sub-namespace, with identical names, signatures, semantics,
+and error behavior across the desktop and web bindings:
+
+- `efx.graphics.drawBillboard(pos, opts)` → records one world-space textured quad at a
+  3D position, oriented by the engine from the recorded 3D camera. `opts`
+  carries `texture`, `size`, `color`, `sourceRect`, `rotation`, `facing`
+  (`'view'` default or `'y'`), and `depthTest`, per the `billboards`
+  capability.
+- `efx.graphics.drawSprites(texture, sprites)` → records one 2D textured quad per entry
+  with `drawQuad` semantics, per the `2d-layer` capability.
+- `efx.graphics.createParticleSystem(opts)` → a native-backed `ParticleSystem`.
+- `efx.graphics.drawParticles(sys)` → records one particle batch for a live system.
+
+`ParticleSystem` SHALL be a native-backed class exposing a read-only `count`,
+a read-write `speedScale`, an `emit(n)` burst, `start`/`stop`/`pause`/`reset`,
+a `set(opts)` partial reconfiguration, and `destroy()` with a GC finalizer
+backstop. `drawSprites` SHALL be 2D-only; `drawBillboard` and `drawParticles`
+SHALL use the 3D camera. The `js-api` reference (`docs/js-api.md`) and the
+gallery type document (`gallery/src/api/efx.d.ts`) SHALL be updated in the same
+change, and the particle pool limit and the `ParticleSystem` class SHALL be
+reflected in the fixed-limits table and the native-backed class list.
+
+#### Scenario: New entries are cataloged
+
+- **WHEN** the API reference is read after this change
+- **THEN** it catalogs `drawBillboard`, `drawSprites`, `createParticleSystem`,
+  and `drawParticles` under `efx.graphics`, each tagged C-implemented and F11
+
+#### Scenario: Billboard is a 3D primitive
+
+- **WHEN** a script calls `drawBillboard(pos, { texture })` under a 3D camera
+- **THEN** the quad is placed and oriented in world space from the recorded 3D
+  camera, with no camera state supplied by the script
+
+#### Scenario: Sprite batch is 2D-only
+
+- **WHEN** a script calls `drawSprites(tex, [{ x, y }])`
+- **THEN** the sprites are recorded as 2D quads in the current 2D frame and are
+  not depth-tested or 3D-oriented
+
+#### Scenario: Particle system is exposed
+
+- **WHEN** a script calls `createParticleSystem(opts)` and reads the returned
+  object
+- **THEN** it is a `ParticleSystem` with a read-only `count` and the documented
+  methods, and `drawParticles` accepts it
+
+#### Scenario: Reference and type document are updated
+
+- **WHEN** this change updates `docs/js-api.md`
+- **THEN** `gallery/src/api/efx.d.ts` declares `drawBillboard`, `drawSprites`,
+  `ParticleSystem`, `createParticleSystem`, and `drawParticles` consistently
+  with the reference
+
+### Requirement: Identical argument errors on every runtime
+For every engine API call that throws because an argument is invalid, or
+because a requested resource cannot be read or decoded, the desktop runtime
+and the web runtime SHALL throw an error of the same class with the identical
+message text. A number-typed argument or option field SHALL accept only values
+whose type is number. Any other type — including strings that contain digits
+and booleans — SHALL throw `TypeError`. Non-finite numbers and out-of-range
+values keep their documented error class.
+
+#### Scenario: Same message on both runtimes
+- **WHEN** the same script performs an invalid call (for example
+  `efx.graphics.setLight(7, { … })` with a slot outside 0..3) on the desktop player and
+  in the web player
+- **THEN** both throw an error of the same class whose `message` is
+  byte-identical
+
+#### Scenario: Missing resource reports identically
+- **WHEN** a script loads an image, glTF asset or audio file that does not
+  exist in the resource root, on each runtime
+- **THEN** both runtimes throw the same error class with the identical message
+
+#### Scenario: Numeric string is rejected everywhere
+- **WHEN** a script passes the string `'0.5'` where a number-typed option is
+  expected (for example a physics body's `mass`)
+- **THEN** both runtimes throw `TypeError` and no resource is created
+
+#### Scenario: Error catalog has no known divergences
+- **WHEN** the error-catalog script is run through both runtimes and the
+  outputs are compared
+- **THEN** the outputs are byte-identical and the catalog lists no known
+  divergences

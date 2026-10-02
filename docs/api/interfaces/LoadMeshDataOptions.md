@@ -11,9 +11,9 @@ Options for `loadMeshData`.
 ## Example
 
 ```js
-const first = efx.loadMeshData('scene.gltf');
-const named = efx.loadMeshData('scene.gltf', { mesh: 'Teapot' });
-const byIndex = efx.loadMeshData('scene.gltf', { mesh: 2 });
+const first = efx.graphics.loadMeshData('scene.gltf');
+const named = efx.graphics.loadMeshData('scene.gltf', { mesh: 'Teapot' });
+const byIndex = efx.graphics.loadMeshData('scene.gltf', { mesh: 2 });
 ```
 
 ## Properties

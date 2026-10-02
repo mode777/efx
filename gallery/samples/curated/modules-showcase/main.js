@@ -9,18 +9,18 @@ const palette = require('./lib/palette.js'); // relative module
 const orbit = require('./lib/orbit'); // no extension -> deterministic .js fallback
 const scene = require('./data/scene.json'); // JSON module -> parsed value
 
-efx.setClearColor(scene.background);
-efx.setCamera3D(scene.camera);
-efx.setLight(0, scene.keyLight);
-efx.setDirectionalLight(scene.fillLight);
+efx.graphics.setClearColor(scene.background);
+efx.graphics.setCamera3D(scene.camera);
+efx.graphics.setLight(0, scene.keyLight);
+efx.graphics.setDirectionalLight(scene.fillLight);
 
-const core = efx.createMesh(efx.makeCube({ size: 1.2 }));
-efx.setMeshSurfaceMaterial(core, 0, palette.material(palette.colors[0]));
+const core = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.2 }));
+efx.graphics.setMeshSurfaceMaterial(core, 0, palette.material(palette.colors[0]));
 
 const moons = scene.orbits.map((entry, i) => {
-    const mesh = efx.createMesh(efx.makeSphere({ radius: 0.32, segments: 12 }));
+    const mesh = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 0.32, segments: 12 }));
     const color = palette.colors[(i + 1) % palette.colors.length];
-    efx.setMeshSurfaceMaterial(mesh, 0, palette.material(color));
+    efx.graphics.setMeshSurfaceMaterial(mesh, 0, palette.material(color));
     return mesh;
 });
 
@@ -30,12 +30,12 @@ efx.registerUpdateHook((dt) => {
 });
 
 efx.registerRenderHook(() => {
-    efx.drawMesh(core, {
+    efx.graphics.drawMesh(core, {
         transform: efx.mat4.rotate(efx.mat4.identity(),
                                    orbit.spinDegrees(t, scene.coreSpin), [0, 1, 0]),
     });
     for (let i = 0; i < moons.length; i++) {
-        efx.drawMesh(moons[i], {
+        efx.graphics.drawMesh(moons[i], {
             transform: efx.mat4.translate(efx.mat4.identity(),
                                            orbit.orbitPosition(t, scene.orbits[i])),
         });

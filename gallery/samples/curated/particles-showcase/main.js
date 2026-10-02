@@ -20,15 +20,15 @@ function radial(size, r, g, b) {
     return px;
 }
 
-const spark = efx.createTexture(
-    efx.createImageData({ width: 32, height: 32, pixels: radial(32, 255, 255, 255) }),
+const spark = efx.graphics.createTexture(
+    efx.graphics.createImageData({ width: 32, height: 32, pixels: radial(32, 255, 255, 255) }),
 );
 
-efx.setClearColor([0.02, 0.02, 0.05, 1]);
-efx.setCamera3D({ pos: [0, 2.2, 7], target: [0, 1.2, 0], fov: 60 });
-efx.setBlendMode('additive');
+efx.graphics.setClearColor([0.02, 0.02, 0.05, 1]);
+efx.graphics.setCamera3D({ pos: [0, 2.2, 7], target: [0, 1.2, 0], fov: 60 });
+efx.graphics.setBlendMode('additive');
 
-const fire = efx.createParticleSystem({
+const fire = efx.graphics.createParticleSystem({
     texture: spark,
     max: 600,
     lifetime: [0.4, 0.9],
@@ -44,7 +44,7 @@ const fire = efx.createParticleSystem({
     facing: 'view',
 });
 
-const smoke = efx.createParticleSystem({
+const smoke = efx.graphics.createParticleSystem({
     texture: spark,
     max: 300,
     lifetime: [1.5, 3.0],
@@ -60,7 +60,7 @@ const smoke = efx.createParticleSystem({
     facing: 'view',
 });
 
-const embers = efx.createParticleSystem({
+const embers = efx.graphics.createParticleSystem({
     texture: spark,
     max: 200,
     lifetime: [1.2, 2.2],
@@ -76,14 +76,14 @@ const embers = efx.createParticleSystem({
     facing: 'y',
 });
 
-efx.setCamera2D({ frame: [640, 480] });
+efx.graphics.setCamera2D({ frame: [640, 480] });
 
 let t = 0;
 let burst = 0;
 efx.registerUpdateHook((dt) => {
     t += dt;
     const a = t * 0.4;
-    efx.setCamera3D({
+    efx.graphics.setCamera3D({
         pos: [Math.cos(a) * 7, 2.2, Math.sin(a) * 7],
         target: [0, 1.2, 0],
         fov: 60,
@@ -96,16 +96,16 @@ efx.registerUpdateHook((dt) => {
 });
 
 efx.registerRenderHook(() => {
-    efx.drawParticles(smoke);
-    efx.drawParticles(fire);
-    efx.drawBillboard([0, 0.4, 0], {
+    efx.graphics.drawParticles(smoke);
+    efx.graphics.drawParticles(fire);
+    efx.graphics.drawBillboard([0, 0.4, 0], {
         texture: spark,
         size: 0.9,
         color: [1, 0.7, 0.3, 0.9],
     });
-    efx.drawParticles(embers);
+    efx.graphics.drawParticles(embers);
     // a 2D sprite row (drawSprites is 2D-only)
-    efx.drawSprites(spark, [
+    efx.graphics.drawSprites(spark, [
         { x: 20, y: 20, size: [48, 48], color: [1, 0.4, 0.2, 0.9] },
         { x: 74, y: 20, size: [48, 48], color: [1, 0.7, 0.3, 0.9] },
         { x: 128, y: 20, size: [48, 48], color: [0.5, 0.8, 1, 0.9] },

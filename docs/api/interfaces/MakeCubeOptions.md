@@ -11,7 +11,7 @@ Options for `makeCube`.
 ## Example
 
 ```js
-const cube = efx.createMesh(efx.makeCube({ size: 1.4 }));
+const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
 ```
 
 ## Properties

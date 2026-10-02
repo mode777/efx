@@ -11,8 +11,8 @@ Options for `setRenderScale`.
 ## Example
 
 ```js
-efx.setRenderScale(0.5, { filter: 'nearest' }); // crisp half-res pixels
-efx.setRenderScale(1);                          // back to native
+efx.graphics.setRenderScale(0.5, { filter: 'nearest' }); // crisp half-res pixels
+efx.graphics.setRenderScale(1);                          // back to native
 ```
 
 ## Properties

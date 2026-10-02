@@ -19,9 +19,14 @@ behavior.
 - **One namespace.** All engine-provided functions — C-implemented and
   pure-JS high-level — live on a single global object `efx`, available to
   every script without imports or setup. Scripts reach engine functionality
-  only through `efx` and standard ES6 built-ins. Sub-namespaces such as
+  only through `efx` and standard ES6 built-ins. The namespace is organized
+  into domain sub-namespaces (ADR 0050): graphics drawing, state, and
+  resources live under `efx.graphics`, and further domains such as
   `efx.keyboard`, `efx.physics`, and `efx.gamepad` are members of that one
-  object and add no free globals. The CommonJS facilities `require`,
+  object; sub-namespaces add no free globals, and the root keeps the
+  runtime/lifecycle facilities (`log`, `quit`, `args`, hook registration,
+  `whiteTexture`, `loadText`, the `efx.mat4` / `efx.vec3` / `efx.quat`
+  helpers). The CommonJS facilities `require`,
   `module`, and `exports` are module-scoped authoring facilities, never
   members of `efx` and never free globals.
 - **Two layers.** Every API function belongs to exactly one of two layers:
@@ -346,31 +351,31 @@ in the generated reference (or to an open question below):
 
 | vision.md property | Documented as |
 |---|---|
-| 2D drawing via quads | `efx.drawQuad`, `DrawQuadOptions` |
-| Additive and subtractive blending modes | `efx.setBlendMode` |
-| 1 camera fixed | `efx.setCamera2D`, `efx.setCamera3D`, fixed limits |
-| Rendering meshes | `efx.createMesh` / `efx.drawMesh` |
+| 2D drawing via quads | `efx.graphics.drawQuad`, `DrawQuadOptions` |
+| Additive and subtractive blending modes | `efx.graphics.setBlendMode` |
+| 1 camera fixed | `efx.graphics.setCamera2D`, `efx.graphics.setCamera3D`, fixed limits |
+| Rendering meshes | `efx.graphics.createMesh` / `efx.graphics.drawMesh` |
 | Vertex colours | `MeshSurfaceData.colors`, `DrawMeshCallOptions.color` |
 | Matrix math | `efx.mat4` / `efx.vec3` / `efx.quat` |
 | Procedural primitives | `makeCube` / `makePlane` / `makeSphere` / `makeCapsule` |
-| 4 point lights, 1 directional light | `efx.setLight`, `efx.setDirectionalLight`, fixed limits |
-| Phong material system, 4 channels + maps | `efx.setMeshSurfaceMaterial`, `Material` |
+| 4 point lights, 1 directional light | `efx.graphics.setLight`, `efx.graphics.setDirectionalLight`, fixed limits |
+| Phong material system, 4 channels + maps | `efx.graphics.setMeshSurfaceMaterial`, `Material` |
 | Alpha masks | `Material.alphaMask` |
-| Rendering to textures | `efx.createRenderTarget` / `efx.beginRenderTarget` |
-| Simple post processing | `efx.setPostEffects`, `efx.setRenderScale` |
-| Resource folder / zip root (`res://`-like) | `efx.loadText` / `efx.loadImage` / `efx.loadMeshData` |
+| Rendering to textures | `efx.graphics.createRenderTarget` / `efx.graphics.beginRenderTarget` |
+| Simple post processing | `efx.graphics.setPostEffects`, `efx.graphics.setRenderScale` |
+| Resource folder / zip root (`res://`-like) | `efx.loadText` / `efx.graphics.loadImage` / `efx.graphics.loadMeshData` |
 | REPL console mode | the `--repl` run mode (no new API) |
-| Skinning and animations | `efx.poseMesh`, `DrawMeshCallOptions.skinned` |
-| PS2-era particle effects | `efx.createParticleSystem` / `efx.drawParticles` |
-| World-space sprites / billboards | `efx.drawBillboard` |
-| Batched 2D sprite drawing | `efx.drawSprites` |
+| Skinning and animations | `efx.graphics.poseMesh`, `DrawMeshCallOptions.skinned` |
+| PS2-era particle effects | `efx.graphics.createParticleSystem` / `efx.graphics.drawParticles` |
+| World-space sprites / billboards | `efx.graphics.drawBillboard` |
+| Batched 2D sprite drawing | `efx.graphics.drawSprites` |
 | Collision / character controller / dynamics | `efx.physics` |
 | Raycasts / line-of-sight / picking | `efx.physics.raycast` / `overlap` / `shapeCast` |
 | Keyboard/mouse input query + events | `efx.keyboard` / `efx.mouse` / `efx.window` |
 | Gamepad input query + events | `efx.gamepad` |
 | Audio playback (streamed + decoded) | `efx.audio` (`loadAudioData` / `loadAudioStream` / `playAudio`) |
 | Script modules (TypeScript `import`) | the CommonJS `require` model |
-| Text / fonts | `efx.loadFontData` / `createFont` / `drawText` / `measureText` |
+| Text / fonts | `efx.graphics.loadFontData` / `createFont` / `drawText` / `measureText` |
 | Callbacks for update and rendering | `efx.registerUpdateHook` / `registerRenderHook` |
 | Low/mid C + high-level JS layering | Two layers (Overview) |
 | No browser/Node dependencies | Conventions (Dependencies) |

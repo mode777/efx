@@ -17,5 +17,5 @@ const model = efx.mat4.translate(
   efx.mat4.rotate(efx.mat4.identity(), 45, [0, 1, 0]),
   [0, 0.5, 0],
 );
-efx.drawMesh(mesh, { transform: model });
+efx.graphics.drawMesh(mesh, { transform: model });
 ```

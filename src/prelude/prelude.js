@@ -228,7 +228,7 @@ function __efxMakeCube(opts) {
         }
         indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
     }
-    return efx.createMeshData({
+    return efx.graphics.createMeshData({
         positions: positions, normals: normals, uvs: uvs, indices: indices,
         materials: __efxPrimMaterial(opts),
     });
@@ -256,7 +256,7 @@ function __efxMakePlane(opts) {
             indices.push(a, d, e, a, e, b);
         }
     }
-    return efx.createMeshData({ positions: positions, uvs: uvs, indices: indices,
+    return efx.graphics.createMeshData({ positions: positions, uvs: uvs, indices: indices,
         materials: __efxPrimMaterial(opts) });
 }
 
@@ -290,7 +290,7 @@ function __efxMakeSphere(opts) {
             indices.push(a, d, c2, a, b, d);
         }
     }
-    return efx.createMeshData({
+    return efx.graphics.createMeshData({
         positions: positions, normals: normals, uvs: uvs, indices: indices,
         materials: __efxPrimMaterial(opts),
     });
@@ -345,7 +345,7 @@ function __efxMakeCapsule(opts) {
             indices.push(p0, p3, p2, p0, p1, p3);
         }
     }
-    return efx.createMeshData({
+    return efx.graphics.createMeshData({
         positions: positions, normals: normals, uvs: uvs, indices: indices,
         materials: __efxPrimMaterial(opts),
     });
@@ -1630,6 +1630,13 @@ function __efxLightSlot(slot) {
 }
 
 function __efxPreludeInstall(efx, natives) {
+    /* graphics sub-namespace (ADR 0050): created by the bindings; the
+     * prelude installs its members onto the same object in place. */
+    var g = efx.graphics;
+    if (!g) {
+        g = {};
+        efx.graphics = g;
+    }
     efx.mat4 = {
         identity: __efxM4Identity,
         perspective: __efxM4Perspective,
@@ -1653,12 +1660,12 @@ function __efxPreludeInstall(efx, natives) {
         multiply: __efxQuatMultiply,
         toMat4: __efxQuatToMat4,
     };
-    efx.makeCube = __efxMakeCube;
-    efx.makePlane = __efxMakePlane;
-    efx.makeSphere = __efxMakeSphere;
-    efx.makeCapsule = __efxMakeCapsule;
+    g.makeCube = __efxMakeCube;
+    g.makePlane = __efxMakePlane;
+    g.makeSphere = __efxMakeSphere;
+    g.makeCapsule = __efxMakeCapsule;
     if (natives && natives.setPointLight) {
-        efx.setLight = function (slot, opts) {
+        g.setLight = function (slot, opts) {
             if (arguments.length < 2) {
                 throw new TypeError('setLight requires (slot, opts)');
             }
@@ -1692,7 +1699,7 @@ function __efxPreludeInstall(efx, natives) {
             natives.setPointLight(s, 1, pv[0], pv[1], pv[2],
                                   lc[0], lc[1], lc[2], lc[3], range);
         };
-        efx.setDirectionalLight = function (opts) {
+        g.setDirectionalLight = function (opts) {
             if (arguments.length < 1) {
                 throw new TypeError('setDirectionalLight requires an options object or null');
             }
@@ -1720,7 +1727,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.setCamera2D) {
-        efx.setCamera2D = function (opts) {
+        g.setCamera2D = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {
                 throw new TypeError('setCamera2D requires an options object');
             }
@@ -1763,7 +1770,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.setCamera3D) {
-        efx.setCamera3D = function (opts) {
+        g.setCamera3D = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {
                 throw new TypeError('setCamera3D requires an options object');
             }
@@ -1813,14 +1820,14 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createImageData) {
-        efx.createImageData = function (opts) {
+        g.createImageData = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {
                 throw new TypeError('createImageData requires an options object');
             }
             var im = __efxImageDataOpts(opts);
             return natives.createImageData(im.w, im.h, im.bytes);
         };
-        efx.createTexture = function (imageData, opts) {
+        g.createTexture = function (imageData, opts) {
             if (arguments.length < 1) {
                 throw new TypeError('createTexture requires an ImageData');
             }
@@ -1830,7 +1837,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createRenderTarget) {
-        efx.createRenderTarget = function (opts) {
+        g.createRenderTarget = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {
                 throw new TypeError('createRenderTarget requires an options object');
             }
@@ -1839,7 +1846,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.loadImage) {
-        efx.loadImage = function (path) {
+        g.loadImage = function (path) {
             if (arguments.length < 1 || typeof path !== 'string') {
                 throw new TypeError('loadImage requires a path string');
             }
@@ -1849,7 +1856,7 @@ function __efxPreludeInstall(efx, natives) {
             }
             return r;
         };
-        efx.loadMeshData = function (path, opts) {
+        g.loadMeshData = function (path, opts) {
             if (arguments.length < 1 || typeof path !== 'string') {
                 throw new TypeError('loadMeshData requires a path string');
             }
@@ -1881,7 +1888,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createMeshData) {
-        efx.createMeshData = function (opts) {
+        g.createMeshData = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {
                 throw new TypeError('createMeshData requires an options object');
             }
@@ -2078,7 +2085,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createFont) {
-        efx.createFont = function (fontData, opts) {
+        g.createFont = function (fontData, opts) {
             if (arguments.length < 1) {
                 throw new TypeError('createFont requires a FontData');
             }
@@ -2090,7 +2097,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.setPostEffects) {
-        efx.setPostEffects = function (list) {
+        g.setPostEffects = function (list) {
             if (arguments.length < 1) {
                 throw new TypeError('setPostEffects requires an array or null');
             }
@@ -2112,7 +2119,7 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createParticleSystemWire) {
-        efx.createParticleSystem = function (opts) {
+        g.createParticleSystem = function (opts) {
             var parsed = __efxParticleWire(opts, natives.liveSample);
             var ps = natives.createParticleSystemWire(parsed.wire,
                                                       parsed.texture);

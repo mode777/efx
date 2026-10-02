@@ -5,9 +5,9 @@
 // keyboard events + queries, mouse/window read-only properties, and the
 // surface-pixel -> 2D-frame mapping the docs describe.
 
-efx.setClearColor([0.02, 0.016, 0.05, 1]);
-efx.setCamera2D({ frame: [640, 480] });
-efx.setBlendMode('additive');
+efx.graphics.setClearColor([0.02, 0.016, 0.05, 1]);
+efx.graphics.setCamera2D({ frame: [640, 480] });
+efx.graphics.setBlendMode('additive');
 
 const FRAME_W = 640;
 const FRAME_H = 480;
@@ -253,7 +253,7 @@ function update(dt) {
 }
 
 function bar(x, y, w, h, c, a) {
-    efx.drawQuad(x, y, efx.whiteTexture, {
+    efx.graphics.drawQuad(x, y, efx.whiteTexture, {
         size: [w, h],
         origin: [0, 0],
         color: [c[0], c[1], c[2], a],
@@ -269,7 +269,7 @@ function render() {
         }
         const f = p.life / p.max;
         const s = p.size * (0.6 + 0.4 * f);
-        efx.drawQuad(p.x, p.y, efx.whiteTexture, {
+        efx.graphics.drawQuad(p.x, p.y, efx.whiteTexture, {
             size: [s, s],
             color: [p.r, p.g, p.b, 0.85 * f * f],
         });

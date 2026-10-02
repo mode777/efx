@@ -174,11 +174,18 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("args", 0, efx_js_args),
     JS_CFUNC_DEF("registerUpdateHook", 1, efx_js_registerUpdateHook),
     JS_CFUNC_DEF("registerRenderHook", 1, efx_js_registerRenderHook),
+    JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
+    JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
+};
+
+/* graphics sub-namespace (ADR 0050): the natively-registered drawing,
+ * state, and resource entries. The prelude installs its members onto the
+ * same object (ADR 0049). */
+static const JSCFunctionListEntry GRAPHICS_FUNCS[] = {
     JS_CFUNC_DEF("setClearColor", 1, efx_js_setClearColor),
     /* createImageData/createTexture are installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawQuad", 4, efx_js_drawQuad),
     JS_CFUNC_DEF("setBlendMode", 1, efx_js_setBlendMode),
-    JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
     /* createMeshData is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
     JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
@@ -189,7 +196,6 @@ static const JSCFunctionListEntry EFX_FUNCS[] = {
     JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
     /* setPostEffects is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("setRenderScale", 2, efx_js_setRenderScale),
-    JS_CFUNC_DEF("loadText", 1, efx_js_loadText),
     JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
     /* createFont is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
@@ -233,6 +239,11 @@ static int install_efx_api(efx_runtime *rt) {
     JSValue efx = JS_NewObject(rt->ctx);
     JS_SetPropertyFunctionList(rt->ctx, efx, EFX_FUNCS,
                                (int)(sizeof(EFX_FUNCS) / sizeof(EFX_FUNCS[0])));
+    JSValue graphics = JS_NewObject(rt->ctx);
+    JS_SetPropertyFunctionList(rt->ctx, graphics, GRAPHICS_FUNCS,
+                               (int)(sizeof(GRAPHICS_FUNCS) /
+                                     sizeof(GRAPHICS_FUNCS[0])));
+    JS_SetPropertyStr(rt->ctx, efx, "graphics", graphics);
     if (efx_api_register_input(rt->ctx, efx) < 0) {
         fprintf(stderr, "player: input api init failed\n");
         JS_FreeValue(rt->ctx, efx);

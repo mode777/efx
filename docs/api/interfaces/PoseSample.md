@@ -14,7 +14,7 @@ it). `clip` is a clip name or an index.
 
 ```js
 // cross-fade walk -> run over two seconds
-efx.poseMesh(hero, [
+efx.graphics.poseMesh(hero, [
   { clip: 'Walk', time: t, weight: 1 - k },
   { clip: 'Run',  time: t, weight: k },
 ]);

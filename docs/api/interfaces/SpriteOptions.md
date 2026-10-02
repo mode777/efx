@@ -11,7 +11,7 @@ One entry of a `drawSprites` batch; each is equivalent to a `drawQuad` call.
 ## Example
 
 ```js
-efx.drawSprites(spark, [
+efx.graphics.drawSprites(spark, [
   { x: 20,  y: 20, size: [48, 48], color: [1, 0.4, 0.2, 0.9] },
   { x: 74,  y: 20, size: [48, 48], color: [1, 0.7, 0.3, 0.9] },
 ]);

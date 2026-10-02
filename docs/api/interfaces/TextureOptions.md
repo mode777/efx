@@ -12,7 +12,7 @@ Sampler options for `createTexture`.
 
 ```js
 // tiled, minified ground texture: repeat wrap plus a mip chain
-const tex = efx.createTexture(efx.loadImage('paving_color.jpg'),
+const tex = efx.graphics.createTexture(efx.graphics.loadImage('paving_color.jpg'),
                               { mipmaps: true });
 ```
 

@@ -34,6 +34,7 @@
 - [EfxFontData](interfaces/EfxFontData.md)
 - [EfxGamepad](interfaces/EfxGamepad.md)
 - [EfxGamepadView](interfaces/EfxGamepadView.md)
+- [EfxGraphics](interfaces/EfxGraphics.md)
 - [EfxImageData](interfaces/EfxImageData.md)
 - [EfxKeyboard](interfaces/EfxKeyboard.md)
 - [EfxMat4](interfaces/EfxMat4.md)
