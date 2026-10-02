@@ -167,5 +167,8 @@
   surfaced and fixed: the desktop-only catalog runner leaking into the
   emscripten build, a missing web fixture staging for the catalog, an
   over-trimmed web physics helper, and the compare harness staging.)
-- [ ] 11.4 Merge to `main` and push (per `AGENTS.md`). Confirm ADR 0049 is
+- [x] 11.4 Merge to `main` and push (per `AGENTS.md`). Confirm ADR 0049 is
   written and indexed. Archive the change with spec sync (`js-api`).
+  (Merged as 58da9d0; archived as 2026-10-02-shared-option-validation with
+  the js-api delta synced — 1 modified, 1 added requirement; 26/26 specs
+  validate strict.)
