@@ -160,7 +160,12 @@
   meshdata commit, plus the prelude liveSample-shape fix. One recorded
   deviation: the prelude material-wire bug briefly broke the
   map_alpha_mask/web material goldens and was caught and fixed here.)
-- [ ] 11.3 Dispatch V5 (`gh workflow run ci.yml --ref shared-option-validation`)
+- [x] 11.3 Dispatch V5 (`gh workflow run ci.yml --ref shared-option-validation`)
   in the order Linux → Windows → macOS. Verify: green; record the run id.
+  (Run 36958995215 green on all jobs: ubuntu, windows, macos, emscripten
+  build+test, emscripten web goldens, curated samples. Two earlier runs
+  surfaced and fixed: the desktop-only catalog runner leaking into the
+  emscripten build, a missing web fixture staging for the catalog, an
+  over-trimmed web physics helper, and the compare harness staging.)
 - [ ] 11.4 Merge to `main` and push (per `AGENTS.md`). Confirm ADR 0049 is
   written and indexed. Archive the change with spec sync (`js-api`).
