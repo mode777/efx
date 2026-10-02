@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PhysicsShapeHit
+[EFX API](../README.md) / PhysicsShapeHit
 
 # Interface: PhysicsShapeHit
 

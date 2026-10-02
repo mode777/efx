@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxFont
+[EFX API](../README.md) / EfxFont
 
 # Interface: EfxFont
 

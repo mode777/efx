@@ -1,5 +1,5 @@
 /*
- * EmotionFX post-processing passes — the single shader source for all
+ * EFX post-processing passes — the single shader source for all
  * platforms (ADR 0021), transpiled by the pinned sokol-shdc into
  * shaders/post.h.
  *

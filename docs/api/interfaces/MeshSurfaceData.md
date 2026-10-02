@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / MeshSurfaceData
+[EFX API](../README.md) / MeshSurfaceData
 
 # Interface: MeshSurfaceData
 

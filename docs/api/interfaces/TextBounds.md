@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / TextBounds
+[EFX API](../README.md) / TextBounds
 
 # Interface: TextBounds
 

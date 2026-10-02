@@ -1,4 +1,4 @@
-/* EmotionFX engine-bundled pure-JS layer (F3).
+/* EFX engine-bundled pure-JS layer (F3).
  *
  * Runs identically on both bindings: desktop quickjs evaluates this against
  * the `efx` namespace at runtime init; the web bridge exports the same

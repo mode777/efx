@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / SphereShape
+[EFX API](../README.md) / SphereShape
 
 # Interface: SphereShape
 

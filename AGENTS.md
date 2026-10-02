@@ -100,7 +100,7 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
   `workflow_dispatch` (`gh workflow run ci.yml`); ordinary branch pushes
   and pull requests do not start it. Every run publishes downloadable
   archives (native player for Linux/Windows/macOS, Emscripten web bundle,
-  and the curated-samples pack `emotion-fx-<version>-samples.zip`) as
+  and the curated-samples pack `efx-<version>-samples.zip`) as
   workflow artifacts, and a tag run attaches the same archives to that
   tag's GitHub Release. Use a manual run to prove the gate.
 - **Pages deploys separately.** The public sample gallery is built and

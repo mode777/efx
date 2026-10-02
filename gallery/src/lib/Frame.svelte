@@ -73,7 +73,7 @@
 <div class="frame-wrap" bind:this={wrapEl}>
   <div class="frame-box" style="width: {boxW}px; height: {boxH}px;">
     {#key runId}
-      <iframe bind:this={frameEl} src="./runner.html" title="EmotionFX sample" class="frame"></iframe>
+      <iframe bind:this={frameEl} src="./runner.html" title="EFX sample" class="frame"></iframe>
     {/key}
   </div>
 </div>

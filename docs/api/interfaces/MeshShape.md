@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / MeshShape
+[EFX API](../README.md) / MeshShape
 
 # Interface: MeshShape
 

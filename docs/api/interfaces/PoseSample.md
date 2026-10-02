@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PoseSample
+[EFX API](../README.md) / PoseSample
 
 # Interface: PoseSample
 

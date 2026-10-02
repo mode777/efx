@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / SpriteOptions
+[EFX API](../README.md) / SpriteOptions
 
 # Interface: SpriteOptions
 

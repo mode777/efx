@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PlayAudioOptions
+[EFX API](../README.md) / PlayAudioOptions
 
 # Interface: PlayAudioOptions
 

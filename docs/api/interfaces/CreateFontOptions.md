@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / CreateFontOptions
+[EFX API](../README.md) / CreateFontOptions
 
 # Interface: CreateFontOptions
 

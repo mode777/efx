@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / DirectionalLightOptions
+[EFX API](../README.md) / DirectionalLightOptions
 
 # Interface: DirectionalLightOptions
 

@@ -28,7 +28,7 @@ zip. Full process record: `openspec/changes/curated-sample-dirs/`.
   gallery build writes `public/samples/<name>.zip` from `packSample` only when
   the directory holds files besides `main.js`; the release packer
   (`gallery/scripts/pack-samples.mjs`) writes
-  `emotion-fx-<EFX_VERSION>-samples.zip` from `packSamples` plus a root
+  `efx-<EFX_VERSION>-samples.zip` from `packSamples` plus a root
   `CREDITS.md`.
 - **Generated assets are committed loose and drift-checked.**
   `gallery/scripts/gen-audio-assets.py` writes the three synthesized effect

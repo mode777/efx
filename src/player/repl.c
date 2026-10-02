@@ -254,7 +254,7 @@ int efx_repl_run(struct efx_resource *resource) {
     }
     r.interactive = repl_is_tty();
     if (r.interactive) {
-        fprintf(stderr, "EmotionFX REPL - .help for commands, .exit to quit\n");
+        fprintf(stderr, "EFX REPL - .help for commands, .exit to quit\n");
     }
 
     efx_platform_desc desc;

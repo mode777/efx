@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / Quat
+[EFX API](../README.md) / Quat
 
 # Type Alias: Quat
 

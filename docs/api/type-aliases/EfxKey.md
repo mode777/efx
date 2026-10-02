@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxKey
+[EFX API](../README.md) / EfxKey
 
 # Type Alias: EfxKey
 

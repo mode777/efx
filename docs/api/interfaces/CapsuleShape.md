@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / CapsuleShape
+[EFX API](../README.md) / CapsuleShape
 
 # Interface: CapsuleShape
 

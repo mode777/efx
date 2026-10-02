@@ -1,4 +1,4 @@
-# EmotionFX
+# EFX
 
 An old-school, PS2-era 3D game engine: a fixed-function renderer, super
 lightweight, scripted in ES6. Games are plain folders (or zips) of assets plus
@@ -24,10 +24,10 @@ function render() {
 
 ## Try it in the browser
 
-The [sample gallery](https://mode777.github.io/emotion-fx/) runs examples live
+The [sample gallery](https://mode777.github.io/efx/) runs examples live
 in the browser with an editable source pane, so you can see the API in action
 without installing anything. The generated API reference is served alongside it
-at [`/api`](https://mode777.github.io/emotion-fx/api/).
+at [`/api`](https://mode777.github.io/efx/api/).
 
 ## Capabilities
 
@@ -55,11 +55,11 @@ at [`/api`](https://mode777.github.io/emotion-fx/api/).
   TypeScript is supported as an authoring language (`import`/`export` compiled
   to CommonJS). Scripts are pure ES6 with zero browser or Node dependencies.
 
-## Get EmotionFX
+## Get EFX
 
-- **In your browser:** open the [sample gallery](https://mode777.github.io/emotion-fx/).
+- **In your browser:** open the [sample gallery](https://mode777.github.io/efx/).
 - **Native player:** download the prebuilt archive for your platform from the
-  [Releases page](https://github.com/mode777/emotion-fx/releases), unpack it,
+  [Releases page](https://github.com/mode777/efx/releases), unpack it,
   and run the `player` binary.
 - **From source:** see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -138,7 +138,7 @@ player --repl [<root>]                 # interactive console against the efx API
 
 ## Learn more
 
-- [Sample gallery](https://mode777.github.io/emotion-fx/) — runnable,
+- [Sample gallery](https://mode777.github.io/efx/) — runnable,
   editable examples. Their sources are the curated sample directories under
   [`gallery/samples/curated/`](gallery/samples/curated).
 - [`examples/hello`](examples/hello), [`examples/hooks`](examples/hooks), and

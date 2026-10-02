@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / Material
+[EFX API](../README.md) / Material
 
 # Interface: Material
 

@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / MakePlaneOptions
+[EFX API](../README.md) / MakePlaneOptions
 
 # Interface: MakePlaneOptions
 

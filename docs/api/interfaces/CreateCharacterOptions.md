@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / CreateCharacterOptions
+[EFX API](../README.md) / CreateCharacterOptions
 
 # Interface: CreateCharacterOptions
 

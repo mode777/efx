@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PhysicsContact
+[EFX API](../README.md) / PhysicsContact
 
 # Interface: PhysicsContact
 

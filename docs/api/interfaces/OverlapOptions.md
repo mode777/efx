@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / OverlapOptions
+[EFX API](../README.md) / OverlapOptions
 
 # Interface: OverlapOptions
 

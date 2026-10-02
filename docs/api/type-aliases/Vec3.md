@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / Vec3
+[EFX API](../README.md) / Vec3
 
 # Type Alias: Vec3
 

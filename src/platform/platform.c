@@ -364,7 +364,7 @@ int efx_platform_run(const efx_platform_desc *desc, efx_frame_hooks hooks) {
         d.width = EFX_CAP_W;
         d.height = EFX_CAP_H;
     }
-    d.window_title = "EmotionFX";
+    d.window_title = "EFX";
 #if defined(__EMSCRIPTEN__)
     if (g_capture.frame > 0) {
         d.html5.preserve_drawing_buffer = true; /* canvas readback after commit */

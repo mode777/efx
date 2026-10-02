@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / DrawBillboardOptions
+[EFX API](../README.md) / DrawBillboardOptions
 
 # Interface: DrawBillboardOptions
 

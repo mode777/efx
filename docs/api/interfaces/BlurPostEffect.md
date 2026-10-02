@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / BlurPostEffect
+[EFX API](../README.md) / BlurPostEffect
 
 # Interface: BlurPostEffect
 

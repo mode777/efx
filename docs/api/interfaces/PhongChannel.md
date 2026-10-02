@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PhongChannel
+[EFX API](../README.md) / PhongChannel
 
 # Interface: PhongChannel
 

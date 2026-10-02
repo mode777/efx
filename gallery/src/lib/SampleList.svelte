@@ -32,7 +32,7 @@
 
 <div class="list">
   <div class="head">
-    <span class="brand">EMOTIONFX</span>
+    <span class="brand">EFX</span>
     <span class="sub">sample gallery</span>
   </div>
 

@@ -1,5 +1,5 @@
 /*
- * EmotionFX 2D quad + billboard shader — the single shader source for all
+ * EFX 2D quad + billboard shader — the single shader source for all
  * platforms (ADR 0021). Compiled at author time with the pinned sokol-shdc
  * (vendor/README.md) into shaders/quad.h.
  *

@@ -1,4 +1,4 @@
-# EmotionFX JavaScript API — design guidelines
+# EFX JavaScript API — design guidelines
 
 **Role.** This document defines how the script-facing API is designed and
 extended: the conventions, layering, resource model, lifecycle, and error

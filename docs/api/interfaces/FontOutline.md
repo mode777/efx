@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / FontOutline
+[EFX API](../README.md) / FontOutline
 
 # Interface: FontOutline
 

@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PhysicsMoveCollision
+[EFX API](../README.md) / PhysicsMoveCollision
 
 # Interface: PhysicsMoveCollision
 

@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / KeyboardUpEvent
+[EFX API](../README.md) / KeyboardUpEvent
 
 # Interface: KeyboardUpEvent
 

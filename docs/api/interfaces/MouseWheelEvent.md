@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / MouseWheelEvent
+[EFX API](../README.md) / MouseWheelEvent
 
 # Interface: MouseWheelEvent
 

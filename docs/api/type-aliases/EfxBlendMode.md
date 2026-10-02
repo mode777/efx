@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxBlendMode
+[EFX API](../README.md) / EfxBlendMode
 
 # Type Alias: EfxBlendMode
 

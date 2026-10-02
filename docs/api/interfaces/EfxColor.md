@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxColor
+[EFX API](../README.md) / EfxColor
 
 # Interface: EfxColor
 

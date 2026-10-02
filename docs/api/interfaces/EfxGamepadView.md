@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxGamepadView
+[EFX API](../README.md) / EfxGamepadView
 
 # Interface: EfxGamepadView
 

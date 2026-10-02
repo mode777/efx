@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / PointLightOptions
+[EFX API](../README.md) / PointLightOptions
 
 # Interface: PointLightOptions
 

@@ -10,7 +10,7 @@ precedent for engine-owned CPU simulation).
 
 ## Context
 
-EmotionFX can render a 3D world but has no collision, no character movement,
+EFX can render a 3D world but has no collision, no character movement,
 and no dynamics, so the default PS2-era shape — a character walking a level,
 props that fall and get pushed, raycasts for picking and line of sight — is
 impossible to author. A general rigid-body engine (Jolt, Bullet) is both

@@ -9,7 +9,7 @@ efx.graphics.setCamera2D({ frame: [640, 480] });
 var font = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 32, filter: 'nearest' });
 
 efx.registerRenderHook(function () {
-    efx.graphics.drawText('EmotionFX', font, 20, 16, { color: [1, 1, 1, 1] });
+    efx.graphics.drawText('EFX', font, 20, 16, { color: [1, 1, 1, 1] });
     efx.graphics.drawText('left aligned', font, 20, 80, { color: [0.9, 0.3, 0.2, 1] });
     efx.graphics.drawText('center aligned', font, 320, 130,
         { align: 'center', color: [0.3, 0.9, 0.4, 1] });

@@ -1,5 +1,5 @@
 {
-  "name": "emotion-fx",
+  "name": "efx",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -8,16 +8,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mode777/emotion-fx.git"
+    "url": "git+https://github.com/mode777/efx.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/mode777/emotion-fx/issues"
+    "url": "https://github.com/mode777/efx/issues"
   },
-  "homepage": "https://github.com/mode777/emotion-fx#readme",
+  "homepage": "https://github.com/mode777/efx#readme",
   "devDependencies": {
     "@fission-ai/openspec": "^1.13.1"
   }

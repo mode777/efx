@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 // `base: './'` keeps the built site portable under a GitHub Pages project
-// subpath (e.g. /emotion-fx/) as well as at a domain root.
+// subpath (e.g. /efx/) as well as at a domain root.
 export default defineConfig({
   base: './',
   plugins: [svelte()],

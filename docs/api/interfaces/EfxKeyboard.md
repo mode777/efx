@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxKeyboard
+[EFX API](../README.md) / EfxKeyboard
 
 # Interface: EfxKeyboard
 

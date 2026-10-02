@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / RaycastOptions
+[EFX API](../README.md) / RaycastOptions
 
 # Interface: RaycastOptions
 

@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxPostEffect
+[EFX API](../README.md) / EfxPostEffect
 
 # Type Alias: EfxPostEffect
 

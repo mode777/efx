@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / CreateBodyOptions
+[EFX API](../README.md) / CreateBodyOptions
 
 # Interface: CreateBodyOptions
 

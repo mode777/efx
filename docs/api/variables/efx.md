@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / efx
+[EFX API](../README.md) / efx
 
 # Variable: efx
 

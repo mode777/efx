@@ -13,7 +13,7 @@ context: |
   Actions is the four-target gate (CMake build + ctest smoke suite,
   ADR 0009).
 
-  Domain: EmotionFX is a fixed-function renderer with an embedded ES6
+  Domain: EFX is a fixed-function renderer with an embedded ES6
   scripting layer. Immediate-mode JS API on one global `efx` object
   (ADR 0004); rendering goes through a re-orderable display list; fixed
   limits: 4 point lights + 1 directional light, 1 camera. Game scripts

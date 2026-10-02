@@ -1,4 +1,4 @@
-# Product Vision: EmotionFX - Oldschool 3d-Engine
+# Product Vision: EFX - Oldschool 3d-Engine
 
 I want to create an old-school 3d game engine that is capable of producing ps2-era graphics and is super lightweight and easy to use. 
 

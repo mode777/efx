@@ -16,7 +16,7 @@ Usage:
           commit -> push branch -> verify_remote.py -> dispatch CI.
 
 Options:
-    --dir DIR   remote checkout path (default: ~/emotion-fx)
+    --dir DIR   remote checkout path (default: ~/efx)
     --jobs N    parallel build jobs (default: nproc on the server)
 
 Credentials are read from the environment only: SSH_HOST, SSH_USER,
@@ -231,7 +231,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("suite", choices=["native", "web", "gallery", "all"])
     ap.add_argument("ref", nargs="?", default=None)
-    ap.add_argument("--dir", default="~/emotion-fx")
+    ap.add_argument("--dir", default="~/efx")
     ap.add_argument("--jobs", type=int, default=0,
                     help="build parallelism (default: server nproc)")
     args = ap.parse_args()

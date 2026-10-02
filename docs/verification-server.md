@@ -63,7 +63,7 @@ gh workflow run ci.yml --ref <branch>
 
 `ref` defaults to the current branch and must be pushed — the script
 verifies the pushed state via `git fetch` + `git reset --hard` into the
-remote checkout (`~/emotion-fx` by default, `--dir` to override), which
+remote checkout (`~/efx` by default, `--dir` to override), which
 keeps the server's warm build caches valid between runs. The script
 warns if your local HEAD differs from the pushed branch. Exit code 0
 means every requested suite passed.

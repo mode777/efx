@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / Camera2DOptions
+[EFX API](../README.md) / Camera2DOptions
 
 # Interface: Camera2DOptions
 

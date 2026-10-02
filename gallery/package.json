@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "EmotionFX public sample gallery (GitHub Pages)",
+  "description": "EFX public sample gallery (GitHub Pages)",
   "scripts": {
     "gen:catalog": "node scripts/gen-catalog.mjs",
     "prepare:player": "node scripts/prepare-player.mjs",

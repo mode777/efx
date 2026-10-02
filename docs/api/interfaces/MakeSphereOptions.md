@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / MakeSphereOptions
+[EFX API](../README.md) / MakeSphereOptions
 
 # Interface: MakeSphereOptions
 

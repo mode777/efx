@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxGamepadAxis
+[EFX API](../README.md) / EfxGamepadAxis
 
 # Type Alias: EfxGamepadAxis
 

@@ -1,6 +1,6 @@
-# Contributing to EmotionFX
+# Contributing to EFX
 
-This document is for people building, testing, and changing EmotionFX itself.
+This document is for people building, testing, and changing EFX itself.
 If you just want to build a game with the engine, start with
 [`README.md`](README.md) instead.
 
@@ -18,8 +18,8 @@ If you just want to build a game with the engine, start with
 ## Getting the source
 
 ```sh
-git clone https://github.com/mode777/emotion-fx.git
-cd emotion-fx
+git clone https://github.com/mode777/efx.git
+cd efx
 ```
 
 ## Building from source
@@ -133,7 +133,7 @@ how changes are iterated, not about which targets count.
 Every completed run publishes downloadable archives under the run's
 **Artifacts**: the native player for Linux, Windows, and macOS, the Emscripten
 web bundle, and the curated-samples pack
-(`emotion-fx-<version>-samples.zip`). A run triggered by a `v*` tag
+(`efx-<version>-samples.zip`). A run triggered by a `v*` tag
 additionally creates a GitHub Release for that tag with the same archives
 attached. Manual runs use a `dev-<sha>` version token in the archive names;
 tag runs use the tag name.

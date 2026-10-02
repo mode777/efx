@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / ColorFilterPostEffect
+[EFX API](../README.md) / ColorFilterPostEffect
 
 # Interface: ColorFilterPostEffect
 

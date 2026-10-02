@@ -26,7 +26,7 @@ function flag(name, fallback) {
 const version = process.env.EFX_VERSION || 'dev';
 const out = path.resolve(
     repoRoot,
-    flag('--out', path.join('dist', `emotion-fx-${version}-samples.zip`))
+    flag('--out', path.join('dist', `efx-${version}-samples.zip`))
 );
 
 const entries = readCurated();

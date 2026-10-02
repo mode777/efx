@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / DrawMeshCallOptions
+[EFX API](../README.md) / DrawMeshCallOptions
 
 # Interface: DrawMeshCallOptions
 

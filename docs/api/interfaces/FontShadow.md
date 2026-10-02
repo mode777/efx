@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / FontShadow
+[EFX API](../README.md) / FontShadow
 
 # Interface: FontShadow
 

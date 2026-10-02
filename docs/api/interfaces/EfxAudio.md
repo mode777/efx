@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxAudio
+[EFX API](../README.md) / EfxAudio
 
 # Interface: EfxAudio
 

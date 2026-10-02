@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxMouseButton
+[EFX API](../README.md) / EfxMouseButton
 
 # Type Alias: EfxMouseButton
 

@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / Mat4
+[EFX API](../README.md) / Mat4
 
 # Type Alias: Mat4
 

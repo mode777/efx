@@ -1,4 +1,4 @@
-// Type definitions for the EmotionFX script-facing API.
+// Type definitions for the EFX script-facing API.
 //
 // This is a LIVING DOCUMENT: it describes the current public `efx` surface
 // and grows with it. Update this file in the same change as any script-facing

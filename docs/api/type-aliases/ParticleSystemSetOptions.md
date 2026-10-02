@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / ParticleSystemSetOptions
+[EFX API](../README.md) / ParticleSystemSetOptions
 
 # Type Alias: ParticleSystemSetOptions
 

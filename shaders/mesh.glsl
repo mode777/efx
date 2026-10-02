@@ -1,5 +1,5 @@
 /*
- * EmotionFX 3D mesh shader — single shader source for all platforms
+ * EFX 3D mesh shader — single shader source for all platforms
  * (ADR 0021), transpiled by the pinned sokol-shdc into shaders/mesh.h.
  *
  * F4a cooked fill: world-space Phong (design D1/D7, ADR 0026). Ambient +

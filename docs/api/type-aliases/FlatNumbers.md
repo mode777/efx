@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / FlatNumbers
+[EFX API](../README.md) / FlatNumbers
 
 # Type Alias: FlatNumbers
 

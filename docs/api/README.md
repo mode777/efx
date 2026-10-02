@@ -1,8 +1,8 @@
-**EmotionFX API**
+**EFX API**
 
 ***
 
-# EmotionFX API
+# EFX API
 
 ## Interfaces
 

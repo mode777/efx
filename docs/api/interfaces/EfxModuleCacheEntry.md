@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxModuleCacheEntry
+[EFX API](../README.md) / EfxModuleCacheEntry
 
 # Interface: EfxModuleCacheEntry
 

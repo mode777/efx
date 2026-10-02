@@ -1,8 +1,8 @@
-[**EmotionFX API**](../README.md)
+[**EFX API**](../README.md)
 
 ***
 
-[EmotionFX API](../README.md) / EfxGamepadButton
+[EFX API](../README.md) / EfxGamepadButton
 
 # Type Alias: EfxGamepadButton
 
