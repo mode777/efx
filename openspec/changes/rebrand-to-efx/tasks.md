@@ -61,25 +61,25 @@
 
 ## 4. Golden re-baseline
 
-- [ ] 4.1 Change the drawn string in `tests/goldens/text_basic/main.js` from
+- [x] 4.1 Change the drawn string in `tests/goldens/text_basic/main.js` from
   `'EmotionFX'` to `'EFX'`. Verify the scene still runs headless (no API
   change) and the file no longer contains `EmotionFX`.
-- [ ] 4.2 Re-capture `tests/goldens/text_basic/golden.png` on the Linux
+- [x] 4.2 Re-capture `tests/goldens/text_basic/golden.png` on the Linux
   llvmpipe verification server using the AGENTS.md capture recipe. Verify
   `git status` shows only that one golden image changed and it renders the new
   string.
-- [ ] 4.3 Run the golden harness for every scene (native, display-backed) and
+- [x] 4.3 Run the golden harness for every scene (native, display-backed) and
   confirm no other golden image differs. Verify any additional diff is treated
   as a regression, not re-baselined.
 
 ## 5. Verification gate
 
-- [ ] 5.1 Run the headless Linux suite (`ctest --test-dir build -E golden
+- [x] 5.1 Run the headless Linux suite (`ctest --test-dir build -E golden
   --output-on-failure`) and confirm smoke + unit tests pass.
-- [ ] 5.2 Run `python3 tools/verify_remote.py all <branch>` on the SSH
+- [x] 5.2 Run `python3 tools/verify_remote.py all <branch>` on the SSH
   verification server and confirm the native golden suite, Emscripten golden
   suite, and gallery checks are green.
-- [ ] 5.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
+- [x] 5.3 Dispatch `gh workflow run ci.yml --ref <branch>` and confirm the
   four-target gate (Linux → Windows → macOS → Emscripten) is green, including
   the `gen_prelude.py --check` and `docs:check` steps.
 

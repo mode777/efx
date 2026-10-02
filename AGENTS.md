@@ -61,6 +61,10 @@ the generated reference `docs/api/` (source `gallery/src/api/efx.d.ts`).
   through the one creation path, the deferred pre-GPU upload queue is gone, and
   `efx.graphics.whiteTexture` works in every run mode
   (`collapse-pre-gpu-queue`, ADR 0052)
+- Rebrand — the project ships as **EFX** (was EmotionFX, which collided with
+  an existing game middleware); the repo slug is `efx`, artifact names are
+  `efx-<version>-…`, and the CMake project is `efx`, with no script-API or
+  behavior change (`rebrand-to-efx`; no ADR)
 
 **Codebase map:**
 
