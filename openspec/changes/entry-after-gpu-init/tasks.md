@@ -22,5 +22,5 @@
 
 ## 5. Verification gate
 
-- [ ] 5.1 On the SSH verification server, run the Linux signal first: `python3 tools/verify_remote.py all <branch>` — native ctest including the full golden-image suite (every committed PNG MUST match byte-identically) and the new display-required top-level-GPU test, plus the Emscripten golden suite and the cross-runtime compare. Fix anything it finds.
-- [ ] 5.2 Only after Linux passes, dispatch the four-target gate `gh workflow run ci.yml --ref <branch>` and confirm Linux, then Windows, then macOS green in order (ADR 0020/0023). Verify: the workflow run is green on all four targets with goldens unchanged.
+- [x] 5.1 On the SSH verification server, run the Linux signal first: `python3 tools/verify_remote.py all <branch>` — native ctest including the full golden-image suite (every committed PNG MUST match byte-identically) and the new display-required top-level-GPU test, plus the Emscripten golden suite and the cross-runtime compare. Fix anything it finds.
+- [x] 5.2 Only after Linux passes, dispatch the four-target gate `gh workflow run ci.yml --ref <branch>` and confirm Linux, then Windows, then macOS green in order (ADR 0020/0023). Verify: the workflow run is green on all four targets with goldens unchanged.
