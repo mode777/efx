@@ -27,18 +27,18 @@ context: |
   invariants). openspec/specs/ pin required behavior; docs hold
   invariants and rationale; AGENTS.md points rather than restates.
 
-  Milestones F1–F8 form a fixed ladder
-  (openspec/specs/feature-roadmap): a milestone must not start before
-  its predecessor's verification gate passes on all four targets, and
-  every feature proposal names the milestone it implements. Deferred
-  decisions settle in their assigned milestone (golden-image tolerance
-  + CI determinism: F2; canned-shader strategy: F4 at the latest; asset
-  format: F6).
+  The roadmap is complete: milestones F1–F14 are implemented and gated
+  on all four targets (openspec/specs/feature-roadmap). Post-roadmap
+  proposals name the capability spec(s) under openspec/specs/ they
+  modify or create; docs/tooling changes may set skip_specs. Behavior
+  changes still cross the four-target verification gate (ADR 0020),
+  dispatched per the ADR 0023 trigger policy.
 
 # Per-artifact rules (optional)
 rules:
   proposal:
-    - Name the milestone (F1–F8) this change implements
+    - Name the capability spec(s) this change modifies or creates, or set
+      `skip_specs` for docs/tooling changes
     - Name the affected docs (js-api.md guidelines, docs/api reference,
       decisions) and state explicitly whether an ADR is needed ("No ADR —
       reason" vs "new ADR docs/decisions/NNNN")
@@ -48,11 +48,11 @@ rules:
       explicit task to write the ADR (docs/decisions/NNNN per TEMPLATE.md) and
       add it to the docs/decisions/README.md index
     - Include a docs update task whenever invariants, the script-facing API
-      (docs/js-api.md and the generated docs/api reference), or the
-      roadmap/current-state sections of AGENTS.md change
-    - Include a verification task naming the harness (ctest smoke suite;
-      golden-image harness once F2 lands it) per the milestone's verification
-      gate
+      (docs/js-api.md and the generated docs/api reference), or the agent
+      guidance in AGENTS.md change
+    - Include a verification task naming the applicable harness (ctest
+      suites, the golden-image harness, or docs validation such as
+      `openspec validate --strict`)
   design:
     - Record rejected alternatives with the reason they lost
     - State how unmanaged resources are exposed to scripts: dynamic-count resources as
