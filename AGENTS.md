@@ -48,7 +48,9 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
    may therefore commit and push a branch solely to dispatch the gate.
    Every run publishes archives; tag runs attach them to the release.
 5. **Merge on green** — merge the branch into `main` and push without
-   waiting for a separate request. This triggers the Pages deployment: the
+   waiting for a separate request, using `git merge --no-ff` with a
+   `Merge <change>: <summary> (ADR NNNN)` message (the repo's history shape).
+   This triggers the Pages deployment: the
    sample gallery deploys via `pages.yml` on pushes to `main`, separately
    from the gate.
 6. **Archive** — archive the change and push. An ADR the change promised is
@@ -89,6 +91,10 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
 - `src/` — one core static library (`platform`, `runtime`, `api`, `player`,
   `render`, `physics`, `input`, `audio`, `resource`, `math`, `web`,
   `prelude`) plus a thin `main.c` (ADR 0003).
+- `src/web/js/*.js` are `--post-js` fragments concatenated in `CMakeLists.txt`
+  order into one shared scope, not modules: `core.js` holds the helpers and
+  the native-backed classes (`__efxResourceClass`, whose `methods`/`getters`
+  define their operations), the other files are object-literal fragments.
 - `vendor/` — pinned source snapshots (Sokol, quickjs-ng, stb, miniz, cgltf,
   dr_libs, minigamepad — `vendor/README.md`, ADR 0006).
 - Run modes (ADR 0007): windowed resource root (`main.js` `update`/`render`
@@ -102,7 +108,10 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
   `-DEFX_BUILD_GOLDEN_TESTS=OFF`; on an ON build dir exclude with
   `ctest -E golden`. Emscripten goldens run in pinned headless Chrome;
   `tools/run_web_compare.mjs` diffs desktop vs web output.
-- Gallery: `npm --prefix gallery ci && npm --prefix gallery run build`; copy
+- Gallery: `npm --prefix gallery ci && npm --prefix gallery run build`; the
+  type test is checked by `npm --prefix gallery run check` (svelte-check over
+  `src/**/*.ts`, which includes `gallery/src/api/efx.type-test.ts`), not
+  `tsc`. Copy
   the Emscripten player in via `gallery/scripts/prepare-player.mjs`; the
   catalog is generated from `tests/goldens/` + `gallery/samples/curated/` by
   `gallery/scripts/gen-catalog.mjs` (embedding contract ADR 0030, sample
@@ -117,6 +126,9 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
   `openspec/config.yaml` directly. Strict validation is
   `npx openspec validate "<change>" --type change --strict` (there is no
   `--change` flag on `validate`; `status`/`instructions` do take `--change`).
+  A `## MODIFIED Requirements` block must reproduce every existing scenario
+  name verbatim (and keep the requirement header text) or strict validation
+  rejects it as dropping scenarios — rename via `RENAMED`, never in place.
 - Reference implementations: sokol-samples (rendering patterns), rayjs
   (QuickJS integration + stripping for cross-platform).
 
