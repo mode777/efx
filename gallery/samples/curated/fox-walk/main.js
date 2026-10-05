@@ -3,7 +3,7 @@
 // a script-owned clock. The "Walk" clip drives the pose, drawn with
 // `skinned: true`; the retained bind pose stays untouched.
 efx.graphics.setClearColor([0.05, 0.06, 0.09, 1]);
-efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 1.4, 0], fov: 45 });
+efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 1.4, 0], 45);
 efx.graphics.setDirectionalLight({ dir: [-0.4, -0.8, -0.5], color: [0.9, 0.9, 0.95, 1] });
 efx.graphics.setLight(0, { pos: [2, 3, 3], color: [1, 0.95, 0.85, 1], range: 14 });
 

@@ -13,38 +13,36 @@ const TE = TypeError, RE = RangeError;
 
 // setCamera3D
 expectThrow('cam3d-noargs', TE, () => efx.graphics.setCamera3D());
-expectThrow('cam3d-no-pos', TE, () => efx.graphics.setCamera3D({ target: [0, 0, 0], fov: 60 }));
-expectThrow('cam3d-fov-type', TE, () => efx.graphics.setCamera3D({ pos: [0, 0, 1], target: [0, 0, 0], fov: 'wide' }));
-expectThrow('cam3d-fov-inf', RE, () => efx.graphics.setCamera3D({ pos: [0, 0, 1], target: [0, 0, 0], fov: Infinity }));
-expectThrow('cam3d-unknown', TE, () => efx.graphics.setCamera3D({ pos: [0, 0, 1], target: [0, 0, 0], fov: 60, frobnicate: 1 }));
-expectThrow('cam3d-pos-short', RE, () => efx.graphics.setCamera3D({ pos: [0, 0], target: [0, 0, 0], fov: 60 }));
+expectThrow('cam3d-no-pos', TE, () => efx.graphics.setCamera3D(undefined, [0, 0, 0], 60));
+expectThrow('cam3d-fov-type', TE, () => efx.graphics.setCamera3D([0, 0, 1], [0, 0, 0], 'wide'));
+expectThrow('cam3d-fov-inf', RE, () => efx.graphics.setCamera3D([0, 0, 1], [0, 0, 0], Infinity));
+expectThrow('cam3d-unknown', TE, () => efx.graphics.setCamera3D([0, 0, 1], [0, 0, 0], 60, { frobnicate: 1 }));
+expectThrow('cam3d-pos-short', RE, () => efx.graphics.setCamera3D([0, 0], [0, 0, 0], 60));
 
 // createMeshData
 const P = [0, 0, 0, 1, 0, 0, 0, 1, 0];
-expectThrow('md-none', TE, () => efx.graphics.createMeshData({}));
-expectThrow('md-both', TE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P }], positions: P }));
-expectThrow('md-empty', RE, () => efx.graphics.createMeshData({ surfaces: [] }));
-expectThrow('md-trunc', RE, () => efx.graphics.createMeshData({ positions: [0, 0, 0] }));
-expectThrow('md-mult', RE, () => efx.graphics.createMeshData({ positions: [0, 0, 0, 1, 0] }));
-expectThrow('md-idx-oob', RE, () => efx.graphics.createMeshData({ positions: P, indices: [0, 1, 3] }));
-expectThrow('md-idx-partial', RE, () => efx.graphics.createMeshData({ positions: P, indices: [0, 1] }));
-expectThrow('md-idx-frac', RE, () => efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2, 0] }));
-expectThrow('md-nonidx-div', RE, () => efx.graphics.createMeshData({ positions: [0, 0, 0, 1, 0, 0] }));
-expectThrow('md-norm-short', RE, () => efx.graphics.createMeshData({ positions: P, normals: [0, 0, 1] }));
-expectThrow('md-unknown', TE, () => efx.graphics.createMeshData({ positions: P, pixles: 1 }));
-expectThrow('md-materials-mismatch', RE, () => efx.graphics.createMeshData({ positions: P, materials: [] }));
-expectThrow('md-elem-type', TE, () => efx.graphics.createMeshData({ positions: ['a', 0, 0, 1, 0, 0, 0, 1, 0] }));
-expectThrow('md-elem-nan', RE, () => efx.graphics.createMeshData({ positions: [NaN, 0, 0, 1, 0, 0, 0, 1, 0] }));
+expectThrow('md-none', TE, () => efx.graphics.createMeshData([{  }]));
+expectThrow('md-both', TE, () => efx.graphics.createMeshData([{ positions: P }]));
+expectThrow('md-empty', RE, () => efx.graphics.createMeshData([]));
+expectThrow('md-trunc', RE, () => efx.graphics.createMeshData([{ positions: [0, 0, 0] }]));
+expectThrow('md-mult', RE, () => efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0] }]));
+expectThrow('md-idx-oob', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 3] }]));
+expectThrow('md-idx-partial', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1] }]));
+expectThrow('md-idx-frac', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2, 0] }]));
+expectThrow('md-nonidx-div', RE, () => efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0] }]));
+expectThrow('md-norm-short', RE, () => efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1] }]));
+expectThrow('md-unknown', TE, () => efx.graphics.createMeshData([{ positions: P, pixles: 1 }]));
+expectThrow('md-materials-mismatch', RE, () => efx.graphics.createMeshData([{ positions: P }], []));
+expectThrow('md-elem-type', TE, () => efx.graphics.createMeshData([{ positions: ['a', 0, 0, 1, 0, 0, 0, 1, 0] }]));
+expectThrow('md-elem-nan', RE, () => efx.graphics.createMeshData([{ positions: [NaN, 0, 0, 1, 0, 0, 0, 1, 0] }]));
 
 // valid: batch + shorthand, surfaceCount
-const md = efx.graphics.createMeshData({
-    surfaces: [
+const md = efx.graphics.createMeshData([
         { positions: P, normals: [0, 0, 1, 0, 0, 1, 0, 0, 1], indices: [0, 1, 2] },
         { positions: P },
-    ],
-});
+    ]);
 if (md.surfaceCount !== 2) { efx.log('FAIL md surfaceCount'); efx.quit(3); }
-const one = efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2] });
+const one = efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]);
 if (one.surfaceCount !== 1) { efx.log('FAIL shorthand surfaceCount'); efx.quit(3); }
 
 // createMesh + lifecycle
@@ -65,7 +63,7 @@ expectThrow('dm-color-short', RE, () => efx.graphics.drawMesh(mesh, { color: [1,
 expectThrow('dm-unknown', TE, () => efx.graphics.drawMesh(mesh, { frobnicate: 1 }));
 
 // valid draws record headless (uploads queue until a GPU surface exists)
-efx.graphics.setCamera3D({ pos: [0, 2, 5], target: [0, 0, 0], fov: 60 });
+efx.graphics.setCamera3D([0, 2, 5], [0, 0, 0], 60);
 efx.graphics.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1], color: [0.5, 0.25, 1, 1] });
 efx.graphics.drawMesh(mesh);
 

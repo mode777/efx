@@ -253,7 +253,7 @@ function update(dt) {
 }
 
 function bar(x, y, w, h, c, a) {
-    efx.graphics.drawQuad(x, y, efx.graphics.whiteTexture, {
+    efx.graphics.drawQuad(efx.graphics.whiteTexture, x, y, {
         size: [w, h],
         origin: [0, 0],
         color: [c[0], c[1], c[2], a],
@@ -269,7 +269,7 @@ function render() {
         }
         const f = p.life / p.max;
         const s = p.size * (0.6 + 0.4 * f);
-        efx.graphics.drawQuad(p.x, p.y, efx.graphics.whiteTexture, {
+        efx.graphics.drawQuad(efx.graphics.whiteTexture, p.x, p.y, {
             size: [s, s],
             color: [p.r, p.g, p.b, 0.85 * f * f],
         });

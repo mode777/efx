@@ -10,7 +10,7 @@
 2d.imagedata-format: RangeError: unsupported image format (only 'rgba8')
 2d.imagedata-unknown: TypeError: unknown option 'pixles'
 2d.imagedata-size: RangeError: width and height must be positive
-2d.quad-few: TypeError: drawQuad requires (x, y, texture, opts?)
+2d.quad-few: TypeError: drawQuad requires (texture, x, y, opts?)
 2d.quad-nontexture: TypeError: expected a Texture or RenderTarget
 2d.quad-size-zero: RangeError: size entries must be > 0
 2d.quad-size-short: RangeError: wrong array length
@@ -30,14 +30,14 @@
 2d.texture-wrap-type: TypeError: unknown wrap mode
 2d.texture-filter-type: TypeError: unknown filter
 2d.texture-mipmaps-type: TypeError: mipmaps must be a boolean
-3d.cam-noargs: TypeError: setCamera3D requires an options object
+3d.cam-noargs: TypeError: setCamera3D requires pos and target
 3d.cam-no-pos: TypeError: setCamera3D requires pos and target
 3d.cam-fov-type: TypeError: fov must be a number
 3d.cam-fov-inf: RangeError: fov must be finite
 3d.cam-unknown: TypeError: unknown setCamera3D option 'frobnicate'
 3d.cam-pos-short: RangeError: pos and target must hold 3 numbers
 3d.md-none: TypeError: createMeshData requires surfaces
-3d.md-both: TypeError: pass either surfaces or single-surface fields
+3d.md-notarray: TypeError: surfaces must be an array
 3d.md-empty: RangeError: surfaces must hold 1..16 entries
 3d.md-trunc: RangeError: invalid mesh data
 3d.md-mult: RangeError: invalid mesh data
@@ -46,7 +46,7 @@
 3d.md-idx-frac: RangeError: invalid mesh data
 3d.md-nonidx-div: RangeError: invalid mesh data
 3d.md-norm-short: RangeError: invalid mesh data
-3d.md-unknown: TypeError: unknown createMeshData option 'pixles'
+3d.md-unknown: TypeError: unknown surface option 'pixles'
 3d.md-materials-mismatch: RangeError: materials must have one entry per surface
 3d.md-elem-type: TypeError: array elements must be numbers
 3d.md-elem-nan: RangeError: array elements must be finite numbers
@@ -92,13 +92,13 @@
 4b.channel-unknown: TypeError: unknown diffuse option 'frob'
 4b.material-unknown: TypeError: unknown material option 'albedo'
 4b.md-map-length: RangeError: materials must have one entry per surface
-5a.rt-missing-object: TypeError: createRenderTarget requires an options object
+5a.rt-missing-object: TypeError: createRenderTarget requires width and height
 5a.rt-missing-width: TypeError: createRenderTarget requires width and height
 5a.rt-zero-size: RangeError: width and height must be integers in 1..4096
 5a.rt-negative-size: RangeError: width and height must be integers in 1..4096
 5a.rt-fraction-size: RangeError: width and height must be integers in 1..4096
 5a.rt-oversize: RangeError: width and height must be integers in 1..4096
-5a.rt-unknown-field: TypeError: unknown createRenderTarget option 'depth'
+5a.rt-nonnumber: RangeError: width and height must be integers in 1..4096
 5a.rt-getter-after-destroy: TypeError: using a destroyed resource
 5a.rt-begin-after-destroy: TypeError: using a destroyed resource
 5a.rt-nested-begin: TypeError: a render target is already active
@@ -179,8 +179,8 @@
 11.billboard-size: RangeError: size entries must be > 0
 11.sprites-array: TypeError: sprites must be an array
 11.sprite-xy: TypeError: sprite x and y must be finite numbers
-12.createbody-noopts: TypeError: createBody requires an options object
-12.createbody-noshape: TypeError: shape must be an options object
+12.createbody-noopts: TypeError: shape must be an options object
+12.createbody-noshape: TypeError: unknown shape type
 12.createcharacter-noopts: TypeError: createCharacter requires an options object
 12.createcharacter-noradius: TypeError: createCharacter requires radius and height
 12.createstaticmesh-noopts: TypeError: createStaticMesh requires a Mesh

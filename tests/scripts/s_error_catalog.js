@@ -59,44 +59,44 @@ C('2d.camera-frame3', function () { efx.graphics.setCamera2D({ frame: [10, 10, 1
 C('2d.blend-unknown', function () { efx.graphics.setBlendMode('nope'); });
 C('2d.blend-missing', function () { efx.graphics.setBlendMode(); });
 C('2d.imagedata-short', function () {
-    efx.graphics.createImageData({ width: 2, height: 2, pixels: [1, 2, 3] });
+    efx.graphics.createImageData(2, 2, [1, 2, 3]);
 });
 C('2d.imagedata-format', function () {
-    efx.graphics.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0], format: 'bgr' });
+    efx.graphics.createImageData(1, 1, [0, 0, 0, 0], { format: 'bgr' });
 });
 C('2d.imagedata-unknown', function () {
-    efx.graphics.createImageData({ width: 1, height: 1, pixels: [0, 0, 0, 0], pixles: 1 });
+    efx.graphics.createImageData(1, 1, [0, 0, 0, 0], { pixles: 1 });
 });
 C('2d.imagedata-size', function () {
-    efx.graphics.createImageData({ width: 0, height: 8, pixels: [] });
+    efx.graphics.createImageData(0, 8, []);
 });
 
-var img = efx.graphics.createImageData({ width: 8, height: 4, pixels: new Uint8Array(8 * 4 * 4) });
+var img = efx.graphics.createImageData(8, 4, new Uint8Array(8 * 4 * 4));
 var tex = efx.graphics.createTexture(img);
 
-C('2d.quad-few', function () { efx.graphics.drawQuad(0, 0); });
-C('2d.quad-nontexture', function () { efx.graphics.drawQuad(0, 0, {}); });
-C('2d.quad-size-zero', function () { efx.graphics.drawQuad(0, 0, tex, { size: [0, 10] }); });
-C('2d.quad-size-short', function () { efx.graphics.drawQuad(0, 0, tex, { size: [10] }); });
-C('2d.quad-size-type', function () { efx.graphics.drawQuad(0, 0, tex, { size: 'big' }); });
-C('2d.quad-size-nan', function () { efx.graphics.drawQuad(0, 0, tex, { size: [NaN, 1] }); });
-C('2d.quad-origin-nan', function () { efx.graphics.drawQuad(0, 0, tex, { origin: [NaN, 0] }); });
-C('2d.quad-origin-type', function () { efx.graphics.drawQuad(0, 0, tex, { origin: 'center' }); });
+C('2d.quad-few', function () { efx.graphics.drawQuad(tex, 0); });
+C('2d.quad-nontexture', function () { efx.graphics.drawQuad({}, 0, 0); });
+C('2d.quad-size-zero', function () { efx.graphics.drawQuad(tex, 0, 0, { size: [0, 10] }); });
+C('2d.quad-size-short', function () { efx.graphics.drawQuad(tex, 0, 0, { size: [10] }); });
+C('2d.quad-size-type', function () { efx.graphics.drawQuad(tex, 0, 0, { size: 'big' }); });
+C('2d.quad-size-nan', function () { efx.graphics.drawQuad(tex, 0, 0, { size: [NaN, 1] }); });
+C('2d.quad-origin-nan', function () { efx.graphics.drawQuad(tex, 0, 0, { origin: [NaN, 0] }); });
+C('2d.quad-origin-type', function () { efx.graphics.drawQuad(tex, 0, 0, { origin: 'center' }); });
 C('2d.quad-src-zero', function () {
-    efx.graphics.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 0, h: 2 } });
+    efx.graphics.drawQuad(tex, 0, 0, { sourceRect: { x: 0, y: 0, w: 0, h: 2 } });
 });
 C('2d.quad-src-oob', function () {
-    efx.graphics.drawQuad(0, 0, tex, { sourceRect: { x: 0, y: 0, w: 9, h: 2 } });
+    efx.graphics.drawQuad(tex, 0, 0, { sourceRect: { x: 0, y: 0, w: 9, h: 2 } });
 });
-C('2d.quad-unknown-opt', function () { efx.graphics.drawQuad(0, 0, tex, { colour: [1, 1, 1, 1] }); });
+C('2d.quad-unknown-opt', function () { efx.graphics.drawQuad(tex, 0, 0, { colour: [1, 1, 1, 1] }); });
 
-var deadTex = efx.graphics.createTexture(efx.graphics.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) }));
+var deadTex = efx.graphics.createTexture(efx.graphics.createImageData(2, 2, new Uint8Array(16)));
 deadTex.destroy();
-C('2d.quad-destroyed-texture', function () { efx.graphics.drawQuad(0, 0, deadTex); });
+C('2d.quad-destroyed-texture', function () { efx.graphics.drawQuad(deadTex, 0, 0); });
 C('2d.texture-width-destroyed', function () { return deadTex.width; });
 C('2d.texture-height-destroyed', function () { return deadTex.height; });
 
-var deadImg = efx.graphics.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) });
+var deadImg = efx.graphics.createImageData(2, 2, new Uint8Array(16));
 deadImg.destroy();
 C('2d.texture-from-destroyed-image', function () { efx.graphics.createTexture(deadImg); });
 C('2d.texture-nonimage', function () { efx.graphics.createTexture(5); });
@@ -108,35 +108,35 @@ C('2d.texture-mipmaps-type', function () { efx.graphics.createTexture(img, { mip
 /* -------------------------------------------------------------- 3D core */
 
 C('3d.cam-noargs', function () { efx.graphics.setCamera3D(); });
-C('3d.cam-no-pos', function () { efx.graphics.setCamera3D({ target: [0, 0, 0], fov: 60 }); });
-C('3d.cam-fov-type', function () { efx.graphics.setCamera3D({ pos: [0, 0, 1], target: [0, 0, 0], fov: 'wide' }); });
-C('3d.cam-fov-inf', function () { efx.graphics.setCamera3D({ pos: [0, 0, 1], target: [0, 0, 0], fov: Infinity }); });
+C('3d.cam-no-pos', function () { efx.graphics.setCamera3D(undefined, [0, 0, 0], 60); });
+C('3d.cam-fov-type', function () { efx.graphics.setCamera3D([0, 0, 1], [0, 0, 0], 'wide'); });
+C('3d.cam-fov-inf', function () { efx.graphics.setCamera3D([0, 0, 1], [0, 0, 0], Infinity); });
 C('3d.cam-unknown', function () {
-    efx.graphics.setCamera3D({ pos: [0, 0, 1], target: [0, 0, 0], fov: 60, frobnicate: 1 });
+    efx.graphics.setCamera3D([0, 0, 1], [0, 0, 0], 60, { frobnicate: 1 });
 });
-C('3d.cam-pos-short', function () { efx.graphics.setCamera3D({ pos: [0, 0], target: [0, 0, 0], fov: 60 }); });
+C('3d.cam-pos-short', function () { efx.graphics.setCamera3D([0, 0], [0, 0, 0], 60); });
 
 var P = [0, 0, 0, 1, 0, 0, 0, 1, 0];
-C('3d.md-none', function () { efx.graphics.createMeshData({}); });
-C('3d.md-both', function () { efx.graphics.createMeshData({ surfaces: [{ positions: P }], positions: P }); });
-C('3d.md-empty', function () { efx.graphics.createMeshData({ surfaces: [] }); });
-C('3d.md-trunc', function () { efx.graphics.createMeshData({ positions: [0, 0, 0] }); });
-C('3d.md-mult', function () { efx.graphics.createMeshData({ positions: [0, 0, 0, 1, 0] }); });
-C('3d.md-idx-oob', function () { efx.graphics.createMeshData({ positions: P, indices: [0, 1, 3] }); });
-C('3d.md-idx-partial', function () { efx.graphics.createMeshData({ positions: P, indices: [0, 1] }); });
-C('3d.md-idx-frac', function () { efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2, 0] }); });
-C('3d.md-nonidx-div', function () { efx.graphics.createMeshData({ positions: [0, 0, 0, 1, 0, 0] }); });
-C('3d.md-norm-short', function () { efx.graphics.createMeshData({ positions: P, normals: [0, 0, 1] }); });
-C('3d.md-unknown', function () { efx.graphics.createMeshData({ positions: P, pixles: 1 }); });
-C('3d.md-materials-mismatch', function () { efx.graphics.createMeshData({ positions: P, materials: [] }); });
+C('3d.md-none', function () { efx.graphics.createMeshData(); });
+C('3d.md-notarray', function () { efx.graphics.createMeshData({ positions: P }); });
+C('3d.md-empty', function () { efx.graphics.createMeshData([]); });
+C('3d.md-trunc', function () { efx.graphics.createMeshData([{ positions: [0, 0, 0] }]); });
+C('3d.md-mult', function () { efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0] }]); });
+C('3d.md-idx-oob', function () { efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 3] }]); });
+C('3d.md-idx-partial', function () { efx.graphics.createMeshData([{ positions: P, indices: [0, 1] }]); });
+C('3d.md-idx-frac', function () { efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2, 0] }]); });
+C('3d.md-nonidx-div', function () { efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0] }]); });
+C('3d.md-norm-short', function () { efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1] }]); });
+C('3d.md-unknown', function () { efx.graphics.createMeshData([{ positions: P, pixles: 1 }]); });
+C('3d.md-materials-mismatch', function () { efx.graphics.createMeshData([{ positions: P }], []); });
 C('3d.md-elem-type', function () {
-    efx.graphics.createMeshData({ positions: ['a', 0, 0, 1, 0, 0, 0, 1, 0] });
+    efx.graphics.createMeshData([{ positions: ['a', 0, 0, 1, 0, 0, 0, 1, 0] }]);
 });
 C('3d.md-elem-nan', function () {
-    efx.graphics.createMeshData({ positions: [NaN, 0, 0, 1, 0, 0, 0, 1, 0] });
+    efx.graphics.createMeshData([{ positions: [NaN, 0, 0, 1, 0, 0, 0, 1, 0] }]);
 });
 
-var md = efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2] });
+var md = efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]);
 var mesh = efx.graphics.createMesh(md);
 
 C('3d.drawmesh-none', function () { efx.graphics.drawMesh(); });
@@ -154,11 +154,11 @@ C('3d.drawmesh-color-short', function () { efx.graphics.drawMesh(mesh, { color: 
 C('3d.drawmesh-unknown', function () { efx.graphics.drawMesh(mesh, { frobnicate: 1 }); });
 C('3d.createMesh-nonmeshdata', function () { efx.graphics.createMesh(5); });
 
-var deadMesh = efx.graphics.createMesh(efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2] }));
+var deadMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]));
 deadMesh.destroy();
 C('3d.drawmesh-destroyed', function () { efx.graphics.drawMesh(deadMesh); });
 C('3d.mesh-surfacecount-destroyed', function () { return deadMesh.surfaceCount; });
-var deadMd = efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2] });
+var deadMd = efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]);
 deadMd.destroy();
 C('3d.md-surfacecount-destroyed', function () { return deadMd.surfaceCount; });
 
@@ -176,27 +176,24 @@ C('4a.dir-no-dir', function () { efx.graphics.setDirectionalLight({ color: [1, 1
 C('4a.dir-zero', function () { efx.graphics.setDirectionalLight({ dir: [0, 0, 0], color: [1, 1, 1, 1] }); });
 C('4a.dir-unknown', function () { efx.graphics.setDirectionalLight({ dir: [0, -1, 0], color: [1, 1, 1, 1], foo: 1 }); });
 C('4a.md-mat-length', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [] });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []);
 });
 C('4a.md-mat-not-array', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: { diffuse: {} } });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], { diffuse: {} });
 });
 C('4a.md-mat-bad-entry', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [42] });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [42]);
 });
 C('4a.mat-short-color', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: { color: [1, 1, 1] } }] });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1] } }]);
 });
 C('4a.mat-no-color', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: {} }] });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: {} }]);
 });
 C('4a.mat-unknown', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }] });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }]);
 });
-var matMesh = efx.graphics.createMesh(efx.graphics.createMeshData({
-    surfaces: [{ positions: P, indices: [0, 1, 2] }],
-    materials: [{ diffuse: { color: [1, 1, 1, 1] } }],
-}));
+var matMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] } }]));
 C('4a.smsm-nonmesh', function () { efx.graphics.setMeshSurfaceMaterial({}, 0, {}); });
 C('4a.smsm-index', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 2, {}); });
 C('4a.smsm-index-neg', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, -1, {}); });
@@ -204,7 +201,7 @@ C('4a.smsm-bad-mat', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 
 C('4a.smsm-shininess0', function () {
     efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { specular: { color: [1, 1, 1, 1], shininess: 0 } });
 });
-var deadMatMesh = efx.graphics.createMesh(efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2] }));
+var deadMatMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]));
 deadMatMesh.destroy();
 C('4a.smsm-destroyed', function () { efx.graphics.setMeshSurfaceMaterial(deadMatMesh, 0, {}); });
 
@@ -220,40 +217,40 @@ C('4b.channel-unknown', function () {
 });
 C('4b.material-unknown', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { albedo: 1 }); });
 C('4b.md-map-length', function () {
-    efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [] });
+    efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []);
 });
 
 /* ------------------------------------------------ render targets (F5a) */
 
 C('5a.rt-missing-object', function () { efx.graphics.createRenderTarget(); });
-C('5a.rt-missing-width', function () { efx.graphics.createRenderTarget({ height: 8 }); });
-C('5a.rt-zero-size', function () { efx.graphics.createRenderTarget({ width: 0, height: 8 }); });
-C('5a.rt-negative-size', function () { efx.graphics.createRenderTarget({ width: 8, height: -1 }); });
-C('5a.rt-fraction-size', function () { efx.graphics.createRenderTarget({ width: 10.5, height: 8 }); });
-C('5a.rt-oversize', function () { efx.graphics.createRenderTarget({ width: 4097, height: 8 }); });
-C('5a.rt-unknown-field', function () { efx.graphics.createRenderTarget({ width: 8, height: 8, depth: 24 }); });
-var deadRt = efx.graphics.createRenderTarget({ width: 8, height: 8 });
+C('5a.rt-missing-width', function () { efx.graphics.createRenderTarget(undefined, 8); });
+C('5a.rt-zero-size', function () { efx.graphics.createRenderTarget(0, 8); });
+C('5a.rt-negative-size', function () { efx.graphics.createRenderTarget(8, -1); });
+C('5a.rt-fraction-size', function () { efx.graphics.createRenderTarget(10.5, 8); });
+C('5a.rt-oversize', function () { efx.graphics.createRenderTarget(4097, 8); });
+C('5a.rt-nonnumber', function () { efx.graphics.createRenderTarget('8', 8); });
+var deadRt = efx.graphics.createRenderTarget(8, 8);
 deadRt.destroy();
 C('5a.rt-getter-after-destroy', function () { return deadRt.width; });
 C('5a.rt-begin-after-destroy', function () { efx.graphics.beginRenderTarget(deadRt); });
 
-var rtA = efx.graphics.createRenderTarget({ width: 64, height: 64 });
+var rtA = efx.graphics.createRenderTarget(64, 64);
 efx.graphics.beginRenderTarget(rtA);
 C('5a.rt-nested-begin', function () { efx.graphics.beginRenderTarget(rtA); });
-C('5a.rt-self-sample', function () { efx.graphics.drawQuad(0, 0, rtA); });
+C('5a.rt-self-sample', function () { efx.graphics.drawQuad(rtA, 0, 0); });
 efx.graphics.endRenderTarget();
 C('5a.rt-unbalanced-end', function () { efx.graphics.endRenderTarget(); });
 C('5a.rt-src-oob', function () {
-    efx.graphics.drawQuad(0, 0, rtA, { sourceRect: { x: 0, y: 0, w: 65, h: 8 } });
+    efx.graphics.drawQuad(rtA, 0, 0, { sourceRect: { x: 0, y: 0, w: 65, h: 8 } });
 });
 C('5a.rt-destroyed-as-texture', function () {
-    var dead = efx.graphics.createRenderTarget({ width: 8, height: 8 });
+    var dead = efx.graphics.createRenderTarget(8, 8);
     dead.destroy();
-    efx.graphics.drawQuad(0, 0, dead);
+    efx.graphics.drawQuad(dead, 0, 0);
 });
-var rtMesh = efx.graphics.createMesh(efx.graphics.createMeshData({ positions: P, indices: [0, 1, 2] }));
+var rtMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]));
 C('5a.rt-mesh-map-destroyed', function () {
-    var dead = efx.graphics.createRenderTarget({ width: 8, height: 8 });
+    var dead = efx.graphics.createRenderTarget(8, 8);
     dead.destroy();
     efx.graphics.setMeshSurfaceMaterial(rtMesh, 0, { diffuse: { color: [1, 1, 1, 1], map: dead } });
 });
@@ -298,7 +295,7 @@ C('6b.loadmesh-missing', function () { efx.graphics.loadMeshData('nope.gltf'); }
 C('6b.loadmesh-unknown-opt', function () { efx.graphics.loadMeshData('gltf_probe.glb', { nope: 1 }); });
 C('6b.loadmesh-corrupt', function () { efx.graphics.loadMeshData('gltf_corrupt.gltf'); });
 C('6c.md-joints-unpaired', function () {
-    efx.graphics.createMeshData({ positions: P, joints: [0, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0] });
+    efx.graphics.createMeshData([{ positions: P, joints: [0, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0] }]);
 });
 C('8a.loadfont-type', function () { efx.graphics.loadFontData(5); });
 C('8a.loadfont-missing', function () { efx.graphics.loadFontData('nope.ttf'); });
@@ -337,32 +334,32 @@ C('9.mouse-onwheel-nonfn', function () { efx.mouse.onWheel('x'); });
 
 /* ------------------------------------------------- particles (F11) */
 
-C('11.ps-missing-texture', function () { efx.graphics.createParticleSystem({ max: 4, lifetime: 1 }); });
-C('11.ps-missing-max', function () { efx.graphics.createParticleSystem({ texture: tex, lifetime: 1 }); });
-C('11.ps-max-range', function () { efx.graphics.createParticleSystem({ texture: tex, max: 0, lifetime: 1 }); });
-C('11.ps-missing-lifetime', function () { efx.graphics.createParticleSystem({ texture: tex, max: 4 }); });
+C('11.ps-missing-texture', function () { efx.graphics.createParticleSystem(undefined, 4, 1); });
+C('11.ps-missing-max', function () { efx.graphics.createParticleSystem(tex, undefined, 1); });
+C('11.ps-max-range', function () { efx.graphics.createParticleSystem(tex, 0, 1); });
+C('11.ps-missing-lifetime', function () { efx.graphics.createParticleSystem(tex, 4); });
 C('11.ps-lifetime-order', function () {
-    efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: [2, 1] });
+    efx.graphics.createParticleSystem(tex, 4, [2, 1]);
 });
 C('11.ps-unknown-field', function () {
-    efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1, bogus: 1 });
+    efx.graphics.createParticleSystem(tex, 4, 1, { bogus: 1 });
 });
 C('11.ps-bad-facing', function () {
-    efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1, facing: 'sideways' });
+    efx.graphics.createParticleSystem(tex, 4, 1, { facing: 'sideways' });
 });
 C('11.ps-plane-screen', function () {
-    efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1, space: 'screen', facing: 'plane' });
+    efx.graphics.createParticleSystem(tex, 4, 1, { space: 'screen', facing: 'plane' });
 });
 C('11.ps-set-max', function () {
-    var p = efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1 });
+    var p = efx.graphics.createParticleSystem(tex, 4, 1);
     p.set({ max: 0 });
 });
-var deadPs = efx.graphics.createParticleSystem({ texture: tex, max: 4, lifetime: 1 });
+var deadPs = efx.graphics.createParticleSystem(tex, 4, 1);
 deadPs.destroy();
 C('11.ps-destroyed-emit', function () { deadPs.emit(1); });
-C('11.billboard-no-texture', function () { efx.graphics.drawBillboard([0, 0, 0], { size: [1, 1] }); });
-C('11.billboard-pos', function () { efx.graphics.drawBillboard([0, 0], { texture: tex }); });
-C('11.billboard-size', function () { efx.graphics.drawBillboard([0, 0, 0], { texture: tex, size: [0, 1] }); });
+C('11.billboard-no-texture', function () { efx.graphics.drawBillboard(undefined, [0, 0, 0], { size: [1, 1] }); });
+C('11.billboard-pos', function () { efx.graphics.drawBillboard(tex, [0, 0]); });
+C('11.billboard-size', function () { efx.graphics.drawBillboard(tex, [0, 0, 0], { size: [0, 1] }); });
 C('11.sprites-array', function () { efx.graphics.drawSprites(tex, 'nope'); });
 C('11.sprite-xy', function () { efx.graphics.drawSprites(tex, [{ size: [1, 1] }]); });
 
@@ -370,12 +367,12 @@ C('11.sprite-xy', function () { efx.graphics.drawSprites(tex, [{ size: [1, 1] }]
 
 C('12.createbody-noopts', function () { efx.physics.createBody(); });
 C('12.createbody-noshape', function () { efx.physics.createBody({}); });
-C('12.createcharacter-noopts', function () { efx.physics.createCharacter(); });
-C('12.createcharacter-noradius', function () { efx.physics.createCharacter({ height: 2 }); });
+C('12.createcharacter-noopts', function () { efx.physics.createCharacter(0.4, 1.8, 5); });
+C('12.createcharacter-noradius', function () { efx.physics.createCharacter(undefined, 2); });
 C('12.createstaticmesh-noopts', function () { efx.physics.createStaticMesh(); });
 C('12.createstaticmesh-nomesh', function () { efx.physics.createStaticMesh(5); });
 C('12.applyimpulse-static', function () {
-    efx.physics.createBody({ shape: { type: 'sphere', radius: 1 } }).applyImpulse([0, 1, 0]);
+    efx.physics.createBody({ type: 'sphere', radius: 1 }).applyImpulse([0, 1, 0]);
 });
 C('12.raycast-noopts', function () { efx.physics.raycast(); });
 C('12.raycast-nomax', function () { efx.physics.raycast([0, 0, 0], [1, 0, 0]); });
@@ -386,18 +383,18 @@ C('12.dt-nonfinite', function () { efx.physics.step(Infinity); });
 /* coercion probe (docs/refactoring.md section 4.1): desktop `phys_opt_number`
  * runs JS_ToFloat64 (coerces '0.5'), web `__efxFiniteNumber` requires a number. */
 C('coercion.phys-number-string', function () {
-    efx.physics.createBody({ shape: { type: 'sphere', radius: 1 }, friction: '0.5' });
+    efx.physics.createBody({ type: 'sphere', radius: 1 }, { friction: '0.5' });
 });
 C('12.createbody-bad-radius', function () {
-    efx.physics.createBody({ shape: { type: 'sphere', radius: 0 } });
+    efx.physics.createBody({ type: 'sphere', radius: 0 });
 });
 C('12.createbody-shape-unknown', function () {
-    efx.physics.createBody({ shape: { type: 'sphere', radius: 1, nope: 1 } });
+    efx.physics.createBody({ type: 'sphere', radius: 1, nope: 1 });
 });
-var deadBody = efx.physics.createBody({ shape: { type: 'sphere', radius: 1 } });
+var deadBody = efx.physics.createBody({ type: 'sphere', radius: 1 });
 deadBody.destroy();
 C('12.body-destroyed', function () { return deadBody.position; });
-var deadChar = efx.physics.createCharacter({ radius: 0.4, height: 1.8 });
+var deadChar = efx.physics.createCharacter(0.4, 1.8);
 deadChar.destroy();
 C('12.character-destroyed', function () { return deadChar.position; });
 efx.physics.clear();

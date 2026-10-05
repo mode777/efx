@@ -1,6 +1,6 @@
 // F4a golden: emissive is added unmodulated by albedo and tint
 efx.graphics.setClearColor([0.01, 0.01, 0.02, 1]);
-efx.graphics.setCamera3D({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+efx.graphics.setCamera3D([0, 0, 4.2], [0, 0, 0], 55);
 const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.1, segments: 32 }));
 efx.graphics.setMeshSurfaceMaterial(ball, 0, {
     ambient:  { color: [0, 0, 0, 1] },

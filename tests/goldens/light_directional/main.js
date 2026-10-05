@@ -1,6 +1,6 @@
 // F4a golden: single directional light — the terminator follows -dir
 efx.graphics.setClearColor([0.02, 0.03, 0.05, 1]);
-efx.graphics.setCamera3D({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+efx.graphics.setCamera3D([0, 0, 4.2], [0, 0, 0], 55);
 efx.graphics.setDirectionalLight({ dir: [-0.6, -0.5, -0.6], color: [1.0, 0.95, 0.9, 1] });
 const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.1, segments: 32 }));
 efx.graphics.setMeshSurfaceMaterial(ball, 0, {

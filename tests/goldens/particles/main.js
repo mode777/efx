@@ -22,55 +22,21 @@ function makeGlow(size) {
 }
 
 const glow = efx.graphics.createTexture(
-    efx.graphics.createImageData({ width: 16, height: 16, pixels: makeGlow(16) }),
+    efx.graphics.createImageData(16, 16, makeGlow(16)),
 );
 
 efx.graphics.setClearColor([0.02, 0.02, 0.06, 1]);
-efx.graphics.setCamera3D({ pos: [0, 1.5, 8], target: [0, 0.5, 0], fov: 60 });
+efx.graphics.setCamera3D([0, 1.5, 8], [0, 0.5, 0], 60);
 
-const sparks = efx.graphics.createParticleSystem({
-    texture: glow,
-    max: 128,
-    lifetime: 1000,
-    emissionRate: 0,
-    position: [0, 0.7, 0],
-    speed: 0,
-    sizes: [0.5],
-    colors: [1, 0.7, 0.25, 1],
-    blend: 'additive',
-    facing: 'view',
-    emissionShape: { shape: 'box', size: [1.2, 0.2, 1.2] },
-});
+const sparks = efx.graphics.createParticleSystem(glow, 128, 1000, { emissionRate: 0, position: [0, 0.7, 0], speed: 0, sizes: [0.5], colors: [1, 0.7, 0.25, 1], blend: 'additive', facing: 'view', emissionShape: { shape: 'box', size: [1.2, 0.2, 1.2] } });
 sparks.emit(64);
 
-const water = efx.graphics.createParticleSystem({
-    texture: glow,
-    max: 64,
-    lifetime: 1000,
-    emissionRate: 0,
-    position: [0, 0, 0],
-    speed: 0,
-    sizes: [0.8],
-    colors: [0.2, 0.5, 1, 0.6],
-    blend: 'alpha',
-    facing: 'plane',
-    normal: [0, 1, 0],
-    emissionShape: { shape: 'box', size: [1.5, 0, 1.5] },
-});
+const water = efx.graphics.createParticleSystem(glow, 64, 1000, { emissionRate: 0, position: [0, 0, 0], speed: 0, sizes: [0.8], colors: [0.2, 0.5, 1, 0.6], blend: 'alpha', facing: 'plane', normal: [0, 1, 0], emissionShape: { shape: 'box', size: [1.5, 0, 1.5] } });
 water.emit(16);
 
 efx.registerRenderHook(() => {
     efx.graphics.drawParticles(water);
-    efx.graphics.drawBillboard([-1.4, 1.1, 0], {
-        texture: glow,
-        size: 0.7,
-        color: [1, 0.3, 0.2, 1],
-    });
-    efx.graphics.drawBillboard([1.4, 0.6, 0], {
-        texture: glow,
-        size: [0.4, 1.0],
-        facing: 'y',
-        color: [0.4, 1, 0.5, 1],
-    });
+    efx.graphics.drawBillboard(glow, [-1.4, 1.1, 0], { size: 0.7, color: [1, 0.3, 0.2, 1] });
+    efx.graphics.drawBillboard(glow, [1.4, 0.6, 0], { size: [0.4, 1.0], facing: 'y', color: [0.4, 1, 0.5, 1] });
     efx.graphics.drawParticles(sparks);
 });

@@ -73,14 +73,25 @@ behavior.
   releases deterministically and GC is the backstop. Native-backed classes
   are otherwise fully opaque except for documented read-only query
   properties.
-- **Parameters.** Hot immediate-mode calls take scalar arguments first
-  (`drawQuad(x, y, texture, opts?)`); configuration beyond ~3 values goes in
-  a trailing option object. Optionality is explicit at two levels:
+- **Parameters.** One rule governs every public function: **required inputs
+  are positional arguments and all optional inputs are fields of one trailing
+  options bag**. A call with no optional inputs omits the bag entirely. Every
+  field of an options bag is optional, and a bag never carries a required
+  input. A lone optional input MAY be passed positionally instead of in a bag.
+  Required fields are permitted inside a **record/value** argument — a shape,
+  a light descriptor, a pose sample, a source rectangle, or a batch element —
+  because such an argument is itself a required positional value, not the
+  function's options bag. Argument order is consistent: the subject (the thing
+  drawn, created, or queried) first, then required resources/selectors, then
+  required scalars (2D `x`, `y`) or vectors (3D position), then the options
+  bag — e.g. `drawQuad(texture, x, y, opts?)`, `createBody(shape, opts?)`,
+  `createFont(fontData, size, opts?)`, `createParticleSystem(texture, max,
+  lifetime, opts?)`. Optionality is explicit:
   - a `?` on the bag itself (`opts?`) means the whole object may be omitted —
     every field then takes its documented default;
-  - a `?` on a field (`range?`) means that field may be omitted — fields are
-    optional **only when a default is documented**; unmarked fields are
-    required.
+  - every field of an options bag is optional;
+  - inside a record/value argument, an unmarked field is required and a `?`
+    field is optional (optional only when a default is documented).
 - **Option-object validation.** A missing or wrongly-typed required field
   throws `TypeError`; unknown fields throw `TypeError` (typo protection).
   A number-typed option field accepts **only** values whose type is number —
@@ -196,12 +207,12 @@ fixed light bank is slot-based.
 | ImageData | Raw pixels + size + format | Native class | CPU | `createImageData` / `loadImage`; read-only `width` / `height` (throw `TypeError` when destroyed) |
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally; per-surface material binding slot | Native class | GPU | `createMesh(meshData)`; read-only `surfaceCount` |
 | Texture | GPU texture | Native class | GPU | `createTexture(imageData, opts?)` (`wrap`/`filter`/`mipmaps`); read-only `width` / `height`; `efx.graphics.whiteTexture` is an engine-owned instance (destroy throws) |
-| RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | `createRenderTarget({ width, height })` (1..4096 per side); read-only `width` / `height`; a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with no alias Texture object |
+| RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | `createRenderTarget(width, height)` (1..4096 per side); read-only `width` / `height`; a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with no alias Texture object |
 | Materials (Phong parameter objects) | — | JS-managed | — | Bound per surface via `setMeshSurfaceMaterial` / the `materials` array; per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | Snapshotted at `setPostEffects` call time; no native handle and no `destroy()` |
 | FontData | Parsed TrueType/OpenType font (CPU, no GPU resource) | Native class | CPU | `loadFontData(path)`; no query properties |
-| Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | `createFont(fontData, opts)`; read-only `size`/`lineHeight`/`ascent`/`descent` |
-| ParticleSystem | CPU-simulated pool + emitter configuration (engine-owned) | Native class | CPU | `createParticleSystem(opts)`; read-only `count`; read-write `speedScale`; retains its texture until destroyed |
+| Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | `createFont(fontData, size, opts?)`; read-only `size`/`lineHeight`/`ascent`/`descent` |
+| ParticleSystem | CPU-simulated pool + emitter configuration (engine-owned) | Native class | CPU | `createParticleSystem(texture, max, lifetime, opts?)`; read-only `count`; read-write `speedScale`; retains its texture until destroyed |
 | Body | One collision collider in the single physics world | Native class | CPU | `efx.physics.createBody` / `createStaticMesh`; read-only `position`/`transform`/`contacts`; read-write `velocity` |
 | Character | Kinematic vertical-capsule character controller | Native class | CPU | `efx.physics.createCharacter`; read-only `position`/`onFloor`; read-write `velocity` |
 | AudioData | Fully-decoded PCM (WAV/MP3) | Native class | CPU | `loadAudioData(path)`; no query properties |
@@ -364,7 +375,7 @@ in the generated reference (or to an open question below):
 | Additive and subtractive blending modes | `efx.graphics.setBlendMode` |
 | 1 camera fixed | `efx.graphics.setCamera2D`, `efx.graphics.setCamera3D`, fixed limits |
 | Rendering meshes | `efx.graphics.createMesh` / `efx.graphics.drawMesh` |
-| Vertex colours | `MeshSurfaceData.colors`, `DrawMeshCallOptions.color` |
+| Vertex colours | `MeshSurfaceData.colors`, `DrawMeshOptions.color` |
 | Matrix math | `efx.math.mat4` / `efx.math.vec3` / `efx.math.quat` |
 | Procedural primitives | `makeCube` / `makePlane` / `makeSphere` / `makeCapsule` |
 | 4 point lights, 1 directional light | `efx.graphics.setLight`, `efx.graphics.setDirectionalLight`, fixed limits |
@@ -374,7 +385,7 @@ in the generated reference (or to an open question below):
 | Simple post processing | `efx.graphics.setPostEffects`, `efx.graphics.setRenderScale` |
 | Resource folder / zip root (`res://`-like) | `efx.io.loadText` / `efx.io.loadData` / `efx.graphics.loadImage` / `efx.graphics.loadMeshData` |
 | REPL console mode | the `--repl` run mode (no new API) |
-| Skinning and animations | `efx.graphics.poseMesh`, `DrawMeshCallOptions.skinned` |
+| Skinning and animations | `efx.graphics.poseMesh`, `DrawMeshOptions.skinned` |
 | PS2-era particle effects | `efx.graphics.createParticleSystem` / `efx.graphics.drawParticles` |
 | World-space sprites / billboards | `efx.graphics.drawBillboard` |
 | Batched 2D sprite drawing | `efx.graphics.drawSprites` |

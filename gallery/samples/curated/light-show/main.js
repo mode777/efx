@@ -1,6 +1,6 @@
 // Four colored point lights orbiting a Phong sphere in real time.
 efx.graphics.setClearColor([0.01, 0.01, 0.02, 1]);
-efx.graphics.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 55 });
+efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 55);
 
 const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.6, segments: 32 }));
 efx.graphics.setMeshSurfaceMaterial(ball, 0, {

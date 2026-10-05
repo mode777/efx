@@ -4,7 +4,7 @@ efx.graphics.setCamera2D({ frame: [640, 480] });
 
 const pixels = [];
 for (let i = 0; i < 8 * 8; i++) { pixels.push(255, 255, 255, 255); }
-const tex = efx.graphics.createTexture(efx.graphics.createImageData({ width: 8, height: 8, pixels }));
+const tex = efx.graphics.createTexture(efx.graphics.createImageData(8, 8, pixels));
 
 const dots = [];
 for (let i = 0; i < 8; i++) {
@@ -26,6 +26,6 @@ function update(dt) {
 
 function render() {
     for (const d of dots) {
-        efx.graphics.drawQuad(d.x, d.y, tex, { size: [48, 48], color: d.c });
+        efx.graphics.drawQuad(tex, d.x, d.y, { size: [48, 48], color: d.c });
     }
 }

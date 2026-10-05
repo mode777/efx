@@ -11,24 +11,24 @@ for (let y = 0; y < 8; y++) {
     }
 }
 const tex = efx.graphics.createTexture(
-    efx.graphics.createImageData({ width: 16, height: 8, pixels: pixels }));
+    efx.graphics.createImageData(16, 8, pixels));
 function update() {}
 function render() {
     // top-left pair: size derivation — 1:1 texture-size draw (16x8) and a
     // sourceRect-derived size (left half -> 8x8), both untransformed so
     // origin defaults are invisible
-    efx.graphics.drawQuad(24, 20, tex);
-    efx.graphics.drawQuad(60, 20, tex, { sourceRect: { x: 0, y: 0, w: 8, h: 8 } });
+    efx.graphics.drawQuad(tex, 24, 20);
+    efx.graphics.drawQuad(tex, 60, 20, { sourceRect: { x: 0, y: 0, w: 8, h: 8 } });
 
     // middle: scale applies after the size is determined — 64x16 scaled 3x
     // around its center covers 192x48 centered on (256, 224)
-    efx.graphics.drawQuad(224, 216, tex, { size: [64, 16], scale: 3 });
+    efx.graphics.drawQuad(tex, 224, 216, { size: [64, 16], scale: 3 });
 
     // bottom-left: origin moves the pivot — rotation 90 pivots on the
     // quad-local point (4, 4), which stays fixed at (100, 344); the quad
     // swings right and down instead of spinning in place
-    efx.graphics.drawQuad(96, 340, tex, { size: [128, 64], origin: [4, 4], rotation: 90 });
+    efx.graphics.drawQuad(tex, 96, 340, { size: [128, 64], origin: [4, 4], rotation: 90 });
 
     // bottom-right: corner pivot with derived size, rotation + scale combined
-    efx.graphics.drawQuad(460, 320, tex, { origin: [0, 0], rotation: 45, scale: 1.5 });
+    efx.graphics.drawQuad(tex, 460, 320, { origin: [0, 0], rotation: 45, scale: 1.5 });
 }

@@ -1,6 +1,6 @@
 // F4a golden: ambient term is flat per surface (no lights enabled)
 efx.graphics.setClearColor([0.02, 0.02, 0.03, 1]);
-efx.graphics.setCamera3D({ pos: [0, 0, 4.2], target: [0, 0, 0], fov: 55 });
+efx.graphics.setCamera3D([0, 0, 4.2], [0, 0, 0], 55);
 const red = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 0.85, segments: 24 }));
 const blue = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 0.85, segments: 24 }));
 efx.graphics.setMeshSurfaceMaterial(red, 0, {

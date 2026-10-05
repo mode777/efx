@@ -17,9 +17,9 @@ const whiteTex = efx.graphics.whiteTexture;
 
 // ---- assets from the sample's pack (mounted as the resource root) ----
 const fd = efx.graphics.loadFontData('font.ttf');
-const fontTitle = efx.graphics.createFont(fd, { size: 24 });
-const font = efx.graphics.createFont(fd, { size: 15 });
-const fontSmall = efx.graphics.createFont(fd, { size: 12 });
+const fontTitle = efx.graphics.createFont(fd, 24);
+const font = efx.graphics.createFont(fd, 15);
+const fontSmall = efx.graphics.createFont(fd, 12);
 
 // ---- audio ----
 // A streamed source is decoded incrementally by each playhead; playAudio
@@ -161,9 +161,9 @@ function render() {
 
     // A visual-only level meter: it animates while the stream is playing.
     const meterW = 320;
-    efx.graphics.drawQuad(24, 114, whiteTex, { size: [meterW, 10], color: [0.14, 0.17, 0.24, 1] });
+    efx.graphics.drawQuad(whiteTex, 24, 114, { size: [meterW, 10], color: [0.14, 0.17, 0.24, 1] });
     const lvl = music.volume;
-    efx.graphics.drawQuad(24, 114, whiteTex, {
+    efx.graphics.drawQuad(whiteTex, 24, 114, {
         size: [meterW * Math.max(0.02, lvl), 10],
         color: [0.35, 0.85, 1, 0.9],
     });
@@ -172,12 +172,12 @@ function render() {
         const x = PAD_X0 + i * (PAD_W + PAD_GAP);
         const c = PADS[i].color;
         const pulse = pulses[i];
-        efx.graphics.drawQuad(x, PAD_Y, whiteTex, {
+        efx.graphics.drawQuad(whiteTex, x, PAD_Y, {
             size: [PAD_W, PAD_H],
             color: [c[0] * 0.22, c[1] * 0.22, c[2] * 0.22, 1],
         });
         const b = 2 + pulse * 7;
-        efx.graphics.drawQuad(x - b, PAD_Y - b, whiteTex, {
+        efx.graphics.drawQuad(whiteTex, x - b, PAD_Y - b, {
             size: [PAD_W + 2 * b, PAD_H + 2 * b],
             color: [c[0], c[1], c[2], 0.2 + 0.6 * pulse],
         });
@@ -193,7 +193,7 @@ function render() {
                  fontSmall, 24, 406, { color: [0.55, 0.6, 0.7, 1] });
 
     const a = 0.35 + 0.3 * Math.sin(t * 3.0);
-    efx.graphics.drawQuad(24, 438, whiteTex, { size: [FW - 48, 2], color: [0.3, 0.6, 1, a] });
+    efx.graphics.drawQuad(whiteTex, 24, 438, { size: [FW - 48, 2], color: [0.3, 0.6, 1, a] });
 }
 
 efx.registerUpdateHook(update);

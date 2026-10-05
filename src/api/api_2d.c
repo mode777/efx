@@ -290,10 +290,10 @@ static int read_quad_opts(JSContext *ctx, uint64_t tex_handle,
 JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     (void)this_val;
     if (argc < 3) {
-        return efx_api_type_error(ctx, "drawQuad requires (x, y, texture, opts?)");
+        return efx_api_type_error(ctx, "drawQuad requires (texture, x, y, opts?)");
     }
     double x, y;
-    if (JS_ToFloat64(ctx, &x, argv[0]) < 0 || JS_ToFloat64(ctx, &y, argv[1]) < 0) {
+    if (JS_ToFloat64(ctx, &x, argv[1]) < 0 || JS_ToFloat64(ctx, &y, argv[2]) < 0) {
         return efx_api_type_error(ctx, "x and y must be numbers");
     }
     if (!isfinite(x) || !isfinite(y)) {
@@ -301,7 +301,7 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
     }
     /* F5a texture coercion: a live Texture or a live RenderTarget */
     uint64_t tex_handle = 0;
-    if (efx_api_get_live_sample(ctx, argv[2], &tex_handle) != 0) {
+    if (efx_api_get_live_sample(ctx, argv[0], &tex_handle) != 0) {
         return JS_EXCEPTION;
     }
 

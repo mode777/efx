@@ -7,12 +7,8 @@
 efx.graphics.setClearColor([0.07, 0.08, 0.12, 1]);
 efx.graphics.setCamera2D({ frame: [640, 480] });
 
-const titleFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
-    size: 44,
-    outline: { width: 2 },
-    shadow: { blur: 3, offset: [2, 2] },
-});
-const bodyFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 24 });
+const titleFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 44, { outline: { width: 2 }, shadow: { blur: 3, offset: [2, 2] } });
+const bodyFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 24);
 
 const ALIGNS = ['left', 'center', 'right', 'justify'];
 let alignIndex = 0;

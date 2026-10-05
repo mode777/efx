@@ -359,32 +359,32 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
                              JSValueConst *argv) {
     (void)this_val;
     if (argc < 2) {
-        return efx_api_type_error(ctx, "drawBillboard requires (pos, opts)");
+        return efx_api_type_error(ctx, "drawBillboard requires (texture, pos, opts?)");
     }
-    float pos[3];
-    if (read_billboard_pos(ctx, argv[0], pos) != 0) {
-        return JS_EXCEPTION;
-    }
-    if (!JS_IsObject(argv[1])) {
-        return efx_api_type_error(ctx, "drawBillboard options must be an object");
-    }
-    JSValueConst opts = argv[1];
-    static const char *known[] = {"texture", "size",     "color",     "sourceRect",
-                                  "rotation", "facing",  "depthTest", "normal"};
-    if (efx_api_check_known_fields(ctx, opts, known, 8, "drawBillboard") != 0) {
-        return JS_EXCEPTION;
-    }
-    JSValue tv = JS_GetPropertyStr(ctx, opts, "texture");
+    JSValueConst tv = argv[0];
     if (JS_IsUndefined(tv)) {
-        JS_FreeValue(ctx, tv);
         return efx_api_type_error(ctx, "drawBillboard requires a texture");
     }
     uint64_t tex = 0;
     if (efx_api_get_live_sample(ctx, tv, &tex) != 0) {
-        JS_FreeValue(ctx, tv);
         return JS_EXCEPTION;
     }
-    JS_FreeValue(ctx, tv);
+    float pos[3];
+    if (read_billboard_pos(ctx, argv[1], pos) != 0) {
+        return JS_EXCEPTION;
+    }
+    JSValueConst opts = JS_UNDEFINED;
+    if (argc >= 3 && !JS_IsUndefined(argv[2])) {
+        if (!JS_IsObject(argv[2])) {
+            return efx_api_type_error(ctx, "drawBillboard options must be an object");
+        }
+        opts = argv[2];
+        static const char *known[] = {"size",     "color",     "sourceRect",
+                                      "rotation", "facing",  "depthTest", "normal"};
+        if (efx_api_check_known_fields(ctx, opts, known, 7, "drawBillboard") != 0) {
+            return JS_EXCEPTION;
+        }
+    }
 
     float w = 1.0f, h = 1.0f;
     float color[4] = {1, 1, 1, 1};

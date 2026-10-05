@@ -28,6 +28,7 @@ static float *wire_f32(JSContext *ctx, JSValueConst v, size_t *out_len) {
     uint8_t *bytes = NULL;
     JSValue ab = JS_GetTypedArrayBuffer(ctx, v, NULL, NULL, NULL);
     if (JS_IsException(ab)) {
+        JS_FreeValue(ctx, JS_GetException(ctx));
         return NULL;
     }
     bytes = JS_GetArrayBuffer(ctx, &blen, ab);
@@ -44,6 +45,7 @@ static int32_t *wire_i32(JSContext *ctx, JSValueConst v, size_t *out_len) {
     uint8_t *bytes = NULL;
     JSValue ab = JS_GetTypedArrayBuffer(ctx, v, NULL, NULL, NULL);
     if (JS_IsException(ab)) {
+        JS_FreeValue(ctx, JS_GetException(ctx));
         return NULL;
     }
     bytes = JS_GetArrayBuffer(ctx, &blen, ab);
@@ -60,6 +62,7 @@ static uint32_t *wire_u32(JSContext *ctx, JSValueConst v, size_t *out_len) {
     uint8_t *bytes = NULL;
     JSValue ab = JS_GetTypedArrayBuffer(ctx, v, NULL, NULL, NULL);
     if (JS_IsException(ab)) {
+        JS_FreeValue(ctx, JS_GetException(ctx));
         return NULL;
     }
     bytes = JS_GetArrayBuffer(ctx, &blen, ab);
@@ -113,7 +116,7 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
             maps = (double *)bytes;
         }
     } else {
-        JS_GetException(ctx);
+        JS_FreeValue(ctx, JS_GetException(ctx));
         maps = NULL;
     }
     int32_t *mat_has = wire_i32(ctx, argv[11], &nhas);

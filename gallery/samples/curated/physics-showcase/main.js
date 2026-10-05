@@ -3,7 +3,7 @@
 // sensor volume, and pushes falling/pushable dynamic props, with a raycast for
 // line-of-sight. Everything is procedural; no asset pack.
 efx.graphics.setClearColor([0.05, 0.06, 0.1, 1]);
-efx.graphics.setCamera3D({ pos: [-7, 5.5, 9], target: [2, 1, 0], fov: 55 });
+efx.graphics.setCamera3D([-7, 5.5, 9], [2, 1, 0], 55);
 efx.graphics.setLight(0, { pos: [4, 8, 6], color: [1, 0.97, 0.9, 1], range: 60 });
 efx.graphics.setDirectionalLight({ dir: [-0.3, -1, -0.2], color: [0.2, 0.22, 0.3, 1] });
 
@@ -12,9 +12,7 @@ efx.physics.clear();
 
 // ---- static course -------------------------------------------------------
 function boxBody(size, pos) {
-    return efx.physics.createBody({
-        shape: { type: 'box', size: size }, position: pos,
-    });
+    return efx.physics.createBody({ type: 'box', size: size }, { position: pos });
 }
 const ground = boxBody([40, 1, 40], [0, -0.5, 0]);
 const backWall = boxBody([40, 3, 0.5], [0, 1.5, -3]);
@@ -22,39 +20,23 @@ const sideWall = boxBody([0.5, 3, 8], [7, 1.5, 0]);
 const step = boxBody([2, 0.3, 3], [3, 0.15, 2.2]);
 
 // a tilted ramp mesh (rises along +x) as a static triangle-mesh collider
-const rampData = efx.graphics.createMeshData({
-    positions: [-2, 0, -1.6, 4, 2.4, -1.6, 4, 2.4, 1.6, -2, 0, 1.6],
-    indices: [0, 2, 1, 0, 3, 2],
-    normals: [-0.49, 0.87, 0, -0.49, 0.87, 0, -0.49, 0.87, 0, -0.49, 0.87, 0],
-});
+const rampData = efx.graphics.createMeshData([{ positions: [-2, 0, -1.6, 4, 2.4, -1.6, 4, 2.4, 1.6, -2, 0, 1.6], indices: [0, 2, 1, 0, 3, 2], normals: [-0.49, 0.87, 0, -0.49, 0.87, 0, -0.49, 0.87, 0, -0.49, 0.87, 0] }]);
 const rampMesh = efx.graphics.createMesh(rampData);
 const ramp = efx.physics.createStaticMesh(rampMesh, { friction: 0.8 });
 
 // a sensor trigger pad
 const sensorPos = [-2, 1, 0];
-const sensor = efx.physics.createBody({
-    sensor: true, shape: { type: 'box', size: [2, 2, 2] }, position: sensorPos,
-});
+const sensor = efx.physics.createBody({ type: 'box', size: [2, 2, 2] }, { sensor: true, position: sensorPos });
 
 // ---- dynamic props -------------------------------------------------------
 const props = [];
 for (let i = 0; i < 5; i++) {
-    props.push(efx.physics.createBody({
-        dynamic: true, mass: 1, friction: 0.6, restitution: 0.15,
-        shape: { type: 'box', size: [0.8, 0.8, 0.8] },
-        position: [0.5 + i * 1.1, 3 + i * 0.6, -1],
-    }));
+    props.push(efx.physics.createBody({ type: 'box', size: [0.8, 0.8, 0.8] }, { dynamic: true, mass: 1, friction: 0.6, restitution: 0.15, position: [0.5 + i * 1.1, 3 + i * 0.6, -1] }));
 }
-const ball = efx.physics.createBody({
-    dynamic: true, mass: 2, restitution: 0.5,
-    shape: { type: 'sphere', radius: 0.5 }, position: [6, 4, 2],
-});
+const ball = efx.physics.createBody({ type: 'sphere', radius: 0.5 }, { dynamic: true, mass: 2, restitution: 0.5, position: [6, 4, 2] });
 
 // ---- the character -------------------------------------------------------
-const hero = efx.physics.createCharacter({
-    radius: 0.4, height: 1.8, position: [-5, 1, 0],
-    floorMaxAngle: 50, stepHeight: 0.35, floorSnapLength: 0.15,
-});
+const hero = efx.physics.createCharacter(0.4, 1.8, { position: [-5, 1, 0], floorMaxAngle: 50, stepHeight: 0.35, floorSnapLength: 0.15 });
 const heroVel = [4, 0, 0];
 let triggered = false;
 let sawWall = false;
@@ -78,9 +60,7 @@ function update(dt) {
 
     // line-of-sight raycast just ahead of the character
     const p = hero.position;
-    const ray = efx.physics.raycast([p[0], p[1], p[2]],
-                                    [Math.cos(time * 0.7), 0, Math.sin(time * 0.7)],
-                                    { maxDistance: 6 });
+    const ray = efx.physics.raycast([p[0], p[1], p[2]], [Math.cos(time * 0.7), 0, Math.sin(time * 0.7)], 6);
     sawWall = !!(ray && ray.body === sideWall);
 }
 

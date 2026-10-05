@@ -1021,17 +1021,22 @@ function __efxPostEntry(v) {
  * bakes the atlas. Layout options for drawText/measureText stay native
  * (hot path, ADR 0049). */
 
-function __efxCreateFontOpts(natives, fontData, opts) {
-    var known = { size: 1, glyphs: 1, padding: 1, filter: 1,
-                  outline: 1, shadow: 1 };
-    __efxCheckKnown(opts, known, 'createFont');
-    if (opts['size'] === undefined) {
+function __efxCreateFontOpts(natives, fontData, size, opts) {
+    if (size === undefined) {
         throw new TypeError('createFont requires size');
     }
-    var size = __efxFinite(opts['size'], 'size must be a finite number');
-    if (!(size > 0)) {
+    var sz = __efxFinite(size, 'size must be a finite number');
+    if (!(sz > 0)) {
         throw new RangeError('size must be > 0');
     }
+    if (opts === undefined || opts === null) {
+        opts = {};
+    }
+    if (!__efxIsObject(opts)) {
+        throw new TypeError('createFont options must be an object');
+    }
+    __efxCheckKnown(opts, { glyphs: 1, padding: 1, filter: 1,
+                            outline: 1, shadow: 1 }, 'createFont');
     var glyphs = opts['glyphs'];
     if (glyphs !== undefined) {
         if (typeof glyphs !== 'string') {
@@ -1096,7 +1101,7 @@ function __efxCreateFontOpts(natives, fontData, opts) {
         }
         hasShadow = 1;
     }
-    return natives.createFont(fontData, size,
+    return natives.createFont(fontData, sz,
                               glyphs !== undefined ? glyphs : null,
                               padding, filter, hasOutline, outlineWidth,
                               hasShadow, shadowBlur, offX, offY);
@@ -1300,9 +1305,9 @@ function __efxUint32Array(v, what) {
 }
 
 /* createImageData: -> { w, h, bytes } (bytes is a fresh Uint8Array) */
-function __efxImageDataOpts(opts) {
-    var w = Number(opts['width']) | 0;
-    var h = Number(opts['height']) | 0;
+function __efxImageDataOpts(width, height, pixels, opts) {
+    var w = Number(width) | 0;
+    var h = Number(height) | 0;
     if (w <= 0 || h <= 0) {
         throw new RangeError('width and height must be positive');
     }
@@ -1310,7 +1315,6 @@ function __efxImageDataOpts(opts) {
     if (n > 0x7fffffff) {
         throw new RangeError('image too large');
     }
-    var pixels = opts['pixels'];
     if (pixels === undefined) {
         throw new TypeError('createImageData requires pixels');
     }
@@ -1333,16 +1337,21 @@ function __efxImageDataOpts(opts) {
     } else {
         throw new TypeError('pixels must be an array or typed array');
     }
-    var fmt = opts['format'];
+    var fmt;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('createImageData options must be an object');
+        }
+        var names = Object.getOwnPropertyNames(opts);
+        for (var k = 0; k < names.length; k++) {
+            if (names[k] !== 'format') {
+                throw new TypeError("unknown option '" + names[k] + "'");
+            }
+        }
+        fmt = opts['format'];
+    }
     if (fmt !== undefined && String(fmt) !== 'rgba8') {
         throw new RangeError("unsupported image format (only 'rgba8')");
-    }
-    var known = { width: 1, height: 1, pixels: 1, format: 1 };
-    var names = Object.getOwnPropertyNames(opts);
-    for (var k = 0; k < names.length; k++) {
-        if (!known[names[k]]) {
-            throw new TypeError("unknown option '" + names[k] + "'");
-        }
     }
     return { w: w, h: h, bytes: bytes };
 }
@@ -1386,14 +1395,12 @@ function __efxTextureOpts(opts) {
     return [wrap, filter, mipmaps];
 }
 
-/* createRenderTarget options -> [width, height] */
-function __efxRenderTargetOpts(opts) {
-    var known = { width: 1, height: 1 };
-    __efxCheckKnown(opts, known, 'createRenderTarget');
+/* createRenderTarget(width, height) -> [width, height] */
+function __efxRenderTargetOpts(width, height) {
     var dims = [];
+    var vals = [width, height];
     for (var k = 0; k < 2; k++) {
-        var key = k === 0 ? 'width' : 'height';
-        var v = opts[key];
+        var v = vals[k];
         if (v === undefined) {
             throw new TypeError('createRenderTarget requires width and height');
         }
@@ -1466,52 +1473,35 @@ function __efxMaterialWire(v, sample) {
     return { blocks: out, maps: maps };
 }
 
-/* createMeshData: validate the bag and marshal the concatenated-buffers wire
- * (7 attribute streams + per-surface lengths + per-surface materials) */
-function __efxMeshDataWire(opts, natives) {
-    var bagKnown = { surfaces: 1, positions: 1, normals: 1, uvs: 1,
-                     colors: 1, joints: 1, weights: 1, indices: 1,
-                     materials: 1 };
-    __efxCheckKnown(opts, bagKnown, 'createMeshData');
-    var surfaces = opts['surfaces'];
-    var shorthand = opts['positions'] !== undefined;
-    if (surfaces !== undefined && shorthand) {
-        throw new TypeError('pass either surfaces or single-surface fields');
-    }
-    if (surfaces === undefined && !shorthand) {
+/* createMeshData(surfaces, materials?): validate the positional surface list
+ * and marshal the concatenated-buffers wire (7 attribute streams +
+ * per-surface lengths + per-surface materials) */
+function __efxMeshDataWire(surfaces, materials, natives) {
+    if (surfaces === undefined) {
         throw new TypeError('createMeshData requires surfaces');
     }
-    var list;
-    if (surfaces !== undefined) {
-        if (!Array.isArray(surfaces)) {
-            throw new TypeError('surfaces must be an array');
-        }
-        if (surfaces.length < 1 || surfaces.length > 16) {
-            throw new RangeError('surfaces must hold 1..16 entries');
-        }
-        list = surfaces;
-    } else {
-        list = [opts];
+    if (!Array.isArray(surfaces)) {
+        throw new TypeError('surfaces must be an array');
     }
+    if (surfaces.length < 1 || surfaces.length > 16) {
+        throw new RangeError('surfaces must hold 1..16 entries');
+    }
+    var list = surfaces;
     var surfKnown = { positions: 1, normals: 1, uvs: 1, colors: 1,
                       joints: 1, weights: 1, indices: 1 };
-    /* the shorthand form passes the whole bag as the surface, so the
-     * bag-level materials field is allowed there (desktop parity) */
-    if (surfaces === undefined) {
-        surfKnown.materials = 1;
-    }
     var count = list.length;
     var lens = new Int32Array(count * 7);
     var posAll = [], nrmAll = [], uvAll = [], colAll = [], jntAll = [];
     var wgtAll = [], idxAll = [];
-    var materials = opts['materials'];
-    if (materials !== undefined) {
+    if (materials !== undefined && materials !== null) {
         if (!Array.isArray(materials)) {
             throw new TypeError('materials must be an array');
         }
         if (materials.length !== count) {
             throw new RangeError('materials must have one entry per surface');
         }
+    } else {
+        materials = undefined;
     }
     for (var i = 0; i < count; i++) {
         var sv = list[i];
@@ -1794,21 +1784,13 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.setCamera3D) {
-        g.setCamera3D = function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('setCamera3D requires an options object');
-            }
-            __efxCheckKnown(opts, { pos: 1, target: 1, fov: 1, near: 1,
-                                    far: 1 }, 'setCamera3D');
-            var pos = opts['pos'];
-            var target = opts['target'];
+        g.setCamera3D = function (pos, target, fov, opts) {
             if (pos === undefined || target === undefined) {
                 throw new TypeError('setCamera3D requires pos and target');
             }
             var p = __efxVec3Field(pos, 'pos', 'pos and target must hold 3 numbers');
             var t = __efxVec3Field(target, 'target',
                                    'pos and target must hold 3 numbers');
-            var fov = opts['fov'];
             if (fov === undefined) {
                 throw new TypeError('setCamera3D requires fov');
             }
@@ -1819,36 +1801,39 @@ function __efxPreludeInstall(efx, natives) {
                 throw new RangeError('fov must be finite');
             }
             var nearZ = 0.1, farZ = 100;
-            var nv = opts['near'];
-            if (nv !== undefined) {
-                if (typeof nv !== 'number') {
-                    throw new TypeError('near and far must be numbers');
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('setCamera3D options must be an object');
                 }
-                if (!isFinite(nv)) {
-                    throw new RangeError('near and far must be finite');
+                __efxCheckKnown(opts, { near: 1, far: 1 }, 'setCamera3D');
+                var nv = opts['near'];
+                if (nv !== undefined) {
+                    if (typeof nv !== 'number') {
+                        throw new TypeError('near and far must be numbers');
+                    }
+                    if (!isFinite(nv)) {
+                        throw new RangeError('near and far must be finite');
+                    }
+                    nearZ = nv;
                 }
-                nearZ = nv;
-            }
-            var fv = opts['far'];
-            if (fv !== undefined) {
-                if (typeof fv !== 'number') {
-                    throw new TypeError('near and far must be numbers');
+                var fv = opts['far'];
+                if (fv !== undefined) {
+                    if (typeof fv !== 'number') {
+                        throw new TypeError('near and far must be numbers');
+                    }
+                    if (!isFinite(fv)) {
+                        throw new RangeError('near and far must be finite');
+                    }
+                    farZ = fv;
                 }
-                if (!isFinite(fv)) {
-                    throw new RangeError('near and far must be finite');
-                }
-                farZ = fv;
             }
             natives.setCamera3D(p[0], p[1], p[2], t[0], t[1], t[2], fov,
                                 nearZ, farZ);
         };
     }
     if (natives && natives.createImageData) {
-        g.createImageData = function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('createImageData requires an options object');
-            }
-            var im = __efxImageDataOpts(opts);
+        g.createImageData = function (width, height, pixels, opts) {
+            var im = __efxImageDataOpts(width, height, pixels, opts);
             return natives.createImageData(im.w, im.h, im.bytes);
         };
         g.createTexture = function (imageData, opts) {
@@ -1861,11 +1846,8 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createRenderTarget) {
-        g.createRenderTarget = function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('createRenderTarget requires an options object');
-            }
-            var dims = __efxRenderTargetOpts(opts);
+        g.createRenderTarget = function (width, height) {
+            var dims = __efxRenderTargetOpts(width, height);
             return natives.createRenderTarget(dims[0], dims[1]);
         };
     }
@@ -1912,11 +1894,8 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createMeshData) {
-        g.createMeshData = function (opts) {
-            if (arguments.length < 1 || !__efxIsObject(opts)) {
-                throw new TypeError('createMeshData requires an options object');
-            }
-            var w = __efxMeshDataWire(opts, natives);
+        g.createMeshData = function (surfaces, materials) {
+            var w = __efxMeshDataWire(surfaces, materials, natives);
             return natives.createMeshData(w.count, w.lens, w.pos, w.nrm, w.uv,
                                           w.col, w.joints, w.weights, w.idx,
                                           w.blocks, w.maps, w.matHas);
@@ -1943,18 +1922,21 @@ function __efxPreludeInstall(efx, natives) {
             }
             natives.physicsStep(dt);
         };
-        phys.createBody = function (opts) {
+        phys.createBody = function (shape, opts) {
+            if (shape === undefined) {
+                throw new TypeError('shape must be an options object');
+            }
+            if (opts === undefined || opts === null) {
+                opts = {};
+            }
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('createBody requires an options object');
             }
             __efxCheckKnown(opts,
-                ['dynamic', 'sensor', 'shape', 'position', 'mass',
+                ['dynamic', 'sensor', 'position', 'mass',
                  'friction', 'restitution', 'layer', 'mask'],
                 'createBody', true);
-            if (opts['shape'] === undefined) {
-                throw new TypeError('shape must be an options object');
-            }
-            var sh = __efxPhysShape(opts['shape'], natives);
+            var sh = __efxPhysShape(shape, natives);
             var dynamic = !!opts['dynamic'];
             var mass = opts['mass'] === undefined
                 ? 1
@@ -1986,25 +1968,27 @@ function __efxPreludeInstall(efx, natives) {
                 c.position[1], c.position[2], c.sensor ? 1 : 0, c.friction,
                 c.restitution, c.layer, c.mask);
         };
-        phys.createCharacter = function (opts) {
+        phys.createCharacter = function (radius, height, opts) {
+            if (typeof radius !== 'number' || typeof height !== 'number') {
+                throw new TypeError('createCharacter requires radius and height');
+            }
+            if (!(radius > 0)) {
+                throw new RangeError('radius must be positive');
+            }
+            if (!(height >= 2 * radius)) {
+                throw new RangeError('height must be at least 2 * radius');
+            }
+            if (opts === undefined || opts === null) {
+                opts = {};
+            }
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('createCharacter requires an options object');
             }
             __efxCheckKnown(opts,
-                ['radius', 'height', 'position', 'up', 'floorMaxAngle',
+                ['position', 'up', 'floorMaxAngle',
                  'floorSnapLength', 'stepHeight', 'maxSlides', 'safeMargin',
                  'layer', 'mask'],
                 'createCharacter', true);
-            if (typeof opts['radius'] !== 'number' ||
-                typeof opts['height'] !== 'number') {
-                throw new TypeError('createCharacter requires radius and height');
-            }
-            if (!(opts['radius'] > 0)) {
-                throw new RangeError('radius must be positive');
-            }
-            if (!(opts['height'] >= 2 * opts['radius'])) {
-                throw new RangeError('height must be at least 2 * radius');
-            }
             var position = opts['position'] === undefined
                 ? [0, 0, 0]
                 : __efxPhysVec3(opts['position'], 'position');
@@ -2045,29 +2029,29 @@ function __efxPreludeInstall(efx, natives) {
                                                     : __efxPhysMask(opts['layer'], 'layer');
             var mask = opts['mask'] === undefined ? 4294967295
                                                   : __efxPhysMask(opts['mask'], 'mask');
-            return natives.createCharacter(opts['radius'], opts['height'],
+            return natives.createCharacter(radius, height,
                 position[0], position[1], position[2], up[0], up[1], up[2],
                 floorMaxAngle, snap, step, safe, maxSlides, layer, mask);
         };
-        phys.raycast = function (origin, direction, opts) {
+        phys.raycast = function (origin, direction, maxDistance, opts) {
             if (arguments.length < 2) {
                 throw new TypeError('raycast requires origin and direction');
             }
             var o = __efxPhysVec3(origin, 'origin');
             var d = __efxPhysVec3(direction, 'direction');
-            opts = opts === undefined ? {} : opts;
+            if (typeof maxDistance !== 'number' || !isFinite(maxDistance) ||
+                !(maxDistance > 0)) {
+                throw new TypeError('raycast requires a positive maxDistance');
+            }
+            opts = opts === undefined || opts === null ? {} : opts;
             if (!__efxIsObject(opts) || Array.isArray(opts)) {
                 throw new TypeError('raycast options must be an object');
             }
-            __efxCheckKnown(opts, ['maxDistance', 'mask', 'all', 'sensors'],
+            __efxCheckKnown(opts, ['mask', 'all', 'sensors'],
                             'raycast', true);
-            var maxd = opts['maxDistance'];
-            if (typeof maxd !== 'number' || !isFinite(maxd) || !(maxd > 0)) {
-                throw new TypeError('raycast requires a positive maxDistance');
-            }
             var mask = opts['mask'] === undefined ? 4294967295
                                                   : __efxPhysMask(opts['mask'], 'mask');
-            return natives.raycast(o[0], o[1], o[2], d[0], d[1], d[2], maxd,
+            return natives.raycast(o[0], o[1], o[2], d[0], d[1], d[2], maxDistance,
                                    mask, !!opts['sensors'], !!opts['all']);
         };
         phys.overlap = function (shape, opts) {
@@ -2109,15 +2093,12 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createFont) {
-        g.createFont = function (fontData, opts) {
+        g.createFont = function (fontData, size, opts) {
             if (arguments.length < 1) {
                 throw new TypeError('createFont requires a FontData');
             }
             natives.checkFontData(fontData);
-            if (arguments.length < 2 || !__efxIsObject(opts)) {
-                throw new TypeError('createFont requires an options object');
-            }
-            return __efxCreateFontOpts(natives, fontData, opts);
+            return __efxCreateFontOpts(natives, fontData, size, opts);
         };
     }
     if (natives && natives.setPostEffects) {
@@ -2143,11 +2124,22 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createParticleSystemWire) {
-        g.createParticleSystem = function (opts) {
-            var parsed = __efxParticleWire(opts, natives.liveSample);
+        g.createParticleSystem = function (texture, max, lifetime, opts) {
+            var merged = { texture: texture, max: max, lifetime: lifetime };
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                    throw new TypeError('createParticleSystem options must be an object');
+                }
+                for (var k in opts) {
+                    if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                        merged[k] = opts[k];
+                    }
+                }
+            }
+            var parsed = __efxParticleWire(merged, natives.liveSample);
             var ps = natives.createParticleSystemWire(parsed.wire,
                                                       parsed.texture);
-            __efxPsBags.set(ps, __efxSnapshotOpts(opts));
+            __efxPsBags.set(ps, __efxSnapshotOpts(merged));
             return ps;
         };
         var psProto = natives.psProto();

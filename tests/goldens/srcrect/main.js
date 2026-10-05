@@ -8,15 +8,15 @@ for (let y = 0; y < 4; y++) {
     }
 }
 const tex = efx.graphics.createTexture(
-    efx.graphics.createImageData({ width: 4, height: 4, pixels: pixels }));
+    efx.graphics.createImageData(4, 4, pixels));
 function update() {}
 function render() {
-    efx.graphics.drawQuad(60, 60, tex, { size: [160, 160] });              // full texture stretched
-    efx.graphics.drawQuad(280, 60, tex, {                                  // left half
+    efx.graphics.drawQuad(tex, 60, 60, { size: [160, 160] });              // full texture stretched
+    efx.graphics.drawQuad(tex, 280, 60, {                                  // left half
         size: [160, 160],
         sourceRect: { x: 0, y: 0, w: 2, h: 4 },
     });
-    efx.graphics.drawQuad(500, 60, tex, {                                  // top-left quarter stretched
+    efx.graphics.drawQuad(tex, 500, 60, {                                  // top-left quarter stretched
         size: [80, 160],
         sourceRect: { x: 0, y: 0, w: 1, h: 1 },
     });

@@ -8,10 +8,6 @@
 
 One mesh surface's attribute arrays (a Godot surface / glTF primitive).
 
-## Extended by
-
-- [`MeshDataShorthand`](MeshDataShorthand.md)
-
 ## Properties
 
 ### colors?

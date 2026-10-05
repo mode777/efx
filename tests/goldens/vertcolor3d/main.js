@@ -6,7 +6,7 @@ const MAT = {
     emissive: { color: [0, 0, 0, 1] },
 };
 efx.graphics.setClearColor([0.03, 0.07, 0.06, 1]);
-efx.graphics.setCamera3D({ pos: [0, 0, 3], target: [0, 0, 0], fov: 55 });
+efx.graphics.setCamera3D([0, 0, 3], [0, 0, 0], 55);
 efx.graphics.setLight(0, { pos: [1.5, 2.5, 2.5], color: [1, 0.95, 0.9, 1], range: 30 });
 efx.graphics.setDirectionalLight({ dir: [-0.3, -0.6, -1.0], color: [0.2, 0.24, 0.3, 1] });
 const P = [
@@ -19,19 +19,9 @@ const C = [
     0, 1, 0, 1,
     0, 0.3, 1, 1,
 ];
-const tri = efx.graphics.createMesh(efx.graphics.createMeshData({
-    positions: P,
-    normals: [0, 0, 1, 0, 0, 1, 0, 0, 1],
-    colors: C,
-    indices: [0, 1, 2],
-}));
+const tri = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1, 0, 0, 1, 0, 0, 1], colors: C, indices: [0, 1, 2] }]));
 efx.graphics.setMeshSurfaceMaterial(tri, 0, MAT);
-const triTinted = efx.graphics.createMesh(efx.graphics.createMeshData({
-    positions: P,
-    normals: [0, 0, 1, 0, 0, 1, 0, 0, 1],
-    colors: C,
-    indices: [0, 1, 2],
-}));
+const triTinted = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1, 0, 0, 1, 0, 0, 1], colors: C, indices: [0, 1, 2] }]));
 efx.graphics.setMeshSurfaceMaterial(triTinted, 0, MAT);
 function update() {}
 function render() {
