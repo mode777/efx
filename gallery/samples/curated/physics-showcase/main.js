@@ -68,22 +68,22 @@ function update(dt) {
 const cube = efx.graphics.createMesh(efx.graphics.makeCube());
 const sphere = efx.graphics.createMesh(efx.graphics.makeSphere());
 const capsule = efx.graphics.createMesh(efx.graphics.makeCapsule({ radius: 0.4, height: 1.8 }));
-efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+cube.setSurfaceMaterial(0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
     diffuse: { color: efx.color.white },
     specular: { color: efx.color.white, shininess: 32 },
 });
-efx.graphics.setMeshSurfaceMaterial(rampMesh, 0, {
+rampMesh.setSurfaceMaterial(0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
     diffuse: { color: [0.9, 0.9, 0.95, 1] },
     specular: { color: efx.color.white, shininess: 16 },
 });
-efx.graphics.setMeshSurfaceMaterial(sphere, 0, {
+sphere.setSurfaceMaterial(0, {
     ambient: { color: [0.1, 0.1, 0.14, 1] },
     diffuse: { color: efx.color.white },
     specular: { color: efx.color.white, shininess: 48 },
 });
-efx.graphics.setMeshSurfaceMaterial(capsule, 0, {
+capsule.setSurfaceMaterial(0, {
     ambient: { color: [0.12, 0.12, 0.16, 1] },
     diffuse: { color: efx.color.white },
     specular: { color: efx.color.white, shininess: 32 },

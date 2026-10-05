@@ -11,7 +11,7 @@ efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
 efx.graphics.setLight(0, { pos: [2.5, 3.5, 3.0], color: [1.0, 0.95, 0.9, 1], range: 30 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
 const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
-efx.graphics.setMeshSurfaceMaterial(cube, 0, MAT);
+cube.setSurfaceMaterial(0, MAT);
 const yaw = efx.math.mat4.rotate(efx.math.mat4.identity(), 35, [0, 1, 0]);
 const pitch = efx.math.mat4.rotate(yaw, 22, [1, 0, 0]);
 function update() {}

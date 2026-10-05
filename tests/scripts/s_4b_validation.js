@@ -29,32 +29,32 @@ if (md.surfaceCount !== 1) { efx.log('FAIL surface count'); efx.quit(3); }
 const mesh = efx.graphics.createMesh(md);
 
 // binding, then script-object mutation must not change the binding
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, M);
+mesh.setSurfaceMaterial(0, M);
 M.diffuse.map = null;
 M.alphaMask = null;
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } });
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, null);
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: tex } });
+mesh.setSurfaceMaterial(0, null);
 
 // alphaMask alone is valid; null map is treated as absent
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: null }, alphaMask: tex });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: null }, alphaMask: tex });
 
 // non-Texture / destroyed-Texture maps and unknown fields throw
-expectThrow('map-number', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: 1 } }));
-expectThrow('map-object', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: {} } }));
-expectThrow('alphaMask-number', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { alphaMask: 5 }));
-expectThrow('channel-unknown', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } }));
-expectThrow('material-unknown', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { albedo: 1 }));
+expectThrow('map-number', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: 1 } }));
+expectThrow('map-object', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: {} } }));
+expectThrow('alphaMask-number', TE, () => mesh.setSurfaceMaterial(0, { alphaMask: 5 }));
+expectThrow('channel-unknown', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } }));
+expectThrow('material-unknown', TE, () => mesh.setSurfaceMaterial(0, { albedo: 1 }));
 expectThrow('md-map-length', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []));
 
 // a texture destroyed while bound keeps shading; a freshly bound dead
 // texture throws TypeError
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex }, alphaMask: tex });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: tex }, alphaMask: tex });
 tex.destroy();
 efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 60);
 efx.graphics.drawMesh(mesh);
-expectThrow('map-destroyed', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } }));
+expectThrow('map-destroyed', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: tex } }));
 // rebind without the map releases it
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1] } });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] } });
 
 mesh.destroy();
 md.destroy();

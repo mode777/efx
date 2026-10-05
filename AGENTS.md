@@ -69,7 +69,7 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
   created attachments must declare the env-default pixel formats. "Only
   GL renders correctly" plus half-missing meshes means check this first.
 - JS API layering: low/mid-level in C/C++ (`drawQuad`, `drawMesh`,
-  `setMeshSurfaceMaterial`, `drawText`…), high-level conveniences in pure JS
+  `setLight`, `drawText`…), high-level conveniences in pure JS
   (`makeCube`/`makePlane`/`makeSphere`…). Cold-path option-bag validation is
   written once in the shared prelude behind a private `natives` object —
   natives stay marshal-only, hot draw/query paths keep native validation

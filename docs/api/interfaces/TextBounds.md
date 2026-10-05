@@ -6,7 +6,7 @@
 
 # Interface: TextBounds
 
-Laid-out text bounds returned by `drawText` / `measureText`.
+Laid-out text bounds returned by `drawText` / `Font.measure`.
 
 ## Properties
 

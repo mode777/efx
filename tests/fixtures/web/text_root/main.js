@@ -9,7 +9,7 @@ if (font.size !== 24) throw new Error('size');
 if (!(font.lineHeight > 0)) throw new Error('lineHeight');
 if (!(font.ascent > 0) || !(font.descent < 0)) throw new Error('vmetrics');
 
-var m = efx.graphics.measureText('hello world', font, { width: 60 });
+var m = font.measure('hello world', { width: 60 });
 if (m.lines < 2) throw new Error('wrap');
 var b = efx.graphics.drawText('hello', font, 8, 8, { color: [1, 1, 1, 1] });
 if (b.lines !== 1) throw new Error('draw');

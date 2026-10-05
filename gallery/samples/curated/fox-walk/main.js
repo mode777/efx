@@ -1,5 +1,5 @@
 // A real CC0 rigged model — "Fox" from Quaternius' Ultimate Animated Animals
-// pack (CC0 1.0) — imported with loadMeshData and CPU-posed with poseMesh from
+// pack (CC0 1.0) — imported with loadMeshData and CPU-posed with mesh.pose from
 // a script-owned clock. The "Walk" clip drives the pose, drawn with
 // `skinned: true`; the retained bind pose stays untouched.
 efx.graphics.setClearColor([0.05, 0.06, 0.09, 1]);
@@ -18,6 +18,6 @@ let t = 0;
 function update(dt) { t += dt; }
 
 function render() {
-    efx.graphics.poseMesh(fox, { clip: 'AnimalArmature|Walk', time: t });
+    fox.pose({ clip: 'AnimalArmature|Walk', time: t });
     efx.graphics.drawMesh(fox, { transform: model, skinned: true });
 }

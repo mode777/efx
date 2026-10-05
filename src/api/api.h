@@ -27,12 +27,13 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val, int a
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
-/* F7 — skinning + animation */
+/* F7 — skinning + animation (Mesh.pose method, ADR 0055) */
 JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F4a — lighting + Phong materials */
 JSValue efx_js_set_point_light_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_set_directional_light_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+/* Mesh.setSurfaceMaterial method (ADR 0055) */
 JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F5a — render targets */
@@ -57,6 +58,7 @@ JSValue efx_js_loadFontData(JSContext *ctx, JSValueConst this_val, int argc, JSV
 JSValue efx_js_check_font_data(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_font_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+/* Font.measure method (ADR 0055) */
 JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
 /* F11 — billboards + CPU particles */

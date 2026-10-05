@@ -51,3 +51,31 @@ Release the native storage deterministically and idempotently.
 #### Returns
 
 `void`
+
+***
+
+### measure()
+
+> **measure**(`text`, `opts?`): [`TextBounds`](TextBounds.md)
+
+Lay out text against this font without drawing it.
+
+#### Parameters
+
+##### text
+
+`string`
+
+Text to measure.
+
+##### opts?
+
+[`TextOptions`](TextOptions.md)
+
+Optional alignment, wrap, and scale (matching a later draw).
+
+#### Returns
+
+[`TextBounds`](TextBounds.md)
+
+The laid-out bounds.

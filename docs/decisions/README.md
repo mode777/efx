@@ -66,6 +66,7 @@ directory holds only what stays true after a change is archived.
 | [0052](0052-surface-less-resources-are-cpu-only.md) | Accepted | Surface-less run modes create CPU-only resources through the one creation path (`native = NULL`, no pixel copy); the deferred pre-GPU upload queue is removed and `whiteTexture` works everywhere (supersedes ADR 0034's queue clause) |
 | [0053](0053-required-args-positional-options-bag.md) | Accepted | Required inputs are positional arguments and an options bag holds only optional configuration; a lone optional MAY stay positional, records keep required fields, argument order is subject → resources → scalars/vectors → bag; ten bag-buried functions move to positional requireds and `drawQuad`/`drawBillboard` lead with the thing drawn |
 | [0054](0054-blend-mode-state-and-overrides.md) | Accepted | Blend is frame-local render state (`setBlendMode` resets to `alpha` each frame) with per-object overrides (`DrawQuadOptions`/`DrawSpritesOptions`/`DrawBillboardOptions.blend`, per-surface `Material.blend`); mesh surfaces resolve their blend at record time, particles inherit the frame state when unconfigured |
+| [0055](0055-resource-operation-methods.md) | Accepted | An operation whose subject is a native-backed class instance is a method on that class (`Font.measure`, `Mesh.pose`, `Mesh.setSurfaceMaterial`); `efx.graphics` holds constructors/factories and stateless operations and does not re-take a class instance as a free-function argument (hard cut, no aliases) |
 
 ## Adding a decision
 

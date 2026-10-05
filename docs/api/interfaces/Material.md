@@ -13,7 +13,7 @@ of the script object does not change the bound material.
 ## Example
 
 ```js
-efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+cube.setSurfaceMaterial(0, {
   ambient:  { color: [0.12, 0.12, 0.16, 1] },
   diffuse:  { color: [1, 1, 1, 1] },
   specular: { color: [1, 1, 1, 1], shininess: 32 },

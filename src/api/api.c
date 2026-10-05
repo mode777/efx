@@ -698,6 +698,8 @@ static const JSCFunctionListEntry meshdata_proto_funcs[] = {
 
 static const JSCFunctionListEntry mesh_proto_funcs[] = {
     JS_CGETSET_DEF("surfaceCount", efx_js_mesh_getSurfaceCount, NULL),
+    JS_CFUNC_DEF("pose", 1, efx_js_poseMesh),
+    JS_CFUNC_DEF("setSurfaceMaterial", 2, efx_js_setMeshSurfaceMaterial),
 };
 
 
@@ -766,6 +768,7 @@ static const JSCFunctionListEntry font_proto_funcs[] = {
     JS_CGETSET_DEF("lineHeight", efx_js_font_getLineHeight, NULL),
     JS_CGETSET_DEF("ascent", efx_js_font_getAscent, NULL),
     JS_CGETSET_DEF("descent", efx_js_font_getDescent, NULL),
+    JS_CFUNC_DEF("measure", 2, efx_js_measureText),
 };
 
 

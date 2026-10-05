@@ -194,8 +194,7 @@ static const JSCFunctionListEntry GRAPHICS_FUNCS[] = {
     /* createMeshData is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("createMesh", 1, efx_js_createMesh),
     JS_CFUNC_DEF("drawMesh", 2, efx_js_drawMesh),
-    JS_CFUNC_DEF("poseMesh", 2, efx_js_poseMesh),
-    JS_CFUNC_DEF("setMeshSurfaceMaterial", 3, efx_js_setMeshSurfaceMaterial),
+    /* pose/setSurfaceMaterial are Mesh prototype methods (ADR 0055) */
     /* createRenderTarget is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("beginRenderTarget", 1, efx_js_beginRenderTarget),
     JS_CFUNC_DEF("endRenderTarget", 0, efx_js_endRenderTarget),
@@ -204,7 +203,7 @@ static const JSCFunctionListEntry GRAPHICS_FUNCS[] = {
     JS_CFUNC_DEF("loadFontData", 1, efx_js_loadFontData),
     /* createFont is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
-    JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
+    /* measure is a Font prototype method (ADR 0055) */
     JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
     JS_CFUNC_DEF("drawSprites", 3, efx_js_drawSprites),
     /* createParticleSystem is installed by the shared prelude (ADR 0049) */

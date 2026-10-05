@@ -628,66 +628,6 @@ The new CPU MeshData.
 
 ***
 
-### measureText()
-
-> **measureText**(`text`, `font`, `opts?`): [`TextBounds`](TextBounds.md)
-
-Lay out text without drawing it.
-
-#### Parameters
-
-##### text
-
-`string`
-
-Text to measure.
-
-##### font
-
-[`EfxFont`](EfxFont.md)
-
-Baked font to measure with.
-
-##### opts?
-
-[`TextOptions`](TextOptions.md)
-
-Optional alignment, wrap, and scale (matching a later draw).
-
-#### Returns
-
-[`TextBounds`](TextBounds.md)
-
-The laid-out bounds.
-
-***
-
-### poseMesh()
-
-> **poseMesh**(`mesh`, `pose`): `void`
-
-CPU-pose a skinned mesh in place.
-
-#### Parameters
-
-##### mesh
-
-[`EfxMesh`](EfxMesh.md)
-
-Live skinned mesh.
-
-##### pose
-
-[`PoseSample`](PoseSample.md) \| [`PoseSample`](PoseSample.md)[]
-
-One pose sample, or an array of samples to blend.
-
-#### Returns
-
-`void`
-
-***
-
 ### setBlendMode()
 
 > **setBlendMode**(`mode`): `void`
@@ -831,38 +771,6 @@ Slot index `0..3`.
 [`PointLightOptions`](PointLightOptions.md) \| `null`
 
 Light options, or `null` to disable the slot.
-
-#### Returns
-
-`void`
-
-***
-
-### setMeshSurfaceMaterial()
-
-> **setMeshSurfaceMaterial**(`mesh`, `surfaceIndex`, `mat`): `void`
-
-Bind a Phong material to one mesh surface.
-
-#### Parameters
-
-##### mesh
-
-[`EfxMesh`](EfxMesh.md)
-
-Owning live mesh.
-
-##### surfaceIndex
-
-`number`
-
-Surface to bind (`0`-based).
-
-##### mat
-
-[`Material`](Material.md) \| `null`
-
-Material object, or `null` to restore the engine default.
 
 #### Returns
 

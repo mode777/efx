@@ -7,7 +7,7 @@ efx.graphics.setDirectionalLight({ dir: [0, 0, -1], color: [1, 1, 1, 1] });
 const skinned = efx.graphics.createMesh(efx.graphics.loadMeshData('skin.gltf'));
 function update() {}
 function render() {
-    efx.graphics.poseMesh(skinned, [
+    skinned.pose([
         { clip: 'move', time: 0.5, weight: 1 },
         { clip: 'turn', time: 0.75, weight: 1 },
     ]);

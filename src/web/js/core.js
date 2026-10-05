@@ -605,6 +605,103 @@ function __efxEnsureApi() {
                 },
             },
         },
+        methods: {
+            pose: function (pose) {
+                if (arguments.length < 1) {
+                    throw new TypeError('pose requires a pose');
+                }
+                var m = this;
+                var list;
+                if (Array.isArray(pose)) {
+                    list = pose;
+                } else if (__efxIsObject(pose)) {
+                    list = [pose];
+                } else {
+                    throw new TypeError('pose must be a sample or an array of samples');
+                }
+                var wire = new Float32Array(list.length * 3);
+                for (var i = 0; i < list.length; i++) {
+                    var s = list[i];
+                    if (!__efxIsObject(s)) {
+                        throw new TypeError('pose samples must be objects');
+                    }
+                    var sk = { clip: 1, time: 1, weight: 1 };
+                    __efxCheckKnown(s, sk, 'pose sample');
+                    var cv = s['clip'];
+                    if (cv === undefined) {
+                        throw new TypeError('pose sample requires clip');
+                    }
+                    var clipIndex;
+                    if (typeof cv === 'string') {
+                        var namePtr = __efxAllocCStr(cv);
+                        clipIndex = bridge['_efx_bridge_find_clip'](m.__handle, namePtr);
+                        bridge['_free'](namePtr);
+                        if (clipIndex < 0) {
+                            throw new Error('unknown clip name');
+                        }
+                    } else if (typeof cv === 'number' && isFinite(cv) &&
+                               cv === Math.floor(cv) && cv >= 0) {
+                        clipIndex = cv | 0;
+                    } else {
+                        throw new TypeError('clip must be a name or index');
+                    }
+                    var tv = s['time'];
+                    if (typeof tv !== 'number') {
+                        throw new TypeError('pose sample requires a numeric time');
+                    }
+                    if (!isFinite(tv)) {
+                        throw new RangeError('time must be finite');
+                    }
+                    var wv = 1;
+                    if (s['weight'] !== undefined) {
+                        if (typeof s['weight'] !== 'number') {
+                            throw new TypeError('weight must be a number');
+                        }
+                        if (!isFinite(s['weight']) || s['weight'] < 0) {
+                            throw new RangeError('weight must be finite and >= 0');
+                        }
+                        wv = s['weight'];
+                    }
+                    wire[i * 3] = clipIndex;
+                    wire[i * 3 + 1] = tv;
+                    wire[i * 3 + 2] = wv;
+                }
+                var ptr = list.length ? mallocCopyF32(wire) : 0;
+                var rc = bridge['_efx_bridge_pose_mesh'](m.__handle, ptr, list.length);
+                if (ptr) {
+                    bridge['_free'](ptr);
+                }
+                __efxRc(rc, 'pose', {
+                    2: [TypeError, 'pose requires a Mesh with a rig'],
+                    6: [RangeError, 'clip index out of range'],
+                });
+            },
+            setSurfaceMaterial: function (index, mat) {
+                if (arguments.length < 2) {
+                    throw new TypeError(
+                        'setSurfaceMaterial requires (surfaceIndex, mat)');
+                }
+                var m = this;
+                if (typeof index !== 'number' || (index | 0) !== index) {
+                    throw new RangeError('surfaceIndex must be an integer');
+                }
+                var count = bridge['_efx_bridge_mesh_surface_count'](m.__handle);
+                if (index < 0 || index >= count) {
+                    throw new RangeError('surfaceIndex out of range');
+                }
+                if (mat === null || mat === undefined) {
+                    bridge['_efx_bridge_mesh_set_material'](m.__handle, index, 0, 0, 0);
+                    return;
+                }
+                var f = __efxMaterial(mat);
+                var ptr = mallocCopyF32(f.blocks);
+                var mapsptr = mallocCopyF64(f.maps);
+                bridge['_efx_bridge_mesh_set_material'](m.__handle, index, ptr,
+                                                        mapsptr, 1);
+                bridge['_free'](ptr);
+                bridge['_free'](mapsptr);
+            },
+        },
     });
 
     /* F8a: FontData (parsed font) and Font (baked atlas) native-backed
@@ -646,6 +743,26 @@ function __efxEnsureApi() {
                 get: function () {
                     return bridge['_efx_bridge_font_descent'](this.__id);
                 },
+            },
+        },
+        methods: {
+            measure: function (text, opts) {
+                if (arguments.length < 1 || typeof text !== 'string') {
+                    throw new TypeError('measure requires (text, opts?)');
+                }
+                var lo = __efxTextLayout(opts);
+                var tptr = __efxAllocCStr(text);
+                var optr = bridge['_malloc'](12);
+                var rc = bridge['_efx_bridge_text_measure'](
+                    tptr, this.__id, lo.align, lo.valign, lo.hasWidth, lo.width,
+                    lo.hasLh, lo.lh, lo.scale, lo.rotation, optr);
+                bridge['_free'](tptr);
+                var b = { width: HEAPF32[optr >> 2],
+                          height: HEAPF32[(optr >> 2) + 1],
+                          lines: HEAPF32[(optr >> 2) + 2] };
+                bridge['_free'](optr);
+                __efxRc(rc, 'text operation', { 4: [RangeError, 'text layout failed'] });
+                return b;
             },
         },
     });

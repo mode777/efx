@@ -275,18 +275,22 @@ static efxjs_font *live_font(JSContext *ctx, JSValueConst v) {
 }
 
 
+/* Font.measure(text, opts?) — the receiver is the subject, so it is resolved
+ * first; the receiver errors match the web class liveness guard. */
 JSValue efx_js_measureText(JSContext *ctx, JSValueConst this_val, int argc,
                            JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 2 || !JS_IsString(argv[0])) {
-        return efx_api_type_error(ctx, "measureText requires (text, font, opts?)");
-    }
-    efxjs_font *f = live_font(ctx, argv[1]);
+    efxjs_font *f = JS_GetOpaque2(ctx, this_val, font_class_id);
     if (!f) {
-        return efx_api_type_error(ctx, "measureText requires a live Font");
+        return efx_api_type_error(ctx, "expected a Font");
+    }
+    if (!f->alive) {
+        return efx_api_type_error(ctx, "using a destroyed resource");
+    }
+    if (argc < 1 || !JS_IsString(argv[0])) {
+        return efx_api_type_error(ctx, "measure requires (text, opts?)");
     }
     efx_text_layout_opts lo;
-    if (parse_layout_opts(ctx, argc >= 3 ? argv[2] : JS_UNDEFINED, &lo) != 0) {
+    if (parse_layout_opts(ctx, argc >= 2 ? argv[1] : JS_UNDEFINED, &lo) != 0) {
         return JS_EXCEPTION;
     }
     const char *text = JS_ToCString(ctx, argv[0]);

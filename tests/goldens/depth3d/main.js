@@ -11,8 +11,8 @@ efx.graphics.setLight(0, { pos: [2.5, 3.5, 3.0], color: [1, 0.95, 0.9, 1], range
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.2, 0.24, 0.3, 1] });
 const near = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.1 }));
 const far = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.1 }));
-efx.graphics.setMeshSurfaceMaterial(near, 0, MAT);
-efx.graphics.setMeshSurfaceMaterial(far, 0, MAT);
+near.setSurfaceMaterial(0, MAT);
+far.setSurfaceMaterial(0, MAT);
 function update() {}
 function render() {
     // nearer (z = 1.6) recorded first

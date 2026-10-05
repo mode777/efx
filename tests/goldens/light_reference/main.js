@@ -11,7 +11,7 @@ efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 55);
 efx.graphics.setDirectionalLight({ dir: [0, 0, -1], color: [0.8, 0.5, 0.2, 1] });
 const S = 20;
 const plane = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: [-S, -S, 0, S, -S, 0, S, S, 0, -S, S, 0], normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], indices: [0, 1, 2, 0, 2, 3] }]));
-efx.graphics.setMeshSurfaceMaterial(plane, 0, {
+plane.setSurfaceMaterial(0, {
     ambient:  { color: [0, 0, 0, 1] },
     diffuse:  { color: [1, 1, 1, 1] },
     specular: { color: [0, 0, 0, 1] },

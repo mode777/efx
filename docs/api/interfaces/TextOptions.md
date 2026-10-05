@@ -6,7 +6,7 @@
 
 # Interface: TextOptions
 
-Options for `drawText` / `measureText`.
+Options for `drawText` / `Font.measure`.
 
 ## Example
 

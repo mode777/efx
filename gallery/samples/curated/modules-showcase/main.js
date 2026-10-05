@@ -15,12 +15,12 @@ efx.graphics.setLight(0, scene.keyLight);
 efx.graphics.setDirectionalLight(scene.fillLight);
 
 const core = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.2 }));
-efx.graphics.setMeshSurfaceMaterial(core, 0, palette.material(palette.colors[0]));
+core.setSurfaceMaterial(0, palette.material(palette.colors[0]));
 
 const moons = scene.orbits.map((entry, i) => {
     const mesh = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 0.32, segments: 12 }));
     const color = palette.colors[(i + 1) % palette.colors.length];
-    efx.graphics.setMeshSurfaceMaterial(mesh, 0, palette.material(color));
+    mesh.setSurfaceMaterial(0, palette.material(color));
     return mesh;
 });
 
