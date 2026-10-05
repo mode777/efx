@@ -228,10 +228,9 @@ function __efxMakeCube(opts) {
         }
         indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
     }
-    return efx.graphics.createMeshData({
+    return efx.graphics.createMeshData([{
         positions: positions, normals: normals, uvs: uvs, indices: indices,
-        materials: __efxPrimMaterial(opts),
-    });
+    }], __efxPrimMaterial(opts));
 }
 
 /* plane in the XZ plane facing +Y, centered; segments x segments quads;
@@ -256,8 +255,8 @@ function __efxMakePlane(opts) {
             indices.push(a, d, e, a, e, b);
         }
     }
-    return efx.graphics.createMeshData({ positions: positions, uvs: uvs, indices: indices,
-        materials: __efxPrimMaterial(opts) });
+    return efx.graphics.createMeshData([{ positions: positions, uvs: uvs, indices: indices }],
+        __efxPrimMaterial(opts));
 }
 
 /* UV sphere centered on the origin; segments latitude rings x segments
@@ -290,10 +289,9 @@ function __efxMakeSphere(opts) {
             indices.push(a, d, c2, a, b, d);
         }
     }
-    return efx.graphics.createMeshData({
+    return efx.graphics.createMeshData([{
         positions: positions, normals: normals, uvs: uvs, indices: indices,
-        materials: __efxPrimMaterial(opts),
-    });
+    }], __efxPrimMaterial(opts));
 }
 
 /* vertical capsule centered on the origin (Y axis); `height` is the total
@@ -345,10 +343,9 @@ function __efxMakeCapsule(opts) {
             indices.push(p0, p3, p2, p0, p1, p3);
         }
     }
-    return efx.graphics.createMeshData({
+    return efx.graphics.createMeshData([{
         positions: positions, normals: normals, uvs: uvs, indices: indices,
-        materials: __efxPrimMaterial(opts),
-    });
+    }], __efxPrimMaterial(opts));
 }
 
 /* ------------------------------------------ F10 CommonJS module runtime
