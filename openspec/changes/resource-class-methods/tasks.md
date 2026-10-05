@@ -34,7 +34,7 @@
 ## 6. Verification
 
 - [x] 6.1 Build headless (`cmake -B build -DEFX_HEADLESS=ON`) and run the non-golden ctest suites. Verify: all pass.
-- [ ] 6.2 Run the golden-image suite and confirm every affected frame is pixel-identical to the pre-change baseline (no re-baseline). Verify: the golden harness reports zero diffs.
-- [ ] 6.3 Run `python3 tools/verify_remote.py all <branch>` on the SSH verification server and fix until green. Verify: the Linux server pre-filter passes.
-- [ ] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS. Verify: all four targets are green.
-- [ ] 6.5 Run `openspec validate "resource-class-methods" --type change --strict` and `npm --prefix gallery run docs:check`. Verify: both are clean.
+- [x] 6.2 Run the golden-image suite and confirm every affected frame is pixel-identical to the pre-change baseline (no re-baseline). Verify: the golden harness reports zero diffs.
+- [x] 6.3 Run `python3 tools/verify_remote.py all <branch>` on the SSH verification server and fix until green. Verify: the Linux server pre-filter passes.
+- [x] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS. Verify: all four targets are green.
+- [x] 6.5 Run `openspec validate "resource-class-methods" --type change --strict` and `npm --prefix gallery run docs:check`. Verify: both are clean.
