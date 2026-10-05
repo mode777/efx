@@ -11,10 +11,10 @@ Options for `physics.createBody`.
 ## Example
 
 ```js
-const crate = efx.physics.createBody({
-  dynamic: true, mass: 2, friction: 0.6, restitution: 0.1,
-  shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0],
-});
+const crate = efx.physics.createBody(
+  { type: 'box', size: [1, 1, 1] },
+  { dynamic: true, mass: 2, friction: 0.6, restitution: 0.1, position: [0, 3, 0] },
+);
 ```
 
 ## Properties
@@ -80,11 +80,3 @@ Bounciness in `[0, 1]` (default 0).
 > `optional` **sensor?**: `boolean`
 
 Report-only volume that never resolves (default `false`).
-
-***
-
-### shape
-
-> **shape**: [`PhysicsShape`](../type-aliases/PhysicsShape.md)
-
-Collider shape; required.

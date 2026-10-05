@@ -17,15 +17,15 @@ for (let y = 0; y < S; y++) {
         px[i + 3] = 255;
     }
 }
-const img = efx.graphics.createImageData({ width: S, height: S, pixels: px });
+const img = efx.graphics.createImageData(S, S, px);
 const plain = efx.graphics.createTexture(img, { filter: 'linear' });
 const mips = efx.graphics.createTexture(img, { filter: 'linear', mipmaps: true });
 
 function update() {}
 function render() {
-    efx.graphics.drawQuad(60, 70, plain, { size: [128, 128] });
-    efx.graphics.drawQuad(400, 70, mips, { size: [128, 128] });
-    efx.graphics.drawQuad(320, 40, efx.graphics.whiteTexture, { size: [2, 200], color: [0.8, 0.8, 0.8, 1] });
-    efx.graphics.drawQuad(60, 300, plain, { size: [64, 64] });
-    efx.graphics.drawQuad(400, 300, mips, { size: [64, 64] });
+    efx.graphics.drawQuad(plain, 60, 70, { size: [128, 128] });
+    efx.graphics.drawQuad(mips, 400, 70, { size: [128, 128] });
+    efx.graphics.drawQuad(efx.graphics.whiteTexture, 320, 40, { size: [2, 200], color: [0.8, 0.8, 0.8, 1] });
+    efx.graphics.drawQuad(plain, 60, 300, { size: [64, 64] });
+    efx.graphics.drawQuad(mips, 400, 300, { size: [64, 64] });
 }

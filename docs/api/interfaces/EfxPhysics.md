@@ -13,12 +13,11 @@ frame and the engine never advances the world on its own.
 
 ```js
 efx.physics.gravity = [0, -9.81, 0];
-const ground = efx.physics.createBody({
-  shape: { type: 'box', size: [40, 1, 40] }, position: [0, -0.5, 0] });
-const crate = efx.physics.createBody({
-  dynamic: true, mass: 2,
-  shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0] });
-const hero = efx.physics.createCharacter({ radius: 0.4, height: 1.8 });
+const ground = efx.physics.createBody(
+  { type: 'box', size: [40, 1, 40] }, { position: [0, -0.5, 0] });
+const crate = efx.physics.createBody(
+  { type: 'box', size: [1, 1, 1] }, { dynamic: true, mass: 2, position: [0, 3, 0] });
+const hero = efx.physics.createCharacter(0.4, 1.8);
 
 efx.registerUpdateHook((dt) => {
   efx.physics.step(dt);
@@ -58,17 +57,23 @@ Remove every collider and character from the world (existing handles become dest
 
 ### createBody()
 
-> **createBody**(`opts`): [`EfxBody`](EfxBody.md)
+> **createBody**(`shape`, `opts?`): [`EfxBody`](EfxBody.md)
 
 Create a static, dynamic, or sensor body.
 
 #### Parameters
 
-##### opts
+##### shape
+
+[`PhysicsShape`](../type-aliases/PhysicsShape.md)
+
+Collider shape (required, positional).
+
+##### opts?
 
 [`CreateBodyOptions`](CreateBodyOptions.md)
 
-Body options; `shape` is required.
+Optional kind, placement, and material options.
 
 #### Returns
 
@@ -80,17 +85,29 @@ The new body handle.
 
 ### createCharacter()
 
-> **createCharacter**(`opts`): [`EfxCharacter`](EfxCharacter.md)
+> **createCharacter**(`radius`, `height`, `opts?`): [`EfxCharacter`](EfxCharacter.md)
 
 Create a kinematic capsule character controller.
 
 #### Parameters
 
-##### opts
+##### radius
+
+`number`
+
+Capsule radius (must be > 0).
+
+##### height
+
+`number`
+
+Total tip-to-tip capsule height; must be >= 2 * radius.
+
+##### opts?
 
 [`CreateCharacterOptions`](CreateCharacterOptions.md)
 
-Character options; `radius` and `height` are required.
+Optional placement, movement, and collision options.
 
 #### Returns
 
@@ -160,7 +177,7 @@ The live handles that intersect `shape`.
 
 #### Call Signature
 
-> **raycast**(`origin`, `direction`, `opts`): [`PhysicsRayHit`](PhysicsRayHit.md) \| `null`
+> **raycast**(`origin`, `direction`, `maxDistance`, `opts?`): [`PhysicsRayHit`](PhysicsRayHit.md) \| `null`
 
 Cast a ray and return the nearest hit.
 
@@ -178,11 +195,17 @@ Ray origin in world units.
 
 Ray direction (normalized by the engine).
 
-###### opts
+###### maxDistance
+
+`number`
+
+Maximum ray distance (positive finite).
+
+###### opts?
 
 [`RaycastOptions`](RaycastOptions.md)
 
-Query options; `maxDistance` is required.
+Optional mask, all-hits, and sensor options.
 
 ##### Returns
 
@@ -192,7 +215,7 @@ The first hit, or `null` when nothing is hit.
 
 #### Call Signature
 
-> **raycast**(`origin`, `direction`, `opts`): [`PhysicsRayHit`](PhysicsRayHit.md)[]
+> **raycast**(`origin`, `direction`, `maxDistance`, `opts?`): [`PhysicsRayHit`](PhysicsRayHit.md)[]
 
 Cast a ray and return every hit sorted by distance.
 
@@ -210,11 +233,17 @@ Ray origin in world units.
 
 Ray direction (normalized by the engine).
 
-###### opts
+###### maxDistance
+
+`number`
+
+Maximum ray distance (positive finite).
+
+###### opts?
 
 [`RaycastOptions`](RaycastOptions.md) & `object`
 
-Query options with `all: true`; `maxDistance` is required.
+Query options with `all: true`.
 
 ##### Returns
 

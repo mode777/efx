@@ -6,29 +6,11 @@
 
 # Interface: ParticleSystemOptions
 
-Options for `createParticleSystem` (`texture`, `max`, and `lifetime` are
-required).
+Full particle configuration; the creation inputs (`texture`, `max`, `lifetime`) are positional on `createParticleSystem`.
 
-## Example
+## Extends
 
-```js
-// an additive fire (see the "Particle Showcase" sample)
-const fire = efx.graphics.createParticleSystem({
-  texture: spark,
-  max: 600,
-  lifetime: [0.4, 0.9],
-  emissionRate: 140,
-  position: [0, 0.1, 0],
-  direction: [0, 1, 0],
-  spread: 22,
-  speed: [0.8, 1.8],
-  gravity: [0, 0.6, 0],
-  sizes: [0.55, 0.05],
-  colors: [[1, 0.9, 0.45, 0.95], [1, 0.25, 0.05, 0]],
-  blend: 'additive',
-  facing: 'view',
-});
-```
+- [`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md)
 
 ## Properties
 
@@ -38,6 +20,10 @@ const fire = efx.graphics.createParticleSystem({
 
 Blend mode (default `'alpha'`).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`blend`](ParticleSystemCreateOptions.md#blend)
+
 ***
 
 ### colors?
@@ -45,6 +31,10 @@ Blend mode (default `'alpha'`).
 > `optional` **colors?**: [`Color`](../type-aliases/Color.md) \| [`Color`](../type-aliases/Color.md)[]
 
 Color over the lifetime: one color or up to 8 interpolated keyframes.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`colors`](ParticleSystemCreateOptions.md#colors)
 
 ***
 
@@ -54,6 +44,10 @@ Color over the lifetime: one color or up to 8 interpolated keyframes.
 
 Emission direction (2- or 3-component vector).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`direction`](ParticleSystemCreateOptions.md#direction)
+
 ***
 
 ### emissionRate?
@@ -61,6 +55,10 @@ Emission direction (2- or 3-component vector).
 > `optional` **emissionRate?**: `number`
 
 Particles emitted per second (default 0).
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`emissionRate`](ParticleSystemCreateOptions.md#emissionrate)
 
 ***
 
@@ -70,6 +68,10 @@ Particles emitted per second (default 0).
 
 Emission volume; defaults to a point.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`emissionShape`](ParticleSystemCreateOptions.md#emissionshape)
+
 ***
 
 ### emitterLifetime?
@@ -77,6 +79,10 @@ Emission volume; defaults to a point.
 > `optional` **emitterLifetime?**: `number`
 
 Emitter lifetime in seconds; `-1` is infinite.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`emitterLifetime`](ParticleSystemCreateOptions.md#emitterlifetime)
 
 ***
 
@@ -86,6 +92,10 @@ Emitter lifetime in seconds; `-1` is infinite.
 
 Quad render mode in world space (default `'view'`; screen space must be `'view'`).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`facing`](ParticleSystemCreateOptions.md#facing)
+
 ***
 
 ### gravity?
@@ -93,6 +103,10 @@ Quad render mode in world space (default `'view'`; screen space must be `'view'`
 > `optional` **gravity?**: [`Vec3`](../type-aliases/Vec3.md) \| [`Vec2`](../type-aliases/Vec2.md)
 
 Constant acceleration (2- or 3-component vector).
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`gravity`](ParticleSystemCreateOptions.md#gravity)
 
 ***
 
@@ -102,13 +116,17 @@ Constant acceleration (2- or 3-component vector).
 
 Draw order within the batch (default `'top'`).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`insertMode`](ParticleSystemCreateOptions.md#insertmode)
+
 ***
 
 ### lifetime
 
 > **lifetime**: `number` \| \[`number`, `number`\]
 
-Particle lifetime in seconds: a number or `[min, max]`; required.
+Particle lifetime in seconds: a number or `[min, max]`.
 
 ***
 
@@ -118,6 +136,10 @@ Particle lifetime in seconds: a number or `[min, max]`; required.
 
 Additional constant acceleration (2- or 3-component vector).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`linearAcceleration`](ParticleSystemCreateOptions.md#linearacceleration)
+
 ***
 
 ### linearDamping?
@@ -126,13 +148,17 @@ Additional constant acceleration (2- or 3-component vector).
 
 Linear damping: a number or `[min, max]`.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`linearDamping`](ParticleSystemCreateOptions.md#lineardamping)
+
 ***
 
 ### max
 
 > **max**: `number`
 
-Maximum live particles (integer, 1..65536); required.
+Maximum live particles (integer, 1..65536).
 
 ***
 
@@ -142,6 +168,10 @@ Maximum live particles (integer, 1..65536); required.
 
 Plane orientation normal for `facing: 'plane'` (default `[0, 1, 0]`).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`normal`](ParticleSystemCreateOptions.md#normal)
+
 ***
 
 ### position?
@@ -149,6 +179,10 @@ Plane orientation normal for `facing: 'plane'` (default `[0, 1, 0]`).
 > `optional` **position?**: [`Vec3`](../type-aliases/Vec3.md) \| [`Vec2`](../type-aliases/Vec2.md)
 
 Spawn position (2- or 3-component vector).
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`position`](ParticleSystemCreateOptions.md#position)
 
 ***
 
@@ -158,6 +192,10 @@ Spawn position (2- or 3-component vector).
 
 Atlas frames cycled over the lifetime.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`quads`](ParticleSystemCreateOptions.md#quads)
+
 ***
 
 ### radialAcceleration?
@@ -165,6 +203,10 @@ Atlas frames cycled over the lifetime.
 > `optional` **radialAcceleration?**: `number` \| \[`number`, `number`\]
 
 Radial acceleration: a number or `[min, max]`.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`radialAcceleration`](ParticleSystemCreateOptions.md#radialacceleration)
 
 ***
 
@@ -174,6 +216,10 @@ Radial acceleration: a number or `[min, max]`.
 
 When true, particle angle follows its velocity.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`relativeRotation`](ParticleSystemCreateOptions.md#relativerotation)
+
 ***
 
 ### rotation?
@@ -181,6 +227,10 @@ When true, particle angle follows its velocity.
 > `optional` **rotation?**: `number` \| \[`number`, `number`\]
 
 Rotation in degrees: a number or `[min, max]`.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`rotation`](ParticleSystemCreateOptions.md#rotation)
 
 ***
 
@@ -190,6 +240,10 @@ Rotation in degrees: a number or `[min, max]`.
 
 Size over the lifetime: one number or up to 8 interpolated keyframes.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`sizes`](ParticleSystemCreateOptions.md#sizes)
+
 ***
 
 ### sizeVariation?
@@ -197,6 +251,10 @@ Size over the lifetime: one number or up to 8 interpolated keyframes.
 > `optional` **sizeVariation?**: `number`
 
 Per-particle size variation (`0..1`).
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`sizeVariation`](ParticleSystemCreateOptions.md#sizevariation)
 
 ***
 
@@ -206,6 +264,10 @@ Per-particle size variation (`0..1`).
 
 Simulation space: `'world'` (default, 3D) or `'screen'` (2D).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`space`](ParticleSystemCreateOptions.md#space)
+
 ***
 
 ### speed?
@@ -213,6 +275,10 @@ Simulation space: `'world'` (default, 3D) or `'screen'` (2D).
 > `optional` **speed?**: `number` \| \[`number`, `number`\]
 
 Initial speed: a number or `[min, max]`.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`speed`](ParticleSystemCreateOptions.md#speed)
 
 ***
 
@@ -222,6 +288,10 @@ Initial speed: a number or `[min, max]`.
 
 Simulated-time factor (default 1).
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`speedScale`](ParticleSystemCreateOptions.md#speedscale)
+
 ***
 
 ### spin?
@@ -229,6 +299,10 @@ Simulated-time factor (default 1).
 > `optional` **spin?**: `number` \| \[`number`, `number`\]
 
 Angular velocity in degrees/second: a number or `[min, max]`.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`spin`](ParticleSystemCreateOptions.md#spin)
 
 ***
 
@@ -238,6 +312,10 @@ Angular velocity in degrees/second: a number or `[min, max]`.
 
 Per-particle spin variation.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`spinVariation`](ParticleSystemCreateOptions.md#spinvariation)
+
 ***
 
 ### spread?
@@ -245,6 +323,10 @@ Per-particle spin variation.
 > `optional` **spread?**: `number`
 
 Emission cone half-angle in degrees.
+
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`spread`](ParticleSystemCreateOptions.md#spread)
 
 ***
 
@@ -254,10 +336,14 @@ Emission cone half-angle in degrees.
 
 Tangential acceleration: a number or `[min, max]`.
 
+#### Inherited from
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md).[`tangentialAcceleration`](ParticleSystemCreateOptions.md#tangentialacceleration)
+
 ***
 
 ### texture
 
 > **texture**: [`EfxSample`](../type-aliases/EfxSample.md)
 
-Texture (or render target) for particle quads; required.
+Texture (or render target) for particle quads.

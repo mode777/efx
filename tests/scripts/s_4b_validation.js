@@ -13,11 +13,8 @@ const TE = TypeError, RE = RangeError;
 const P = [0, 0, 0, 1, 0, 0, 0, 1, 0];
 const UV = [0, 0, 1, 0, 0, 1];
 
-const tex = efx.graphics.createTexture(efx.graphics.createImageData({
-    width: 2, height: 2,
-    pixels: new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255,
-                            0, 0, 255, 255, 255, 255, 255, 0]),
-}));
+const tex = efx.graphics.createTexture(efx.graphics.createImageData(2, 2, new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255,
+                            0, 0, 255, 255, 255, 255, 255, 0])));
 
 // valid maps + alphaMask on every channel
 const M = {
@@ -27,10 +24,7 @@ const M = {
     emissive: { color: [0, 0, 0, 1], map: tex },
     alphaMask: tex,
 };
-const md = efx.graphics.createMeshData({
-    surfaces: [{ positions: P, uvs: UV, indices: [0, 1, 2] }],
-    materials: [M],
-});
+const md = efx.graphics.createMeshData([{ positions: P, uvs: UV, indices: [0, 1, 2] }], [M]);
 if (md.surfaceCount !== 1) { efx.log('FAIL surface count'); efx.quit(3); }
 const mesh = efx.graphics.createMesh(md);
 
@@ -50,13 +44,13 @@ expectThrow('map-object', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0,
 expectThrow('alphaMask-number', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { alphaMask: 5 }));
 expectThrow('channel-unknown', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } }));
 expectThrow('material-unknown', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { albedo: 1 }));
-expectThrow('md-map-length', RE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [] }));
+expectThrow('md-map-length', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []));
 
 // a texture destroyed while bound keeps shading; a freshly bound dead
 // texture throws TypeError
 efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex }, alphaMask: tex });
 tex.destroy();
-efx.graphics.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });
+efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 60);
 efx.graphics.drawMesh(mesh);
 expectThrow('map-destroyed', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: tex } }));
 // rebind without the map releases it

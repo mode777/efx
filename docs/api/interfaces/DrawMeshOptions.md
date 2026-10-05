@@ -2,9 +2,9 @@
 
 ***
 
-[EFX API](../README.md) / DrawMeshCallOptions
+[EFX API](../README.md) / DrawMeshOptions
 
-# Interface: DrawMeshCallOptions
+# Interface: DrawMeshOptions
 
 Options for `drawMesh`.
 

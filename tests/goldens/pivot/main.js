@@ -2,11 +2,11 @@ efx.graphics.setClearColor([0.02, 0.06, 0.1, 1]);
 function update() {}
 function render() {
     // both quads rotate/scale around their own centers (320, 240)
-    efx.graphics.drawQuad(270, 230, efx.graphics.whiteTexture, {
+    efx.graphics.drawQuad(efx.graphics.whiteTexture, 270, 230, {
         size: [100, 20],
         color: [1, 1, 1, 1], rotation: 45, scale: 2.5,
     });
-    efx.graphics.drawQuad(310, 190, efx.graphics.whiteTexture, {
+    efx.graphics.drawQuad(efx.graphics.whiteTexture, 310, 190, {
         size: [20, 100],
         color: [1, 0.7, 0.1, 1], rotation: 45, scale: 2.5,
     });

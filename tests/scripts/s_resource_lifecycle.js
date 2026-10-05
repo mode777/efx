@@ -11,12 +11,12 @@ function expectThrow(name, fn) {
     }
 }
 
-const img = efx.graphics.createImageData({ width: 2, height: 2, pixels: new Uint8Array(16) });
+const img = efx.graphics.createImageData(2, 2, new Uint8Array(16));
 const tex = efx.graphics.createTexture(img);
 
 tex.destroy();
 tex.destroy();
-expectThrow('draw-destroyed-texture', () => efx.graphics.drawQuad(0, 0, tex));
+expectThrow('draw-destroyed-texture', () => efx.graphics.drawQuad(tex, 0, 0));
 expectThrow('width-destroyed-texture', () => tex.width);
 expectThrow('height-destroyed-texture', () => tex.height);
 

@@ -11,8 +11,7 @@ Options for `drawBillboard`.
 ## Example
 
 ```js
-efx.graphics.drawBillboard([0, 0.4, 0], {
-  texture: spark,
+efx.graphics.drawBillboard(spark, [0, 0.4, 0], {
   size: 0.9,
   color: [1, 0.7, 0.3, 0.9],
 });
@@ -73,11 +72,3 @@ World-unit size: a single number or `[w, h]` (default 1).
 > `optional` **sourceRect?**: [`SourceRect`](SourceRect.md)
 
 Texture-pixel atlas region; defaults to the full texture.
-
-***
-
-### texture
-
-> **texture**: [`EfxSample`](../type-aliases/EfxSample.md)
-
-Texture (or render target) to draw; required.

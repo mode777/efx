@@ -9,7 +9,7 @@ efx.graphics.setClearColor([0.05, 0.05, 0.08, 1]);
 efx.graphics.setCamera2D({ frame: [640, 480] });
 
 efx.registerRenderHook(function () {
-    efx.graphics.drawQuad(128, 96, tex, {
+    efx.graphics.drawQuad(tex, 128, 96, {
         size: [384, 288],
         sourceRect: { x: 0, y: 0, w: 8, h: 8 },
     });

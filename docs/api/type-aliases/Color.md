@@ -15,5 +15,5 @@ Most lighting and material channels ignore the alpha component.
 
 ```js
 efx.graphics.setClearColor([0.05, 0.05, 0.1, 1]);
-efx.graphics.drawQuad(0, 0, tex, { color: [1, 0.5, 0, 1] });
+efx.graphics.drawQuad(tex, 0, 0, { color: [1, 0.5, 0, 1] });
 ```

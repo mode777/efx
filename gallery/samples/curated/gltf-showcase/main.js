@@ -4,7 +4,7 @@
 // drops the normal/occlusion/metallic-roughness maps the importer ignores and
 // picks matte factors, so it reads well under the fixed-function lighting.
 efx.graphics.setClearColor([0.04, 0.05, 0.09, 1]);
-efx.graphics.setCamera3D({ pos: [0, 0.35, 1.15], target: [0, 0.25, 0], fov: 50 });
+efx.graphics.setCamera3D([0, 0.35, 1.15], [0, 0.25, 0], 50);
 efx.graphics.setLight(0, { pos: [1.2, 1.6, 1.4], color: [1, 0.96, 0.9, 1], range: 12 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -0.8, -0.5], color: [0.22, 0.24, 0.3, 1] });
 

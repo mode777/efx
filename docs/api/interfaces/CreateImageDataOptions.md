@@ -21,7 +21,7 @@ for (let y = 0; y < size; y++) {
     px[i + 3] = 255; // ...compute coverage from the distance to center
   }
 }
-const glow = efx.graphics.createImageData({ width: size, height: size, pixels: px });
+const glow = efx.graphics.createImageData(size, size, px);
 ```
 
 ## Properties
@@ -30,28 +30,4 @@ const glow = efx.graphics.createImageData({ width: size, height: size, pixels: p
 
 > `optional` **format?**: `"rgba8"`
 
-Pixel format; only `'rgba8'` is supported (default `'rgba8'`).
-
-***
-
-### height
-
-> **height**: `number`
-
-Image height in pixels (must be > 0).
-
-***
-
-### pixels
-
-> **pixels**: `number`[] \| `Uint8Array`\<`ArrayBufferLike`\>
-
-Flat RGBA8 bytes of length `width * height * 4`.
-
-***
-
-### width
-
-> **width**: `number`
-
-Image width in pixels (must be > 0).
+Pixel format; only `'rgba8'` is supported (default `'rgba8'`). Reserved for future options.

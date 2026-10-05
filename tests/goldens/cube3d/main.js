@@ -7,7 +7,7 @@ const MAT = {
     emissive: { color: [0, 0, 0, 1] },
 };
 efx.graphics.setClearColor([0.05, 0.05, 0.1, 1]);
-efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
 efx.graphics.setLight(0, { pos: [2.5, 3.5, 3.0], color: [1.0, 0.95, 0.9, 1], range: 30 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
 const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));

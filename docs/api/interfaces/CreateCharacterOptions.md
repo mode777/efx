@@ -11,8 +11,8 @@ Options for `physics.createCharacter`.
 ## Example
 
 ```js
-const hero = efx.physics.createCharacter({
-  radius: 0.4, height: 1.8, position: [-5, 1, 0],
+const hero = efx.physics.createCharacter(0.4, 1.8, {
+  position: [-5, 1, 0],
   floorMaxAngle: 50, stepHeight: 0.35, floorSnapLength: 0.15,
 });
 ```
@@ -32,14 +32,6 @@ Maximum walkable floor angle in degrees (default 45).
 > `optional` **floorSnapLength?**: `number`
 
 Floor snap distance (default 0.1).
-
-***
-
-### height
-
-> **height**: `number`
-
-Total tip-to-tip capsule height; must be >= 2 * radius; required.
 
 ***
 
@@ -72,14 +64,6 @@ Maximum slide iterations per move (positive integer, default 6).
 > `optional` **position?**: [`Vec3`](../type-aliases/Vec3.md)
 
 Initial position in world units (default `[0, 0, 0]`).
-
-***
-
-### radius
-
-> **radius**: `number`
-
-Capsule radius (must be > 0); required.
 
 ***
 

@@ -13,7 +13,7 @@ The engine-provided script surface; the only global scripts use.
 ```js
 // the smallest complete 3D scene (the "Hello Cube" sample)
 efx.graphics.setClearColor([0.03, 0.04, 0.09, 1]);
-efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
 efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
 

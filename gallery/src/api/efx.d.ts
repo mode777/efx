@@ -22,7 +22,7 @@
  * @example
  * ```js
  * efx.graphics.setClearColor([0.05, 0.05, 0.1, 1]);
- * efx.graphics.drawQuad(0, 0, tex, { color: [1, 0.5, 0, 1] });
+ * efx.graphics.drawQuad(tex, 0, 0, { color: [1, 0.5, 0, 1] });
  * ```
  */
 type Color = [number, number, number, number];
@@ -521,17 +521,14 @@ interface FontShadow {
  *
  * @example
  * ```js
- * const title = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
- *   size: 44,
+ * const title = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 44, {
  *   outline: { width: 2 },
  *   shadow: { blur: 3, offset: [2, 2] },
  * });
- * const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 24 });
+ * const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 24);
  * ```
  */
 interface CreateFontOptions {
-  /** Pixel size baked into the atlas (must be > 0). */
-  size: number;
   /** Codepoints to bake; defaults to the printable Latin-1 set. */
   glyphs?: string;
   /** Atlas gutter in pixels (default 1). */
@@ -657,17 +654,11 @@ interface Camera2DOptions {
  *     px[i + 3] = 255; // ...compute coverage from the distance to center
  *   }
  * }
- * const glow = efx.graphics.createImageData({ width: size, height: size, pixels: px });
+ * const glow = efx.graphics.createImageData(size, size, px);
  * ```
  */
 interface CreateImageDataOptions {
-  /** Image width in pixels (must be > 0). */
-  width: number;
-  /** Image height in pixels (must be > 0). */
-  height: number;
-  /** Flat RGBA8 bytes of length `width * height * 4`. */
-  pixels: number[] | Uint8Array;
-  /** Pixel format; only `'rgba8'` is supported (default `'rgba8'`). */
+  /** Pixel format; only `'rgba8'` is supported (default `'rgba8'`). Reserved for future options. */
   format?: 'rgba8';
 }
 
@@ -711,16 +702,10 @@ interface SourceRect {
  *
  * @example
  * ```js
- * efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+ * efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
  * ```
  */
 interface Camera3DOptions {
-  /** Camera position in world units. */
-  pos: Vec3;
-  /** Point the camera looks at, in world units. */
-  target: Vec3;
-  /** Vertical field of view in degrees. */
-  fov: number;
   /** Near plane distance (default 0.1). */
   near?: number;
   /** Far plane distance (default 100). */
@@ -797,52 +782,6 @@ interface Material {
   alphaMask?: EfxSample | null;
 }
 
-/** The multi-surface batch form of `createMeshData`. */
-interface MeshDataBatch {
-  /** 1..16 surfaces, each a Godot surface / glTF primitive. */
-  surfaces: MeshSurfaceData[];
-  /** One entry per surface; `null` selects the engine default material. */
-  materials?: (Material | null)[];
-  /** Shorthand fields are forbidden in the batch form (exclusive union). */
-  positions?: never;
-  normals?: never;
-  uvs?: never;
-  colors?: never;
-  joints?: never;
-  weights?: never;
-  indices?: never;
-}
-
-/** The single-surface shorthand form of `createMeshData`. */
-interface MeshDataShorthand extends MeshSurfaceData {
-  /** One entry; `null` selects the engine default material. */
-  materials?: (Material | null)[];
-  /** The batch field is forbidden in the shorthand form (exclusive union). */
-  surfaces?: never;
-}
-
-/**
- * `createMeshData` accepts either the batch or the shorthand form.
- *
- * @example
- * ```js
- * // shorthand: one surface
- * const quad = efx.graphics.createMeshData({
- *   positions: [-4, 0, -4, 4, 0, -4, 4, 0, 4, -4, 0, 4],
- *   normals:   [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
- *   uvs:       [0, 0, 6, 0, 6, 6, 0, 6],
- *   indices:   [0, 1, 2, 0, 2, 3],
- * });
- *
- * // batch: several surfaces with per-surface materials
- * const mesh = efx.graphics.createMeshData({
- *   surfaces: [{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] }],
- *   materials: [null],
- * });
- * ```
- */
-type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
-
 /**
  * Options for `drawMesh`.
  *
@@ -854,7 +793,7 @@ type CreateMeshDataOptions = MeshDataBatch | MeshDataShorthand;
  * });
  * ```
  */
-interface DrawMeshCallOptions {
+interface DrawMeshOptions {
   /** Column-major transform (default identity). */
   transform?: Mat4;
   /** Tint multiplying vertex colors (default opaque white). */
@@ -966,25 +905,6 @@ interface DirectionalLightOptions {
   dir: Vec3;
   /** Light color `[r, g, b, a]` (alpha ignored). */
   color: Color;
-}
-
-// ---------------------------------------------------------------------------
-// Render targets
-// ---------------------------------------------------------------------------
-
-/**
- * Options for `createRenderTarget`.
- *
- * @example
- * ```js
- * const scene = efx.graphics.createRenderTarget({ width: 512, height: 512 });
- * ```
- */
-interface RenderTargetOptions {
-  /** Target width in pixels (positive integer, 1..4096). */
-  width: number;
-  /** Target height in pixels (positive integer, 1..4096). */
-  height: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1107,16 +1027,13 @@ type EfxBlendMode = 'alpha' | 'additive' | 'subtractive';
  *
  * @example
  * ```js
- * efx.graphics.drawBillboard([0, 0.4, 0], {
- *   texture: spark,
+ * efx.graphics.drawBillboard(spark, [0, 0.4, 0], {
  *   size: 0.9,
  *   color: [1, 0.7, 0.3, 0.9],
  * });
  * ```
  */
 interface DrawBillboardOptions {
-  /** Texture (or render target) to draw; required. */
-  texture: EfxSample;
   /** World-unit size: a single number or `[w, h]` (default 1). */
   size?: number | Vec2;
   /** Tint `[r, g, b, a]` (default opaque white). */
@@ -1173,15 +1090,12 @@ interface EmissionShapeOptions {
 
 /**
  * Options for `createParticleSystem` (`texture`, `max`, and `lifetime` are
- * required).
+ * positional).
  *
  * @example
  * ```js
  * // an additive fire (see the "Particle Showcase" sample)
- * const fire = efx.graphics.createParticleSystem({
- *   texture: spark,
- *   max: 600,
- *   lifetime: [0.4, 0.9],
+ * const fire = efx.graphics.createParticleSystem(spark, 600, [0.4, 0.9], {
  *   emissionRate: 140,
  *   position: [0, 0.1, 0],
  *   direction: [0, 1, 0],
@@ -1195,11 +1109,7 @@ interface EmissionShapeOptions {
  * });
  * ```
  */
-interface ParticleSystemOptions {
-  /** Texture (or render target) for particle quads; required. */
-  texture: EfxSample;
-  /** Maximum live particles (integer, 1..65536); required. */
-  max: number;
+interface ParticleSystemCreateOptions {
   /** Simulation space: `'world'` (default, 3D) or `'screen'` (2D). */
   space?: 'world' | 'screen';
   /** Quad render mode in world space (default `'view'`; screen space must be `'view'`). */
@@ -1208,8 +1118,6 @@ interface ParticleSystemOptions {
   normal?: Vec3;
   /** Blend mode (default `'alpha'`). */
   blend?: EfxBlendMode;
-  /** Particle lifetime in seconds: a number or `[min, max]`; required. */
-  lifetime: number | [number, number];
   /** Particles emitted per second (default 0). */
   emissionRate?: number;
   /** Emitter lifetime in seconds; `-1` is infinite. */
@@ -1254,6 +1162,16 @@ interface ParticleSystemOptions {
   insertMode?: 'top' | 'bottom' | 'random';
   /** Simulated-time factor (default 1). */
   speedScale?: number;
+}
+
+/** Full particle configuration; the creation inputs (`texture`, `max`, `lifetime`) are positional on `createParticleSystem`. */
+interface ParticleSystemOptions extends ParticleSystemCreateOptions {
+  /** Texture (or render target) for particle quads. */
+  texture: EfxSample;
+  /** Maximum live particles (integer, 1..65536). */
+  max: number;
+  /** Particle lifetime in seconds: a number or `[min, max]`. */
+  lifetime: number | [number, number];
 }
 
 /** Partial update bag for `ParticleSystem.set`. */
@@ -1510,15 +1428,13 @@ type PhysicsShape = SphereShape | BoxShape | CapsuleShape | MeshShape;
  *
  * @example
  * ```js
- * const crate = efx.physics.createBody({
- *   dynamic: true, mass: 2, friction: 0.6, restitution: 0.1,
- *   shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0],
- * });
+ * const crate = efx.physics.createBody(
+ *   { type: 'box', size: [1, 1, 1] },
+ *   { dynamic: true, mass: 2, friction: 0.6, restitution: 0.1, position: [0, 3, 0] },
+ * );
  * ```
  */
 interface CreateBodyOptions {
-  /** Collider shape; required. */
-  shape: PhysicsShape;
   /** Simulated by the solver when true (default `false` = static). */
   dynamic?: boolean;
   /** Report-only volume that never resolves (default `false`). */
@@ -1565,17 +1481,13 @@ interface CreateStaticMeshOptions {
  *
  * @example
  * ```js
- * const hero = efx.physics.createCharacter({
- *   radius: 0.4, height: 1.8, position: [-5, 1, 0],
+ * const hero = efx.physics.createCharacter(0.4, 1.8, {
+ *   position: [-5, 1, 0],
  *   floorMaxAngle: 50, stepHeight: 0.35, floorSnapLength: 0.15,
  * });
  * ```
  */
 interface CreateCharacterOptions {
-  /** Capsule radius (must be > 0); required. */
-  radius: number;
-  /** Total tip-to-tip capsule height; must be >= 2 * radius; required. */
-  height: number;
   /** Initial position in world units (default `[0, 0, 0]`). */
   position?: Vec3;
   /** Up direction (default `[0, 1, 0]`, must be non-zero). */
@@ -1701,8 +1613,6 @@ interface EfxCharacter {
  * ```
  */
 interface RaycastOptions {
-  /** Maximum ray distance (positive finite); required. */
-  maxDistance: number;
   /** Collision mask bitmask filter. */
   mask?: number;
   /** Return every hit sorted by distance instead of the first. */
@@ -1758,12 +1668,11 @@ interface PhysicsShapeHit {
  * @example
  * ```js
  * efx.physics.gravity = [0, -9.81, 0];
- * const ground = efx.physics.createBody({
- *   shape: { type: 'box', size: [40, 1, 40] }, position: [0, -0.5, 0] });
- * const crate = efx.physics.createBody({
- *   dynamic: true, mass: 2,
- *   shape: { type: 'box', size: [1, 1, 1] }, position: [0, 3, 0] });
- * const hero = efx.physics.createCharacter({ radius: 0.4, height: 1.8 });
+ * const ground = efx.physics.createBody(
+ *   { type: 'box', size: [40, 1, 40] }, { position: [0, -0.5, 0] });
+ * const crate = efx.physics.createBody(
+ *   { type: 'box', size: [1, 1, 1] }, { dynamic: true, mass: 2, position: [0, 3, 0] });
+ * const hero = efx.physics.createCharacter(0.4, 1.8);
  *
  * efx.registerUpdateHook((dt) => {
  *   efx.physics.step(dt);
@@ -1792,10 +1701,11 @@ interface EfxPhysics {
   /**
    * Create a static, dynamic, or sensor body.
    *
-   * @param opts - Body options; `shape` is required.
+   * @param shape - Collider shape (required, positional).
+   * @param opts - Optional kind, placement, and material options.
    * @returns The new body handle.
    */
-  createBody(opts: CreateBodyOptions): EfxBody;
+  createBody(shape: PhysicsShape, opts?: CreateBodyOptions): EfxBody;
   /**
    * Create a static triangle-mesh collider from a live Mesh.
    *
@@ -1807,28 +1717,35 @@ interface EfxPhysics {
   /**
    * Create a kinematic capsule character controller.
    *
-   * @param opts - Character options; `radius` and `height` are required.
+   * @param radius - Capsule radius (must be > 0).
+   * @param height - Total tip-to-tip capsule height; must be >= 2 * radius.
+   * @param opts - Optional placement, movement, and collision options.
    * @returns The new character handle.
    */
-  createCharacter(opts: CreateCharacterOptions): EfxCharacter;
+  createCharacter(radius: number, height: number,
+                  opts?: CreateCharacterOptions): EfxCharacter;
   /**
    * Cast a ray and return the nearest hit.
    *
    * @param origin - Ray origin in world units.
    * @param direction - Ray direction (normalized by the engine).
-   * @param opts - Query options; `maxDistance` is required.
+   * @param maxDistance - Maximum ray distance (positive finite).
+   * @param opts - Optional mask, all-hits, and sensor options.
    * @returns The first hit, or `null` when nothing is hit.
    */
-  raycast(origin: Vec3, direction: Vec3, opts: RaycastOptions): PhysicsRayHit | null;
+  raycast(origin: Vec3, direction: Vec3, maxDistance: number,
+          opts?: RaycastOptions): PhysicsRayHit | null;
   /**
    * Cast a ray and return every hit sorted by distance.
    *
    * @param origin - Ray origin in world units.
    * @param direction - Ray direction (normalized by the engine).
-   * @param opts - Query options with `all: true`; `maxDistance` is required.
+   * @param maxDistance - Maximum ray distance (positive finite).
+   * @param opts - Query options with `all: true`.
    * @returns Every hit sorted by distance.
    */
-  raycast(origin: Vec3, direction: Vec3, opts: RaycastOptions & { all: true }): PhysicsRayHit[];
+  raycast(origin: Vec3, direction: Vec3, maxDistance: number,
+          opts?: RaycastOptions & { all: true }): PhysicsRayHit[];
   /**
    * Find bodies and characters intersecting a shape (including sensors).
    *
@@ -1878,10 +1795,14 @@ interface EfxGraphics {
   /**
    * Build CPU pixels as an ImageData.
    *
-   * @param opts - Width, height, RGBA8 pixels, and optional format.
+   * @param width - Image width in pixels (must be > 0).
+   * @param height - Image height in pixels (must be > 0).
+   * @param pixels - Flat RGBA8 bytes of length `width * height * 4`.
+   * @param opts - Optional format (reserved for future options).
    * @returns The new ImageData.
    */
-  createImageData(opts: CreateImageDataOptions): EfxImageData;
+  createImageData(width: number, height: number, pixels: number[] | Uint8Array,
+                  opts?: CreateImageDataOptions): EfxImageData;
   /**
    * Upload ImageData to a GPU texture.
    *
@@ -1893,12 +1814,12 @@ interface EfxGraphics {
   /**
    * Record one textured quad.
    *
+   * @param texture - Live texture or render target to sample (the thing drawn leads).
    * @param x - Quad top-left x in frame pixels.
    * @param y - Quad top-left y in frame pixels.
-   * @param texture - Live texture or render target to sample.
    * @param opts - Optional tint, transform, size, origin, and source rect.
    */
-  drawQuad(x: number, y: number, texture: EfxSample, opts?: DrawQuadOptions): void;
+  drawQuad(texture: EfxSample, x: number, y: number, opts?: DrawQuadOptions): void;
   /**
    * Set the blend mode for subsequently recorded 2D draws.
    *
@@ -1911,16 +1832,21 @@ interface EfxGraphics {
   /**
    * Set the single 3D camera (separate from the 2D frame).
    *
-   * @param opts - Camera position, target, field of view, and clip planes.
+   * @param pos - Camera position in world units.
+   * @param target - Point the camera looks at, in world units.
+   * @param fov - Vertical field of view in degrees.
+   * @param opts - Optional near and far clip planes.
    */
-  setCamera3D(opts: Camera3DOptions): void;
+  setCamera3D(pos: Vec3, target: Vec3, fov: number, opts?: Camera3DOptions): void;
   /**
-   * Build multi-surface MeshData from the batch or shorthand form.
+   * Build multi-surface MeshData from a surface list.
    *
-   * @param data - Surface attributes and optional per-surface materials.
+   * @param surfaces - 1..16 surfaces, each a Godot surface / glTF primitive.
+   * @param materials - Optional parallel array; `null` selects the engine default.
    * @returns The new CPU MeshData.
    */
-  createMeshData(data: CreateMeshDataOptions): EfxMeshData;
+  createMeshData(surfaces: MeshSurfaceData[],
+                 materials?: (Material | null)[]): EfxMeshData;
   /**
    * Upload all surfaces of MeshData to a GPU mesh.
    *
@@ -1934,7 +1860,7 @@ interface EfxGraphics {
    * @param mesh - Live mesh to draw (required positional argument).
    * @param opts - Optional transform, tint, and skinned flag.
    */
-  drawMesh(mesh: EfxMesh, opts?: DrawMeshCallOptions): void;
+  drawMesh(mesh: EfxMesh, opts?: DrawMeshOptions): void;
   /**
    * Build single-surface cube MeshData.
    *
@@ -1993,10 +1919,11 @@ interface EfxGraphics {
   /**
    * Create a GPU render target with a color and depth attachment.
    *
-   * @param opts - Target width and height (1..4096 each).
+   * @param width - Target width in pixels (positive integer, 1..4096).
+   * @param height - Target height in pixels (positive integer, 1..4096).
    * @returns The new render target.
    */
-  createRenderTarget(opts: RenderTargetOptions): EfxRenderTarget;
+  createRenderTarget(width: number, height: number): EfxRenderTarget;
   /**
    * Redirect subsequently recorded draws into a render target, clearing it on entry.
    *
@@ -2056,10 +1983,11 @@ interface EfxGraphics {
    * Bake a fixed glyph atlas from FontData.
    *
    * @param fontData - Parsed source font.
-   * @param opts - Required bake options (at minimum `size`).
+   * @param size - Pixel size baked into the atlas (must be > 0).
+   * @param opts - Optional charset, gutter, filter, and baked effects.
    * @returns The baked Font.
    */
-  createFont(fontData: EfxFontData, opts: CreateFontOptions): EfxFont;
+  createFont(fontData: EfxFontData, size: number, opts?: CreateFontOptions): EfxFont;
   /**
    * Lay out and record 2D text quads.
    *
@@ -2097,10 +2025,11 @@ interface EfxGraphics {
   /**
    * Record one world-space billboard quad.
    *
+   * @param texture - Live texture or render target to sample (the thing drawn leads).
    * @param pos - World position `[x, y, z]`.
-   * @param opts - Required texture plus size, tint, facing, and depth options.
+   * @param opts - Optional size, tint, facing, and depth options.
    */
-  drawBillboard(pos: Vec3, opts: DrawBillboardOptions): void;
+  drawBillboard(texture: EfxSample, pos: Vec3, opts?: DrawBillboardOptions): void;
   /**
    * Record a batch of 2D sprite quads from one texture.
    *
@@ -2111,10 +2040,15 @@ interface EfxGraphics {
   /**
    * Create a native-backed CPU particle system.
    *
-   * @param opts - System options; `texture`, `max`, and `lifetime` are required.
+   * @param texture - Live texture or render target for every particle quad.
+   * @param max - Maximum live particles (integer, 1..65536).
+   * @param lifetime - Particle lifetime in seconds: a number or `[min, max]`.
+   * @param opts - Optional emitter, motion, appearance, and blending options.
    * @returns The new particle system.
    */
-  createParticleSystem(opts: ParticleSystemOptions): EfxParticleSystem;
+  createParticleSystem(texture: EfxSample, max: number,
+                       lifetime: number | [number, number],
+                       opts?: ParticleSystemCreateOptions): EfxParticleSystem;
   /**
    * Record one batch for a particle system's live particles.
    *
@@ -2208,7 +2142,7 @@ interface EfxColor {
  * ```js
  * // the smallest complete 3D scene (the "Hello Cube" sample)
  * efx.graphics.setClearColor([0.03, 0.04, 0.09, 1]);
- * efx.graphics.setCamera3D({ pos: [0, 1.6, 4.2], target: [0, 0, 0], fov: 60 });
+ * efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
  * efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
  * efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
  *

@@ -6,7 +6,7 @@
 efx.graphics.setClearColor([0.08, 0.09, 0.12, 1]);
 efx.graphics.setCamera2D({ frame: [640, 480] });
 
-var font = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 32, filter: 'nearest' });
+var font = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 32, { filter: 'nearest' });
 
 efx.registerRenderHook(function () {
     efx.graphics.drawText('EFX', font, 20, 16, { color: [1, 1, 1, 1] });

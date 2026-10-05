@@ -11,12 +11,11 @@ Options for `createFont`.
 ## Example
 
 ```js
-const title = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
-  size: 44,
+const title = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 44, {
   outline: { width: 2 },
   shadow: { blur: 3, offset: [2, 2] },
 });
-const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 24 });
+const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 24);
 ```
 
 ## Properties
@@ -58,11 +57,3 @@ Atlas gutter in pixels (default 1).
 > `optional` **shadow?**: [`FontShadow`](FontShadow.md) \| `null`
 
 Baked blurred shadow; `null`/omitted bakes none.
-
-***
-
-### size
-
-> **size**: `number`
-
-Pixel size baked into the atlas (must be > 0).

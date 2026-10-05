@@ -82,12 +82,18 @@ if (!near(Math.abs(q360[3]), 1)) fail('quat 360');
 // public createMeshData entry the primitives call
 function spyPrim(fn) {
     const orig = efx.graphics.createMeshData;
-    let captured = null;
-    efx.graphics.createMeshData = function (data) { captured = data; return orig(data); };
+    let captured = null, capturedMats;
+    efx.graphics.createMeshData = function (surfaces, materials) {
+        captured = surfaces;
+        capturedMats = materials;
+        return orig(surfaces, materials);
+    };
     const md = fn();
     efx.graphics.createMeshData = orig;
     if (md.surfaceCount !== 1) fail('primitive surfaceCount');
-    return captured;
+    return { positions: captured[0].positions, normals: captured[0].normals,
+             uvs: captured[0].uvs, indices: captured[0].indices,
+             materials: capturedMats };
 }
 
 // cube: 24 verts / 36 indices; corners at +-size/2

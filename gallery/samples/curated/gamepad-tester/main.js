@@ -8,13 +8,9 @@
 efx.graphics.setClearColor([0.04, 0.05, 0.08, 1]);
 efx.graphics.setCamera2D({ frame: [800, 520] });
 
-const titleFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), {
-    size: 30,
-    outline: { width: 2 },
-    shadow: { blur: 3, offset: [2, 2] },
-});
-const font = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 15 });
-const small = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), { size: 11 });
+const titleFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 30, { outline: { width: 2 }, shadow: { blur: 3, offset: [2, 2] } });
+const font = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 15);
+const small = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 11);
 
 const W = 800;
 const H = 520;
@@ -64,7 +60,7 @@ function rect(x, y, w, h, c, a) {
     if (w <= 0 || h <= 0) {
         return; // drawQuad rejects non-positive sizes (e.g. an at-rest trigger)
     }
-    efx.graphics.drawQuad(x, y, efx.graphics.whiteTexture, {
+    efx.graphics.drawQuad(efx.graphics.whiteTexture, x, y, {
         size: [w, h],
         origin: [0, 0],
         color: [c[0], c[1], c[2], a === undefined ? 1 : a],

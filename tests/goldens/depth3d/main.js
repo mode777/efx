@@ -6,7 +6,7 @@ const MAT = {
     emissive: { color: [0, 0, 0, 1] },
 };
 efx.graphics.setClearColor([0.04, 0.06, 0.09, 1]);
-efx.graphics.setCamera3D({ pos: [0, 1.4, 4.5], target: [0, 0, 0.6], fov: 55 });
+efx.graphics.setCamera3D([0, 1.4, 4.5], [0, 0, 0.6], 55);
 efx.graphics.setLight(0, { pos: [2.5, 3.5, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.2, 0.24, 0.3, 1] });
 const near = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.1 }));

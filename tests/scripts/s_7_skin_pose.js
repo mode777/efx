@@ -38,9 +38,7 @@ if (kind(function () { efx.graphics.poseMesh(mesh, { clip: 'move', time: 0, bogu
     throw new Error('unknown sample field did not throw TypeError');
 }
 
-var plain = efx.graphics.createMesh(efx.graphics.createMeshData({
-    positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2]
-}));
+var plain = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] }]));
 if (kind(function () { efx.graphics.poseMesh(plain, { clip: 0, time: 0 }); }) !== 'TypeError') {
     throw new Error('rig-less pose did not throw TypeError');
 }

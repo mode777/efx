@@ -34,20 +34,17 @@ expectThrow('dir-unknown', TE, () => efx.graphics.setDirectionalLight({ dir: [0,
 
 // materials in createMeshData
 const M = { diffuse: { color: [0.8, 0.3, 0.2, 1] }, specular: { color: [1, 1, 1, 1], shininess: 32 } };
-const md = efx.graphics.createMeshData({
-    surfaces: [{ positions: P, indices: [0, 1, 2] }, { positions: P, indices: [0, 1, 2] }],
-    materials: [M, null],
-});
+const md = efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }, { positions: P, indices: [0, 1, 2] }], [M, null]);
 if (md.surfaceCount !== 2) { efx.log('FAIL md materials count'); efx.quit(3); }
-expectThrow('md-mat-length', RE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [] }));
-expectThrow('md-mat-not-array', TE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: M }));
-expectThrow('md-mat-bad-entry', TE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [42] }));
+expectThrow('md-mat-length', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []));
+expectThrow('md-mat-not-array', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], M));
+expectThrow('md-mat-bad-entry', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [42]));
 
 // material channel validation
-expectThrow('mat-map-f4b', TE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: { color: [1, 1, 1, 1], map: 1 } }] }));
-expectThrow('mat-short-color', RE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: { color: [1, 1, 1] } }] }));
-expectThrow('mat-no-color', TE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: {} }] }));
-expectThrow('mat-unknown', TE, () => efx.graphics.createMeshData({ surfaces: [{ positions: P, indices: [0, 1, 2] }], materials: [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }] }));
+expectThrow('mat-map-f4b', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1], map: 1 } }]));
+expectThrow('mat-short-color', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1] } }]));
+expectThrow('mat-no-color', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: {} }]));
+expectThrow('mat-unknown', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }]));
 
 // setMeshSurfaceMaterial: bind, rebind, null reset, errors
 const mesh = efx.graphics.createMesh(md);

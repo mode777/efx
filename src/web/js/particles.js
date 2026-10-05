@@ -1,6 +1,6 @@
-        drawQuad: function (x, y, texture, opts) {
+        drawQuad: function (texture, x, y, opts) {
             if (arguments.length < 3) {
-                throw new TypeError('drawQuad requires (x, y, texture, opts?)');
+                throw new TypeError('drawQuad requires (texture, x, y, opts?)');
             }
             var fx = __efxNumber(x, 'x and y must be numbers');
             var fy = __efxNumber(y, 'x and y must be numbers');
@@ -74,22 +74,23 @@
                 src[0], src[1], src[2], src[3], hasSrc ? 1 : 0, ox, oy);
             __efxRc(rc, 'drawQuad', { 1: true, 4: true, 9: true });
         },
-        drawBillboard: function (pos, opts) {
+        drawBillboard: function (texture, pos, opts) {
             if (arguments.length < 2) {
-                throw new TypeError('drawBillboard requires (pos, opts)');
+                throw new TypeError('drawBillboard requires (texture, pos, opts?)');
             }
+            if (texture === undefined) {
+                throw new TypeError('drawBillboard requires a texture');
+            }
+            var tex = liveSample(texture);
             var p = __efxPartVec(pos, 'pos', false,
                                  'drawBillboard pos must be [x,y,z]');
+            opts = (opts === undefined || opts === null) ? {} : opts;
             if (!__efxIsObject(opts)) {
                 throw new TypeError('drawBillboard options must be an object');
             }
-            var known = { texture: 1, size: 1, color: 1, sourceRect: 1,
+            var known = { size: 1, color: 1, sourceRect: 1,
                           rotation: 1, facing: 1, depthTest: 1, normal: 1 };
                         __efxCheckKnown(opts, known, 'drawBillboard');
-            if (opts['texture'] === undefined) {
-                throw new TypeError('drawBillboard requires a texture');
-            }
-            var tex = liveSample(opts['texture']);
             var size = [1, 1];
             if (opts['size'] !== undefined) {
                 if (Array.isArray(opts['size'])) {

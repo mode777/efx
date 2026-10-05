@@ -10,7 +10,7 @@ const orbit = require('./lib/orbit'); // no extension -> deterministic .js fallb
 const scene = require('./data/scene.json'); // JSON module -> parsed value
 
 efx.graphics.setClearColor(scene.background);
-efx.graphics.setCamera3D(scene.camera);
+efx.graphics.setCamera3D(scene.camera.pos, scene.camera.target, scene.camera.fov);
 efx.graphics.setLight(0, scene.keyLight);
 efx.graphics.setDirectionalLight(scene.fillLight);
 

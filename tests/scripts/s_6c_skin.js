@@ -6,7 +6,7 @@ var P = [0, 0, 0, 1, 0, 0, 0, 1, 0];
 var J = [0, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 var W = [1, 0, 0, 0, 0.5, 0.5, 0, 0, 1, 0, 0, 0];
 
-var md = efx.graphics.createMeshData({ positions: P, joints: J, weights: W, indices: [0, 1, 2] });
+var md = efx.graphics.createMeshData([{ positions: P, joints: J, weights: W, indices: [0, 1, 2] }]);
 if (md.surfaceCount !== 1) {
     throw new Error('skinned surfaceCount ' + md.surfaceCount);
 }
@@ -22,7 +22,7 @@ md.destroy();
 
 var kinds = 0;
 try {
-    efx.graphics.createMeshData({ positions: P, joints: J });
+    efx.graphics.createMeshData([{ positions: P, joints: J }]);
 } catch (e) {
     kinds = (e instanceof RangeError) ? 1 : 2;
 }

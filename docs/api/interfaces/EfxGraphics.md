@@ -44,7 +44,7 @@ Target to draw into.
 
 ### createFont()
 
-> **createFont**(`fontData`, `opts`): [`EfxFont`](EfxFont.md)
+> **createFont**(`fontData`, `size`, `opts?`): [`EfxFont`](EfxFont.md)
 
 Bake a fixed glyph atlas from FontData.
 
@@ -56,11 +56,17 @@ Bake a fixed glyph atlas from FontData.
 
 Parsed source font.
 
-##### opts
+##### size
+
+`number`
+
+Pixel size baked into the atlas (must be > 0).
+
+##### opts?
 
 [`CreateFontOptions`](CreateFontOptions.md)
 
-Required bake options (at minimum `size`).
+Optional charset, gutter, filter, and baked effects.
 
 #### Returns
 
@@ -72,17 +78,35 @@ The baked Font.
 
 ### createImageData()
 
-> **createImageData**(`opts`): [`EfxImageData`](EfxImageData.md)
+> **createImageData**(`width`, `height`, `pixels`, `opts?`): [`EfxImageData`](EfxImageData.md)
 
 Build CPU pixels as an ImageData.
 
 #### Parameters
 
-##### opts
+##### width
+
+`number`
+
+Image width in pixels (must be > 0).
+
+##### height
+
+`number`
+
+Image height in pixels (must be > 0).
+
+##### pixels
+
+`number`[] \| `Uint8Array`\<`ArrayBufferLike`\>
+
+Flat RGBA8 bytes of length `width * height * 4`.
+
+##### opts?
 
 [`CreateImageDataOptions`](CreateImageDataOptions.md)
 
-Width, height, RGBA8 pixels, and optional format.
+Optional format (reserved for future options).
 
 #### Returns
 
@@ -116,17 +140,23 @@ The new GPU mesh.
 
 ### createMeshData()
 
-> **createMeshData**(`data`): [`EfxMeshData`](EfxMeshData.md)
+> **createMeshData**(`surfaces`, `materials?`): [`EfxMeshData`](EfxMeshData.md)
 
-Build multi-surface MeshData from the batch or shorthand form.
+Build multi-surface MeshData from a surface list.
 
 #### Parameters
 
-##### data
+##### surfaces
 
-[`CreateMeshDataOptions`](../type-aliases/CreateMeshDataOptions.md)
+[`MeshSurfaceData`](MeshSurfaceData.md)[]
 
-Surface attributes and optional per-surface materials.
+1..16 surfaces, each a Godot surface / glTF primitive.
+
+##### materials?
+
+([`Material`](Material.md) \| `null`)[]
+
+Optional parallel array; `null` selects the engine default.
 
 #### Returns
 
@@ -138,17 +168,35 @@ The new CPU MeshData.
 
 ### createParticleSystem()
 
-> **createParticleSystem**(`opts`): [`EfxParticleSystem`](EfxParticleSystem.md)
+> **createParticleSystem**(`texture`, `max`, `lifetime`, `opts?`): [`EfxParticleSystem`](EfxParticleSystem.md)
 
 Create a native-backed CPU particle system.
 
 #### Parameters
 
-##### opts
+##### texture
 
-[`ParticleSystemOptions`](ParticleSystemOptions.md)
+[`EfxSample`](../type-aliases/EfxSample.md)
 
-System options; `texture`, `max`, and `lifetime` are required.
+Live texture or render target for every particle quad.
+
+##### max
+
+`number`
+
+Maximum live particles (integer, 1..65536).
+
+##### lifetime
+
+`number` \| \[`number`, `number`\]
+
+Particle lifetime in seconds: a number or `[min, max]`.
+
+##### opts?
+
+[`ParticleSystemCreateOptions`](ParticleSystemCreateOptions.md)
+
+Optional emitter, motion, appearance, and blending options.
 
 #### Returns
 
@@ -160,17 +208,23 @@ The new particle system.
 
 ### createRenderTarget()
 
-> **createRenderTarget**(`opts`): [`EfxRenderTarget`](EfxRenderTarget.md)
+> **createRenderTarget**(`width`, `height`): [`EfxRenderTarget`](EfxRenderTarget.md)
 
 Create a GPU render target with a color and depth attachment.
 
 #### Parameters
 
-##### opts
+##### width
 
-[`RenderTargetOptions`](RenderTargetOptions.md)
+`number`
 
-Target width and height (1..4096 each).
+Target width in pixels (positive integer, 1..4096).
+
+##### height
+
+`number`
+
+Target height in pixels (positive integer, 1..4096).
 
 #### Returns
 
@@ -210,11 +264,17 @@ The new texture.
 
 ### drawBillboard()
 
-> **drawBillboard**(`pos`, `opts`): `void`
+> **drawBillboard**(`texture`, `pos`, `opts?`): `void`
 
 Record one world-space billboard quad.
 
 #### Parameters
+
+##### texture
+
+[`EfxSample`](../type-aliases/EfxSample.md)
+
+Live texture or render target to sample (the thing drawn leads).
 
 ##### pos
 
@@ -222,11 +282,11 @@ Record one world-space billboard quad.
 
 World position `[x, y, z]`.
 
-##### opts
+##### opts?
 
 [`DrawBillboardOptions`](DrawBillboardOptions.md)
 
-Required texture plus size, tint, facing, and depth options.
+Optional size, tint, facing, and depth options.
 
 #### Returns
 
@@ -250,7 +310,7 @@ Live mesh to draw (required positional argument).
 
 ##### opts?
 
-[`DrawMeshCallOptions`](DrawMeshCallOptions.md)
+[`DrawMeshOptions`](DrawMeshOptions.md)
 
 Optional transform, tint, and skinned flag.
 
@@ -282,11 +342,17 @@ System whose live particles to draw.
 
 ### drawQuad()
 
-> **drawQuad**(`x`, `y`, `texture`, `opts?`): `void`
+> **drawQuad**(`texture`, `x`, `y`, `opts?`): `void`
 
 Record one textured quad.
 
 #### Parameters
+
+##### texture
+
+[`EfxSample`](../type-aliases/EfxSample.md)
+
+Live texture or render target to sample (the thing drawn leads).
 
 ##### x
 
@@ -299,12 +365,6 @@ Quad top-left x in frame pixels.
 `number`
 
 Quad top-left y in frame pixels.
-
-##### texture
-
-[`EfxSample`](../type-aliases/EfxSample.md)
-
-Live texture or render target to sample.
 
 ##### opts?
 
@@ -664,17 +724,35 @@ Frame, center, zoom, and rotation.
 
 ### setCamera3D()
 
-> **setCamera3D**(`opts`): `void`
+> **setCamera3D**(`pos`, `target`, `fov`, `opts?`): `void`
 
 Set the single 3D camera (separate from the 2D frame).
 
 #### Parameters
 
-##### opts
+##### pos
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Camera position in world units.
+
+##### target
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Point the camera looks at, in world units.
+
+##### fov
+
+`number`
+
+Vertical field of view in degrees.
+
+##### opts?
 
 [`Camera3DOptions`](Camera3DOptions.md)
 
-Camera position, target, field of view, and clip planes.
+Optional near and far clip planes.
 
 #### Returns
 

@@ -13,13 +13,11 @@ const TE = TypeError, RE = RangeError;
 
 // the engine whiteTexture is available headless too (CPU-only, ADR 0052);
 // any live texture works as the quad source
-const tex = efx.graphics.createTexture(efx.graphics.createImageData({
-    width: 2, height: 2, pixels: new Uint8Array(16),
-}));
-efx.graphics.drawQuad(0, 0, efx.graphics.whiteTexture, { size: [4, 4] });
+const tex = efx.graphics.createTexture(efx.graphics.createImageData(2, 2, new Uint8Array(16)));
+efx.graphics.drawQuad(efx.graphics.whiteTexture, 0, 0, { size: [4, 4] });
 
 // lifecycle + query properties
-const rt = efx.graphics.createRenderTarget({ width: 256, height: 128 });
+const rt = efx.graphics.createRenderTarget(256, 128);
 if (rt.width !== 256 || rt.height !== 128) { efx.log('FAIL rt size'); efx.quit(3); }
 rt.destroy();
 rt.destroy(); // idempotent
@@ -28,44 +26,39 @@ expectThrow('begin-after-destroy', TE, () => efx.graphics.beginRenderTarget(rt))
 
 // validation matrix
 expectThrow('missing-object', TE, () => efx.graphics.createRenderTarget());
-expectThrow('missing-width', TE, () => efx.graphics.createRenderTarget({ height: 8 }));
-expectThrow('zero-size', RE, () => efx.graphics.createRenderTarget({ width: 0, height: 8 }));
-expectThrow('negative-size', RE, () => efx.graphics.createRenderTarget({ width: 8, height: -1 }));
-expectThrow('fraction-size', RE, () => efx.graphics.createRenderTarget({ width: 10.5, height: 8 }));
-expectThrow('oversize', RE, () => efx.graphics.createRenderTarget({ width: 4097, height: 8 }));
-expectThrow('unknown-field', TE, () => efx.graphics.createRenderTarget({ width: 8, height: 8, depth: 24 }));
+expectThrow('missing-width', TE, () => efx.graphics.createRenderTarget(undefined, 8));
+expectThrow('zero-size', RE, () => efx.graphics.createRenderTarget(0, 8));
+expectThrow('negative-size', RE, () => efx.graphics.createRenderTarget(8, -1));
+expectThrow('fraction-size', RE, () => efx.graphics.createRenderTarget(10.5, 8));
+expectThrow('oversize', RE, () => efx.graphics.createRenderTarget(4097, 8));
 
 // redirection: begin/draw/end, nesting and balance errors
-const a = efx.graphics.createRenderTarget({ width: 64, height: 64 });
+const a = efx.graphics.createRenderTarget(64, 64);
 efx.graphics.beginRenderTarget(a);
-efx.graphics.drawQuad(0, 0, tex, { size: [32, 32] });
+efx.graphics.drawQuad(tex, 0, 0, { size: [32, 32] });
 expectThrow('nested-begin', TE, () => efx.graphics.beginRenderTarget(a));
-expectThrow('self-sample', TE, () => efx.graphics.drawQuad(0, 0, a));
+expectThrow('self-sample', TE, () => efx.graphics.drawQuad(a, 0, 0));
 efx.graphics.endRenderTarget();
 expectThrow('unbalanced-end', TE, () => efx.graphics.endRenderTarget());
 
 // texture coercion: an RT is accepted wherever a texture is, with the
 // target's extent driving size derivation and sourceRect validation
-efx.graphics.drawQuad(0, 0, a);                                              // 64x64 from target extent
-efx.graphics.drawQuad(0, 0, a, { sourceRect: { x: 0, y: 0, w: 32, h: 16 } }); // top-left quarter
-expectThrow('src-oob', RE, () => efx.graphics.drawQuad(0, 0, a, { sourceRect: { x: 0, y: 0, w: 65, h: 8 } }));
+efx.graphics.drawQuad(a, 0, 0);                                              // 64x64 from target extent
+efx.graphics.drawQuad(a, 0, 0, { sourceRect: { x: 0, y: 0, w: 32, h: 16 } }); // top-left quarter
+expectThrow('src-oob', RE, () => efx.graphics.drawQuad(a, 0, 0, { sourceRect: { x: 0, y: 0, w: 65, h: 8 } }));
 expectThrow('destroyed-as-texture', TE, () => {
-    const dead = efx.graphics.createRenderTarget({ width: 8, height: 8 });
+    const dead = efx.graphics.createRenderTarget(8, 8);
     dead.destroy();
-    efx.graphics.drawQuad(0, 0, dead);
+    efx.graphics.drawQuad(dead, 0, 0);
 });
 
 // a mesh material map may reference a render target
-const mesh = efx.graphics.createMesh(efx.graphics.createMeshData({
-    positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
-    uvs: [0, 0, 1, 0, 0, 1],
-    indices: [0, 1, 2],
-}));
-efx.graphics.setCamera3D({ pos: [0, 0, 5], target: [0, 0, 0], fov: 60 });
+const mesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], uvs: [0, 0, 1, 0, 0, 1], indices: [0, 1, 2] }]));
+efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 60);
 efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: a } });
 efx.graphics.drawMesh(mesh);
 expectThrow('mesh-map-destroyed', TE, () => {
-    const dead = efx.graphics.createRenderTarget({ width: 8, height: 8 });
+    const dead = efx.graphics.createRenderTarget(8, 8);
     dead.destroy();
     efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: dead } });
 });
@@ -81,11 +74,11 @@ efx.graphics.endRenderTarget();
 // target extent playing the window's role)
 efx.graphics.setCamera2D({ frame: [640, 480] });
 efx.graphics.beginRenderTarget(a);
-efx.graphics.drawQuad(0, 0, tex); // explicit frame wins
+efx.graphics.drawQuad(tex, 0, 0); // explicit frame wins
 efx.graphics.endRenderTarget();
-const b = efx.graphics.createRenderTarget({ width: 320, height: 200 });
+const b = efx.graphics.createRenderTarget(320, 200);
 efx.graphics.beginRenderTarget(b);
-efx.graphics.drawQuad(0, 0, tex); // default frame = the target extent
+efx.graphics.drawQuad(tex, 0, 0); // default frame = the target extent
 efx.graphics.endRenderTarget();
 
 a.destroy();

@@ -14,20 +14,20 @@ for (let y = 0; y < 4; y++) {
     }
 }
 const tex = efx.graphics.createTexture(
-    efx.graphics.createImageData({ width: 4, height: 4, pixels: pixels }));
-const rt = efx.graphics.createRenderTarget({ width: 200, height: 200 });
-const rt2 = efx.graphics.createRenderTarget({ width: 320, height: 240 });
+    efx.graphics.createImageData(4, 4, pixels));
+const rt = efx.graphics.createRenderTarget(200, 200);
+const rt2 = efx.graphics.createRenderTarget(320, 240);
 function update() {}
 function render() {
     efx.graphics.setCamera2D({ frame: [200, 200] });
     efx.graphics.beginRenderTarget(rt);
-    efx.graphics.drawQuad(10, 10, tex, { size: [90, 90] });
-    efx.graphics.drawQuad(105, 105, tex, { size: [85, 85] });
+    efx.graphics.drawQuad(tex, 10, 10, { size: [90, 90] });
+    efx.graphics.drawQuad(tex, 105, 105, { size: [85, 85] });
     efx.graphics.endRenderTarget();
     efx.graphics.setCamera2D({ frame: [640, 480] });
     efx.graphics.beginRenderTarget(rt2);
-    efx.graphics.drawQuad(60, 40, tex, { size: [200, 160], rotation: 15 });
+    efx.graphics.drawQuad(tex, 60, 40, { size: [200, 160], rotation: 15 });
     efx.graphics.endRenderTarget();
-    efx.graphics.drawQuad(20, 20, rt, { size: [200, 200] });
-    efx.graphics.drawQuad(260, 120, rt2);
+    efx.graphics.drawQuad(rt, 20, 20, { size: [200, 200] });
+    efx.graphics.drawQuad(rt2, 260, 120);
 }

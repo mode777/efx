@@ -33,14 +33,6 @@ Collision mask bitmask filter.
 
 ***
 
-### maxDistance
-
-> **maxDistance**: `number`
-
-Maximum ray distance (positive finite); required.
-
-***
-
 ### sensors?
 
 > `optional` **sensors?**: `boolean`
