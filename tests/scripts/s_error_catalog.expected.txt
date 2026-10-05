@@ -146,13 +146,12 @@
 8a.createfont-nofontdata: TypeError: createFont requires a FontData
 8a.createfont-noopts: TypeError: loadFontData requires a path string
 8a.drawtext-nofont: TypeError: drawText requires a live Font
-8a.measuretext-nofont: TypeError: measureText requires a live Font
 7.pose-unknown-clip: Error: unknown clip name
 7.pose-clip-index: RangeError: clip index out of range
 7.pose-negative-weight: RangeError: weight must be finite and >= 0
 7.pose-unknown-sample-field: TypeError: unknown pose sample option 'bogus'
 7.pose-bad-clip-type: TypeError: clip must be a name or index
-7.pose-rigless: TypeError: poseMesh requires a Mesh with a rig
+7.pose-rigless: TypeError: pose requires a Mesh with a rig
 7.drawmesh-skinned-rigless: TypeError: mesh has no rig to draw skinned
 9.keyboard-isdown-unknown: TypeError: unknown key
 9.keyboard-isdown-nonstring: TypeError: keyboard query requires a key name

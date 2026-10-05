@@ -20,9 +20,9 @@ const C = [
     0, 0.3, 1, 1,
 ];
 const tri = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1, 0, 0, 1, 0, 0, 1], colors: C, indices: [0, 1, 2] }]));
-efx.graphics.setMeshSurfaceMaterial(tri, 0, MAT);
+tri.setSurfaceMaterial(0, MAT);
 const triTinted = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1, 0, 0, 1, 0, 0, 1], colors: C, indices: [0, 1, 2] }]));
-efx.graphics.setMeshSurfaceMaterial(triTinted, 0, MAT);
+triTinted.setSurfaceMaterial(0, MAT);
 function update() {}
 function render() {
     const right = efx.math.mat4.translate(efx.math.mat4.identity(), [-1.2, 0, 0]);

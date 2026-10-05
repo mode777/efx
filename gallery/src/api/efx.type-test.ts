@@ -10,7 +10,7 @@ efx.graphics.setLight(0, { pos: [1, 2, 3], color: [1, 1, 1, 1], range: 20 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1, -0.3], color: [0.2, 0.2, 0.3, 1] });
 
 const cube: EfxMesh = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1 }));
-efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+cube.setSurfaceMaterial(0, {
   ambient: { color: [0.1, 0.1, 0.1, 1] },
   diffuse: { color: [1, 1, 1, 1] },
   specular: { color: [1, 1, 1, 1], shininess: 32 },
@@ -74,12 +74,12 @@ efx.graphics.createTexture(efx.graphics.createImageData(1, 1, [0, 0, 0, 0]), { m
 efx.graphics.loadMeshData('models/quad.glb', { mesh: {} });
 
 // F7 — posing takes a sample or an array; the skinned draw option is a boolean
-efx.graphics.poseMesh(cube, { clip: 'Walk', time: 1 });
-efx.graphics.poseMesh(cube, [{ clip: 0, time: 1, weight: 0.5 }]);
+cube.pose({ clip: 'Walk', time: 1 });
+cube.pose([{ clip: 0, time: 1, weight: 0.5 }]);
 efx.graphics.drawMesh(cube, { skinned: true });
 efx.graphics.drawMesh(cube, { transform: efx.math.mat4.identity(), color: [1, 1, 1, 1], skinned: false });
 // @ts-expect-error — an unknown pose sample field is rejected
-efx.graphics.poseMesh(cube, { clip: 'Walk', time: 1, bogus: true });
+cube.pose({ clip: 'Walk', time: 1, bogus: true });
 // @ts-expect-error — skinned is a boolean
 efx.graphics.drawMesh(cube, { skinned: 1 });
 
@@ -104,9 +104,17 @@ const bounds: TextBounds = efx.graphics.drawText('hello', font, 10, 10, {
   rotation: 15,
   scale: 1.5,
 });
-const measured: TextBounds = efx.graphics.measureText('hello', font, { width: 200 });
+const measured: TextBounds = font.measure('hello', { width: 200 });
 bounds.lines;
 measured.width;
+
+// The operation free functions are gone — each is a method on its subject.
+// @ts-expect-error — measureText moved to Font.measure
+efx.graphics.measureText('hello', font, { width: 200 });
+// @ts-expect-error — poseMesh moved to Mesh.pose
+efx.graphics.poseMesh(cube, { clip: 'Walk', time: 1 });
+// @ts-expect-error — setMeshSurfaceMaterial moved to Mesh.setSurfaceMaterial
+efx.graphics.setMeshSurfaceMaterial(cube, 0, mat);
 efx.graphics.drawText('plain', plainFont, 0, 0);
 // @ts-expect-error — createFont requires a positional size
 efx.graphics.createFont(fontData);
@@ -163,7 +171,7 @@ efx.graphics.drawQuad(f11tex, 0, 0, { blend: 'additive' });
 efx.graphics.drawSprites(f11tex, [{ x: 0, y: 0 }], { blend: 'subtractive' });
 efx.graphics.drawBillboard(f11tex, [0, 0, 0], { blend: 'additive' });
 efx.graphics.createParticleSystem(f11tex, 10, 1, { blend: null });
-efx.graphics.setMeshSurfaceMaterial(cube, 0, { blend: 'additive' });
+cube.setSurfaceMaterial(0, { blend: 'additive' });
 // @ts-expect-error — blend is a fixed set
 efx.graphics.drawQuad(f11tex, 0, 0, { blend: 'multiply' });
 // @ts-expect-error — drawSprites options hold only blend

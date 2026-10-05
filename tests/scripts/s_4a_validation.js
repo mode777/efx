@@ -46,19 +46,19 @@ expectThrow('mat-short-color', RE, () => efx.graphics.createMeshData([{ position
 expectThrow('mat-no-color', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: {} }]));
 expectThrow('mat-unknown', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }]));
 
-// setMeshSurfaceMaterial: bind, rebind, null reset, errors
+// setSurfaceMaterial: bind, rebind, null reset, errors
 const mesh = efx.graphics.createMesh(md);
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, M);
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, { emissive: { color: [1, 0, 0, 1] } });
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, null);
-efx.graphics.setMeshSurfaceMaterial(mesh, 1, M);
-expectThrow('smsm-nonmesh', TE, () => efx.graphics.setMeshSurfaceMaterial({}, 0, M));
-expectThrow('smsm-index', RE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 2, M));
-expectThrow('smsm-index-neg', RE, () => efx.graphics.setMeshSurfaceMaterial(mesh, -1, M));
-expectThrow('smsm-bad-mat', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, 5));
-expectThrow('smsm-shininess0', RE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { specular: { color: [1, 1, 1, 1], shininess: 0 } }));
+mesh.setSurfaceMaterial(0, M);
+mesh.setSurfaceMaterial(0, { emissive: { color: [1, 0, 0, 1] } });
+mesh.setSurfaceMaterial(0, null);
+mesh.setSurfaceMaterial(1, M);
+expectThrow('smsm-nonmesh', TE, () => mesh.setSurfaceMaterial.call({}, 0, M));
+expectThrow('smsm-index', RE, () => mesh.setSurfaceMaterial(2, M));
+expectThrow('smsm-index-neg', RE, () => mesh.setSurfaceMaterial(-1, M));
+expectThrow('smsm-bad-mat', TE, () => mesh.setSurfaceMaterial(0, 5));
+expectThrow('smsm-shininess0', RE, () => mesh.setSurfaceMaterial(0, { specular: { color: [1, 1, 1, 1], shininess: 0 } }));
 mesh.destroy();
-expectThrow('smsm-destroyed', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, M));
+expectThrow('smsm-destroyed', TE, () => mesh.setSurfaceMaterial(0, M));
 md.destroy();
 
 efx.log('s-4a-validation-ok');

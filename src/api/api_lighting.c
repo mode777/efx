@@ -80,19 +80,21 @@ JSValue efx_js_set_directional_light_wire(JSContext *ctx,
 }
 
 
+/* Mesh.setSurfaceMaterial(surfaceIndex, mat) — the receiver is the subject,
+ * so it is resolved first; the receiver errors match the web class liveness
+ * guard. */
 JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val,
                                       int argc, JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 3) {
-        return efx_api_type_error(ctx,
-                          "setMeshSurfaceMaterial requires (mesh, surfaceIndex, mat)");
-    }
-    efxjs_mesh *mesh = efx_api_get_live_mesh(ctx, argv[0]);
+    efxjs_mesh *mesh = efx_api_get_live_mesh(ctx, this_val);
     if (!mesh) {
         return JS_EXCEPTION;
     }
+    if (argc < 2) {
+        return efx_api_type_error(ctx,
+                          "setSurfaceMaterial requires (surfaceIndex, mat)");
+    }
     double index_d = 0;
-    if (!JS_IsNumber(argv[1]) || JS_ToFloat64(ctx, &index_d, argv[1]) < 0 ||
+    if (!JS_IsNumber(argv[0]) || JS_ToFloat64(ctx, &index_d, argv[0]) < 0 ||
         !isfinite(index_d) || index_d != floor(index_d)) {
         return efx_api_range_error(ctx, "surfaceIndex must be an integer");
     }
@@ -103,23 +105,24 @@ JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val,
     }
     efx_material mat;
     int has = 0;
-    if (JS_IsNull(argv[2]) || JS_IsUndefined(argv[2])) {
+    if (JS_IsNull(argv[1]) || JS_IsUndefined(argv[1])) {
         has = 0;
     } else {
-        if (efx_api_read_material(ctx, argv[2], &mat) != 0) {
+        if (efx_api_read_material(ctx, argv[1], &mat) != 0) {
             return JS_EXCEPTION;
         }
         has = 1;
     }
     int rc = efx_render_mesh_set_material(mesh->handle, (int)index,
-                                          has ? &mat : NULL, has);    if (rc == EFX_RENDER_ERR_HANDLE) {
+                                          has ? &mat : NULL, has);
+    if (rc == EFX_RENDER_ERR_HANDLE) {
         return efx_api_type_error(ctx, "expected a live Mesh");
     }
     if (rc == EFX_RENDER_ERR_INDEX) {
         return efx_api_range_error(ctx, "surfaceIndex out of range");
     }
     if (rc != EFX_RENDER_OK) {
-        return efx_api_generic_error(ctx, "setMeshSurfaceMaterial failed");
+        return efx_api_generic_error(ctx, "setSurfaceMaterial failed");
     }
     return JS_UNDEFINED;
 }

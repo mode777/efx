@@ -198,31 +198,31 @@ C('4a.mat-unknown', function () {
     efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }]);
 });
 var matMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] } }]));
-C('4a.smsm-nonmesh', function () { efx.graphics.setMeshSurfaceMaterial({}, 0, {}); });
-C('4a.smsm-index', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 2, {}); });
-C('4a.smsm-index-neg', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, -1, {}); });
-C('4a.smsm-bad-mat', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 0, 5); });
+C('4a.smsm-nonmesh', function () { matMesh.setSurfaceMaterial.call({}, 0, {}); });
+C('4a.smsm-index', function () { matMesh.setSurfaceMaterial(2, {}); });
+C('4a.smsm-index-neg', function () { matMesh.setSurfaceMaterial(-1, {}); });
+C('4a.smsm-bad-mat', function () { matMesh.setSurfaceMaterial(0, 5); });
 C('4a.smsm-blend-unknown', function () {
-    efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { blend: 'multiply' });
+    matMesh.setSurfaceMaterial(0, { blend: 'multiply' });
 });
 C('4a.smsm-shininess0', function () {
-    efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { specular: { color: [1, 1, 1, 1], shininess: 0 } });
+    matMesh.setSurfaceMaterial(0, { specular: { color: [1, 1, 1, 1], shininess: 0 } });
 });
 var deadMatMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]));
 deadMatMesh.destroy();
-C('4a.smsm-destroyed', function () { efx.graphics.setMeshSurfaceMaterial(deadMatMesh, 0, {}); });
+C('4a.smsm-destroyed', function () { deadMatMesh.setSurfaceMaterial(0, {}); });
 
 C('4b.map-number', function () {
-    efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { diffuse: { color: [1, 1, 1, 1], map: 1 } });
+    matMesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: 1 } });
 });
 C('4b.map-object', function () {
-    efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { diffuse: { color: [1, 1, 1, 1], map: {} } });
+    matMesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: {} } });
 });
-C('4b.alphamask-number', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { alphaMask: 5 }); });
+C('4b.alphamask-number', function () { matMesh.setSurfaceMaterial(0, { alphaMask: 5 }); });
 C('4b.channel-unknown', function () {
-    efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } });
+    matMesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], frob: 1 } });
 });
-C('4b.material-unknown', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { albedo: 1 }); });
+C('4b.material-unknown', function () { matMesh.setSurfaceMaterial(0, { albedo: 1 }); });
 C('4b.md-map-length', function () {
     efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []);
 });
@@ -259,10 +259,10 @@ var rtMesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P
 C('5a.rt-mesh-map-destroyed', function () {
     var dead = efx.graphics.createRenderTarget(8, 8);
     dead.destroy();
-    efx.graphics.setMeshSurfaceMaterial(rtMesh, 0, { diffuse: { color: [1, 1, 1, 1], map: dead } });
+    rtMesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: dead } });
 });
 C('5a.rt-map-number', function () {
-    efx.graphics.setMeshSurfaceMaterial(rtMesh, 0, { diffuse: { color: [1, 1, 1, 1], map: 3 } });
+    rtMesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: 3 } });
 });
 efx.graphics.beginRenderTarget(rtA);
 C('5a.rt-mesh-feedback', function () { efx.graphics.drawMesh(rtMesh); });
@@ -309,17 +309,16 @@ C('8a.loadfont-missing', function () { efx.graphics.loadFontData('nope.ttf'); })
 C('8a.createfont-nofontdata', function () { efx.graphics.createFont(5); });
 C('8a.createfont-noopts', function () { efx.graphics.createFont(efx.graphics.loadFontData(5)); });
 C('8a.drawtext-nofont', function () { efx.graphics.drawText('x', 5, 0, 0); });
-C('8a.measuretext-nofont', function () { efx.graphics.measureText('x', 5); });
 
 /* --------------------------------------------- skinning + animation (F7) */
 
 var rigged = efx.graphics.createMesh(efx.graphics.loadMeshData('skin.gltf'));
-C('7.pose-unknown-clip', function () { efx.graphics.poseMesh(rigged, { clip: 'nope', time: 0 }); });
-C('7.pose-clip-index', function () { efx.graphics.poseMesh(rigged, { clip: 9, time: 0 }); });
-C('7.pose-negative-weight', function () { efx.graphics.poseMesh(rigged, { clip: 'move', time: 0, weight: -1 }); });
-C('7.pose-unknown-sample-field', function () { efx.graphics.poseMesh(rigged, { clip: 'move', time: 0, bogus: 1 }); });
-C('7.pose-bad-clip-type', function () { efx.graphics.poseMesh(rigged, { clip: {}, time: 0 }); });
-C('7.pose-rigless', function () { efx.graphics.poseMesh(mesh, { clip: 0, time: 0 }); });
+C('7.pose-unknown-clip', function () { rigged.pose({ clip: 'nope', time: 0 }); });
+C('7.pose-clip-index', function () { rigged.pose({ clip: 9, time: 0 }); });
+C('7.pose-negative-weight', function () { rigged.pose({ clip: 'move', time: 0, weight: -1 }); });
+C('7.pose-unknown-sample-field', function () { rigged.pose({ clip: 'move', time: 0, bogus: 1 }); });
+C('7.pose-bad-clip-type', function () { rigged.pose({ clip: {}, time: 0 }); });
+C('7.pose-rigless', function () { mesh.pose({ clip: 0, time: 0 }); });
 C('7.drawmesh-skinned-rigless', function () { efx.graphics.drawMesh(mesh, { skinned: true }); });
 rigged.destroy();
 

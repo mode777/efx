@@ -55,14 +55,14 @@ expectThrow('destroyed-as-texture', TE, () => {
 // a mesh material map may reference a render target
 const mesh = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], uvs: [0, 0, 1, 0, 0, 1], indices: [0, 1, 2] }]));
 efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 60);
-efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: a } });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: a } });
 efx.graphics.drawMesh(mesh);
 expectThrow('mesh-map-destroyed', TE, () => {
     const dead = efx.graphics.createRenderTarget(8, 8);
     dead.destroy();
-    efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: dead } });
+    mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: dead } });
 });
-expectThrow('map-number', TE, () => efx.graphics.setMeshSurfaceMaterial(mesh, 0, { diffuse: { color: [1, 1, 1, 1], map: 3 } }));
+expectThrow('map-number', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: 3 } }));
 
 // drawing the mesh with a map onto the target it samples is rejected
 efx.graphics.beginRenderTarget(a);

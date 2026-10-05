@@ -18,7 +18,7 @@ efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
 
 const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
-efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+cube.setSurfaceMaterial(0, {
   ambient:  { color: [0.12, 0.12, 0.16, 1] },
   diffuse:  { color: [1, 1, 1, 1] },
   specular: { color: [1, 1, 1, 1], shininess: 32 },

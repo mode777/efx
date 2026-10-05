@@ -17,7 +17,7 @@ const specMap = tex(0, 0, 77);
 const emiMap = tex(26, 26, 26);
 const S = 20;
 const plane = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: [-S, -S, 0, S, -S, 0, S, S, 0, -S, S, 0], normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], uvs: [0, 0, 1, 0, 1, 1, 0, 1], indices: [0, 1, 2, 0, 2, 3] }]));
-efx.graphics.setMeshSurfaceMaterial(plane, 0, {
+plane.setSurfaceMaterial(0, {
     ambient:  { color: [1, 1, 1, 1], map: ambMap },
     diffuse:  { color: [1, 1, 1, 1], map: difMap },
     specular: { color: [1, 1, 1, 1], shininess: 32, map: specMap },

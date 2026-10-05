@@ -3,7 +3,7 @@ efx.graphics.setClearColor([0.01, 0.01, 0.02, 1]);
 efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 55);
 
 const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.6, segments: 32 }));
-efx.graphics.setMeshSurfaceMaterial(ball, 0, {
+ball.setSurfaceMaterial(0, {
     ambient:  { color: [0.02, 0.02, 0.03, 1] },
     diffuse:  { color: [0.6, 0.6, 0.65, 1] },
     specular: { color: efx.color.white, shininess: 48 },

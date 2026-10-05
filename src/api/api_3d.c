@@ -392,20 +392,21 @@ static int read_pose_sample(JSContext *ctx, JSValueConst v, efxjs_mesh *mesh,
 }
 
 
+/* Mesh.pose(pose) — the receiver is the subject, so it is resolved first; the
+ * receiver errors match the web class liveness guard. */
 JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc,
                         JSValueConst *argv) {
-    (void)this_val;
-    if (argc < 2) {
-        return efx_api_type_error(ctx, "poseMesh requires (mesh, pose)");
-    }
-    efxjs_mesh *mesh = efx_api_get_live_mesh(ctx, argv[0]);
+    efxjs_mesh *mesh = efx_api_get_live_mesh(ctx, this_val);
     if (!mesh) {
         return JS_EXCEPTION;
     }
-    if (!efx_render_mesh_skinned(mesh->handle)) {
-        return efx_api_type_error(ctx, "poseMesh requires a Mesh with a rig");
+    if (argc < 1) {
+        return efx_api_type_error(ctx, "pose requires a pose");
     }
-    JSValueConst pose = argv[1];
+    if (!efx_render_mesh_skinned(mesh->handle)) {
+        return efx_api_type_error(ctx, "pose requires a Mesh with a rig");
+    }
+    JSValueConst pose = argv[0];
     efx_pose_sample *samples = NULL;
     int count = 0;
     int rc = 0;
@@ -450,13 +451,13 @@ JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc,
     rc = efx_render_mesh_pose(mesh->handle, samples, count);
     free(samples);
     if (rc == EFX_RENDER_ERR_HANDLE) {
-        return efx_api_type_error(ctx, "poseMesh requires a Mesh with a rig");
+        return efx_api_type_error(ctx, "pose requires a Mesh with a rig");
     }
     if (rc == EFX_RENDER_ERR_INDEX) {
         return efx_api_range_error(ctx, "clip index out of range");
     }
     if (rc != EFX_RENDER_OK) {
-        return efx_api_generic_error(ctx, "poseMesh failed");
+        return efx_api_generic_error(ctx, "pose failed");
     }
     return JS_UNDEFINED;
 }

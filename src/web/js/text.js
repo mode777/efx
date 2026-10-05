@@ -11,30 +11,7 @@
             return new EfxFontData(id);
         },
         /* createFont is installed by the shared prelude (ADR 0049) */
-        measureText: function (text, font, opts) {
-            if (arguments.length < 2 || typeof text !== 'string') {
-                throw new TypeError('measureText requires (text, font, opts?)');
-            }
-            if (!(font instanceof EfxFont)) {
-                throw new TypeError('measureText requires a live Font');
-            }
-            if (!font.__alive) {
-                throw new TypeError('using a destroyed resource');
-            }
-            var lo = __efxTextLayout(opts);
-            var tptr = __efxAllocCStr(text);
-            var optr = bridge['_malloc'](12);
-            var rc = bridge['_efx_bridge_text_measure'](
-                tptr, font.__id, lo.align, lo.valign, lo.hasWidth, lo.width,
-                lo.hasLh, lo.lh, lo.scale, lo.rotation, optr);
-            bridge['_free'](tptr);
-            var b = { width: HEAPF32[optr >> 2],
-                      height: HEAPF32[(optr >> 2) + 1],
-                      lines: HEAPF32[(optr >> 2) + 2] };
-            bridge['_free'](optr);
-            __efxRc(rc, 'text operation', { 4: [RangeError, 'text layout failed'] });
-            return b;
-        },
+        /* measure is a Font prototype method (ADR 0055) */
         drawText: function (text, font, x, y, opts) {
             if (arguments.length < 4 || typeof text !== 'string') {
                 throw new TypeError('drawText requires (text, font, x, y, opts?)');

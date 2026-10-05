@@ -474,6 +474,20 @@ interface EfxMeshData {
 interface EfxMesh {
   /** Number of surfaces (1..16). */
   readonly surfaceCount: number;
+  /**
+   * CPU-pose this skinned mesh in place. Keeps no playback state — the script
+   * owns the clock.
+   *
+   * @param pose - One pose sample, or an array of samples to blend.
+   */
+  pose(pose: PoseSample | PoseSample[]): void;
+  /**
+   * Bind a Phong material to one surface of this mesh.
+   *
+   * @param surfaceIndex - Surface to bind (`0`-based).
+   * @param mat - Material object, or `null` to restore the engine default.
+   */
+  setSurfaceMaterial(surfaceIndex: number, mat: Material | null): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
@@ -498,6 +512,14 @@ interface EfxFont {
   readonly ascent: number;
   /** Distance from the baseline to the bottom of the em box, in pixels. */
   readonly descent: number;
+  /**
+   * Lay out text against this font without drawing it.
+   *
+   * @param text - Text to measure.
+   * @param opts - Optional alignment, wrap, and scale (matching a later draw).
+   * @returns The laid-out bounds.
+   */
+  measure(text: string, opts?: TextOptions): TextBounds;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
@@ -542,7 +564,7 @@ interface CreateFontOptions {
 }
 
 /**
- * Options for `drawText` / `measureText`.
+ * Options for `drawText` / `Font.measure`.
  *
  * @example
  * ```js
@@ -574,7 +596,7 @@ interface TextOptions {
   scale?: number;
 }
 
-/** Laid-out text bounds returned by `drawText` / `measureText`. */
+/** Laid-out text bounds returned by `drawText` / `Font.measure`. */
 interface TextBounds {
   /** Laid-out width in pixels. */
   readonly width: number;
@@ -763,7 +785,7 @@ interface SpecularChannel {
  *
  * @example
  * ```js
- * efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+ * cube.setSurfaceMaterial(0, {
  *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
  *   diffuse:  { color: [1, 1, 1, 1] },
  *   specular: { color: [1, 1, 1, 1], shininess: 32 },
@@ -1001,7 +1023,7 @@ interface LoadMeshDataOptions {
  * @example
  * ```js
  * // cross-fade walk -> run over two seconds
- * efx.graphics.poseMesh(hero, [
+ * hero.pose([
  *   { clip: 'Walk', time: t, weight: 1 - k },
  *   { clip: 'Run',  time: t, weight: k },
  * ]);
@@ -1930,14 +1952,6 @@ interface EfxGraphics {
    * @param opts - Light options, or `null` to disable it.
    */
   setDirectionalLight(opts: DirectionalLightOptions | null): void;
-  /**
-   * Bind a Phong material to one mesh surface.
-   *
-   * @param mesh - Owning live mesh.
-   * @param surfaceIndex - Surface to bind (`0`-based).
-   * @param mat - Material object, or `null` to restore the engine default.
-   */
-  setMeshSurfaceMaterial(mesh: EfxMesh, surfaceIndex: number, mat: Material | null): void;
 
   // Render targets
 
@@ -2025,25 +2039,6 @@ interface EfxGraphics {
    */
   drawText(text: string, font: EfxFont, x: number, y: number,
            opts?: TextOptions): TextBounds;
-  /**
-   * Lay out text without drawing it.
-   *
-   * @param text - Text to measure.
-   * @param font - Baked font to measure with.
-   * @param opts - Optional alignment, wrap, and scale (matching a later draw).
-   * @returns The laid-out bounds.
-   */
-  measureText(text: string, font: EfxFont, opts?: TextOptions): TextBounds;
-
-  // CPU skinning & animation (the script owns the clock)
-
-  /**
-   * CPU-pose a skinned mesh in place.
-   *
-   * @param mesh - Live skinned mesh.
-   * @param pose - One pose sample, or an array of samples to blend.
-   */
-  poseMesh(mesh: EfxMesh, pose: PoseSample | PoseSample[]): void;
 
   // World-space billboards, batched 2D sprites, CPU particles
 
@@ -2174,7 +2169,7 @@ interface EfxColor {
  * efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
  *
  * const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
- * efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+ * cube.setSurfaceMaterial(0, {
  *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
  *   diffuse:  { color: [1, 1, 1, 1] },
  *   specular: { color: [1, 1, 1, 1], shininess: 32 },

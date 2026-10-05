@@ -17,8 +17,8 @@ efx.graphics.setLight(0, { pos: [3.0, 4.0, 2.5], color: [1, 0.96, 0.9, 1], range
 efx.graphics.setDirectionalLight({ dir: [-0.3, -1.0, -0.2], color: [0.18, 0.22, 0.3, 1] });
 const plane = efx.graphics.createMesh(efx.graphics.makePlane({ size: 4, segments: 4 }));
 const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 0.7, segments: 24 }));
-efx.graphics.setMeshSurfaceMaterial(plane, 0, MATP);
-efx.graphics.setMeshSurfaceMaterial(ball, 0, MATB);
+plane.setSurfaceMaterial(0, MATP);
+ball.setSurfaceMaterial(0, MATB);
 const tilt = efx.math.mat4.rotate(efx.math.mat4.identity(), 12, [1, 0, 0]);
 function update() {}
 function render() {

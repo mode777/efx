@@ -13,7 +13,7 @@ const N = [
     0, 0, 1, 0, 0, 1, 0, 0, 1,
 ];
 const slab = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: P, normals: N }]));
-efx.graphics.setMeshSurfaceMaterial(slab, 0, {
+slab.setSurfaceMaterial(0, {
     ambient:  { color: [0.02, 0.02, 0.03, 1] },
     diffuse:  { color: [1, 1, 1, 1] },
     specular: { color: [0, 0, 0, 1] },

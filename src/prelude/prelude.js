@@ -1016,7 +1016,7 @@ function __efxPostEntry(v) {
 /* ------------------------------------------ fonts (F8a)
  *
  * The createFont option bag is validated once here (ADR 0049); the native
- * bakes the atlas. Layout options for drawText/measureText stay native
+ * bakes the atlas. Layout options for drawText/Font.measure stay native
  * (hot path, ADR 0049). */
 
 function __efxCreateFontOpts(natives, fontData, size, opts) {

@@ -33,7 +33,7 @@ behavior.
 - **Two layers.** Every API function belongs to exactly one of two layers:
   - `[C]` — low/mid-level functions implemented in C/C++ and registered
     through the engine binding (`drawQuad`, `drawMesh`,
-    `setMeshSurfaceMaterial`, `drawText`, …).
+    `setLight`, `drawText`, …).
   - `[JS]` — high-level conveniences implemented in pure ES6
     (`makeCube`/`makePlane`/`makeSphere`/`makeCapsule`, the `efx.math.mat4` /
     `efx.math.vec3` / `efx.math.quat` helpers, the `efx.color` constants). A
@@ -51,7 +51,7 @@ behavior.
   is never callable by scripts on its own. Such a function remains a `[C]`
   function: its observable behavior, defaults, and errors are unchanged.
   Hot per-frame draw and query calls (`drawQuad`, `drawSprites`,
-  `drawBillboard`, `drawMesh`, `drawText`/`measureText`, the input queries)
+  `drawBillboard`, `drawMesh`, `drawText`/`Font.measure`, the input queries)
   keep their native validation.
 - **Runtime binding per platform.** Every `[C]` entry is implemented once in
   C and exposed through the platform's binding — on desktop the embedded
@@ -68,6 +68,12 @@ behavior.
 - **Naming.** camelCase, verb-first. `set*`/`get*` configure engine state,
   `draw*` record into the display list, `make*` build data in JS,
   `load*`/`create*` fetch or upload resources and return resource objects.
+  An operation whose **subject is a native-backed class instance** is a
+  **method on that class** — `mesh.pose(pose)`,
+  `mesh.setSurfaceMaterial(surfaceIndex, mat)`, `font.measure(text, opts?)` —
+  not a free `efx.graphics` function that re-takes the instance as its first
+  argument (ADR 0055). `efx.graphics` holds constructors, factories, and
+  stateless operations.
 - **Render state vs per-object options.** A `set*` setter configures the
   **frame-local** default for draws that do not carry their own value; a draw
   option or material field **overrides** it for that object only. The engine
@@ -83,7 +89,8 @@ behavior.
   [Resource & memory model](#resource--memory-model)); `res.destroy()`
   releases deterministically and GC is the backstop. Native-backed classes
   are otherwise fully opaque except for documented read-only query
-  properties.
+  properties and the documented operations that are methods on the class
+  (ADR 0055).
 - **Parameters.** One rule governs every public function: **required inputs
   are positional arguments and all optional inputs are fields of one trailing
   options bag**. A call with no optional inputs omits the bag entirely. Every
@@ -216,13 +223,13 @@ fixed light bank is slot-based.
 |---|---|---|---|---|
 | MeshData | 1..16 surfaces, each with its own attribute arrays + optional indices (Godot surface / glTF primitive); skinned meshes add `joints`/`weights` per surface | Native class | CPU | `createMeshData` / `loadMeshData`; read-only `surfaceCount` |
 | ImageData | Raw pixels + size + format | Native class | CPU | `createImageData` / `loadImage`; read-only `width` / `height` (throw `TypeError` when destroyed) |
-| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally; per-surface material binding slot | Native class | GPU | `createMesh(meshData)`; read-only `surfaceCount` |
+| Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally; per-surface material binding slot | Native class | GPU | `createMesh(meshData)`; read-only `surfaceCount`; `pose(pose)` and `setSurfaceMaterial(surfaceIndex, mat)` methods |
 | Texture | GPU texture | Native class | GPU | `createTexture(imageData, opts?)` (`wrap`/`filter`/`mipmaps`); read-only `width` / `height`; `efx.graphics.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | `createRenderTarget(width, height)` (1..4096 per side); read-only `width` / `height`; a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with no alias Texture object |
-| Materials (Phong parameter objects) | — | JS-managed | — | Bound per surface via `setMeshSurfaceMaterial` / the `materials` array; per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound |
+| Materials (Phong parameter objects) | — | JS-managed | — | Bound per surface via the `Mesh.setSurfaceMaterial` method / the `materials` array; per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | Snapshotted at `setPostEffects` call time; no native handle and no `destroy()` |
 | FontData | Parsed TrueType/OpenType font (CPU, no GPU resource) | Native class | CPU | `loadFontData(path)`; no query properties |
-| Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | `createFont(fontData, size, opts?)`; read-only `size`/`lineHeight`/`ascent`/`descent` |
+| Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | `createFont(fontData, size, opts?)`; read-only `size`/`lineHeight`/`ascent`/`descent`; `measure(text, opts?)` method |
 | ParticleSystem | CPU-simulated pool + emitter configuration (engine-owned) | Native class | CPU | `createParticleSystem(texture, max, lifetime, opts?)`; read-only `count`; read-write `speedScale`; retains its texture until destroyed |
 | Body | One collision collider in the single physics world | Native class | CPU | `efx.physics.createBody` / `createStaticMesh`; read-only `position`/`transform`/`contacts`; read-write `velocity` |
 | Character | Kinematic vertical-capsule character controller | Native class | CPU | `efx.physics.createCharacter`; read-only `position`/`onFloor`; read-write `velocity` |
@@ -405,13 +412,13 @@ in the generated reference (or to an open question below):
 | Matrix math | `efx.math.mat4` / `efx.math.vec3` / `efx.math.quat` |
 | Procedural primitives | `makeCube` / `makePlane` / `makeSphere` / `makeCapsule` |
 | 4 point lights, 1 directional light | `efx.graphics.setLight`, `efx.graphics.setDirectionalLight`, fixed limits |
-| Phong material system, 4 channels + maps | `efx.graphics.setMeshSurfaceMaterial`, `Material` |
+| Phong material system, 4 channels + maps | `Mesh.setSurfaceMaterial`, `Material` |
 | Alpha masks | `Material.alphaMask` |
 | Rendering to textures | `efx.graphics.createRenderTarget` / `efx.graphics.beginRenderTarget` |
 | Simple post processing | `efx.graphics.setPostEffects`, `efx.graphics.setRenderScale` |
 | Resource folder / zip root (`res://`-like) | `efx.io.loadText` / `efx.io.loadData` / `efx.graphics.loadImage` / `efx.graphics.loadMeshData` |
 | REPL console mode | the `--repl` run mode (no new API) |
-| Skinning and animations | `efx.graphics.poseMesh`, `DrawMeshOptions.skinned` |
+| Skinning and animations | `Mesh.pose`, `DrawMeshOptions.skinned` |
 | PS2-era particle effects | `efx.graphics.createParticleSystem` / `efx.graphics.drawParticles` |
 | World-space sprites / billboards | `efx.graphics.drawBillboard` |
 | Batched 2D sprite drawing | `efx.graphics.drawSprites` |
@@ -421,7 +428,7 @@ in the generated reference (or to an open question below):
 | Gamepad input query + events | `efx.gamepad` |
 | Audio playback (streamed + decoded) | `efx.audio` (`loadAudioData` / `loadAudioStream` / `playAudio`) |
 | Script modules (TypeScript `import`) | the CommonJS `require` model |
-| Text / fonts | `efx.graphics.loadFontData` / `createFont` / `drawText` / `measureText` |
+| Text / fonts | `efx.graphics.loadFontData` / `createFont` / `drawText` / `Font.measure` |
 | Callbacks for update and rendering | `efx.registerUpdateHook` / `registerRenderHook` |
 | Low/mid C + high-level JS layering | Two layers (Overview) |
 | No browser/Node dependencies | Conventions (Dependencies) |
@@ -438,6 +445,6 @@ for them:
 - **Procedural rigs** — skins/skeletons/clips are imported only; constructing
   a rig procedurally has no path yet. Deferred until a concrete need appears.
 - **Stateful playback helper** — a play/pause/blend convenience as pure JS
-  over `poseMesh`, not engine state.
+  over `Mesh.pose`, not engine state.
 - **REPL introspection helpers** — whether the console mode needs extra `efx`
   functions beyond the interactive namespace.

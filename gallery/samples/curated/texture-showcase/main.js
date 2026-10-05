@@ -18,7 +18,7 @@ const tex = efx.graphics.createTexture(efx.graphics.loadImage('paving_color.jpg'
 
 // Ground plane whose UVs run 0..6, so the repeat sampler tiles the texture.
 const ground = efx.graphics.createMesh(efx.graphics.createMeshData([{ positions: [-4, 0, -4, 4, 0, -4, 4, 0, 4, -4, 0, 4], normals: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], uvs: [0, 0, 6, 0, 6, 6, 0, 6], indices: [0, 1, 2, 0, 2, 3] }]));
-efx.graphics.setMeshSurfaceMaterial(ground, 0, {
+ground.setSurfaceMaterial(0, {
     ambient:  { color: [0.18, 0.18, 0.2, 1] },
     diffuse:  { color: efx.color.white, map: tex },
     specular: { color: [0.2, 0.2, 0.2, 1], shininess: 16 },
@@ -26,7 +26,7 @@ efx.graphics.setMeshSurfaceMaterial(ground, 0, {
 });
 
 const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.1 }));
-efx.graphics.setMeshSurfaceMaterial(cube, 0, {
+cube.setSurfaceMaterial(0, {
     ambient:  { color: [0.2, 0.2, 0.22, 1] },
     diffuse:  { color: efx.color.white, map: tex },
     specular: { color: efx.color.gray, shininess: 48 },
