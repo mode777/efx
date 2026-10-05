@@ -29,20 +29,20 @@
 
 ## 6. Documentation
 
-- [ ] 6.1 Update `gallery/src/api/efx.d.ts` (`DrawQuadOptions.blend`, the `drawSprites` opts bag, `DrawBillboardOptions.blend`, `Material.blend`, the particle `blend` union) and the type test, then regenerate `docs/api/` (`npm --prefix gallery run docs:markdown`) and verify `npm --prefix gallery run docs:check` passes
-- [ ] 6.2 Update the `docs/js-api.md` design guidelines with the blend render-state rule (frame-local default, per-object override precedence, particle inheritance) and verify the guidelines state the rule
+- [x] 6.1 Update `gallery/src/api/efx.d.ts` (`DrawQuadOptions.blend`, the `drawSprites` opts bag, `DrawBillboardOptions.blend`, `Material.blend`, the particle `blend` union) and the type test, then regenerate `docs/api/` (`npm --prefix gallery run docs:markdown`) and verify `npm --prefix gallery run docs:check` passes
+- [x] 6.2 Update the `docs/js-api.md` design guidelines with the blend render-state rule (frame-local default, per-object override precedence, particle inheritance) and verify the guidelines state the rule
 
 ## 7. ADR
 
-- [ ] 7.1 Write `docs/decisions/0054-blend-mode-state-and-overrides.md` from `TEMPLATE.md` and add its row to `docs/decisions/README.md`; verify the ADR is indexed and states the frame-local default and per-object override decision
+- [x] 7.1 Write `docs/decisions/0054-blend-mode-state-and-overrides.md` from `TEMPLATE.md` and add its row to `docs/decisions/README.md`; verify the ADR is indexed and states the frame-local default and per-object override decision
 
 ## 8. Samples
 
-- [ ] 8.1 Move blend setup into the render hooks (or per-object options) of `gallery/samples/curated/input-playground` and `particles-showcase`, and verify each sample still renders its intended additive/alpha mix
+- [x] 8.1 Move blend setup into the render hooks (or per-object options) of `gallery/samples/curated/input-playground` and `particles-showcase`, and verify each sample still renders its intended additive/alpha mix
 
 ## 9. Tests and verification
 
-- [ ] 9.1 Extend `tests/goldens/blend` to assert the frame reset and a per-object override; verify the golden compares on a display build
-- [ ] 9.2 Add unit and portable-script coverage for per-surface material blend, particle inheritance, sprite batch blend, and the invalid-value error classes; verify `ctest` (excluding goldens on headless) passes
-- [ ] 9.3 Run `npx openspec validate "blend-mode-overrides" --type change --strict` and verify the change validates with no errors
-- [ ] 9.4 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>` green, then dispatch `gh workflow run ci.yml --ref <branch>` and iterate Linux → Windows → macOS
+- [x] 9.1 Extend `tests/goldens/blend` to assert the frame reset and a per-object override; verify the golden compares on a display build
+- [x] 9.2 Add unit and portable-script coverage for per-surface material blend, particle inheritance, sprite batch blend, and the invalid-value error classes; verify `ctest` (excluding goldens on headless) passes
+- [x] 9.3 Run `npx openspec validate "blend-mode-overrides" --type change --strict` and verify the change validates with no errors
+- [x] 9.4 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>` green, then dispatch `gh workflow run ci.yml --ref <branch>` and iterate Linux → Windows → macOS
