@@ -32,4 +32,4 @@
 - [x] 6.1 Validate the change artifacts. Verify `npx openspec validate required-args-positional --strict` passes.
 - [x] 6.2 Build headless and run the unit/smoke suites. Verify `cmake -B build -DEFX_HEADLESS=ON && cmake --build build && ctest --test-dir build -E golden` passes.
 - [x] 6.3 Verify on the SSH server first: commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, and confirm the two golden-bearing jobs are green with golden frames byte-identical. Fix and re-verify until green.
-- [ ] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS until green; confirm `docs:check` and `gen_prelude.py --check` pass in CI.
+- [x] 6.4 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS until green; confirm `docs:check` and `gen_prelude.py --check` pass in CI.
