@@ -1,5 +1,9 @@
 # EFX
 
+<p align="center">
+  <img src="assets/efx_logo.png" alt="EFX logo" width="240">
+</p>
+
 An old-school, PS2-era 3D game engine: a fixed-function renderer, super
 lightweight, scripted in ES6. Games are plain folders (or zips) of assets plus
 a `main.js`, run by a single portable `player` binary — no IDE, no build step
