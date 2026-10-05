@@ -829,7 +829,7 @@ static void emit_quad(const efx_text_font *f, const efx_glyph_variant *v,
     }
     float src[4] = {(float)v->tx, (float)v->ty, (float)v->tw, (float)v->th};
     efx_render_quad(lx, ly, w, h, f->texture, color, rotation, 1.0f, src, 1,
-                    ox, oy);
+                    ox, oy, EFX_BLEND_INHERIT);
 }
 
 int efx_text_draw(const efx_text_font *f, const char *utf8, float x, float y,

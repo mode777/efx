@@ -206,7 +206,7 @@ static const JSCFunctionListEntry GRAPHICS_FUNCS[] = {
     JS_CFUNC_DEF("drawText", 5, efx_js_drawText),
     JS_CFUNC_DEF("measureText", 3, efx_js_measureText),
     JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
-    JS_CFUNC_DEF("drawSprites", 2, efx_js_drawSprites),
+    JS_CFUNC_DEF("drawSprites", 3, efx_js_drawSprites),
     /* createParticleSystem is installed by the shared prelude (ADR 0049) */
     JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
     JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),

@@ -16,9 +16,9 @@ Full particle configuration; the creation inputs (`texture`, `max`, `lifetime`) 
 
 ### blend?
 
-> `optional` **blend?**: [`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
+> `optional` **blend?**: [`EfxBlendMode`](../type-aliases/EfxBlendMode.md) \| `null`
 
-Blend mode (default `'alpha'`).
+Blend mode; omitted or `null` inherits the frame's blend state at draw time.
 
 #### Inherited from
 

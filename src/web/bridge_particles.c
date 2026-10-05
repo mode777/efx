@@ -134,14 +134,14 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_billboard(double texture,
                                                    const float *normal,
                                                    int depth_test, float sx,
                                                    float sy, float sw, float sh,
-                                                   int has_src) {
+                                                   int has_src, int blend) {
     if (!pos || !normal) {
         return EFX_RENDER_ERR_HANDLE;
     }
     float color[4] = {cr, cg, cb, ca};
     float src[4] = {sx, sy, sw, sh};
     return efx_render_billboard((uint64_t)texture, pos, w, h, color, rotation,
-                                facing, normal, depth_test, src, has_src);
+                                facing, normal, depth_test, src, has_src, blend);
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_sprite(double texture, float x,
@@ -150,10 +150,10 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_sprite(double texture, float x,
                                                 float ca, float rotation,
                                                 float scale, float sx, float sy,
                                                 float sw, float sh, int has_src,
-                                                float ox, float oy) {
+                                                float ox, float oy, int blend) {
     float color[4] = {cr, cg, cb, ca};
     float src[4] = {sx, sy, sw, sh};
     return efx_render_quad(x, y, w, h, (uint64_t)texture, color, rotation, scale,
-                           src, has_src, ox, oy);
+                           src, has_src, ox, oy, blend);
 }
 

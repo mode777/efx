@@ -23,6 +23,7 @@
 - [DrawBillboardOptions](interfaces/DrawBillboardOptions.md)
 - [DrawMeshOptions](interfaces/DrawMeshOptions.md)
 - [DrawQuadOptions](interfaces/DrawQuadOptions.md)
+- [DrawSpritesOptions](interfaces/DrawSpritesOptions.md)
 - [Efx](interfaces/Efx.md)
 - [EfxAudio](interfaces/EfxAudio.md)
 - [EfxAudioData](interfaces/EfxAudioData.md)

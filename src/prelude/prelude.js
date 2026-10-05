@@ -753,10 +753,11 @@ function __efxParticleWire(opts, liveSample) {
     if (w[1] === 1 && w[2] !== 0) {
         throw new TypeError("facing must be 'view' for screen space");
     }
-    w[3] = __efxPartEnum(opts['blend'],
-                         { alpha: 0, additive: 1, subtractive: 2 }, 0,
-                         'blend',
-                         "blend must be 'alpha', 'additive', or 'subtractive'");
+    w[3] = (opts['blend'] === undefined || opts['blend'] === null)
+        ? -1
+        : __efxPartEnum(opts['blend'],
+                        { alpha: 0, additive: 1, subtractive: 2 }, -1, 'blend',
+                        "blend must be 'alpha', 'additive', or 'subtractive'");
     if (opts['normal'] !== undefined) {
         var n = __efxPartVec(opts['normal'], 'normal', false);
         w[343] = n[0]; w[344] = n[1]; w[345] = n[2];
@@ -1424,13 +1425,14 @@ function __efxMaterialWire(v, sample) {
         throw new TypeError('material must be an object');
     }
     __efxCheckKnown(v, { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
-                         alphaMask: 1 }, 'material');
-    var out = new Float32Array(17);
+                         alphaMask: 1, blend: 1 }, 'material');
+    var out = new Float32Array(18);
     out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;     /* ambient */
     out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;     /* diffuse */
     out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1;   /* specular */
     out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
     out[16] = 32;                                       /* shininess */
+    out[17] = -1;                                       /* blend: inherit */
     var maps = new Float64Array(5);                     /* all absent (0) */
     var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
     for (var ci = 0; ci < 4; ci++) {
@@ -1466,6 +1468,11 @@ function __efxMaterialWire(v, sample) {
     }
     if (v['alphaMask'] !== undefined && v['alphaMask'] !== null) {
         maps[4] = __efxSampleHandle(sample(v['alphaMask']));
+    }
+    if (v['blend'] !== undefined && v['blend'] !== null) {
+        out[17] = __efxPartEnum(v['blend'],
+                                { alpha: 0, additive: 1, subtractive: 2 }, -1,
+                                'blend', 'unknown blend mode');
     }
     return { blocks: out, maps: maps };
 }
@@ -1544,7 +1551,7 @@ function __efxMeshDataWire(surfaces, materials, natives) {
     }
     var blocks = null, maps = null, matHas = new Int32Array(count);
     if (materials !== undefined) {
-        blocks = new Float32Array(count * 17);
+        blocks = new Float32Array(count * 18);
         maps = new Float64Array(count * 5);
         for (var mi = 0; mi < count; mi++) {
             var mv = materials[mi];
@@ -1552,7 +1559,7 @@ function __efxMeshDataWire(surfaces, materials, natives) {
                 continue;
             }
             var mf = __efxMaterialWire(mv, natives.liveSample);
-            blocks.set(mf.blocks, mi * 17);
+            blocks.set(mf.blocks, mi * 18);
             maps.set(mf.maps, mi * 5);
             matHas[mi] = 1;
         }

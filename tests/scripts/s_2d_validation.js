@@ -42,6 +42,7 @@ expectThrow('quad-origin-type', () => efx.graphics.drawQuad(tex, 0, 0, { origin:
 expectThrow('quad-src-zero', () => efx.graphics.drawQuad(tex, 0, 0, { sourceRect: { x: 0, y: 0, w: 0, h: 2 } }));
 expectThrow('quad-src-oob', () => efx.graphics.drawQuad(tex, 0, 0, { sourceRect: { x: 0, y: 0, w: 9, h: 2 } }));
 expectThrow('quad-unknown-opt', () => efx.graphics.drawQuad(tex, 0, 0, { colour: [1, 1, 1, 1] }));
+expectThrow('quad-blend-unknown', () => efx.graphics.drawQuad(tex, 0, 0, { blend: 'multiply' }));
 tex.destroy();
 expectThrow('quad-destroyed-texture', () => efx.graphics.drawQuad(tex, 0, 0));
 expectThrow('getter-destroyed-texture', () => tex.width);

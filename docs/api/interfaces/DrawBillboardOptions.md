@@ -19,6 +19,14 @@ efx.graphics.drawBillboard(spark, [0, 0.4, 0], {
 
 ## Properties
 
+### blend?
+
+> `optional` **blend?**: [`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
+
+Blend mode for this billboard; overrides the frame's blend state for this draw only.
+
+***
+
 ### color?
 
 > `optional` **color?**: [`Color`](../type-aliases/Color.md)

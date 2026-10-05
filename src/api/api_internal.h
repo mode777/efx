@@ -205,6 +205,7 @@ extern int efx_api_opt_u32(JSContext *ctx, JSValueConst obj, const char *key, ui
 extern int efx_api_opt_vec3(JSContext *ctx, JSValueConst obj, const char *key, efx_vec3 *out);
 extern JSValue efx_api_plain_error(JSContext *ctx, const char *msg);
 extern JSValue efx_api_range_error(JSContext *ctx, const char *msg);
+extern int efx_api_read_blend(JSContext *ctx, JSValueConst v, int *out);
 extern int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len, efx_elem_policy policy, const char *msg_numbers, const char *msg_finite, const char *msg_int, void (*sink)(void *, int32_t, double), void *ud);
 extern int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out);
 extern int efx_api_read_number_array(JSContext *ctx, JSValueConst v, float **out, int *out_len, const char *what);

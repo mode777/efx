@@ -16,6 +16,7 @@ static void wire_mat_from_block(efx_material *m, const float *f,
         m->emissive[i] = f[12 + i];
     }
     m->shininess = f[16];
+    m->blend = (int)f[17];
     m->ambient_map = (uint64_t)maps[0];
     m->diffuse_map = (uint64_t)maps[1];
     m->specular_map = (uint64_t)maps[2];
@@ -169,7 +170,7 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
                 continue;
             }
             efx_material m;
-            wire_mat_from_block(&m, blocks + (size_t)i * 17,
+            wire_mat_from_block(&m, blocks + (size_t)i * 18,
                                 maps + (size_t)i * 5);
             efx_meshdata_set_material(md, i, &m, 1);
         }

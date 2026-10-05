@@ -763,14 +763,15 @@ function __efxEnsureApi() {
             throw new TypeError('material must be an object');
         }
         var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
-                      alphaMask: 1 };
+                      alphaMask: 1, blend: 1 };
                 __efxCheckKnown(v, known, 'material');
-        var out = new Float32Array(17);
+        var out = new Float32Array(18);
         out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;   /* ambient */
         out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;   /* diffuse */
         out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1; /* specular */
         out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
         out[16] = 32;                                     /* shininess */
+        out[17] = -1;                                     /* blend: inherit */
         var maps = new Float64Array(5);                   /* all absent (0) */
         var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
         for (var ci = 0; ci < 4; ci++) {
@@ -807,6 +808,9 @@ function __efxEnsureApi() {
         }
         if (v.alphaMask !== undefined && v.alphaMask !== null) {
             maps[4] = liveSample(v.alphaMask).handle;
+        }
+        if (v.blend !== undefined && v.blend !== null) {
+            out[17] = __efxBlend(v.blend);
         }
         return { blocks: out, maps: maps };
     }
@@ -897,6 +901,25 @@ function __efxEnsureApi() {
             throw new TypeError(what + ' has an unknown value');
         }
         return map[v];
+    }
+
+    /* blend mode string -> EFX_BLEND_*; -1 means "use the frame's blend
+       render state". A present non-mode value throws the canonical desktop
+       text (cross-runtime parity). */
+    function __efxBlend(v) {
+        if (v === undefined) {
+            return -1;
+        }
+        if (v === 'alpha') {
+            return 0;
+        }
+        if (v === 'additive') {
+            return 1;
+        }
+        if (v === 'subtractive') {
+            return 2;
+        }
+        throw new TypeError('unknown blend mode');
     }
 
     function __efxSprite(tex, e) {

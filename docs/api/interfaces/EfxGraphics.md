@@ -370,7 +370,7 @@ Quad top-left y in frame pixels.
 
 [`DrawQuadOptions`](DrawQuadOptions.md)
 
-Optional tint, transform, size, origin, and source rect.
+Optional tint, transform, size, origin, source rect, and blend.
 
 #### Returns
 
@@ -380,7 +380,7 @@ Optional tint, transform, size, origin, and source rect.
 
 ### drawSprites()
 
-> **drawSprites**(`texture`, `sprites`): `void`
+> **drawSprites**(`texture`, `sprites`, `opts?`): `void`
 
 Record a batch of 2D sprite quads from one texture.
 
@@ -397,6 +397,12 @@ Live texture or render target to sample.
 [`SpriteOptions`](SpriteOptions.md)[]
 
 One options bag per quad; validation is atomic.
+
+##### opts?
+
+[`DrawSpritesOptions`](DrawSpritesOptions.md)
+
+Optional batch-level blend mode.
 
 #### Returns
 
@@ -686,7 +692,13 @@ One pose sample, or an array of samples to blend.
 
 > **setBlendMode**(`mode`): `void`
 
-Set the blend mode for subsequently recorded 2D draws.
+Set the frame-local blend render state.
+
+Applies to draws that do not carry their own `blend` (2D quads and
+sprite batches, mesh surfaces without a material blend, and billboards).
+The engine resets it to `'alpha'` at the start of every frame, so set it
+inside the render hook. Particle systems without a configured `blend`
+inherit it at draw time.
 
 #### Parameters
 
@@ -694,7 +706,7 @@ Set the blend mode for subsequently recorded 2D draws.
 
 [`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
 
-`'alpha'` (default), `'additive'`, or `'subtractive'`.
+`'alpha'` (frame default), `'additive'`, or `'subtractive'`.
 
 #### Returns
 

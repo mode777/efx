@@ -615,6 +615,8 @@ interface DrawQuadOptions {
   origin?: Vec2;
   /** Texture-pixel region to sample; defaults to the full texture. */
   sourceRect?: SourceRect;
+  /** Blend mode for this quad; overrides the frame's blend state for this draw only. */
+  blend?: EfxBlendMode;
 }
 
 /**
@@ -780,6 +782,8 @@ interface Material {
   emissive?: PhongChannel;
   /** Material-level binary cutout; fragments sampling alpha < 0.5 are discarded. */
   alphaMask?: EfxSample | null;
+  /** Blend mode for surfaces bound to this material; `null`/absent uses the frame's blend state. */
+  blend?: EfxBlendMode | null;
 }
 
 /**
@@ -1048,6 +1052,8 @@ interface DrawBillboardOptions {
   normal?: Vec3;
   /** Depth-test against opaque geometry (default `true`); never writes depth. */
   depthTest?: boolean;
+  /** Blend mode for this billboard; overrides the frame's blend state for this draw only. */
+  blend?: EfxBlendMode;
 }
 
 /**
@@ -1078,6 +1084,19 @@ interface SpriteOptions {
   sourceRect?: SourceRect;
   /** Pivot `[px, py]` in quad-local pixels for rotation/scale (default the size's center). */
   origin?: Vec2;
+}
+
+/**
+ * Options for `drawSprites`.
+ *
+ * @example
+ * ```js
+ * efx.graphics.drawSprites(spark, sprites, { blend: 'additive' });
+ * ```
+ */
+interface DrawSpritesOptions {
+  /** Blend mode applied to every sprite in the batch; overrides the frame's blend state. */
+  blend?: EfxBlendMode;
 }
 
 /** Emission volume for a particle system. */
@@ -1116,8 +1135,8 @@ interface ParticleSystemCreateOptions {
   facing?: EfxFacing;
   /** Plane orientation normal for `facing: 'plane'` (default `[0, 1, 0]`). */
   normal?: Vec3;
-  /** Blend mode (default `'alpha'`). */
-  blend?: EfxBlendMode;
+  /** Blend mode; omitted or `null` inherits the frame's blend state at draw time. */
+  blend?: EfxBlendMode | null;
   /** Particles emitted per second (default 0). */
   emissionRate?: number;
   /** Emitter lifetime in seconds; `-1` is infinite. */
@@ -1817,13 +1836,19 @@ interface EfxGraphics {
    * @param texture - Live texture or render target to sample (the thing drawn leads).
    * @param x - Quad top-left x in frame pixels.
    * @param y - Quad top-left y in frame pixels.
-   * @param opts - Optional tint, transform, size, origin, and source rect.
+   * @param opts - Optional tint, transform, size, origin, source rect, and blend.
    */
   drawQuad(texture: EfxSample, x: number, y: number, opts?: DrawQuadOptions): void;
   /**
-   * Set the blend mode for subsequently recorded 2D draws.
+   * Set the frame-local blend render state.
    *
-   * @param mode - `'alpha'` (default), `'additive'`, or `'subtractive'`.
+   * Applies to draws that do not carry their own `blend` (2D quads and
+   * sprite batches, mesh surfaces without a material blend, and billboards).
+   * The engine resets it to `'alpha'` at the start of every frame, so set it
+   * inside the render hook. Particle systems without a configured `blend`
+   * inherit it at draw time.
+   *
+   * @param mode - `'alpha'` (frame default), `'additive'`, or `'subtractive'`.
    */
   setBlendMode(mode: EfxBlendMode): void;
 
@@ -2035,8 +2060,10 @@ interface EfxGraphics {
    *
    * @param texture - Live texture or render target to sample.
    * @param sprites - One options bag per quad; validation is atomic.
+   * @param opts - Optional batch-level blend mode.
    */
-  drawSprites(texture: EfxSample, sprites: SpriteOptions[]): void;
+  drawSprites(texture: EfxSample, sprites: SpriteOptions[],
+              opts?: DrawSpritesOptions): void;
   /**
    * Create a native-backed CPU particle system.
    *

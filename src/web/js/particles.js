@@ -20,7 +20,7 @@
                 if (!__efxIsObject(opts)) {
                     throw new TypeError('opts must be an object');
                 }
-                var known = { color: 1, rotation: 1, scale: 1, sourceRect: 1, size: 1, origin: 1 };
+                var known = { color: 1, rotation: 1, scale: 1, sourceRect: 1, size: 1, origin: 1, blend: 1 };
                                 __efxCheckKnown(opts, known, 'drawQuad', false, true);
                 var cv = opts['color'];
                 if (cv !== undefined) {
@@ -56,6 +56,7 @@
                     hasSrc = true;
                 }
             }
+            var blend = __efxBlend(opts !== undefined ? opts['blend'] : undefined);
             var fw, fh;
             if (hasSize) {
                 fw = size[0];
@@ -71,7 +72,7 @@
             var oy = hasOrigin ? origin[1] : fh * 0.5;
             var rc = bridge['_efx_bridge_draw_quad'](tex.handle, fx, fy, fw, fh,
                 color[0], color[1], color[2], color[3], rotation, scale,
-                src[0], src[1], src[2], src[3], hasSrc ? 1 : 0, ox, oy);
+                src[0], src[1], src[2], src[3], hasSrc ? 1 : 0, ox, oy, blend);
             __efxRc(rc, 'drawQuad', { 1: true, 4: true, 9: true });
         },
         drawBillboard: function (texture, pos, opts) {
@@ -89,7 +90,8 @@
                 throw new TypeError('drawBillboard options must be an object');
             }
             var known = { size: 1, color: 1, sourceRect: 1,
-                          rotation: 1, facing: 1, depthTest: 1, normal: 1 };
+                          rotation: 1, facing: 1, depthTest: 1, normal: 1,
+                          blend: 1 };
                         __efxCheckKnown(opts, known, 'drawBillboard');
             var size = [1, 1];
             if (opts['size'] !== undefined) {
@@ -129,12 +131,13 @@
                 src = __efxSourceRect(tex, opts['sourceRect']);
                 hasSrc = 1;
             }
+            var blend = __efxBlend(opts['blend']);
             var pPtr = mallocCopyF32(p);
             var nPtr = mallocCopyF32(normal);
             var rc = bridge['_efx_bridge_draw_billboard'](tex.handle, pPtr,
                 size[0], size[1], color[0], color[1], color[2], color[3],
                 rotation, facing, nPtr, depth, src[0], src[1], src[2], src[3],
-                hasSrc);
+                hasSrc, blend);
             bridge['_free'](pPtr);
             bridge['_free'](nPtr);
             __efxRc(rc, 'drawBillboard', {
@@ -143,13 +146,21 @@
                 10: [RangeError, 'invalid billboard size or facing'],
             });
         },
-        drawSprites: function (texture, sprites) {
+        drawSprites: function (texture, sprites, opts) {
             if (arguments.length < 2) {
                 throw new TypeError('drawSprites requires (texture, sprites)');
             }
             var tex = liveSample(texture);
             if (!Array.isArray(sprites)) {
                 throw new TypeError('sprites must be an array');
+            }
+            var blend = -1;
+            if (arguments.length >= 3 && opts !== undefined) {
+                if (!__efxIsObject(opts)) {
+                    throw new TypeError('drawSprites options must be an object');
+                }
+                __efxCheckKnown(opts, { blend: 1 }, 'drawSprites');
+                blend = __efxBlend(opts['blend']);
             }
             var parsed = [];
             for (var i = 0; i < sprites.length; i++) {
@@ -160,7 +171,7 @@
                 var rc = bridge['_efx_bridge_draw_sprite'](tex.handle, s.x, s.y,
                     s.w, s.h, s.color[0], s.color[1], s.color[2], s.color[3],
                     s.rotation, s.scale, s.src[0], s.src[1], s.src[2], s.src[3],
-                    s.hasSrc, s.ox, s.oy);
+                    s.hasSrc, s.ox, s.oy, blend);
                 __efxRc(rc, 'drawSprites', { 1: true, 4: true });
             }
         },

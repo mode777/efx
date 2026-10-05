@@ -89,6 +89,7 @@ C('2d.quad-src-oob', function () {
     efx.graphics.drawQuad(tex, 0, 0, { sourceRect: { x: 0, y: 0, w: 9, h: 2 } });
 });
 C('2d.quad-unknown-opt', function () { efx.graphics.drawQuad(tex, 0, 0, { colour: [1, 1, 1, 1] }); });
+C('2d.quad-blend-unknown', function () { efx.graphics.drawQuad(tex, 0, 0, { blend: 'multiply' }); });
 
 var deadTex = efx.graphics.createTexture(efx.graphics.createImageData(2, 2, new Uint8Array(16)));
 deadTex.destroy();
@@ -129,6 +130,9 @@ C('3d.md-nonidx-div', function () { efx.graphics.createMeshData([{ positions: [0
 C('3d.md-norm-short', function () { efx.graphics.createMeshData([{ positions: P, normals: [0, 0, 1] }]); });
 C('3d.md-unknown', function () { efx.graphics.createMeshData([{ positions: P, pixles: 1 }]); });
 C('3d.md-materials-mismatch', function () { efx.graphics.createMeshData([{ positions: P }], []); });
+C('3d.md-mat-blend-unknown', function () {
+    efx.graphics.createMeshData([{ positions: P }], [{ blend: 'multiply' }]);
+});
 C('3d.md-elem-type', function () {
     efx.graphics.createMeshData([{ positions: ['a', 0, 0, 1, 0, 0, 0, 1, 0] }]);
 });
@@ -198,6 +202,9 @@ C('4a.smsm-nonmesh', function () { efx.graphics.setMeshSurfaceMaterial({}, 0, {}
 C('4a.smsm-index', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 2, {}); });
 C('4a.smsm-index-neg', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, -1, {}); });
 C('4a.smsm-bad-mat', function () { efx.graphics.setMeshSurfaceMaterial(matMesh, 0, 5); });
+C('4a.smsm-blend-unknown', function () {
+    efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { blend: 'multiply' });
+});
 C('4a.smsm-shininess0', function () {
     efx.graphics.setMeshSurfaceMaterial(matMesh, 0, { specular: { color: [1, 1, 1, 1], shininess: 0 } });
 });
@@ -350,6 +357,9 @@ C('11.ps-bad-facing', function () {
 C('11.ps-plane-screen', function () {
     efx.graphics.createParticleSystem(tex, 4, 1, { space: 'screen', facing: 'plane' });
 });
+C('11.ps-blend-unknown', function () {
+    efx.graphics.createParticleSystem(tex, 4, 1, { blend: 'multiply' });
+});
 C('11.ps-set-max', function () {
     var p = efx.graphics.createParticleSystem(tex, 4, 1);
     p.set({ max: 0 });
@@ -360,8 +370,11 @@ C('11.ps-destroyed-emit', function () { deadPs.emit(1); });
 C('11.billboard-no-texture', function () { efx.graphics.drawBillboard(undefined, [0, 0, 0], { size: [1, 1] }); });
 C('11.billboard-pos', function () { efx.graphics.drawBillboard(tex, [0, 0]); });
 C('11.billboard-size', function () { efx.graphics.drawBillboard(tex, [0, 0, 0], { size: [0, 1] }); });
+C('11.billboard-blend-unknown', function () { efx.graphics.drawBillboard(tex, [0, 0, 0], { blend: 'multiply' }); });
 C('11.sprites-array', function () { efx.graphics.drawSprites(tex, 'nope'); });
 C('11.sprite-xy', function () { efx.graphics.drawSprites(tex, [{ size: [1, 1] }]); });
+C('11.sprites-blend-unknown', function () { efx.graphics.drawSprites(tex, [{ x: 0, y: 0 }], { blend: 'multiply' }); });
+C('11.sprites-unknown-opt', function () { efx.graphics.drawSprites(tex, [{ x: 0, y: 0 }], { frob: 1 }); });
 
 /* ----------------------------------------------------------- physics (F12) */
 

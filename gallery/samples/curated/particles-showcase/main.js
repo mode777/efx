@@ -26,7 +26,6 @@ const spark = efx.graphics.createTexture(
 
 efx.graphics.setClearColor([0.02, 0.02, 0.05, 1]);
 efx.graphics.setCamera3D([0, 2.2, 7], [0, 1.2, 0], 60);
-efx.graphics.setBlendMode('additive');
 
 const fire = efx.graphics.createParticleSystem(spark, 600, [0.4, 0.9], { emissionRate: 140, position: [0, 0.1, 0], direction: [0, 1, 0], spread: 22, speed: [0.8, 1.8], gravity: [0, 0.6, 0], sizes: [0.55, 0.05], colors: [[1, 0.9, 0.45, 0.95], [1, 0.25, 0.05, 0]], blend: 'additive', facing: 'view' });
 
@@ -52,12 +51,12 @@ efx.registerUpdateHook((dt) => {
 efx.registerRenderHook(() => {
     efx.graphics.drawParticles(smoke);
     efx.graphics.drawParticles(fire);
-    efx.graphics.drawBillboard(spark, [0, 0.4, 0], { size: 0.9, color: [1, 0.7, 0.3, 0.9] });
+    efx.graphics.drawBillboard(spark, [0, 0.4, 0], { size: 0.9, color: [1, 0.7, 0.3, 0.9], blend: 'additive' });
     efx.graphics.drawParticles(embers);
     // a 2D sprite row (drawSprites is 2D-only)
     efx.graphics.drawSprites(spark, [
         { x: 20, y: 20, size: [48, 48], color: [1, 0.4, 0.2, 0.9] },
         { x: 74, y: 20, size: [48, 48], color: [1, 0.7, 0.3, 0.9] },
         { x: 128, y: 20, size: [48, 48], color: [0.5, 0.8, 1, 0.9] },
-    ]);
+    ], { blend: 'additive' });
 });

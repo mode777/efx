@@ -380,8 +380,9 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
         }
         opts = argv[2];
         static const char *known[] = {"size",     "color",     "sourceRect",
-                                      "rotation", "facing",  "depthTest", "normal"};
-        if (efx_api_check_known_fields(ctx, opts, known, 7, "drawBillboard") != 0) {
+                                      "rotation", "facing",  "depthTest", "normal",
+                                      "blend"};
+        if (efx_api_check_known_fields(ctx, opts, known, 8, "drawBillboard") != 0) {
             return JS_EXCEPTION;
         }
     }
@@ -392,6 +393,7 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
     float normal[3] = {0, 1, 0};
     int facing = EFX_FACING_VIEW;
     int depth_test = 1;
+    int blend = EFX_BLEND_INHERIT;
     float src[4] = {0, 0, 0, 0};
     int has_src = 0;
 
@@ -445,12 +447,23 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
     JSValue sv = JS_GetPropertyStr(ctx, opts, "sourceRect");
     if (!JS_IsUndefined(sv)) {
         if (efx_api_read_source_rect(ctx, tex, sv, src, &has_src) != 0) {
+            JS_FreeValue(ctx, sv);
             return JS_EXCEPTION;
         }
     }
+    JS_FreeValue(ctx, sv);
+
+    JSValue bv = JS_GetPropertyStr(ctx, opts, "blend");
+    if (!JS_IsUndefined(bv)) {
+        if (efx_api_read_blend(ctx, bv, &blend) != 0) {
+            JS_FreeValue(ctx, bv);
+            return JS_EXCEPTION;
+        }
+    }
+    JS_FreeValue(ctx, bv);
 
     int rc = efx_render_billboard(tex, pos, w, h, color, rotation, facing, normal,
-                                  depth_test, src, has_src);
+                                  depth_test, src, has_src, blend);
     if (rc == EFX_RENDER_ERR_HANDLE) {
         return efx_api_type_error(ctx, "expected a live Texture or RenderTarget");
     }
@@ -633,6 +646,24 @@ JSValue efx_js_drawSprites(JSContext *ctx, JSValueConst this_val, int argc,
     if (!JS_IsArray(argv[1])) {
         return efx_api_type_error(ctx, "sprites must be an array");
     }
+    int blend = EFX_BLEND_INHERIT;
+    if (argc >= 3 && !JS_IsUndefined(argv[2])) {
+        if (!JS_IsObject(argv[2]) || JS_IsArray(argv[2])) {
+            return efx_api_type_error(ctx, "drawSprites options must be an object");
+        }
+        static const char *known[] = {"blend"};
+        if (efx_api_check_known_fields(ctx, argv[2], known, 1, "drawSprites") != 0) {
+            return JS_EXCEPTION;
+        }
+        JSValue bv = JS_GetPropertyStr(ctx, argv[2], "blend");
+        if (!JS_IsUndefined(bv)) {
+            if (efx_api_read_blend(ctx, bv, &blend) != 0) {
+                JS_FreeValue(ctx, bv);
+                return JS_EXCEPTION;
+            }
+        }
+        JS_FreeValue(ctx, bv);
+    }
     JSValue lv = JS_GetPropertyStr(ctx, argv[1], "length");
     int32_t n = 0;
     JS_ToInt32(ctx, &n, lv);
@@ -660,7 +691,7 @@ JSValue efx_js_drawSprites(JSContext *ctx, JSValueConst this_val, int argc,
         float oy = s->has_origin ? s->origin[1] : s->h * 0.5f;
         int rc = efx_render_quad(s->x, s->y, s->w, s->h, tex, s->color,
                                  s->rotation, s->scale, s->src, s->has_src, ox,
-                                 oy);
+                                 oy, blend);
         if (rc == EFX_RENDER_ERR_BUDGET) {
             free(items);
             return efx_api_range_error(ctx, "display list budget exceeded");

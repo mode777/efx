@@ -14,10 +14,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* blend modes */
+/* blend modes; EFX_BLEND_INHERIT is the "use the frame's blend render
+ * state" sentinel for per-object overrides and material/particle configs */
 #define EFX_BLEND_ALPHA 0
 #define EFX_BLEND_ADDITIVE 1
 #define EFX_BLEND_SUBTRACTIVE 2
+#define EFX_BLEND_INHERIT (-1)
 
 /* error codes */
 #define EFX_RENDER_OK 0
@@ -111,6 +113,7 @@ typedef struct efx_material {
     uint64_t specular_map;
     uint64_t emissive_map;
     uint64_t alpha_mask;
+    int blend; /* EFX_BLEND_* override, or EFX_BLEND_INHERIT (frame state) */
 } efx_material;
 
 /* documented default material: white diffuse Phong, no maps */
@@ -149,7 +152,8 @@ typedef struct efx_mesh_record {
     float color[4];        /* tint */
     efx_camera3d camera;
     efx_light_set lights;  /* value snapshot at record time (ADR 0026) */
-    uint8_t blend;
+    uint8_t blend;         /* frame-state fallback for surfaces without one */
+    uint8_t surface_blend[EFX_MESH_MAX_SURFACES]; /* per-surface resolved */
     uint8_t skinned;       /* F7: draw the posed buffer instead of bind pose */
 } efx_mesh_record;
 
@@ -548,7 +552,7 @@ uint64_t efx_render_post_scene_handle(void);
 int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                     const float color[4], float rotation_deg, float scale,
                     const float src_rect[4], int has_src,
-                    float origin_x, float origin_y);
+                    float origin_x, float origin_y, int blend_override);
 int efx_render_mesh(uint64_t mesh, const float transform[16],
                     const float color[4], int skinned);
 const efx_record *efx_render_records(int *count);
@@ -684,7 +688,8 @@ void efx_render_particles_normal(uint64_t h, float out[3]);
 int efx_render_billboard(uint64_t texture, const float pos[3], float w, float h,
                          const float color[4], float rotation, int facing,
                          const float normal[3], int depth_test,
-                         const float src_rect[4], int has_src);
+                         const float src_rect[4], int has_src,
+                         int blend_override);
 /* record one particle batch for a live system (F11) */
 int efx_render_particles_draw(uint64_t h);
 

@@ -22,6 +22,14 @@ efx.graphics.drawQuad(160, 16, tex, {
 
 ## Properties
 
+### blend?
+
+> `optional` **blend?**: [`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
+
+Blend mode for this quad; overrides the frame's blend state for this draw only.
+
+***
+
 ### color?
 
 > `optional` **color?**: [`Color`](../type-aliases/Color.md)

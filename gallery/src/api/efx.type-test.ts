@@ -20,6 +20,8 @@ efx.graphics.drawMesh(cube);
 
 // Primitives bind an optional material to their single surface.
 const mat: Material = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
+const matBlend: Material = { blend: 'additive' };
+const matInherit: Material = { blend: null };
 efx.graphics.makeCube({ size: 1, material: mat });
 efx.graphics.makeSphere({ material: null });
 
@@ -155,6 +157,19 @@ efx.graphics.createParticleSystem(f11tex, 10);
 efx.graphics.drawBillboard(f11tex, [0, 0, 0], { facing: 'sideways' });
 // @ts-expect-error — every sprite needs x and y
 efx.graphics.drawSprites(f11tex, [{ size: [4, 4] }]);
+
+// Blend overrides are per-object; the frame state is `setBlendMode`.
+efx.graphics.drawQuad(f11tex, 0, 0, { blend: 'additive' });
+efx.graphics.drawSprites(f11tex, [{ x: 0, y: 0 }], { blend: 'subtractive' });
+efx.graphics.drawBillboard(f11tex, [0, 0, 0], { blend: 'additive' });
+efx.graphics.createParticleSystem(f11tex, 10, 1, { blend: null });
+efx.graphics.setMeshSurfaceMaterial(cube, 0, { blend: 'additive' });
+// @ts-expect-error — blend is a fixed set
+efx.graphics.drawQuad(f11tex, 0, 0, { blend: 'multiply' });
+// @ts-expect-error — drawSprites options hold only blend
+efx.graphics.drawSprites(f11tex, [{ x: 0, y: 0 }], { bogus: true });
+// @ts-expect-error — particle blend is a mode or null
+efx.graphics.createParticleSystem(f11tex, 10, 1, { blend: 'multiply' });
 
 // F10 — CommonJS module authoring facilities: module-scoped, resolved from the
 // resource root, and never members of `efx`.

@@ -1144,6 +1144,32 @@ static int efx_api_read_material_map(JSContext *ctx, JSValueConst ch, const char
 }
 
 
+/* parse a blend mode string into an EFX_BLEND_* value (the frame-state
+ * sentinel EFX_BLEND_INHERIT is only produced by the caller, never here) */
+int efx_api_read_blend(JSContext *ctx, JSValueConst v, int *out) {
+    const char *s = JS_ToCString(ctx, v);
+    if (!s) {
+        efx_api_type_error(ctx, "blend must be a mode string");
+        return -1;
+    }
+    int mode = EFX_BLEND_INHERIT;
+    if (strcmp(s, "alpha") == 0) {
+        mode = EFX_BLEND_ALPHA;
+    } else if (strcmp(s, "additive") == 0) {
+        mode = EFX_BLEND_ADDITIVE;
+    } else if (strcmp(s, "subtractive") == 0) {
+        mode = EFX_BLEND_SUBTRACTIVE;
+    } else {
+        JS_FreeCString(ctx, s);
+        efx_api_type_error(ctx, "unknown blend mode");
+        return -1;
+    }
+    JS_FreeCString(ctx, s);
+    *out = mode;
+    return 0;
+}
+
+
 /* parse a material object into the engine snapshot (F4a/F4b spec: channel
  * defaults, specular.shininess, per-channel maps, alphaMask, unknown-field
  * rejection) */
@@ -1154,8 +1180,8 @@ int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
     }
     efx_material_default(out);
     static const char *known[] = {"ambient", "diffuse", "specular", "emissive",
-                                  "alphaMask"};
-    if (efx_api_check_known_fields(ctx, v, known, 5, "material") != 0) {
+                                  "alphaMask", "blend"};
+    if (efx_api_check_known_fields(ctx, v, known, 6, "material") != 0) {
         return -1;
     }
     static const char *chan_keys[] = {"ambient", "diffuse", "specular", "emissive"};
@@ -1229,6 +1255,14 @@ int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
     } else {
         JS_FreeValue(ctx, am);
     }
+    JSValue bv = JS_GetPropertyStr(ctx, v, "blend");
+    if (!JS_IsUndefined(bv) && !JS_IsNull(bv)) {
+        if (efx_api_read_blend(ctx, bv, &out->blend) != 0) {
+            JS_FreeValue(ctx, bv);
+            return -1;
+        }
+    }
+    JS_FreeValue(ctx, bv);
     return 0;
 }
 

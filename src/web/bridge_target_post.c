@@ -31,11 +31,12 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_quad(double handle, float x, float y, f
                                               float cr, float cg, float cb, float ca,
                                               float rotation, float scale,
                                               float sx, float sy, float sw, float sh,
-                                              int has_src, float origin_x, float origin_y) {
+                                              int has_src, float origin_x, float origin_y,
+                                              int blend) {
     float color[4] = {cr, cg, cb, ca};
     float src[4] = {sx, sy, sw, sh};
     return efx_render_quad(x, y, w, h, (uint64_t)handle, color, rotation, scale,
-                           src, has_src, origin_x, origin_y);
+                           src, has_src, origin_x, origin_y, blend);
 }
 
 /* ------------------------------------------------- F5b (post effects) */

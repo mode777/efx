@@ -68,6 +68,17 @@ behavior.
 - **Naming.** camelCase, verb-first. `set*`/`get*` configure engine state,
   `draw*` record into the display list, `make*` build data in JS,
   `load*`/`create*` fetch or upload resources and return resource objects.
+- **Render state vs per-object options.** A `set*` setter configures the
+  **frame-local** default for draws that do not carry their own value; a draw
+  option or material field **overrides** it for that object only. The engine
+  resets such a default at the start of each frame, so a script must set it
+  inside the render hook (or pass the override). `setBlendMode` is the blend
+  render state: it applies to quads and sprite batches, mesh surfaces whose
+  material has no `blend`, and billboards, and is overridden by
+  `DrawQuadOptions.blend`, `DrawSpritesOptions.blend`, `Material.blend`, and
+  `DrawBillboardOptions.blend`. A particle system with no configured `blend`
+  inherits the state at `drawParticles` time. Clear color, cameras, and lights
+  remain plain state that persists until changed.
 - **Resources.** Loaders and creators return opaque resource objects (see
   [Resource & memory model](#resource--memory-model)); `res.destroy()`
   releases deterministically and GC is the backstop. Native-backed classes
@@ -372,7 +383,7 @@ in the generated reference (or to an open question below):
 | vision.md property | Documented as |
 |---|---|
 | 2D drawing via quads | `efx.graphics.drawQuad`, `DrawQuadOptions` |
-| Additive and subtractive blending modes | `efx.graphics.setBlendMode` |
+| Additive and subtractive blending modes | `efx.graphics.setBlendMode` plus per-object `blend` overrides (`DrawQuadOptions`, `DrawSpritesOptions`, `Material`, `DrawBillboardOptions`, particle `blend`) |
 | 1 camera fixed | `efx.graphics.setCamera2D`, `efx.graphics.setCamera3D`, fixed limits |
 | Rendering meshes | `efx.graphics.createMesh` / `efx.graphics.drawMesh` |
 | Vertex colours | `MeshSurfaceData.colors`, `DrawMeshOptions.color` |

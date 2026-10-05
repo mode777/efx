@@ -7,7 +7,6 @@
 
 efx.graphics.setClearColor([0.02, 0.016, 0.05, 1]);
 efx.graphics.setCamera2D({ frame: [640, 480] });
-efx.graphics.setBlendMode('additive');
 
 const FRAME_W = 640;
 const FRAME_H = 480;
@@ -261,6 +260,8 @@ function bar(x, y, w, h, c, a) {
 }
 
 function render() {
+    // blend is frame-local render state, so set it at the top of the frame
+    efx.graphics.setBlendMode('additive');
     // particles
     for (let i = 0; i < MAX; i++) {
         const p = pParts[i];

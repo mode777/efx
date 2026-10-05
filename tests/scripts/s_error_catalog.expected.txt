@@ -21,6 +21,7 @@
 2d.quad-src-zero: RangeError: sourceRect extent must be > 0
 2d.quad-src-oob: RangeError: sourceRect outside texture bounds
 2d.quad-unknown-opt: TypeError: unknown drawQuad option
+2d.quad-blend-unknown: TypeError: unknown blend mode
 2d.quad-destroyed-texture: TypeError: using a destroyed resource
 2d.texture-width-destroyed: TypeError: using a destroyed resource
 2d.texture-height-destroyed: TypeError: using a destroyed resource
@@ -48,6 +49,7 @@
 3d.md-norm-short: RangeError: invalid mesh data
 3d.md-unknown: TypeError: unknown surface option 'pixles'
 3d.md-materials-mismatch: RangeError: materials must have one entry per surface
+3d.md-mat-blend-unknown: TypeError: unknown blend mode
 3d.md-elem-type: TypeError: array elements must be numbers
 3d.md-elem-nan: RangeError: array elements must be finite numbers
 3d.drawmesh-none: TypeError: drawMesh requires a mesh
@@ -84,6 +86,7 @@
 4a.smsm-index: RangeError: surfaceIndex out of range
 4a.smsm-index-neg: RangeError: surfaceIndex out of range
 4a.smsm-bad-mat: TypeError: material must be an object
+4a.smsm-blend-unknown: TypeError: unknown blend mode
 4a.smsm-shininess0: RangeError: shininess must be Finite and > 0
 4a.smsm-destroyed: TypeError: using a destroyed resource
 4b.map-number: TypeError: expected a Texture or RenderTarget
@@ -172,13 +175,17 @@
 11.ps-unknown-field: TypeError: unknown createParticleSystem option 'bogus'
 11.ps-bad-facing: TypeError: facing must be 'view', 'y', or 'plane'
 11.ps-plane-screen: TypeError: facing must be 'view' for screen space
+11.ps-blend-unknown: TypeError: blend must be 'alpha', 'additive', or 'subtractive'
 11.ps-set-max: RangeError: max must be in 1..65536
 11.ps-destroyed-emit: TypeError: using a destroyed resource
 11.billboard-no-texture: TypeError: drawBillboard requires a texture
 11.billboard-pos: TypeError: drawBillboard pos must be [x,y,z]
 11.billboard-size: RangeError: size entries must be > 0
+11.billboard-blend-unknown: TypeError: unknown blend mode
 11.sprites-array: TypeError: sprites must be an array
 11.sprite-xy: TypeError: sprite x and y must be finite numbers
+11.sprites-blend-unknown: TypeError: unknown blend mode
+11.sprites-unknown-opt: TypeError: unknown drawSprites option 'frob'
 12.createbody-noopts: TypeError: shape must be an options object
 12.createbody-noshape: TypeError: unknown shape type
 12.createcharacter-noopts: TypeError: createCharacter requires an options object

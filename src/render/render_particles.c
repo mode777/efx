@@ -6,7 +6,7 @@ static int ps_config_valid(const efx_particle_config *c) {
     if (c->space != EFX_SPACE_WORLD && c->space != EFX_SPACE_SCREEN) return 0;
     if (c->facing < EFX_FACING_VIEW || c->facing > EFX_FACING_PLANE) return 0;
     if (c->space == EFX_SPACE_SCREEN && c->facing != EFX_FACING_VIEW) return 0;
-    if (c->blend < EFX_BLEND_ALPHA || c->blend > EFX_BLEND_SUBTRACTIVE) return 0;
+    if (c->blend < EFX_BLEND_INHERIT || c->blend > EFX_BLEND_SUBTRACTIVE) return 0;
     if (!(c->life_min > 0.0f) || !(c->life_max >= c->life_min) ||
         !isfinite(c->life_min) || !isfinite(c->life_max)) {
         return 0;
@@ -590,7 +590,8 @@ void efx_render_billboard_basis(const efx_camera3d *cam, int facing,
 int efx_render_billboard(uint64_t texture, const float pos[3], float w, float h,
                          const float color[4], float rotation, int facing,
                          const float normal[3], int depth_test,
-                         const float src_rect[4], int has_src) {
+                         const float src_rect[4], int has_src,
+                         int blend_override) {
     ensure_state();
     if (!texture || !efx_render_sample_alive(texture)) {
         return EFX_RENDER_ERR_HANDLE;
@@ -615,7 +616,7 @@ int efx_render_billboard(uint64_t texture, const float pos[3], float w, float h,
     b->rotation = rotation;
     b->facing = (uint8_t)facing;
     b->depth_test = depth_test ? 1 : 0;
-    b->blend = (uint8_t)R.blend;
+    b->blend = (uint8_t)(blend_override < 0 ? R.blend : blend_override);
     b->normal[0] = normal ? normal[0] : 0.0f;
     b->normal[1] = normal ? normal[1] : 1.0f;
     b->normal[2] = normal ? normal[2] : 0.0f;
@@ -653,7 +654,7 @@ int efx_render_particles_draw(uint64_t h) {
     rec.type = EFX_RECORD_PARTICLES;
     efx_particle_record *pr = &rec.u.particles;
     pr->system = h;
-    pr->blend = (uint8_t)p->cfg.blend;
+    pr->blend = (uint8_t)(p->cfg.blend < 0 ? R.blend : p->cfg.blend);
     pr->camera = R.camera3d;
     pr->camera2d = R.camera;
     {

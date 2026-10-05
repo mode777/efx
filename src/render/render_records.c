@@ -29,7 +29,8 @@ static const efx_material DEFAULT_MATERIAL = {
     .diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
     .specular = {0.0f, 0.0f, 0.0f, 1.0f},
     .emissive = {0.0f, 0.0f, 0.0f, 1.0f},
-    .shininess = 32.0f};
+    .shininess = 32.0f,
+    .blend = EFX_BLEND_INHERIT};
 
 static void apply_default_state(void) {
     R.camera = DEFAULT_CAMERA2D;
@@ -228,7 +229,7 @@ int record_push(efx_record *rec) {
 int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                     const float color[4], float rotation_deg, float scale,
                     const float src_rect[4], int has_src,
-                    float origin_x, float origin_y) {
+                    float origin_x, float origin_y, int blend_override) {
     ensure_state();
     /* F5a: the active render target is the rendering surface — the default
        camera frame follows it exactly as it follows the window */
@@ -294,7 +295,7 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
         q->sh = (float)q->th;
     }
     color_or_white(q->color, color);
-    q->blend = (uint8_t)R.blend;
+    q->blend = (uint8_t)(blend_override < 0 ? R.blend : blend_override);
     return record_push(&rec);
 }
 
@@ -342,6 +343,18 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     mr->camera = R.camera3d;
     mr->lights = R.lights;   /* value snapshot (ADR 0026) */
     mr->blend = (uint8_t)R.blend;
+    {
+        /* D4: resolve each surface's blend at record time — its material
+           override when set, else the frame blend state — so a later
+           setBlendMode or material rebind cannot change the record */
+        int surfaces = efx_render_mesh_surface_count(mesh);
+        for (int i = 0; i < surfaces && i < EFX_MESH_MAX_SURFACES; i++) {
+            efx_material mat;
+            int has = efx_render_mesh_surface_material(mesh, i, &mat);
+            int b = (has && mat.blend >= 0) ? mat.blend : R.blend;
+            mr->surface_blend[i] = (uint8_t)b;
+        }
+    }
     mr->skinned = skinned ? 1 : 0;
     return record_push(&rec);
 }
@@ -394,6 +407,9 @@ void efx_render_begin_frame(void) {
     ensure_state();
     R.record_count = 0;
     R.active_target = 0; /* a new frame never inherits an open segment */
+    /* blend is frame-local render state: a mode set at load time must not
+       leak into later frames (per-object overrides still win per draw) */
+    R.blend = EFX_BLEND_ALPHA;
 }
 
 void efx_render_end_frame(void) {

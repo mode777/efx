@@ -295,6 +295,7 @@ static void bridge_mat_from_wire(efx_material *m, const float *f,
         m->emissive[i] = f[12 + i];
     }
     m->shininess = f[16];
+    m->blend = (int)f[17];
     if (maps) {
         m->ambient_map = (uint64_t)maps[0];
         m->diffuse_map = (uint64_t)maps[1];

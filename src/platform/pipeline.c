@@ -739,15 +739,25 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         fs.dir_color[2] = mr->lights.directional.color[2];
     }
 
-    sg_apply_pipeline(flip ? P.mesh_pip_cw[mr->blend] : P.mesh_pip[mr->blend]);
-    sg_apply_uniforms(UB_vs_params, &(sg_range){.ptr = &vs, .size = sizeof(vs)});
     uint64_t white = efx_render_white_texture(); /* absent-map fallback (D3) */
     pipe_tex *white_tex = (pipe_tex *)efx_render_texture_native(white);
     sg_view white_view = white_tex ? white_tex->view : P.white_view;
+    int cur_blend = -1;
     for (int i = 0; i < m->surface_count; i++) {
         pipe_mesh_surface *s = &m->surfaces[i];
         if (!s->index_count) {
             continue;
+        }
+        /* D4: per-surface blend resolved at record time; switch the
+           pipeline only when it changes and re-apply the vs uniforms the
+           pipeline change invalidates (documented order: pipeline ->
+           bindings -> uniforms -> draw) */
+        int blend = mr->surface_blend[i];
+        if (blend != cur_blend) {
+            sg_apply_pipeline(flip ? P.mesh_pip_cw[blend] : P.mesh_pip[blend]);
+            sg_apply_uniforms(UB_vs_params,
+                              &(sg_range){.ptr = &vs, .size = sizeof(vs)});
+            cur_blend = blend;
         }
         efx_material mat;
         efx_render_mesh_surface_material(mr->mesh, i, &mat);

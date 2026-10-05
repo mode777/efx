@@ -165,16 +165,19 @@ typedef struct {
     int has_size;
     float origin[2];
     int has_origin;
+    int blend; /* EFX_BLEND_* override, or EFX_BLEND_INHERIT */
 } quad_opts;
 
 static void quad_opts_default(quad_opts *q) {
     memset(q, 0, sizeof(*q));
     q->color[0] = q->color[1] = q->color[2] = q->color[3] = 1.0f;
     q->scale = 1.0f;
+    q->blend = EFX_BLEND_INHERIT;
 }
 
 static int check_quad_opts_fields(JSContext *ctx, JSValueConst opts) {
-    static const char *known[] = {"color", "rotation", "scale", "sourceRect", "size", "origin"};
+    static const char *known[] = {"color",  "rotation", "scale", "sourceRect",
+                                  "size",   "origin",   "blend"};
     JSPropertyEnum *props = NULL;
     uint32_t nprops = 0;
     if (JS_GetOwnPropertyNames(ctx, &props, &nprops, opts,
@@ -182,7 +185,7 @@ static int check_quad_opts_fields(JSContext *ctx, JSValueConst opts) {
         for (uint32_t i = 0; i < nprops; i++) {
             const char *k = JS_AtomToCString(ctx, props[i].atom);
             int ok = 0;
-            for (int j = 0; j < 6; j++) {
+            for (int j = 0; j < 7; j++) {
                 if (k && strcmp(k, known[j]) == 0) {
                     ok = 1;
                     break;
@@ -284,6 +287,15 @@ static int read_quad_opts(JSContext *ctx, uint64_t tex_handle,
             return -1;
         }
     }
+
+    JSValue bv = JS_GetPropertyStr(ctx, opts, "blend");
+    if (!JS_IsUndefined(bv)) {
+        if (efx_api_read_blend(ctx, bv, &q->blend) != 0) {
+            JS_FreeValue(ctx, bv);
+            return -1;
+        }
+    }
+    JS_FreeValue(ctx, bv);
     return 0;
 }
 
@@ -337,7 +349,7 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
 
     int rc = efx_render_quad((float)x, (float)y, w, h,
                              tex_handle, q.color, q.rotation, q.scale, q.src,
-                             q.has_src, origin_x, origin_y);
+                             q.has_src, origin_x, origin_y, q.blend);
     if (rc == EFX_RENDER_ERR_BUDGET) {
         return efx_api_range_error(ctx, "display list budget exceeded");
     }

@@ -168,10 +168,10 @@ static int value_snapshot(void) {
     efx_render_set_viewport(1024, 768);
     efx_camera2d cam = {640, 480, 320, 240, 1, 0};
     efx_render_set_camera(&cam);
-    efx_render_quad(0, 0, 32, 32, 0, NULL, 0, 1, NULL, 0, 16, 16);
+    efx_render_quad(0, 0, 32, 32, 0, NULL, 0, 1, NULL, 0, 16, 16, EFX_BLEND_INHERIT);
     efx_camera2d cam2 = {640, 480, 100, 100, 1, 0};
     efx_render_set_camera(&cam2);
-    efx_render_quad(0, 0, 32, 32, 0, NULL, 0, 1, NULL, 0, 16, 16);
+    efx_render_quad(0, 0, 32, 32, 0, NULL, 0, 1, NULL, 0, 16, 16, EFX_BLEND_INHERIT);
 
     /* camera at record time applies; second quad sees new camera */
     efx_affine expect = efx_camera_matrix(&cam, 640, 480);
@@ -194,7 +194,7 @@ static int value_snapshot(void) {
 static int default_camera_viewport(void) {
     install_mock_sink();
     efx_render_set_viewport(1024, 600);
-    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
     if (recs[0].u.quad.frame_w != 1024 || recs[0].u.quad.frame_h != 600)
@@ -206,7 +206,7 @@ static int default_camera_viewport(void) {
     /* frame set through camera wins over viewport */
     efx_camera2d cam = {640, 480, 320, 240, 1, 0};
     efx_render_set_camera(&cam);
-    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     recs = efx_render_records(&count);
     if (recs[1].u.quad.frame_w != 640 || recs[1].u.quad.frame_h != 480)
         return fail("explicit frame");
@@ -217,9 +217,9 @@ static int default_camera_viewport(void) {
 
 static int blend_snapshot(void) {
     install_mock_sink();
-    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     efx_render_set_blend(EFX_BLEND_ADDITIVE);
-    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     if (efx_render_set_blend(99) == 0) return fail("invalid blend accepted");
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -239,7 +239,7 @@ static int record_budget(void) {
     efx_render_install_sink(&sink);
     int pushed = 0;
     for (;;) {
-        int rc = efx_render_quad(0, 0, 1, 1, 0, NULL, 0, 1, NULL, 0, 0.5f, 0.5f);
+        int rc = efx_render_quad(0, 0, 1, 1, 0, NULL, 0, 1, NULL, 0, 0.5f, 0.5f, EFX_BLEND_INHERIT);
         if (rc == EFX_RENDER_ERR_BUDGET) break;
         if (rc != EFX_RENDER_OK) return fail("unexpected error in budget loop");
         pushed++;
@@ -352,7 +352,7 @@ static int record_fields(void) {
     uint64_t tex = efx_render_texture_create(64, 32, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
     float color[4] = {1, 0.5, 0.25, 0.125};
     float src[4] = {8, 4, 16, 8};
-    efx_render_quad(1, 2, 30, 40, tex, color, 45, 2, src, 1, 15, 20);
+    efx_render_quad(1, 2, 30, 40, tex, color, 45, 2, src, 1, 15, 20, EFX_BLEND_INHERIT);
     int count = 0;
     const efx_record *r = efx_render_records(&count);
     if (count != 1) return fail("count");
@@ -364,7 +364,7 @@ static int record_fields(void) {
     if (!feq(r[0].u.quad.color[1], 0.5f) || !feq(r[0].u.quad.color[3], 0.125f))
         return fail("tint");
     /* default source rect = full texture */
-    efx_render_quad(0, 0, 4, 4, tex, NULL, 0, 1, NULL, 0, 2, 2);
+    efx_render_quad(0, 0, 4, 4, tex, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     r = efx_render_records(&count);
     if (!feq(r[1].u.quad.sw, 64) || !feq(r[1].u.quad.sh, 32))
         return fail("default src");
@@ -382,13 +382,13 @@ static int batching(void) {
     uint64_t t1 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
     uint64_t t2 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
     /* sequence: A A B A  -> three runs (t1x2, t2, t1) */
-    efx_render_quad(0, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2);
-    efx_render_quad(5, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2);
+    efx_render_quad(0, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
+    efx_render_quad(5, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_set_blend(EFX_BLEND_ADDITIVE);
-    efx_render_quad(9, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2);
-    efx_render_quad(12, 0, 4, 4, t2, NULL, 0, 1, NULL, 0, 2, 2);
+    efx_render_quad(9, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
+    efx_render_quad(12, 0, 4, 4, t2, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_set_blend(EFX_BLEND_ALPHA);
-    efx_render_quad(15, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2);
+    efx_render_quad(15, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     int run_count = 0;
     const efx_draw_run *runs = efx_render_runs(&run_count);
     if (run_count != 4) return fail("expected 4 runs");
@@ -673,18 +673,99 @@ static int mesh_record_fields(void) {
     return 0;
 }
 
-static int mesh_record_order(void) {
+static int blend_overrides(void) {
     install_mock_sink();
+    uint8_t px[4] = {255, 255, 255, 255};
+    uint64_t tex = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT,
+                                             EFX_FILTER_LINEAR, 0);
+    /* frame reset: a mode set before begin_frame is wiped to alpha */
+    efx_render_set_blend(EFX_BLEND_ADDITIVE);
+    efx_render_begin_frame();
+    efx_render_quad(0, 0, 4, 4, tex, NULL, 0, 1, NULL, 0, 2, 2,
+                    EFX_BLEND_INHERIT);
+    /* per-draw override wins over the frame state */
+    efx_render_quad(0, 0, 4, 4, tex, NULL, 0, 1, NULL, 0, 2, 2,
+                    EFX_BLEND_SUBTRACTIVE);
+    /* billboard override */
+    efx_camera3d cam = {{0, 2, 5}, {0, 0, 0}, 60, 0.1f, 100};
+    efx_render_set_camera3d(&cam);
+    float pos[3] = {0, 0, 0};
+    efx_render_billboard(tex, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1, NULL,
+                         0, EFX_BLEND_ADDITIVE);
+
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 3) return fail("blend record count");
+    if (recs[0].u.quad.blend != EFX_BLEND_ALPHA) return fail("frame reset");
+    if (recs[1].u.quad.blend != EFX_BLEND_SUBTRACTIVE) return fail("quad override");
+    if (recs[2].u.billboard.blend != EFX_BLEND_ADDITIVE)
+        return fail("billboard override");
+
+    /* mesh: surface 0 material override, surface 1 inherits the frame state */
+    efx_meshdata *md = make_two_surface_mesh();
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    efx_material mat;
+    efx_material_default(&mat);
+    mat.blend = EFX_BLEND_ADDITIVE;
+    efx_render_mesh_set_material(m, 0, &mat, 1);
+    efx_render_set_blend(EFX_BLEND_SUBTRACTIVE);
+    efx_render_mesh(m, NULL, NULL, 0);
+    recs = efx_render_records(&count);
+    const efx_mesh_record *mr = &recs[count - 1].u.mesh;
+    if (mr->surface_blend[0] != EFX_BLEND_ADDITIVE)
+        return fail("mesh material blend");
+    if (mr->surface_blend[1] != EFX_BLEND_SUBTRACTIVE)
+        return fail("mesh inherited blend");
+
+    /* particles: configured blend wins; unset inherits the frame state */
+    efx_particle_config pc;
+    memset(&pc, 0, sizeof(pc));
+    pc.texture = tex;
+    pc.max = 8;
+    pc.space = EFX_SPACE_WORLD;
+    pc.facing = EFX_FACING_VIEW;
+    pc.blend = EFX_BLEND_INHERIT;
+    pc.life_min = 1;
+    pc.life_max = 1;
+    pc.emitter_lifetime = -1;
+    pc.speed_scale = 1;
+    pc.size_count = 1;
+    pc.sizes[0] = 1;
+    pc.color_count = 1;
+    pc.colors[0][0] = pc.colors[0][1] = pc.colors[0][2] = pc.colors[0][3] = 1;
+    int err = 0;
+    uint64_t ps = efx_render_particles_create(&pc, &err);
+    if (!ps) return fail("particle create");
+    efx_render_set_blend(EFX_BLEND_ADDITIVE);
+    efx_render_particles_draw(ps);
+    recs = efx_render_records(&count);
+    if (recs[count - 1].u.particles.blend != EFX_BLEND_ADDITIVE)
+        return fail("particle inherit");
+    pc.blend = EFX_BLEND_SUBTRACTIVE;
+    efx_render_particles_set(ps, &pc);
+    efx_render_particles_draw(ps);
+    recs = efx_render_records(&count);
+    if (recs[count - 1].u.particles.blend != EFX_BLEND_SUBTRACTIVE)
+        return fail("particle configured");
+    efx_render_particles_destroy(ps);
+
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int mesh_record_order(void) {    install_mock_sink();
     efx_meshdata *md = make_two_surface_mesh();
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
     uint8_t px[4] = {255, 255, 255, 255};
     uint64_t t = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
     /* quads A A, mesh, quad B: quad runs must not span the mesh record */
-    efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
-    efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
+    efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
+    efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_mesh(m, NULL, NULL, 0);
-    efx_render_quad(9, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2);
+    efx_render_quad(9, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
     if (count != 4) return fail("record count");
@@ -1235,11 +1316,11 @@ static int segmentation(void) {
     uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
     if (!rt || !tex) return fail("fixtures");
     /* screen quad, target segment, screen quad again */
-    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
-    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
-    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
 
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -1272,7 +1353,7 @@ static int target_redirection(void) {
     if (!rt) return fail("create");
     /* the default camera frame follows the active target */
     if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
-    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, 0, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
     if (recs[count - 1].u.quad.frame_w != 256 ||
@@ -1320,13 +1401,13 @@ static int feedback_guard(void) {
     efx_meshdata_destroy(md);
     if (!mesh) return fail("mesh");
     /* off-target draws are unaffected */
-    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4) != EFX_RENDER_OK)
+    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT) != EFX_RENDER_OK)
         return fail("sampling a non-active target must succeed");
     /* quad sampling the active target is rejected at record time */
     if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
     int before = 0;
     efx_render_records(&before);
-    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4) !=
+    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT) !=
         EFX_RENDER_ERR_FEEDBACK)
         return fail("quad feedback accepted");
     /* a mesh whose maps sample the active target is rejected too */
@@ -1341,7 +1422,7 @@ static int feedback_guard(void) {
     if (before != after) return fail("rejected draw recorded something");
     if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
     /* outside the segment the same draws record */
-    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4) != EFX_RENDER_OK)
+    if (efx_render_quad(0, 0, 8, 8, rt, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT) != EFX_RENDER_OK)
         return fail("sampling after end must succeed");
     efx_render_end_frame();
     efx_render_shutdown();
@@ -1554,11 +1635,11 @@ static int post_user_target_raw(void) {
     if (!efx_render_post_active()) return fail("chain not active");
     /* a chained frame: a screen quad, a user-target segment, then a screen
        sample of that target */
-    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     if (efx_render_begin_target(rt) != EFX_RENDER_OK) return fail("begin");
-    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4);
+    efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
     if (efx_render_end_target() != EFX_RENDER_OK) return fail("end");
-    efx_render_quad(0, 0, 64, 64, rt, NULL, 0, 1, NULL, 0, 32, 32);
+    efx_render_quad(0, 0, 64, 64, rt, NULL, 0, 1, NULL, 0, 32, 32, EFX_BLEND_INHERIT);
 
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -2168,7 +2249,7 @@ static int billboard_record_fields(void) {
     float color[4] = {0.5f, 0.25f, 0.1f, 0.8f};
     float src[4] = {0, 0, 1, 1};
     if (efx_render_billboard(tex, pos, 2.0f, 3.0f, color, 45.0f, EFX_FACING_Y,
-                             NULL, 1, src, 1) != EFX_RENDER_OK) {
+                             NULL, 1, src, 1, EFX_BLEND_INHERIT) != EFX_RENDER_OK) {
         return fail("billboard record");
     }
     int count = 0;
@@ -2185,7 +2266,7 @@ static int billboard_record_fields(void) {
     if (!feq(b->tw, 2) || !feq(b->sh, 1)) return fail("billboard src");
     /* invalid size rejected */
     if (efx_render_billboard(tex, pos, 0.0f, 1.0f, NULL, 0, EFX_FACING_VIEW,
-                             NULL, 1, NULL, 0) == EFX_RENDER_OK)
+                             NULL, 1, NULL, 0, EFX_BLEND_INHERIT) == EFX_RENDER_OK)
         return fail("billboard zero size accepted");
     efx_render_end_frame();
     efx_render_shutdown();
@@ -2209,6 +2290,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(mesh_lifecycle),
     EFX_CASE(mesh_sinkless),
     EFX_CASE(mesh_record_fields),
+    EFX_CASE(blend_overrides),
     EFX_CASE(mesh_record_order),
     EFX_CASE(mesh_record_budget),
     EFX_CASE(lights_state),

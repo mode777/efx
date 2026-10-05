@@ -39,6 +39,14 @@ Ambient channel (default black).
 
 ***
 
+### blend?
+
+> `optional` **blend?**: [`EfxBlendMode`](../type-aliases/EfxBlendMode.md) \| `null`
+
+Blend mode for surfaces bound to this material; `null`/absent uses the frame's blend state.
+
+***
+
 ### diffuse?
 
 > `optional` **diffuse?**: [`PhongChannel`](PhongChannel.md)
