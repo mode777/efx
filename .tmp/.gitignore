@@ -1,0 +1,5 @@
+# Local scratch. Everything here is ignored; only this file is tracked so a
+# fresh clone has the directory. Put build logs, diffs, capture staging, and
+# one-off scripts here instead of /tmp.
+*
+!.gitignore

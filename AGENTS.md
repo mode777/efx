@@ -19,6 +19,14 @@ it modifies or creates, or sets `skip_specs: true` for docs/tooling changes.
 > milestone ladder in `openspec/specs/feature-roadmap` — all of F1–F14 are
 > implemented and gated on all four targets.
 
+## Local scratch
+
+Put throwaway artifacts (build logs, diffs, capture staging, one-off scripts)
+in the repo-local, gitignored **`.tmp/`** directory. It lives on the persistent
+workspace volume, so it survives restarts; `/tmp` is ephemeral and
+`/tmp/opencode` is not writable in the agent container. Only `.tmp/.gitignore`
+is tracked (it ignores the rest), so a fresh clone has the directory.
+
 ## Change lifecycle
 
 1. **Propose** — create an OpenSpec change (`npx openspec new change`, then
@@ -106,7 +114,9 @@ it modifies or creates, or sets `skip_specs: true` for docs/tooling changes.
 - `npx openspec <command>` (binary not on PATH; `npm install` once). Known
   CLI noise: every command prints `Rules for 'design' must be an array of
   strings` — a CLI-side parse issue; honor design rules by reading
-  `openspec/config.yaml` directly.
+  `openspec/config.yaml` directly. Strict validation is
+  `npx openspec validate "<change>" --type change --strict` (there is no
+  `--change` flag on `validate`; `status`/`instructions` do take `--change`).
 - Reference implementations: sokol-samples (rendering patterns), rayjs
   (QuickJS integration + stripping for cross-platform).
 

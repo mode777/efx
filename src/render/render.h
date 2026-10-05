@@ -101,7 +101,14 @@ typedef struct efx_light_set {
  * no destroy). Colors/shininess are value-snapshotted; channel maps and the
  * alpha mask are handles (0 = absent) held by reference (ADR 0019) and
  * retained by the engine while bound (ADR 0027). From F5a a map handle
- * may reference a Texture or a RenderTarget (texture coercion). */
+ * may reference a Texture or a RenderTarget (texture coercion).
+ *
+ * This struct is marshalled as a parallel float block (channels + shininess
+ * + blend); adding a field means updating every copy together:
+ * src/prelude/prelude.js __efxMaterialWire, src/web/js/core.js
+ * __efxMaterial, src/api/api_3d.c wire_mat_from_block,
+ * src/web/bridge_render3d.c bridge_mat_from_wire, and the web createMeshData
+ * stride in src/web/js/audio.js. */
 typedef struct efx_material {
     float ambient[4];
     float diffuse[4];

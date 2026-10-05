@@ -45,8 +45,9 @@ password is stored in this repository**:
 
 If any of them is unset, `tools/verify_remote.py` exits with a clear
 error and touches nothing. Requires `paramiko`
-(`pip3 install --user paramiko`) and a local `git` checkout with an
-`origin` remote.
+(`pip install --user --break-system-packages paramiko` on this Ubuntu
+24.04 image — plain `--user` fails under PEP 668; `uv pip install` also
+works) and a local `git` checkout with an `origin` remote.
 
 ## Usage
 
@@ -100,16 +101,32 @@ means every requested suite passed.
 - The remote checkout may lag `origin` or sit on an old branch; the
   script's sync step (fetch + hard reset to the verified SHA) makes that
   harmless.
-- **Adding a golden scene requires a server-side capture first** (f2c,
+- **Adding or changing a golden requires a server-side capture** (f2c,
   2026-09). A scene's test only activates once `golden.png` is committed,
   and the web golden driver fails on scenes whose PNG is missing — but
   captures need llvmpipe, which only exists here. `verify_remote.py` has
-  no capture suite, so the flow is: push the branch without the PNG →
+  no capture suite, so the flow is: push the branch without the new PNG →
   over SSH: sync the checkout to the pushed SHA, build the native player,
-  run `xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ./build/player
-  --capture-frame 2 --capture-output <out>.png tests/goldens/<scene>`
-  (twice, imgdiffing the two captures as a determinism check), SFTP the
-  PNG into the repo, commit, push — and only then `verify_remote.py all`.
+  capture, SFTP the PNG into the repo, commit, push — and only then
+  `verify_remote.py all`.
+  - **Capture to a scratch path, not the tracked file.**
+    `xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 ./build/player
+    --capture-frame 2 --capture-output /tmp/<scene>.png tests/goldens/<scene>`
+    then SFTP `/tmp/<scene>.png` back. Writing straight into
+    `tests/goldens/<scene>/golden.png` leaves the remote checkout dirty,
+    and the next `verify_remote.py` sync aborts with *"Your local changes
+    would be overwritten by checkout"*. If that happens, clean up with
+    `cd ~/efx && git reset --hard && git clean -fd` before re-running.
+  - **Determinism check:** after copying the PNG in, `ctest --test-dir
+    build -R '^golden_<scene>$'` re-captures and compares against it, so a
+    pass proves two captures agree (no separate second capture needed).
+  - **Scene design:** a blend/alpha difference is invisible over the clear
+    color — over black, alpha and additive coincide. Give the mode something
+    to blend onto (a base draw underneath) or the golden cannot distinguish
+    the modes.
+  - **CI alternative to investigate:** the gate has a `generate golden
+    images (manual bootstrap)` job; check whether it can emit a changed
+    scene's PNG as an artifact, which would avoid the SSH capture round-trip.
 - **CI runner watch item**: `ubuntu-latest` migrates to Ubuntu 26 from
   2026-10-19 (GitHub runner-images notice, observed 2026-09). That may
   bump Mesa/llvmpipe in the canonical `build+test (ubuntu-latest)` golden

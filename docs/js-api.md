@@ -369,6 +369,21 @@ single source of truth, so the reference can never drift from it.
    never re-validate. Regenerate `prelude.h` after every prelude edit
    (`python3 tools/gen_prelude.py`; CI fails on drift). Hot paths keep their
    native validation unless new ADR 0049-budget measurements say otherwise.
+   Two cross-runtime parity traps:
+   - The **web** runtime keeps its own copies of some validators
+     (`src/web/js/core.js`, `src/web/js/particles.js`) that are *not* the
+     shared prelude. A new option field needs the same check there **with the
+     same error message**. `tests/scripts/s_error_catalog.js` pins the exact
+     text per runtime, so add a case for the new field and let the desktop/web
+     compare catch divergence. Watch the helpers: the shared `__efxPartEnum`
+     throws "`<what>` has an unknown value", which is **not** the native
+     "unknown blend mode" — add a dedicated helper when a message must match.
+   - The **material** object is marshalled as a fixed float block that grows
+     with the API (17 → 18 when `blend` was added). Update every copy
+     together: prelude `__efxMaterialWire`, web `core.js` `__efxMaterial`,
+     `api_3d.c` `wire_mat_from_block`, `web/bridge_render3d.c`
+     `bridge_mat_from_wire`, and the web `createMeshData` stride in
+     `src/web/js/audio.js`.
 6. **Do not** add internal roadmap-milestone tags or per-entry layer tags to
    the reference. The API is end-user facing.
 
