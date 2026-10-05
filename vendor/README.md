@@ -92,9 +92,23 @@ Notes:
     registered connect/disconnect callbacks but never enumerated pads already
     connected at load — it now synthesizes the connect callback for each live
     pad. It also records `gamepad->src.index` on the web connect path so the
-    per-frame update samples the right browser pad. Re-pin by replacing the
-    header and re-applying the three `LOCAL PATCH (F13)` hunks (or upstreaming
-    them).
+    per-frame update samples the right browser pad. (3) On macOS the IOKit
+    backend never stored the HID device handle on the gamepad, so its input
+    callback dropped every event (connect worked, input did not); it also
+    compared mapping lookups against `0` instead of `MG_*_UNKNOWN` (-1),
+    indexing `buttons[-1]`/`axes[-1]`. The patch records the device, resolves
+    buttons/axes through the platform tables only (Microsoft pads use the
+    Xbox HID button order), decodes the hat switch into the D-pad and
+    `SystemMainMenu` into guide, and rests triggers at -1. (4) The SDL
+    mapping parser matches no fields (its field lengths include the NUL), so
+    every mapping is empty and the index-0 element spuriously matched
+    button/axis 0; unparsed elements are now skipped, and the platform tables
+    are the sole resolver. Linux seeds axis values from the device's current
+    state (resting triggers) and clears `axes` instead of clearing `buttons`
+    twice; the Windows DirectInput path (XInput pads are unaffected) gets an
+    Xbox-style button/axis fallback table, which was previously empty. Re-pin
+    by replacing the header and re-applying the `LOCAL PATCH (F13)` hunks (or
+    upstreaming them).
   - minigamepad's own SDL-mapping evaluator is **not** the engine's
     normalization boundary: the backend re-encodes its platform-mapped
     semantic state into the engine's canonical standard descriptor and the

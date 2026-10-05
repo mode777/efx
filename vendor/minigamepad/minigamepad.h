@@ -579,6 +579,7 @@ struct mg_gamepad_src {
 struct mg_gamepad_src {
 	void* device;
 	void* events;
+	u32 vendor; /* LOCAL PATCH (F13) */
 };
 
 #elif defined(MG_WASM)
@@ -993,7 +994,7 @@ mg_gamepad* mg_linux_setup_gamepad(mg_gamepads* gamepads, const char* full_path)
     }
 
     memset(gamepad->buttons, 0, sizeof(gamepad->buttons));
-    memset(gamepad->buttons, 0, sizeof(gamepad->axes));
+    memset(gamepad->axes, 0, sizeof(gamepad->axes)); /* LOCAL PATCH (F13): was clearing buttons twice */
 
     /* go through any buttons a gamepad would have */
     for (i = BTN_MISC; i < KEY_CNT; i++) {
@@ -1120,8 +1121,18 @@ mg_gamepad* mg_linux_setup_gamepad(mg_gamepads* gamepads, const char* full_path)
             continue;
 
         gamepad->axes[key].supported = MG_TRUE;
-        gamepad->axes[key].value = 0;
         gamepad->axes[key].deadzone = deadzone;
+        {
+            /* LOCAL PATCH (F13): events only fire on change, so a resting trigger
+             * (range minimum) would otherwise read as mid-travel until first moved */
+            const struct mg_input_absinfo* ai = &gamepad->src.absInfo[axis];
+            const float range = (float)(ai->maximum - ai->minimum);
+            float v = 0;
+            if (range) {
+                v = ((float)(ai->value - ai->minimum) / range) * 2.0f - 1.0f;
+            }
+            gamepad->axes[key].value = (MG_FABS(v) < deadzone) ? 0 : v;
+        }
     }
 
     #undef isBitSet
@@ -2144,17 +2155,32 @@ void mg_gamepad_release_platform(mg_gamepad* gamepad) {
 }
 
 mg_button mg_get_gamepad_button_platform(u32 button) {
-    /* TODO */
+    /* LOCAL PATCH (F13): the SDL mapping evaluator resolves nothing, so this
+     * is the only DirectInput button layout: the common Xbox-style order */
     switch (button) {
+        case 0: return MG_BUTTON_SOUTH;
+        case 1: return MG_BUTTON_EAST;
+        case 2: return MG_BUTTON_WEST;
+        case 3: return MG_BUTTON_NORTH;
+        case 4: return MG_BUTTON_LEFT_SHOULDER;
+        case 5: return MG_BUTTON_RIGHT_SHOULDER;
+        case 6: return MG_BUTTON_BACK;
+        case 7: return MG_BUTTON_START;
+        case 8: return MG_BUTTON_LEFT_STICK;
+        case 9: return MG_BUTTON_RIGHT_STICK;
         default: break;
     }
     return MG_BUTTON_UNKNOWN;
 }
 
 mg_axis mg_get_gamepad_axis_platform(u32 axis) {
-    /* TODO */
+    /* LOCAL PATCH (F13): DirectInput X/Y/Z/Rx/Ry/Rz order (Z = combined triggers) */
     switch (axis) {
+        case 0: return MG_AXIS_LEFT_X;
+        case 1: return MG_AXIS_LEFT_Y;
         case 2: return MG_AXIS_LEFT_TRIGGER;
+        case 3: return MG_AXIS_RIGHT_X;
+        case 4: return MG_AXIS_RIGHT_Y;
         case 5: return MG_AXIS_RIGHT_TRIGGER;
         default: break;
     }
@@ -2170,6 +2196,30 @@ mg_axis mg_get_gamepad_axis_platform(u32 axis) {
 #if defined(MG_MACOS)
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hid/IOHIDManager.h>
+
+/* LOCAL PATCH (F13): the SDL mapping tables are index-based and do not apply
+ * to HID usages here, and the upstream "== 0" unknown checks never matched
+ * MG_*_UNKNOWN (-1), so every event indexed buttons[-1]/axes[-1]. Resolve
+ * through the platform tables only; Microsoft pads use the standard Xbox
+ * HID button order. */
+static mg_button mg_osx_button(mg_gamepad* gamepad, u32 usage) {
+    if (gamepad->src.vendor == 0x045E) {
+        switch (usage) {
+            case kHIDUsage_Button_1: return MG_BUTTON_SOUTH;
+            case kHIDUsage_Button_2: return MG_BUTTON_EAST;
+            case kHIDUsage_Button_3: return MG_BUTTON_WEST;
+            case kHIDUsage_Button_4: return MG_BUTTON_NORTH;
+            case kHIDUsage_Button_5: return MG_BUTTON_LEFT_SHOULDER;
+            case kHIDUsage_Button_6: return MG_BUTTON_RIGHT_SHOULDER;
+            case kHIDUsage_Button_7: return MG_BUTTON_BACK;
+            case kHIDUsage_Button_8: return MG_BUTTON_START;
+            case kHIDUsage_Button_9: return MG_BUTTON_LEFT_STICK;
+            case kHIDUsage_Button_10: return MG_BUTTON_RIGHT_STICK;
+            default: return MG_BUTTON_UNKNOWN;
+        }
+    }
+    return mg_get_gamepad_button_platform(usage);
+}
 
 void mg_osx_input_value_changed_callback(void *context, IOReturn result, void *sender, IOHIDValueRef value) {
 	mg_gamepad* gamepad = (mg_gamepad*)context;
@@ -2189,10 +2239,8 @@ void mg_osx_input_value_changed_callback(void *context, IOReturn result, void *s
 
     switch (usagePage) {
 		case kHIDPage_Button: {
-			mg_button btn = mg_get_gamepad_button(gamepad, (u8)usage);
-            if (btn == 0)
-			    btn = mg_get_gamepad_button_platform(usage);
-            if (btn == 0)
+			mg_button btn = mg_osx_button(gamepad, usage);
+            if (btn == MG_BUTTON_UNKNOWN)
                 break;
 
 			mg_handle_button_event((mg_events*)gamepad->src.events, btn, MG_BOOL(intValue), gamepad);
@@ -2201,10 +2249,26 @@ void mg_osx_input_value_changed_callback(void *context, IOReturn result, void *s
 		case kHIDPage_GenericDesktop: {
 			CFIndex logicalMin = IOHIDElementGetLogicalMin(element);
 			CFIndex logicalMax = IOHIDElementGetLogicalMax(element);
-			mg_axis btn = mg_get_gamepad_axis(gamepad, (u8)usage);
-            if (btn == 0)
-			    btn = mg_get_gamepad_axis_platform(usage);
-            if (btn == 0)
+			mg_axis btn;
+
+            if (usage == kHIDUsage_GD_Hatswitch) {
+                /* 8-way hat, logicalMin = north; anything out of range is neutral */
+                CFIndex h = intValue - logicalMin;
+                mg_bool on = (h >= 0 && h < 8);
+                mg_events* ev = (mg_events*)gamepad->src.events;
+                mg_handle_button_event(ev, MG_BUTTON_DPAD_UP, MG_BOOL(on && (h == 7 || h == 0 || h == 1)), gamepad);
+                mg_handle_button_event(ev, MG_BUTTON_DPAD_RIGHT, MG_BOOL(on && (h >= 1 && h <= 3)), gamepad);
+                mg_handle_button_event(ev, MG_BUTTON_DPAD_DOWN, MG_BOOL(on && (h >= 3 && h <= 5)), gamepad);
+                mg_handle_button_event(ev, MG_BUTTON_DPAD_LEFT, MG_BOOL(on && (h >= 5 && h <= 7)), gamepad);
+                break;
+            }
+            if (usage == kHIDUsage_GD_SystemMainMenu) {
+                mg_handle_button_event((mg_events*)gamepad->src.events, MG_BUTTON_GUIDE, MG_BOOL(intValue), gamepad);
+                break;
+            }
+
+			btn = mg_get_gamepad_axis_platform(usage);
+            if (btn == MG_AXIS_UNKNOWN)
                 break;
 
 			if (logicalMax <= logicalMin) return;
@@ -2281,6 +2345,12 @@ void mg_osx_device_added_callback(void* context, IOReturn result, void *sender, 
 
     gamepad->mapping = mg_gamepad_find_valid_mapping(gamepad);
     gamepad->connected = MG_TRUE;
+    /* LOCAL PATCH (F13): the input callback drops events unless this is set */
+    gamepad->src.device = (void*)device;
+    gamepad->src.vendor = vendor;
+    /* triggers rest at -1 (fully released) until their first event */
+    gamepad->axes[MG_AXIS_LEFT_TRIGGER].value = -1.0f;
+    gamepad->axes[MG_AXIS_RIGHT_TRIGGER].value = -1.0f;
 
     for (i = 0;  i < CFArrayGetCount(elements);  i++) {
         u32 elm_usage = 0, page = 0;
@@ -2304,10 +2374,8 @@ void mg_osx_device_added_callback(void* context, IOReturn result, void *sender, 
 
         switch (page) {
             case kHIDPage_Button: {
-                mg_button btn = mg_get_gamepad_button(gamepad, (u8)elm_usage);
-                if (btn == 0)
-                    btn = mg_get_gamepad_button_platform(elm_usage);
-                if (btn == 0)
+                mg_button btn = mg_osx_button(gamepad, elm_usage);
+                if (btn == MG_BUTTON_UNKNOWN)
                     break;
 
                 gamepad->buttons[btn].prev = 0;
@@ -2316,13 +2384,10 @@ void mg_osx_device_added_callback(void* context, IOReturn result, void *sender, 
                 break;
             }
             case kHIDPage_GenericDesktop: {
-                mg_axis btn = mg_get_gamepad_axis(gamepad, (u8)elm_usage);
-                if (btn == 0)
-                    btn = mg_get_gamepad_axis_platform(elm_usage);
-                if (btn == 0)
+                mg_axis btn = mg_get_gamepad_axis_platform(elm_usage);
+                if (btn == MG_AXIS_UNKNOWN)
                     break;
 
-                gamepad->axes[btn].value = 0.0f;
                 gamepad->axes[btn].supported = MG_TRUE;
                 break;
             }
@@ -2895,7 +2960,8 @@ mg_bool parseMapping(mg_mapping* mapping, const char* string) {
         mapping->rButtons[i] = MG_BUTTON_UNKNOWN;
         for (y = 0; y < (sizeof(mapping->buttons) / sizeof(mapping->buttons[0])); y++) {
             mg_element e = mapping->buttons[y];
-            if (e.index == i) {
+            /* LOCAL PATCH (F13): skip unparsed (type 0) elements, which all carry index 0 */
+            if (e.type != 0 && e.index == i) {
                 mapping->rButtons[i] = (mg_button)y;
                 break;
             }
@@ -2907,7 +2973,7 @@ mg_bool parseMapping(mg_mapping* mapping, const char* string) {
         mapping->rAxes[i] = MG_AXIS_UNKNOWN;
         for (y = 0; y < 6; y++) {
             mg_element e = mapping->axes[y];
-            if (e.index == i) {
+            if (e.type != 0 && e.index == i) {
                 mapping->rAxes[i] = (mg_axis)y;
                 break;
             }
