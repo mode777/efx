@@ -22,7 +22,7 @@ expectThrow('img-fmt', () => efx.graphics.createImageData(1, 1, [0, 0, 0, 0], { 
 expectThrow('img-unknown', () => efx.graphics.createImageData(1, 1, [0, 0, 0, 0], { pixles: 1 }));
 expectThrow('img-size', () => efx.graphics.createImageData(0, 8, []));
 
-// drawQuad(x, y, texture, opts?): texture required live; size/origin
+// drawQuad(texture, x, y, opts?): texture required live; size/origin
 // validation; created textures and the engine whiteTexture both work
 // headless as CPU-only resources (ADR 0052)
 const img = efx.graphics.createImageData(8, 4, new Uint8Array(8 * 4 * 4));

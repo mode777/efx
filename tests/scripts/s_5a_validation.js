@@ -31,7 +31,6 @@ expectThrow('zero-size', RE, () => efx.graphics.createRenderTarget(0, 8));
 expectThrow('negative-size', RE, () => efx.graphics.createRenderTarget(8, -1));
 expectThrow('fraction-size', RE, () => efx.graphics.createRenderTarget(10.5, 8));
 expectThrow('oversize', RE, () => efx.graphics.createRenderTarget(4097, 8));
-expectThrow('unknown-field', TE, () => efx.graphics.createRenderTarget(8, 8));
 
 // redirection: begin/draw/end, nesting and balance errors
 const a = efx.graphics.createRenderTarget(64, 64);

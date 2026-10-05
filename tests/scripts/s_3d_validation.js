@@ -22,7 +22,7 @@ expectThrow('cam3d-pos-short', RE, () => efx.graphics.setCamera3D([0, 0], [0, 0,
 // createMeshData
 const P = [0, 0, 0, 1, 0, 0, 0, 1, 0];
 expectThrow('md-none', TE, () => efx.graphics.createMeshData([{  }]));
-expectThrow('md-both', TE, () => efx.graphics.createMeshData([{ positions: P }]));
+expectThrow('md-notarray', TE, () => efx.graphics.createMeshData({ positions: P }));
 expectThrow('md-empty', RE, () => efx.graphics.createMeshData([]));
 expectThrow('md-trunc', RE, () => efx.graphics.createMeshData([{ positions: [0, 0, 0] }]));
 expectThrow('md-mult', RE, () => efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0] }]));
