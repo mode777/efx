@@ -10,19 +10,21 @@ through a single options object and advanced by the engine frame loop.
 
 ### Requirement: Particle system creation and configuration
 
-`efx.graphics.createParticleSystem(opts)` SHALL create and return a `ParticleSystem`.
-`opts` SHALL be a required object; a missing required field or a wrongly-typed
+`efx.graphics.createParticleSystem(texture, max, lifetime, opts?)` SHALL create and return a `ParticleSystem`.
+The three required inputs are positional: `texture` (a live Texture or
+RenderTarget used for every particle quad), `max` (the particle capacity, a
+positive integer from `1` to the documented hard cap of `65536`), and
+`lifetime` (a particle lifetime in seconds: a finite number `> 0` or a
+`[min, max]` pair of finite numbers `> 0`). The trailing `opts` bag is
+optional and SHALL contain only optional configuration. A missing required
+input or a wrongly-typed
 value SHALL throw `TypeError`; an out-of-range value SHALL throw `RangeError`;
 on failure no system SHALL be created. Unknown fields SHALL throw `TypeError`.
 Every numeric option SHALL be finite unless stated otherwise, and vector
 options SHALL supply all required components.
 
-The options object SHALL accept at least:
+The options bag SHALL accept at least:
 
-- `texture` (required) — a live Texture or RenderTarget used for every
-  particle quad.
-- `max` (required) — the particle capacity, a positive integer from `1` to the
-  documented hard cap of `65536`.
 - `space` — `'world'` (default) or `'screen'`.
 - `facing` — the quad render mode for world-space systems: `'view'` (default),
   `'y'`, or `'plane'`; a screen-space system SHALL accept only `'view'` (or
@@ -31,8 +33,6 @@ The options object SHALL accept at least:
   `facing` is `'plane'` (default `[0, 1, 0]`); supplying it for another facing
   SHALL throw `TypeError`.
 - `blend` — `'alpha'` (default), `'additive'`, or `'subtractive'`.
-- `lifetime` — a particle lifetime in seconds: a finite number `> 0` or a
-  `[min, max]` pair of finite numbers `> 0` (required).
 - `emissionRate` — particles per second, finite `>= 0` (default `0`).
 - `emitterLifetime` — seconds the emitter runs, finite `> 0`, or `-1` for
   infinite (default `-1`).
@@ -73,17 +73,17 @@ destroyed system SHALL throw `TypeError`.
 
 #### Scenario: System is created with defaults
 
-- **WHEN** a script calls `createParticleSystem({ texture, max: 512 })` with
-  only the required fields
+- **WHEN** a script calls `createParticleSystem(texture, 512, [1, 2])` with
+  only the required inputs
 - **THEN** it receives a world-space `'view'`-facing, alpha-blended system
   with `count` 0 and no particles emitted until a rate or `emit` call
 
 #### Scenario: Invalid configuration is rejected
 
-- **WHEN** a script omits `texture` or `max`, passes `max: 0` or a non-integer,
-  passes `facing: 'plane'` with no texture, passes `facing: 'plane'` with a
+- **WHEN** a script omits `texture`, `max`, or `lifetime`, passes `max: 0` or a
+  non-integer, passes `facing: 'plane'` with a
   `normal` of the wrong length, passes `facing: 'y'` with `space: 'screen'`, or
-  supplies an unknown field
+  supplies an unknown bag field
 - **THEN** the call throws the appropriate `TypeError` or `RangeError` and no
   system is created
 

@@ -9,11 +9,12 @@ projectiles independently of whether any dynamic simulation is running.
 
 ### Requirement: Raycast
 
-`efx.physics.raycast(origin, direction, opts?)` SHALL cast a ray from a 3D
+`efx.physics.raycast(origin, direction, maxDistance, opts?)` SHALL cast a ray from a 3D
 point along a direction (which the engine normalizes) and return the nearest
-hit, or `null` when nothing is hit. `opts` SHALL accept `maxDistance` (a
-positive finite number; required — the query SHALL throw `TypeError` when it is
-missing or not a positive finite number), `mask` (a collision bitmask), `all`
+hit, or `null` when nothing is hit. `maxDistance` is a required positional
+positive finite number — the query SHALL throw `TypeError` when it is
+missing or not a positive finite number. The trailing `opts` bag is optional
+and SHALL accept `mask` (a collision bitmask), `all`
 (when `true`, return every hit sorted by distance instead of the nearest), and
 `sensors` (when `true`, include sensors). A hit SHALL be a plain JS object
 `{ point, normal, distance, body }`. The query SHALL be usable with static
@@ -28,7 +29,7 @@ geometry only, with no dynamic bodies present.
 
 #### Scenario: All hits are sorted
 
-- **WHEN** the same ray is cast with `all: true`
+- **WHEN** the same ray is cast with `all: true` in the options bag
 - **THEN** an array of hits is returned in ascending distance order
 
 #### Scenario: Miss returns null
@@ -45,8 +46,8 @@ geometry only, with no dynamic bodies present.
 
 #### Scenario: Missing maxDistance is rejected
 
-- **WHEN** `raycast` is called without `maxDistance` or with a non-positive
-  value
+- **WHEN** `raycast` is called without the positional `maxDistance` or with a
+  non-positive value
 - **THEN** the call throws `TypeError`
 
 ### Requirement: Overlap

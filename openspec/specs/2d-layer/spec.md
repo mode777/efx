@@ -49,8 +49,9 @@ the call; a recorded draw MUST NOT observe camera changes recorded later.
 - **THEN** playback renders each quad with the camera state at its record time
 
 ### Requirement: Quad drawing
-`drawQuad(x, y, texture, opts?)` SHALL record one textured quad. `x` and `y`
-SHALL place the quad's top-left corner in frame pixels. The `texture`
+`drawQuad(texture, x, y, opts?)` SHALL record one textured quad, with the
+sampled `texture` leading the argument list. `x` and `y` SHALL place the
+quad's top-left corner in frame pixels. The `texture`
 argument SHALL be required and MUST be a live Texture or a live
 RenderTarget (F5a) — passing nothing, a value that is neither, or a
 destroyed Texture or RenderTarget SHALL throw `TypeError`.
@@ -79,11 +80,11 @@ corner at `(x, y)` regardless of `origin`. Unknown or wrongly-typed option
 fields SHALL throw `TypeError`.
 
 #### Scenario: Textured quad with defaults
-- **WHEN** a script calls `drawQuad(0, 0, tex)` for a 128×128 texture with known pixel colors
+- **WHEN** a script calls `drawQuad(tex, 0, 0)` for a 128×128 texture with known pixel colors
 - **THEN** the full texture is drawn 1:1, tinted white, into the 128×128 frame area at the requested position
 
 #### Scenario: Size derives from the source rect
-- **WHEN** `drawQuad(40, 40, tex, { sourceRect: { x: 0, y: 0, w: 64, h: 32 } })` is called on a 128×128 texture
+- **WHEN** `drawQuad(tex, 40, 40, { sourceRect: { x: 0, y: 0, w: 64, h: 32 } })` is called on a 128×128 texture
 - **THEN** the named region is drawn 1:1 into a 64×32 frame area at the requested position
 
 #### Scenario: Explicit size overrides derivation
@@ -127,14 +128,16 @@ fields SHALL throw `TypeError`.
 - **THEN** the call throws `TypeError` and records nothing
 
 #### Scenario: Render target drawn like a texture
-- **WHEN** a 512×512 RenderTarget rendered with known content is passed to `drawQuad(0, 0, rt, { sourceRect: { x: 0, y: 0, w: 256, h: 256 } })`
+- **WHEN** a 512×512 RenderTarget rendered with known content is passed to `drawQuad(rt, 0, 0, { sourceRect: { x: 0, y: 0, w: 256, h: 256 } })`
 - **THEN** the top-left quarter of the target's content is drawn into a 256×256 frame area, exactly as the same call with a Texture would
 
 ### Requirement: Image and texture resources
-`createImageData({ width, height, pixels, format? })` SHALL build CPU-side
-pixel data: `pixels` is a flat byte array in RGBA8 order of length exactly
-`width × height × 4` (wrong length SHALL throw `RangeError`), and `format`
-defaults to `'rgba8'` (the only format in F2). `createTexture(imageData, opts?)`
+`createImageData(width, height, pixels, opts?)` SHALL build CPU-side
+pixel data: `width` and `height` are positive integers and `pixels` is a flat
+byte array in RGBA8 order of length exactly
+`width × height × 4` (wrong length SHALL throw `RangeError`). The trailing
+`opts` bag is optional and SHALL accept `format`
+(default `'rgba8'`, the only format in F2). `createTexture(imageData, opts?)`
 SHALL upload image data to a GPU Texture — an opaque native-backed class
 released by `destroy()` with GC finalizer backstop (ADR 0011/0013); the
 ImageData remains valid afterwards. The optional `opts` object SHALL accept
@@ -267,8 +270,8 @@ plain engine state: the most recent value at frame start applies.
 ### Requirement: Batched 2D sprite drawing
 
 `efx.graphics.drawSprites(texture, sprites)` SHALL record one textured 2D quad per
-entry in `sprites`, each exactly equivalent to a `drawQuad(sprite.x, sprite.y,
-texture, sprite)` call with the entry's fields. It SHALL be C-implemented
+entry in `sprites`, each exactly equivalent to a `drawQuad(texture, sprite.x,
+sprite.y, sprite)` call with the entry's fields. It SHALL be C-implemented
 mid-level and 2D-only: sprites SHALL be placed and transformed in the current
 2D camera frame and SHALL NOT be oriented in 3D or depth-tested.
 

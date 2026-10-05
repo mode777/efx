@@ -10,24 +10,27 @@ render policy.
 
 ### Requirement: World-space billboard drawing
 
-`efx.graphics.drawBillboard(pos, opts)` SHALL record one textured quad placed at the
+`efx.graphics.drawBillboard(texture, pos, opts?)` SHALL record one textured quad placed at the
 world position `pos` (a `[x, y, z]` array of finite numbers) and oriented by
-the engine using the **3D camera recorded at call time**. The function SHALL be
+the engine using the **3D camera recorded at call time**, with the source
+`texture` leading the argument list. The function SHALL be
 C-implemented mid-level and SHALL have identical names, signatures, semantics,
 and error behavior across the desktop and web bindings. Scripts SHALL NOT
 supply or read the camera to orient a billboard.
 
-`opts` SHALL be a required object. `texture` SHALL be required and MUST be a
+`texture` SHALL be required and MUST be a
 live Texture or RenderTarget — passing nothing, a value that is neither, or a
-destroyed resource SHALL throw `TypeError` and record nothing. `size` SHALL be
-either a finite number `> 0` (a uniform world-unit size) or a `[width, height]`
+destroyed resource SHALL throw `TypeError` and record nothing. The trailing
+`opts` bag is optional and SHALL accept: `size`, either a finite number `> 0`
+(a uniform world-unit size) or a `[width, height]`
 array of finite numbers `> 0`; it names the quad's world dimensions (default
 `1`). `color` SHALL be a tint `[r, g, b, a]` (default opaque white).
 `sourceRect` (`{ x, y, w, h }`) SHALL select an atlas region (default the full
 texture); a zero extent or a region outside the texture bounds SHALL throw
 `RangeError` and record nothing. `rotation` SHALL be a finite number of
 degrees of in-plane spin about the quad's center (default `0`). `facing` SHALL
-be `'view'` (default) or `'y'`. `depthTest` SHALL be a boolean (default
+be `'view'` (default) or `'y'`. `normal` is meaningful only for
+`facing: 'plane'`. `depthTest` SHALL be a boolean (default
 `true`). Unknown fields and wrongly-typed values SHALL throw `TypeError`;
 non-finite or `<= 0` size values SHALL throw `RangeError`; a throw records
 nothing.

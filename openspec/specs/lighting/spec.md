@@ -151,12 +151,11 @@ a live Mesh (`TypeError` otherwise), `surfaceIndex` an integer in
 `0..surfaceCount-1` (`RangeError` otherwise), and `mat` an object or `null`
 (`TypeError` otherwise). The call changes only that surface's binding.
 
-`efx.graphics.createMeshData(data)` SHALL accept a parallel `materials` array on the
-batch form and the single-surface shorthand: `materials[i]` (a material object
+`efx.graphics.createMeshData(surfaces, materials?)` SHALL accept an optional positional
+`materials` array parallel to `surfaces`: `materials[i]` (a material object
 or `null` for the default) becomes surface `i`'s initial binding. When present,
 `materials` MUST have exactly one entry per surface (wrong length SHALL throw
-`RangeError`; invalid entries SHALL throw `TypeError`). The `materials` field
-is no longer rejected as unknown (F3 behavior superseded). A surface with no
+`RangeError`; invalid entries SHALL throw `TypeError`). A surface with no
 binding, or bound to `null`, SHALL render with the engine **default material**
 — white diffuse Phong with no maps and no emissive — and surface bindings
 SHALL carry over unchanged at `createMesh`.
@@ -170,7 +169,7 @@ SHALL carry over unchanged at `createMesh`.
 
 #### Scenario: Materials bind at creation
 
-- **WHEN** `createMeshData({ surfaces: [s0, s1], materials: [A, null] })` is
+- **WHEN** `createMeshData([s0, s1], [A, null])` is
   used to create a mesh
 - **THEN** surface 0 renders with material A and surface 1 renders with the
   default material

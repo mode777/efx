@@ -568,10 +568,12 @@ these functions.
 The gallery type document `gallery/src/api/efx.d.ts` SHALL accurately
 describe the valid call shapes of the public script API: every documented
 call form MUST type-check, and invalid calls MUST be rejected at compile
-time. It MUST type a function's alternative call forms so that each form's
-required fields are required only for that form (for example, the
-`createMeshData` batch bag versus its single-surface shorthand) and so that
-mixing forms is rejected. It SHALL be updated in the same change as any
+time. It SHALL express the argument convention — required inputs positional,
+optional inputs in a trailing all-optional bag — so that a required input
+cannot be omitted from an options bag and an unknown or optional-only bag
+field is rejected. `createMeshData` SHALL type one positional surface list
+(`MeshSurfaceData[]`) plus an optional positional materials array, with no
+single-surface shorthand form. It SHALL be updated in the same change as any
 script-facing API change, alongside `docs/js-api.md`, and its declarations
 MUST agree with that reference document. Because it is the source of truth
 for the generated reference, the committed Markdown reference `docs/api/`
@@ -581,16 +583,23 @@ SHALL be regenerated from it in that same change. The document SHALL type the
 
 #### Scenario: Batch form does not require shorthand fields
 
-- **WHEN** `efx.graphics.createMeshData({ surfaces: [surface, surface] })` is
-  type-checked
-- **THEN** it compiles without supplying top-level `positions` or other
+- **WHEN** `efx.graphics.createMeshData([surface, surface])` is type-checked
+- **THEN** it compiles with the surface list positional and no single-surface
   shorthand attributes
 
 #### Scenario: Mixing construction forms is rejected
 
-- **WHEN** `efx.graphics.createMeshData({ surfaces: [surface], positions })` combines
-  the batch bag and the shorthand fields in one call
+- **WHEN** a call supplies the removed single-surface shorthand bag (a bare
+  surface object instead of a surface list) alongside or instead of the
+  positional surface list
 - **THEN** the type document reports a compile-time error
+
+#### Scenario: Required inputs are typed positionally
+
+- **WHEN** `efx.graphics.createRenderTarget(512, 256)` and
+  `efx.physics.createBody(shape, { dynamic: true })` are type-checked
+- **THEN** both compile, while an empty bag cannot supply the required
+  dimensions/`shape` and such a call is rejected
 
 #### Scenario: drawMesh takes a positional mesh
 
@@ -699,7 +708,7 @@ behavior across the desktop and web bindings:
 
 - `efx.graphics.loadFontData(path)` → a native-backed `FontData` resource (the parsed
   font, no GPU resource), released by `destroy()`.
-- `efx.graphics.createFont(fontData, opts)` → a native-backed `Font` that bakes a
+- `efx.graphics.createFont(fontData, size, opts?)` → a native-backed `Font` that bakes a
   fixed glyph atlas at the requested size and optional baked outline/shadow
   effects; released by `destroy()`; read-only `size`, `lineHeight`, `ascent`,
   `descent`.
@@ -736,6 +745,10 @@ provisional `loadFont` entry SHALL be removed.
 - **WHEN** this change updates `docs/js-api.md`
 - **THEN** `gallery/src/api/efx.d.ts` (and its type-test) declare `FontData`, `Font`, `drawText`, and `measureText` consistently with the reference
 
+#### Scenario: createFont takes size positionally
+- **WHEN** `createFont` is called with a live `FontData`, a positive `size`, and an optional trailing bag
+- **THEN** the font bakes at `size`; a missing or non-positive `size` throws, and the bag carries only optional fields (`glyphs`, `padding`, `filter`, `outline`, `shadow`)
+
 ### Requirement: Billboard, sprite-batch, and particle API
 
 The script API SHALL expose world-space billboard drawing, batched 2D sprite
@@ -743,14 +756,16 @@ drawing, and CPU particle systems as C-implemented members of the
 `efx.graphics` sub-namespace, with identical names, signatures, semantics,
 and error behavior across the desktop and web bindings:
 
-- `efx.graphics.drawBillboard(pos, opts)` → records one world-space textured quad at a
-  3D position, oriented by the engine from the recorded 3D camera. `opts`
-  carries `texture`, `size`, `color`, `sourceRect`, `rotation`, `facing`
-  (`'view'` default or `'y'`), and `depthTest`, per the `billboards`
-  capability.
+- `efx.graphics.drawBillboard(texture, pos, opts?)` → records one world-space textured
+  quad with its source `texture` leading, at a 3D position. `opts` carries
+  `size`, `color`, `sourceRect`, `rotation`, `facing` (`'view'` default or
+  `'y'`), `normal`, and `depthTest`, per the `billboards` capability.
 - `efx.graphics.drawSprites(texture, sprites)` → records one 2D textured quad per entry
   with `drawQuad` semantics, per the `2d-layer` capability.
-- `efx.graphics.createParticleSystem(opts)` → a native-backed `ParticleSystem`.
+- `efx.graphics.createParticleSystem(texture, max, lifetime, opts?)` → a native-backed
+  `ParticleSystem`; the source texture, particle capacity, and lifetime are
+  positional required inputs and `opts` carries the remaining optional
+  configuration.
 - `efx.graphics.drawParticles(sys)` → records one particle batch for a live system.
 
 `ParticleSystem` SHALL be a native-backed class exposing a read-only `count`,
@@ -770,7 +785,7 @@ reflected in the fixed-limits table and the native-backed class list.
 
 #### Scenario: Billboard is a 3D primitive
 
-- **WHEN** a script calls `drawBillboard(pos, { texture })` under a 3D camera
+- **WHEN** a script calls `drawBillboard(texture, pos, { facing: 'view' })` under a 3D camera
 - **THEN** the quad is placed and oriented in world space from the recorded 3D
   camera, with no camera state supplied by the script
 
@@ -782,7 +797,7 @@ reflected in the fixed-limits table and the native-backed class list.
 
 #### Scenario: Particle system is exposed
 
-- **WHEN** a script calls `createParticleSystem(opts)` and reads the returned
+- **WHEN** a script calls `createParticleSystem(texture, max, lifetime, opts?)` and reads the returned
   object
 - **THEN** it is a `ParticleSystem` with a read-only `count` and the documented
   methods, and `drawParticles` accepts it
@@ -807,8 +822,10 @@ and web bindings. The sub-namespace SHALL provide:
 - `step(dt)` — advance the dynamic simulation by `dt` seconds (script-owned;
   the engine SHALL NOT step the world itself);
 - `clear()` — remove every collider;
-- `createBody(opts)`, `createCharacter(opts)`, and `createStaticMesh(mesh,
-  opts?)` — resource factories returning native-backed classes;
+- `createBody(shape, opts?)`, `createCharacter(radius, height, opts?)`, and
+  `createStaticMesh(mesh, opts?)` — resource factories returning native-backed
+  classes; the required collider shape / capsule dimensions are positional and
+  the trailing bag carries only optional configuration;
 - `raycast`, `overlap`, and `shapeCast` — spatial queries, defined by the
   `physics-queries` capability.
 
@@ -817,16 +834,16 @@ resource-classification requirement. `Body` SHALL expose `position`,
 `velocity`, `contacts`, and a `transform` (a flat 16-number column-major
 translation matrix, directly usable by `drawMesh`), `applyImpulse`, and
 `applyForce`; `Character` SHALL expose `position`, `velocity`, `onFloor`, and
-`moveAndSlide`. Shapes SHALL be plain JS option bags (sphere, box, capsule,
-mesh) accepted by bodies and by queries. Validation SHALL follow the engine's
-convention: unknown fields, unknown shape/body kinds, and wrong types throw
-`TypeError`; out-of-range numeric values throw `RangeError`. The physics
-classes SHALL be documented in `docs/js-api.md` and typed in the gallery type
-document (`gallery/src/api/efx.d.ts`), both updated in the same change, with
-their entries tagged with milestone F12. The `docs/js-api.md` resource,
-lifecycle, and error sections SHALL cover the new sub-namespace, and the type
-document SHALL reject invalid call shapes (unknown option fields, mixing
-static/dynamic-only options).
+`moveAndSlide`. Shapes SHALL be plain JS option objects (sphere, box, capsule,
+mesh) accepted positionally by bodies and by queries. Validation SHALL follow
+the engine's convention: unknown fields, unknown shape/body kinds, and wrong
+types throw `TypeError`; out-of-range numeric values throw `RangeError`. The
+physics classes SHALL be documented in `docs/js-api.md` and typed in the
+gallery type document (`gallery/src/api/efx.d.ts`), both updated in the same
+change, with their entries tagged with milestone F12. The `docs/js-api.md`
+resource, lifecycle, and error sections SHALL cover the new sub-namespace, and
+the type document SHALL reject invalid call shapes (unknown option fields,
+mixing static/dynamic-only options).
 
 #### Scenario: Physics namespace is reachable without setup
 
@@ -843,7 +860,7 @@ static/dynamic-only options).
 
 #### Scenario: Factories return classified resources
 
-- **WHEN** `createBody` and `createCharacter` are called with valid options
+- **WHEN** `createBody(shape, opts?)` and `createCharacter(radius, height, opts?)` are called with valid required inputs
 - **THEN** they return `Body` and `Character` instances whose class entries in
   the reference state the native-backed classification and the documented
   read-only properties
@@ -1116,3 +1133,56 @@ available identically on every runtime.
 #### Scenario: Namespace has no behavior
 - **WHEN** a script enumerates `efx.color`
 - **THEN** it holds exactly the 17 named `Color` tuples and no functions
+
+### Requirement: Argument passing convention
+Every public script API function SHALL follow one argument convention:
+**required inputs SHALL be positional arguments and all optional inputs SHALL
+be fields of a single trailing options bag**. A call with no optional inputs
+SHALL omit the bag entirely. Every field of an options bag SHALL be optional;
+a bag SHALL NOT carry a required input. A lone optional input MAY be passed
+positionally instead of in a bag. Required fields are permitted inside a
+**record/value** argument — a shape, a light descriptor, a pose sample, a
+source rectangle, or a batch element — because such an argument is itself a
+required positional value, not the function's options bag. Argument order
+SHALL be consistent: the subject (the thing being drawn, created, or queried)
+first, then required resources/selectors, then required scalars (2D `x`, `y`)
+or vectors (3D position), then the options bag. `efx.log(msg?)` and
+`efx.quit(code?)` are the sole lone-optional lifecycle facilities and keep
+their positional optional argument. The convention SHALL be stated in
+`docs/js-api.md`, and the declaration `gallery/src/api/efx.d.ts` SHALL express
+it: a required input SHALL NOT appear as a field of an options bag.
+
+#### Scenario: A required input is a positional argument
+- **WHEN** a script creates a render target or a body
+- **THEN** the required dimensions/`shape` are passed positionally
+  (`createRenderTarget(width, height)`, `createBody(shape, opts?)`) and an
+  empty options bag cannot omit them
+
+#### Scenario: Optional inputs are bagged
+- **WHEN** a function has two or more optional inputs (for example
+  `createParticleSystem(texture, max, lifetime, opts?)`)
+- **THEN** those inputs are fields of the trailing `opts` bag and each may be
+  omitted to take its documented default
+
+#### Scenario: A lone optional input may stay positional
+- **WHEN** a function has exactly one optional input and no bag
+  (`efx.quit(code?)`)
+- **THEN** the call is valid with or without that positional argument
+
+#### Scenario: Record arguments may carry required fields
+- **WHEN** a shape, light descriptor, pose sample, source rectangle, or batch
+  element is passed as a required positional argument
+- **THEN** its required fields are permitted, because it is a value rather
+  than the function's options bag
+
+#### Scenario: The thing drawn leads the argument list
+- **WHEN** a 2D or 3D draw function is called
+- **THEN** the subject being drawn is the first argument
+  (`drawQuad(texture, x, y, opts?)`, `drawBillboard(texture, pos, opts?)`),
+  followed by required position and then the options bag
+
+#### Scenario: Guidelines state the convention
+- **WHEN** `docs/js-api.md` is read
+- **THEN** it states the required-positional / optional-bag rule, the
+  lone-optional allowance, the record-versus-bag boundary, and the ordering
+  rule, and points to the generated reference for per-symbol detail

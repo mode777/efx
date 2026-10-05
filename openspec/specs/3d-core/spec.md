@@ -11,10 +11,10 @@ and the engine-bundled pure-JS math layer.
 ## Requirements
 
 ### Requirement: 3D camera
-`efx.graphics.setCamera3D(opts)` SHALL configure the engine's single 3D camera from an
-option object `{ pos, target, fov, near?, far? }`: `pos` and `target` are
-`[x, y, z]` world points (the eye position and the looked-at point), `fov` is
-the **vertical** field of view in **degrees**, `near` and `far` are the depth
+`efx.graphics.setCamera3D(pos, target, fov, opts?)` SHALL configure the engine's single 3D camera. `pos` and `target` are
+`[x, y, z]` world points (the eye position and the looked-at point) and `fov` is
+the **vertical** field of view in **degrees**; the optional trailing `opts`
+bag carries `near` and `far`, the depth
 range in world units with defaults 0.1 and 100. The up vector SHALL be
 `[0, 1, 0]`. The 3D camera SHALL be set, never created, and there SHALL be
 exactly one (vision.md fixed limits). The 3D camera SHALL be a projection
@@ -28,8 +28,8 @@ active RenderTarget while a begin/end pair is recording. Like all recorded
 state (ADR 0019), the camera SHALL be
 value-snapshotted at record time: a mesh draw records the 3D camera state in
 effect when the draw is recorded and MUST NOT observe later camera changes.
-Calling `setCamera3D` with a malformed bag (missing or non-array `pos`/
-`target`, non-number `fov`/`near`/`far`, unknown fields) SHALL throw
+Calling `setCamera3D` with a missing or non-array `pos`/`target`, a
+non-number `fov`/`near`/`far`, or an unknown bag field SHALL throw
 `TypeError` and change nothing.
 
 #### Scenario: Perspective projection is observable
@@ -49,22 +49,23 @@ Calling `setCamera3D` with a malformed bag (missing or non-array `pos`/
 - **THEN** playback renders that mesh with the camera state at its record time
 
 #### Scenario: Defaults for near and far
-- **WHEN** `setCamera3D({ pos, target, fov })` is called without `near`/`far`
+- **WHEN** `setCamera3D(pos, target, fov)` is called without a trailing bag (or with `near`/`far` omitted)
 - **THEN** the depth range is 0.1 to 100 and the draw succeeds
 
 #### Scenario: Malformed camera options throw
-- **WHEN** `setCamera3D` is called with a missing `pos`, a non-number `fov`, or an unknown field
+- **WHEN** `setCamera3D` is called with a missing `pos`, a non-number `fov`, or an unknown bag field
 - **THEN** the call throws `TypeError` and the previously set camera state remains in effect
 
 ### Requirement: Multi-surface mesh data
 
-`efx.graphics.createMeshData(data)` SHALL build a CPU-side MeshData (native-backed
-class, ADR 0011/0013) holding 1..16 **surfaces**. Two construction forms
-SHALL be accepted: a batch bag `{ surfaces: [surface, ...] }`, or a
-single-surface shorthand `{ positions, normals?, uvs?, colors?, indices? }`
-(equivalent to a one-element `surfaces` array). Passing both `surfaces` and
-`positions` SHALL throw `TypeError`; passing neither SHALL throw `TypeError`.
-A **surface** is one Godot-style surface / glTF primitive — a set of
+`efx.graphics.createMeshData(surfaces, materials?)` SHALL build a CPU-side MeshData (native-backed
+class, ADR 0011/0013) holding 1..16 **surfaces**. The first positional
+argument SHALL be the surface list (`surfaces`), and the optional second
+positional argument SHALL be the parallel `materials` array (one entry per
+surface — a material object or `null` for the engine default; see the
+`lighting` capability). There SHALL be no single-surface shorthand form: a
+single-surface mesh passes a one-element surface list. A **surface** is one
+Godot-style surface / glTF primitive — a set of
 attribute arrays plus optional indices:
 
 - `positions` — required, a flat array (or typed array) of finite numbers,
@@ -91,10 +92,9 @@ When `indices` is omitted, the vertex count MUST be a multiple of 3
 array, or a surface count above 16 SHALL throw `RangeError`; wrong element
 types SHALL throw `TypeError`; unknown fields SHALL throw `TypeError`. The
 fixed limit is **16 surfaces per mesh** (vision.md fixed limits, recorded in
-the reference). Each surface carries an optional material binding; from F4a
-the data bag accepts a parallel `materials` array (one entry per surface — a
-material object or `null` for the engine default; see the `lighting`
-capability), bound to its surface at creation time and carried over at
+the reference). When present, `materials` MUST have exactly one entry per
+surface (wrong length SHALL throw `RangeError`; invalid entries SHALL throw
+`TypeError`); it is bound to its surface at creation time and carried over at
 `createMesh`. MeshData SHALL expose the read-only query property
 `surfaceCount` (the number of surfaces; throws `TypeError` when destroyed).
 `destroy()` releases the native storage deterministically and is idempotent;
@@ -102,17 +102,17 @@ using a destroyed MeshData SHALL throw.
 
 #### Scenario: Batch construction creates multiple surfaces
 
-- **WHEN** `createMeshData({ surfaces: [s0, s1] })` is called with two valid
+- **WHEN** `createMeshData([s0, s1])` is called with two valid
   surfaces
 - **THEN** the returned MeshData's `surfaceCount` is 2 and each surface
   retains its own attribute arrays and indices
 
 #### Scenario: Single-surface shorthand
 
-- **WHEN** `createMeshData({ positions, colors })` is called with valid
-  arrays
-- **THEN** the result is identical to a one-element `surfaces` array
-  containing that surface, and `surfaceCount` is 1
+- **WHEN** `createMeshData([{ positions, colors }])` is called with valid
+  arrays (a one-element surface list)
+- **THEN** the result has one surface and `surfaceCount` is 1, and the former
+  bare surface-bag shorthand form is rejected with `TypeError`
 
 #### Scenario: Validation errors
 
@@ -123,7 +123,7 @@ using a destroyed MeshData SHALL throw.
 
 #### Scenario: Unknown fields and types throw
 
-- **WHEN** the data bag or a surface contains an unknown field, or an
+- **WHEN** a surface contains an unknown field, or an
   attribute array holds a non-number
 - **THEN** the call throws `TypeError`
 
