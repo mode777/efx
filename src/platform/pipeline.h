@@ -7,6 +7,10 @@
  * by the first include). */
 
 void efx_pipeline_install(void);   /* after sg_setup */
+/* Re-install the render sink and re-derive the engine white view after
+ * efx_render_reset (in-place game swap, ADR 0057); no-op shader/pipeline
+ * rebuild. */
+void efx_pipeline_rebind(void);
 /* playback owns its passes (F5a): the record list is segmented by target
  * and each segment plays inside a pass on its rendering surface — the
  * swapchain (default target) or the target's attachments */

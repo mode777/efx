@@ -101,9 +101,10 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
   hooks), headless `--script` (exit-code contract), `--repl` console,
   golden capture (`--capture-frame`, ADR 0020). A game root dropped on the
   window/canvas loads that game (ADR 0056): native accepts a zip or folder and
-  relaunches, web accepts a zip and reloads — a host-level action with no
-  script API. The follow-on `in-place-game-swap` replaces the desktop relaunch
-  with an in-place session swap.
+  swaps it in place (ADR 0057 — a stable player session, a frame-start swap
+  that keeps the window and sg context via `efx_render_reset` +
+  `efx_pipeline_rebind`), web accepts a zip and reloads — a host-level action
+  with no script API.
 - `src/prelude/prelude.js` is embedded via `tools/gen_prelude.py`;
   `src/prelude/prelude.h` is committed and the Linux gate job fails on drift
   (`gen_prelude.py --check`) — regenerate after every prelude edit.

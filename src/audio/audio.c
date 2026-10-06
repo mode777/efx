@@ -155,6 +155,14 @@ void efx_audio_shutdown(void) {
     g.initialized = 0;
 }
 
+void efx_audio_stop_all(void) {
+    /* in-place game swap (ADR 0057): drop every voice's source/decoder but
+     * keep the device, rate, and master gain */
+    for (int i = 0; i < EFX_AUDIO_MAX_VOICES; i++) {
+        voice_clear(&g.voices[i]);
+    }
+}
+
 void efx_audio_init(int sample_rate) {
     efx_audio_shutdown();
     if (sample_rate <= 0) {

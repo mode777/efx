@@ -2,24 +2,17 @@
 #include "player/repl.h"
 #include "runtime/runtime.h"
 #include "platform/platform.h"
+#include "platform/pipeline.h"
 #include "platform/audio_backend.h"
 #include "render/render.h"
 #include "resource/resource.h"
+#include "input/input.h"
+#include "audio/audio.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#if defined(_WIN32)
-#include <process.h>
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-#if defined(__APPLE__)
-#include <mach-o/dyld.h>
-#endif
 
 #ifdef _WIN32
 #define EFX_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
@@ -90,70 +83,22 @@ static char *path_dir(const char *path) {
     return out;
 }
 
-/* --------------------------------------------------- dropped-root relaunch */
+/* ----------------------------------------------------- player session */
 
-/* set once a drop has been accepted; the frame loop stops and the spawned
- * child takes over (the current process exits 0) */
-static int g_drop_relaunch;
-
-#if defined(_WIN32)
-static int spawn_player(const char *root) {
-    wchar_t exe[4096];
-    DWORD n = GetModuleFileNameW(NULL, exe, (DWORD)(sizeof(exe) / sizeof(exe[0])));
-    if (n == 0 || n >= sizeof(exe) / sizeof(exe[0])) {
-        return 0;
-    }
-    int rlen = MultiByteToWideChar(CP_UTF8, 0, root, -1, NULL, 0);
-    if (rlen <= 0) {
-        return 0;
-    }
-    wchar_t *root_w = malloc((size_t)rlen * sizeof(wchar_t));
-    if (!root_w) {
-        return 0;
-    }
-    MultiByteToWideChar(CP_UTF8, 0, root, -1, root_w, rlen);
-    const wchar_t *argv[3] = {exe, root_w, NULL};
-    intptr_t rc = _wspawnv(_P_NOWAIT, exe, argv);
-    free(root_w);
-    return rc != -1;
-}
-#else
-static int spawn_player(const char *root) {
-#if defined(__APPLE__)
-    uint32_t size = 0;
-    _NSGetExecutablePath(NULL, &size);
-    char *exe = malloc(size + 1);
-    if (!exe) {
-        return 0;
-    }
-    if (_NSGetExecutablePath(exe, &size) != 0) {
-        free(exe);
-        return 0;
-    }
-#else
-    char *exe = dupstr("/proc/self/exe");
-    if (!exe) {
-        return 0;
-    }
-#endif
-    pid_t pid = fork();
-    if (pid < 0) {
-        free(exe);
-        return 0;
-    }
-    if (pid == 0) {
-        setsid(); /* detach from the terminal/session */
-        char *argv[3];
-        argv[0] = exe;
-        argv[1] = (char *)root;
-        argv[2] = NULL;
-        execv(exe, argv);
-        _exit(127); /* exec failed */
-    }
-    free(exe);
-    return 1;
-}
-#endif
+/* ADR 0057: one stable session owns the active game (runtime, resource
+ * provider, current root) so per-frame hooks survive an in-place swap. */
+typedef struct {
+    efx_runtime *rt;      /* NULL only mid-swap / after an unrecoverable failure */
+    efx_resource *res;
+    char *root;           /* malloc'd current root path */
+    char *pending_root;   /* malloc'd validated root to swap to, or NULL */
+    int swapping;         /* a swap is being processed */
+    int exit_code;        /* recorded when the session ends without a runtime */
+    /* test-only seam (ADR 0036): roots to swap through automatically */
+    char **swap_roots;
+    int swap_root_count;
+    int swap_root_i;
+} efx_player_session;
 
 /* Native drag-and-drop (ADR 0056): validate the dropped root, then relaunch
  * the player on it and stop this run. An unusable drop prints a diagnostic and
@@ -193,19 +138,91 @@ static int drop_check(const char *path) {
 }
 
 static void player_on_files_dropped(void *ud, const char *path) {
-    (void)ud;
-    if (g_drop_relaunch) {
-        return; /* coalesce drops while a relaunch is pending */
+    efx_player_session *s = (efx_player_session *)ud;
+    if (!s || s->swapping || s->pending_root) {
+        return; /* coalesce drops while a swap is pending or in flight */
     }
     if (!drop_check(path)) {
         return;
     }
-    if (!spawn_player(path)) {
-        fprintf(stderr, "player: could not relaunch on dropped root: %s\n",
+    s->pending_root = dupstr(path);
+    if (!s->pending_root) {
+        fprintf(stderr, "player: dropped root could not be recorded: %s\n",
                 path);
-        return;
     }
-    g_drop_relaunch = 1;
+}
+
+/* Perform a pending in-place swap (ADR 0057). Returns 1 when the loop must
+ * stop (unrecoverable), 0 otherwise. The new root is preflighted before any
+ * teardown so a bad root leaves the current game running. */
+static int player_swap(efx_player_session *s) {
+    char *next_root = s->pending_root;
+    s->pending_root = NULL;
+    if (!next_root) {
+        return 0;
+    }
+    s->swapping = 1;
+
+    /* preflight: open the new root and read main.js before tearing down */
+    int e = EFX_RESOURCE_OK;
+    efx_resource *new_res = efx_resource_open(next_root, &e);
+    char *new_code =
+        new_res ? efx_resource_read_text(new_res, "main.js", &e) : NULL;
+    if (!new_res || !new_code) {
+        fprintf(stderr, "player: cannot swap to dropped root: %s\n", next_root);
+        efx_resource_close(new_res);
+        efx_resource_free(new_code);
+        free(next_root);
+        s->swapping = 0;
+        return 0;
+    }
+
+    /* 1. destroy the old runtime: JS finalizers release GPU resources and the
+       physics world */
+    efx_runtime_destroy(s->rt);
+    s->rt = NULL;
+
+    /* 2. release every game-owned render resource, keeping the sg context */
+    efx_render_end_frame();
+    efx_render_reset();
+    /* 3. recreate the engine white texture view on the live sink */
+    efx_pipeline_rebind();
+
+    /* 4. clear input and stop the previous game's audio */
+    efx_input_reset();
+    efx_audio_stop_all();
+
+    /* 5. swap the resource root */
+    efx_resource_close(s->res);
+    s->res = new_res;
+    free(s->root);
+    s->root = next_root;
+
+    /* 6. build a fresh runtime and run the new entry (the surface exists) */
+    efx_runtime *rt = efx_runtime_new(NULL, 0);
+    if (!rt) {
+        fprintf(stderr, "player: out of memory creating runtime\n");
+        efx_resource_free(new_code);
+        s->exit_code = 1;
+        efx_platform_set_exit_code(1);
+        s->swapping = 0;
+        return 1;
+    }
+    efx_runtime_set_resource(rt, new_res);
+    s->rt = rt;
+    int exit_code = 0;
+    if (efx_player_run_entry(rt, new_code, &exit_code)) {
+        /* the new game quit or failed at load: stop with its code */
+        s->exit_code = exit_code;
+        efx_platform_set_exit_code(exit_code);
+        s->swapping = 0;
+        return 1;
+    }
+    int has_update = 0;
+    int has_render = 0;
+    efx_runtime_pick_hooks(rt, &has_update, &has_render);
+    s->swapping = 0;
+    return 0;
 }
 
 static int run_script_mode(const char *path, const char *root_override,
@@ -283,9 +300,6 @@ static int player_stop(efx_runtime *rt) {
 
 int efx_player_frame(void *ud, double dt) {
     efx_runtime *rt = (efx_runtime *)ud;
-    if (g_drop_relaunch) {
-        return player_stop(rt);
-    }
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
         return player_stop(rt);
     }
@@ -324,7 +338,27 @@ int efx_player_frame(void *ud, double dt) {
 }
 
 static int on_frame(void *ud, double dt) {
-    return efx_player_frame(ud, dt);
+    efx_player_session *s = (efx_player_session *)ud;
+    /* test-only seam (ADR 0036): drive the listed roots through the same
+       in-place swap path, then end the run cleanly */
+    if (s->swap_root_i < s->swap_root_count) {
+        free(s->pending_root);
+        s->pending_root = dupstr(s->swap_roots[s->swap_root_i++]);
+    }
+    if (s->pending_root) {
+        if (player_swap(s)) {
+            return 1;
+        }
+        if (s->swap_root_count > 0 &&
+            s->swap_root_i >= s->swap_root_count) {
+            efx_platform_set_exit_code(0);
+            return 1;
+        }
+    }
+    if (!s->rt) {
+        return 1;
+    }
+    return efx_player_frame(s->rt, dt);
 }
 
 /* Entry evaluation runs from the platform init callback, after the window and
@@ -334,7 +368,8 @@ static int on_frame(void *ud, double dt) {
 static char *g_root_entry;
 
 static int on_init_root(void *ud) {
-    efx_runtime *rt = (efx_runtime *)ud;
+    efx_player_session *s = (efx_player_session *)ud;
+    efx_runtime *rt = s->rt;
     if (g_root_entry) {
         char *code = g_root_entry;
         g_root_entry = NULL;
@@ -380,26 +415,74 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     efx_audio_backend_init();
     /* evaluation is deferred to on_init_root, once the surface exists */
     g_root_entry = code;
+
+    efx_player_session session;
+    memset(&session, 0, sizeof(session));
+    session.rt = rt;
+    session.res = res;
+    session.root = dupstr(root);
+    /* test-only seam (ADR 0036): a '|'-separated list of roots to swap through
+       automatically so ctest can exercise repeated in-place swaps */
+    const char *sim = getenv("EFX_SWAP_SIM_ROOTS");
+    if (sim && sim[0] != '\0') {
+        int n = 1;
+        for (const char *p = sim; *p; p++) {
+            if (*p == '|') {
+                n++;
+            }
+        }
+        session.swap_roots = calloc((size_t)n, sizeof(char *));
+        if (session.swap_roots) {
+            const char *p = sim;
+            int i = 0;
+            while (i < n) {
+                const char *sep = strchr(p, '|');
+                size_t len = sep ? (size_t)(sep - p) : strlen(p);
+                char *item = malloc(len + 1);
+                if (!item) {
+                    break;
+                }
+                memcpy(item, p, len);
+                item[len] = '\0';
+                session.swap_roots[i++] = item;
+                if (!sep) {
+                    break;
+                }
+                p = sep + 1;
+            }
+            session.swap_root_count = i;
+        }
+    }
+
     efx_platform_desc desc;
     memset(&desc, 0, sizeof(desc));
     if (capture) {
         desc.capture = *capture;
     }
     efx_frame_hooks hooks;
-    hooks.ud = rt;
+    hooks.ud = &session;
     hooks.on_init = on_init_root;
     hooks.on_frame = on_frame;
     hooks.on_files_dropped = player_on_files_dropped;
     efx_platform_run(&desc, hooks);
-    int exit_code = efx_player_exit_code(rt);
+    int exit_code = session.rt ? efx_player_exit_code(session.rt)
+                               : session.exit_code;
     /* release native resources while the GPU context is still alive:
        runtime destroy runs finalizers -> deferred texture releases, then
        render shutdown flushes them, then sokol goes down */
-    efx_runtime_destroy(rt);
+    if (session.rt) {
+        efx_runtime_destroy(session.rt);
+    }
     efx_render_end_frame();
     efx_render_shutdown();
     efx_platform_shutdown();
-    efx_resource_close(res);
+    efx_resource_close(session.res);
+    free(session.root);
+    free(session.pending_root);
+    for (int i = 0; i < session.swap_root_count; i++) {
+        free(session.swap_roots[i]);
+    }
+    free(session.swap_roots);
     return exit_code;
 }
 

@@ -298,6 +298,35 @@ static int texture_lifecycle(void) {
     return 0;
 }
 
+/* ADR 0057: efx_render_reset releases game-owned resources and re-applies
+ * defaults while keeping the installed sink alive. */
+static int render_reset(void) {
+    install_mock_sink();
+    uint8_t px[4] = {255, 0, 0, 255};
+    uint64_t t1 = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0);
+    if (!t1 || !efx_render_texture_alive(t1)) return fail("create");
+    float nondefault[4] = {0.2f, 0.3f, 0.4f, 1.0f};
+    efx_render_set_clear_color(nondefault);
+    if (g_tex_created != 1) return fail("create count");
+    efx_render_reset();
+    if (g_tex_destroyed != 1) return fail("reset did not release the texture");
+    if (efx_render_texture_alive(t1)) return fail("stale texture alive");
+    /* sink preserved: a new texture reaches the mock */
+    uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0);
+    if (!t2) return fail("post-reset create");
+    if (g_tex_created != 2) return fail("sink not preserved across reset");
+    /* defaults re-applied */
+    float cc[4];
+    efx_render_clear_color(cc);
+    if (cc[0] != 0.0f || cc[1] != 0.0f || cc[2] != 0.0f || cc[3] != 1.0f)
+        return fail("clear color not reset");
+    efx_render_shutdown();
+    efx_render_install_sink(NULL);
+    return 0;
+}
+
 /* sink-less texture creation is CPU-only: a live slot with the requested size
  * and no native object (ADR 0052). */
 static int texture_sinkless(void) {
@@ -2281,6 +2310,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(blend_snapshot),
     EFX_CASE(record_budget),
     EFX_CASE(texture_lifecycle),
+    EFX_CASE(render_reset),
     EFX_CASE(texture_sinkless),
     EFX_CASE(texture_mipmaps),
     EFX_CASE(record_fields),
