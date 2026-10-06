@@ -461,7 +461,12 @@ void efx_render_end_frame(void) {
 
 /* ------------------------------------------------------------- shutdown */
 
-void efx_render_shutdown(void) {
+/* Shared teardown for shutdown and the in-place swap reset (ADR 0057):
+ * release every registered GPU resource and free the arenas, then zero R and
+ * the post state. `sink_shutdown` tells the sink it is going away (shutdown);
+ * the reset path keeps the sink alive so the same sg context can keep
+ * drawing. */
+static void render_teardown_resources(int sink_shutdown) {
     if (R.sink) {
         for (int i = 0; i < R.slot_count; i++) {
             if (R.slots[i].used && R.slots[i].native) {
@@ -484,7 +489,7 @@ void efx_render_shutdown(void) {
                 }
             }
         }
-        if (R.sink->shutdown) {
+        if (sink_shutdown && R.sink->shutdown) {
             R.sink->shutdown(R.sink->ud);
         }
     }
@@ -503,7 +508,28 @@ void efx_render_shutdown(void) {
     free(R.deferred_rt);
     memset(&R, 0, sizeof(R));
     post_clear();
+}
+
+void efx_render_shutdown(void) {
+    render_teardown_resources(1);
     state_ready = 0;
+}
+
+void efx_render_reset(void) {
+    /* In-place game swap (ADR 0057): drop every game-owned resource and
+     * re-apply the documented defaults while keeping the installed GPU sink
+     * (and the sg context/pipelines behind it) alive. The engine-owned white
+     * texture is released too; the caller rebinds the pipeline
+     * (efx_pipeline_rebind) to recreate it before the next draw. */
+    const efx_render_sink *sink = R.sink;
+    int vw = R.viewport_w;
+    int vh = R.viewport_h;
+    render_teardown_resources(0);
+    R.sink = sink;
+    R.viewport_w = vw;
+    R.viewport_h = vh;
+    apply_default_state();
+    state_ready = 1;
 }
 
 /* ------------------------------------------------------- CPU lighting (F4a) */

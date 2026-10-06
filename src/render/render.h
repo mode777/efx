@@ -368,6 +368,10 @@ typedef struct efx_render_sink {
    surface existed (top-level createTexture/createMesh in main.js) */
 void efx_render_install_sink(const efx_render_sink *sink);
 void efx_render_shutdown(void);
+/* In-place game swap reset (ADR 0057): release every registered resource and
+ * re-apply defaults, keeping the installed sink. Rebind the pipeline
+ * (efx_pipeline_rebind) afterwards to recreate the engine white texture. */
+void efx_render_reset(void);
 void efx_render_set_viewport(int w, int h);
 void efx_render_viewport(int *out_w, int *out_h);
 

@@ -1,12 +1,13 @@
 # 0056 — A dropped resource root is a host-level feature loaded by restarting the run
 
-Status: Accepted (2026-10, change `drop-to-load-game`)
+Status: Accepted (2026-10, change `drop-to-load-game`); its desktop restart
+mechanism is superseded by
+[0057](0057-desktop-in-place-game-swap.md)
 
 Supports: vision.md (a game is a resource root); ADR 0007 (run modes and the
 exit-code contract); ADR 0031 (the dir/zip provider); ADR 0030 (the host-only
-web entry channel). A follow-on change (`in-place-game-swap`) is expected to
-replace the desktop restart mechanism with an in-place swap and record its own
-ADR.
+web entry channel). ADR 0057 replaces the desktop restart mechanism with an
+in-place swap; the host-level drop contract here is unchanged.
 
 ## Context
 

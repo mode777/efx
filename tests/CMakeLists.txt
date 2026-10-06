@@ -144,6 +144,10 @@ set_tests_properties(smoke_drop_bad PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${
 # oversized-archive rejection: the test lowers the cap below the fixture size
 add_player_test(smoke_drop_oversized EXPECT nonzero EXPECT_ERR "exceeds the")
 set_tests_properties(smoke_drop_oversized PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/root_zip.zip;EFX_DROP_MAX_BYTES=8")
+# ADR 0057: repeated in-place swaps through the test-only seam; each swapped
+# game logs a marker and creates/draws a script-owned texture
+add_player_test(smoke_swap ARGS "${F}/swap/base" EXPECT 0 EXPECT_OUT "swap-base-ok.*swap-a-ok.*swap-b-ok.*swap-c-ok")
+set_tests_properties(smoke_swap PROPERTIES ENVIRONMENT "EFX_SWAP_SIM_ROOTS=${F}/swap/a|${F}/swap/b|${F}/swap/c")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
 

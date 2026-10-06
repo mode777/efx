@@ -43,6 +43,10 @@ typedef struct efx_audio_stream efx_audio_stream;
 /* ---- lifecycle (device sample rate; resets all state) ---- */
 void efx_audio_init(int sample_rate);
 void efx_audio_shutdown(void);
+/* Stop every active voice and release its source/decoder while keeping the
+ * device, sample rate, and mixer state. Used by the in-place game swap
+ * (ADR 0057) so the previous game's audio cannot outlive it. */
+void efx_audio_stop_all(void);
 /* Device readiness. The platform backend clears this when no device is
  * available (headless CI) or, on web, until the autoplay unlock; defaults to
  * ready so headless tests can mix. */

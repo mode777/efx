@@ -429,6 +429,14 @@ static pipe_vertex *emit_quad(pipe_vertex *v, const efx_quad_record *r,
 }
 
 
+/* the render sink this module installs; shared by install and the in-place
+ * swap rebind (ADR 0057) */
+static const efx_render_sink PIPE_SINK = {
+    NULL, pipe_create_texture, pipe_destroy_texture,
+    pipe_create_mesh, pipe_destroy_mesh, NULL,
+    pipe_create_render_target, pipe_destroy_render_target,
+};
+
 void efx_pipeline_install(void) {
     if (P.installed) {
         return;
@@ -560,15 +568,25 @@ void efx_pipeline_install(void) {
     }
     P.installed = 1;
 
-    static const efx_render_sink sink = {
-        NULL, pipe_create_texture, pipe_destroy_texture,
-        pipe_create_mesh, pipe_destroy_mesh, NULL,
-        pipe_create_render_target, pipe_destroy_render_target,
-    };
-    efx_render_install_sink(&sink);
+    efx_render_install_sink(&PIPE_SINK);
     uint64_t white = efx_render_white_texture(); /* engine-owned 1x1 white (D5) */
     pipe_tex *wt = (pipe_tex *)efx_render_texture_native(white);
     P.white_view = wt ? wt->view : (sg_view){0}; /* absent F4b maps fall back */
+}
+
+/* Rebind after efx_render_reset (ADR 0057): the sg context and pipelines are
+ * still alive, but the render reset freed the engine white texture and left
+ * R.sink cleared. Re-install the sink and re-derive the white view so absent
+ * material maps keep sampling white. */
+void efx_pipeline_rebind(void) {
+    if (!P.installed) {
+        efx_pipeline_install();
+        return;
+    }
+    efx_render_install_sink(&PIPE_SINK);
+    uint64_t white = efx_render_white_texture();
+    pipe_tex *wt = (pipe_tex *)efx_render_texture_native(white);
+    P.white_view = wt ? wt->view : (sg_view){0};
 }
 
 /* 3D camera + mesh playback (F3): per record, compose MVP from the
