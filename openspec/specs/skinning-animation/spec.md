@@ -32,20 +32,22 @@ than fail.
 
 ### Requirement: Script-driven posing with poseMesh
 
-`efx.graphics.poseMesh(mesh, pose)` SHALL CPU-pose a live skinned `Mesh` in place. `pose`
-SHALL be either a single sample `{ clip, time, weight? }` or an array of such
-samples (a weighted blend). `clip` SHALL be a clip name (the glTF `name`, or
-the stable internal `clipN` when unnamed) or a clip index. `time` SHALL be in
-seconds and wrapped modulo the clip's length. When samples carry `weight`, the
-weights SHALL be normalized engine-side before blending; a negative weight SHALL
-throw. A mesh with no rig, a non-Mesh or destroyed Mesh, an unknown clip, or an
+`Mesh.pose(pose)` SHALL CPU-pose a live skinned `Mesh` in place, with the
+receiver `Mesh` as the subject. `pose` SHALL be either a single sample
+`{ clip, time, weight? }` or an array of such samples (a weighted blend).
+`clip` SHALL be a clip name (the glTF `name`, or the stable internal `clipN`
+when unnamed) or a clip index. `time` SHALL be in seconds and wrapped modulo
+the clip's length. When samples carry `weight`, the weights SHALL be
+normalized engine-side before blending; a negative weight SHALL throw. A mesh
+with no rig, a non-Mesh or destroyed Mesh, an unknown clip, or an
 unknown/mistyped sample field SHALL throw (`TypeError` for types and unknown
 fields, `RangeError` for indices/slot ranges). Posing SHALL keep no engine
-playback state — the script owns the clock.
+playback state — the script owns the clock. The former free function
+`efx.graphics.poseMesh` SHALL NOT exist (hard cut, no alias).
 
 #### Scenario: Single-clip sample
 
-- **WHEN** a script calls `efx.graphics.poseMesh(mesh, { clip: 'Walk', time: t })`
+- **WHEN** a script calls `mesh.pose({ clip: 'Walk', time: t })`
 - **THEN** the mesh's posed buffer reflects the clip sampled at `t`
 
 #### Scenario: Clip lookup by name or index
@@ -71,7 +73,7 @@ playback state — the script owns the clock.
 
 #### Scenario: Rig-less or unknown clip rejected
 
-- **WHEN** `poseMesh` is called on a mesh with no rig, on a destroyed/non-Mesh
+- **WHEN** `Mesh.pose` is called on a mesh with no rig, on a destroyed/non-Mesh
   value, or with a clip name/index that does not exist
 - **THEN** the call throws (`TypeError` for mesh/type problems, the appropriate
   error for the unknown clip) and records no pose
@@ -79,7 +81,7 @@ playback state — the script owns the clock.
 ### Requirement: Posed and bind-pose vertex buffers
 
 A skinned `Mesh` SHALL retain its immutable bind-pose vertex buffer and SHALL
-own a separate posed vertex buffer that `poseMesh` writes. `efx.graphics.drawMesh(mesh,
+own a separate posed vertex buffer that `Mesh.pose` writes. `efx.graphics.drawMesh(mesh,
 { skinned: true })` SHALL draw the posed buffer; a draw without `skinned` (or
 with `skinned: false`) SHALL draw the bind-pose buffer. `skinned: true` on a
 mesh without a rig SHALL throw `TypeError`. The extra posed buffer's CPU memory
@@ -108,14 +110,14 @@ pressure.
 
 Posing SHALL NOT add a new native-backed resource class, a separate
 skeleton/clip resource, or a read-only rig query property. Skins, skeletons, and
-clips SHALL remain implicit `Mesh` payload reachable only through `poseMesh`
+clips SHALL remain implicit `Mesh` payload reachable only through `Mesh.pose`
 and the `skinned` draw option. No `play`/`pause`/`blend` engine state or
 function SHALL be added; any such convenience would be a pure-JS layer above
-`poseMesh`.
+`Mesh.pose`.
 
 #### Scenario: No rig resources or queries
 
 - **WHEN** the API reference and gallery type document are read after this
   change
-- **THEN** they catalog `poseMesh` and the `skinned` draw option and no
+- **THEN** they catalog `Mesh.pose` and the `skinned` draw option and no
   skeleton/clip resource, clip/joint query property, or playback function

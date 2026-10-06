@@ -31,9 +31,12 @@ texture); a zero extent or a region outside the texture bounds SHALL throw
 degrees of in-plane spin about the quad's center (default `0`). `facing` SHALL
 be `'view'` (default) or `'y'`. `normal` is meaningful only for
 `facing: 'plane'`. `depthTest` SHALL be a boolean (default
-`true`). Unknown fields and wrongly-typed values SHALL throw `TypeError`;
-non-finite or `<= 0` size values SHALL throw `RangeError`; a throw records
-nothing.
+`true`). `blend` SHALL be a blend mode string (`'alpha'` | `'additive'` |
+`'subtractive'`) that overrides the frame's blend render state for this draw;
+when omitted the frame state at record time applies. Unknown fields and
+wrongly-typed values SHALL throw `TypeError`; non-finite or `<= 0` size values
+SHALL throw `RangeError`; an invalid `blend` SHALL throw `TypeError`; a throw
+records nothing.
 
 #### Scenario: View-facing billboard follows the camera
 
@@ -68,11 +71,18 @@ nothing.
   billboard is recorded
 - **THEN** each billboard uses the camera state at its own record time
 
+#### Scenario: Per-draw blend overrides the frame state
+
+- **WHEN** the frame's blend state is `'alpha'` and a billboard is drawn with
+  `blend: 'additive'`
+- **THEN** that billboard is additive and other draws in the frame keep the
+  frame state
+
 #### Scenario: Invalid input throws and records nothing
 
 - **WHEN** `drawBillboard` is called with no texture, a non-sample value, a
   destroyed Texture/RenderTarget, `size: 0`, `size: [1]`, `facing: 'diagonal'`,
-  `depthTest: 1`, or an unknown option field
+  `depthTest: 1`, `blend: 'multiply'`, or an unknown option field
 - **THEN** the call throws (`TypeError` or `RangeError` as appropriate) and
   records no billboard
 
@@ -83,9 +93,11 @@ A billboard SHALL be drawn depth-tested against earlier 3D records when
 does not write depth, overlapping billboards SHALL blend over one another in
 record order rather than occluding each other. When `depthTest` is `false`,
 the billboard SHALL be drawn without depth testing, so it appears over
-previously drawn 3D content. Every billboard SHALL use the blend mode
-`('alpha' | 'additive' | 'subtractive')` in effect when it was recorded;
-changing the blend mode afterwards SHALL NOT affect it. Billboards SHALL NOT
+previously drawn 3D content. Every billboard SHALL use, as its blend mode,
+the `opts.blend` value when supplied, otherwise the frame's blend render state
+(`'alpha'` | `'additive'` | `'subtractive'`) in effect when it was recorded;
+the resolved mode SHALL be value-snapshotted at record time, so changing the
+blend state or a later `setBlendMode` SHALL NOT affect it. Billboards SHALL NOT
 participate in the 2D painter's-order depth behavior and SHALL NOT write to
 any depth buffer.
 
@@ -115,6 +127,6 @@ any depth buffer.
 
 #### Scenario: Blend mode is snapshotted
 
-- **WHEN** an additive billboard is recorded and the blend mode is then
-  switched to alpha before another billboard is recorded
-- **THEN** the first stays additive and the second is alpha
+- **WHEN** a billboard is recorded, then the frame state or `opts.blend` is
+  used for another billboard, and the first billboard is played back
+- **THEN** the first billboard keeps the mode resolved at its own record time

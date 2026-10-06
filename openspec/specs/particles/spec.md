@@ -32,7 +32,12 @@ The options bag SHALL accept at least:
 - `normal` — a finite `[x, y, z]` orientation normal, meaningful only when
   `facing` is `'plane'` (default `[0, 1, 0]`); supplying it for another facing
   SHALL throw `TypeError`.
-- `blend` — `'alpha'` (default), `'additive'`, or `'subtractive'`.
+- `blend` — `'alpha'`, `'additive'`, `'subtractive'`, or `null`. When set to a
+  mode string, the system uses that mode for every particle batch it draws.
+  When omitted or `null`, the system has no configured blend and inherits the
+  frame's blend render state (see the `2d-layer` blending requirement) in
+  effect when `drawParticles` records it. An invalid value SHALL throw
+  `TypeError`.
 - `emissionRate` — particles per second, finite `>= 0` (default `0`).
 - `emitterLifetime` — seconds the emitter runs, finite `> 0`, or `-1` for
   infinite (default `-1`).
@@ -75,15 +80,23 @@ destroyed system SHALL throw `TypeError`.
 
 - **WHEN** a script calls `createParticleSystem(texture, 512, [1, 2])` with
   only the required inputs
-- **THEN** it receives a world-space `'view'`-facing, alpha-blended system
-  with `count` 0 and no particles emitted until a rate or `emit` call
+- **THEN** it receives a world-space `'view'`-facing system with no configured
+  blend (it inherits the frame's blend render state at draw time), `count` 0,
+  and no particles emitted until a rate or `emit` call
+
+#### Scenario: Configured blend overrides the frame state
+
+- **WHEN** a system is created with `blend: 'additive'` while the frame state
+  is `'alpha'`
+- **THEN** every batch the system draws is additive regardless of the frame
+  state
 
 #### Scenario: Invalid configuration is rejected
 
 - **WHEN** a script omits `texture`, `max`, or `lifetime`, passes `max: 0` or a
   non-integer, passes `facing: 'plane'` with a
-  `normal` of the wrong length, passes `facing: 'y'` with `space: 'screen'`, or
-  supplies an unknown bag field
+  `normal` of the wrong length, passes `facing: 'y'` with `space: 'screen'`,
+  passes `blend: 'multiply'`, or supplies an unknown bag field
 - **THEN** the call throws the appropriate `TypeError` or `RangeError` and no
   system is created
 
@@ -198,9 +211,12 @@ drawn depth-tested against earlier 3D records and SHALL NOT write depth, so
 opaque geometry occludes them and they do not occlude one another. Particles
 within a batch SHALL be ordered back-to-front by camera distance for
 `'alpha'` blending; `'additive'` and `'subtractive'` batches need no ordering.
-Drawing SHALL use the system's configured blend mode. Passing a value that is
-not a live `ParticleSystem`, or a destroyed one, to `drawParticles` SHALL throw
-`TypeError`. A live system SHALL retain its texture until it is destroyed.
+Drawing SHALL use the system's configured blend mode when one is set, and
+otherwise the frame's blend render state in effect when the record was
+created, resolved and value-snapshotted at record time (see the `2d-layer`
+blending requirement). Passing a value that is not a live `ParticleSystem`, or
+a destroyed one, to `drawParticles` SHALL throw `TypeError`. A live system
+SHALL retain its texture until it is destroyed.
 
 #### Scenario: All live particles are drawn
 
@@ -227,6 +243,13 @@ not a live `ParticleSystem`, or a destroyed one, to `drawParticles` SHALL throw
 - **WHEN** an additive batch has overlapping particles
 - **THEN** the result does not depend on the order in which the particles are
   stored
+
+#### Scenario: Unconfigured system inherits the frame state
+
+- **WHEN** a system created without `blend` is recorded while the frame state
+  is `'subtractive'`
+- **THEN** its batch is subtractive, and a later `setBlendMode` does not
+  change that recorded batch
 
 #### Scenario: Destroyed system is rejected
 

@@ -71,13 +71,17 @@ Options: `color` (tint `[r, g, b, a]`, default opaque white), `rotation`
 non-finite SHALL throw `TypeError`, ≤ 0 SHALL throw `RangeError`),
 `sourceRect` (the texture region drawn, `{ x, y, w, h }` in texture pixels —
 for a RenderTarget, target pixels — default the full texture; a region
-extending outside the texture bounds SHALL throw `RangeError`), and `origin`
+extending outside the texture bounds SHALL throw `RangeError`), `origin`
 (a `[px, py]` array of finite numbers — the pivot point for rotation and
 scale, expressed in quad-local frame pixels relative to the quad's top-left;
-default the determined size's center). The origin offset SHALL NOT itself be
+default the determined size's center), and `blend` (a blend mode string
+`'alpha'` | `'additive'` | `'subtractive'`; when present it overrides the
+frame's blend render state for this draw only, and when absent the frame
+state at record time applies). The origin offset SHALL NOT itself be
 rotated or scaled, and an unrotated, unscaled quad SHALL place its top-left
 corner at `(x, y)` regardless of `origin`. Unknown or wrongly-typed option
-fields SHALL throw `TypeError`.
+fields SHALL throw `TypeError`; a `blend` that is present but not one of the
+three mode strings SHALL throw `TypeError` and record nothing.
 
 #### Scenario: Textured quad with defaults
 - **WHEN** a script calls `drawQuad(tex, 0, 0)` for a 128×128 texture with known pixel colors
@@ -131,13 +135,22 @@ fields SHALL throw `TypeError`.
 - **WHEN** a 512×512 RenderTarget rendered with known content is passed to `drawQuad(rt, 0, 0, { sourceRect: { x: 0, y: 0, w: 256, h: 256 } })`
 - **THEN** the top-left quarter of the target's content is drawn into a 256×256 frame area, exactly as the same call with a Texture would
 
+#### Scenario: Per-draw blend overrides the frame state
+- **WHEN** the frame's blend state is `'alpha'` and a script records
+  `drawQuad(tex, x, y, { blend: 'additive' })` followed by
+  `drawQuad(tex, x, y)`
+- **THEN** the first quad is additive and the second uses the frame state
+  (`'alpha'`), and a later `setBlendMode` does not change either
+
+#### Scenario: Invalid blend throws
+- **WHEN** `drawQuad` is called with `blend: 'multiply'` or `blend: 1`
+- **THEN** the call throws `TypeError` and records nothing
+
 ### Requirement: Image and texture resources
-`createImageData(width, height, pixels, opts?)` SHALL build CPU-side
-pixel data: `width` and `height` are positive integers and `pixels` is a flat
-byte array in RGBA8 order of length exactly
-`width × height × 4` (wrong length SHALL throw `RangeError`). The trailing
-`opts` bag is optional and SHALL accept `format`
-(default `'rgba8'`, the only format in F2). `createTexture(imageData, opts?)`
+`createImageData({ width, height, pixels, format? })` SHALL build CPU-side
+pixel data: `pixels` is a flat byte array in RGBA8 order of length exactly
+`width × height × 4` (wrong length SHALL throw `RangeError`), and `format`
+defaults to `'rgba8'` (the only format in F2). `createTexture(imageData, opts?)`
 SHALL upload image data to a GPU Texture — an opaque native-backed class
 released by `destroy()` with GC finalizer backstop (ADR 0011/0013); the
 ImageData remains valid afterwards. The optional `opts` object SHALL accept
@@ -153,9 +166,13 @@ existing behavior exactly. A live Texture SHALL expose read-only `width` and
 `height` properties naming its pixel size; reading either on a destroyed
 texture SHALL throw `TypeError`. The engine SHALL expose
 `efx.graphics.whiteTexture`, an engine-owned 1×1 opaque-white Texture usable
-in any draw: scripts SHALL NOT destroy it — `destroy()` on it SHALL throw
-`TypeError` — and it SHALL remain valid for the whole run. The former root
-member `efx.whiteTexture` SHALL be removed (hard cut, no alias).
+in any draw in every run mode, including run modes without a rendering
+surface: scripts SHALL NOT destroy it — `destroy()` on it SHALL throw
+`TypeError` — and it SHALL remain valid for the whole run. In a run mode
+without a rendering surface the white texture (like any created resource)
+SHALL be CPU-only: it reports its size and is accepted by recorded draws, but
+nothing is uploaded or rendered. The former root member `efx.whiteTexture`
+SHALL be removed (hard cut, no alias).
 
 #### Scenario: Image to texture round trip
 - **WHEN** a script builds an ImageData of known colors, creates a texture,
@@ -176,6 +193,16 @@ member `efx.whiteTexture` SHALL be removed (hard cut, no alias).
 - **WHEN** a script draws `efx.graphics.whiteTexture` with `color: [1, 0, 0, 1]`
 - **THEN** a solid red rectangle appears, and calling
   `efx.graphics.whiteTexture.destroy()` throws `TypeError`
+
+#### Scenario: White texture is available without a rendering surface
+- **WHEN** a `--script` run reads `efx.graphics.whiteTexture` at the top level
+- **THEN** it receives a 1×1 Texture that can be passed to a recorded draw, and
+  `destroy()` on it throws `TypeError`
+
+#### Scenario: Created texture is CPU-only without a surface
+- **WHEN** a `--script` run creates a texture from an ImageData
+- **THEN** the texture reports its `width` and `height` and is accepted by a
+  recorded draw, though nothing is rendered
 
 #### Scenario: Pixel buffer length is validated
 - **WHEN** `createImageData` receives a `pixels` array whose length does not
@@ -209,13 +236,24 @@ member `efx.whiteTexture` SHALL be removed (hard cut, no alias).
 - **THEN** the call throws `TypeError` and creates no texture
 
 ### Requirement: Blending modes
-`setBlendMode(mode)` SHALL select how recorded draws combine with the
-existing frame content: `'alpha'` (source-over weighted by source alpha —
-the default at startup), `'additive'` (destination plus source weighted by
+`setBlendMode(mode)` SHALL select how recorded draws that do not carry their
+own blend combine with the existing frame content: `'alpha'` (source-over
+weighted by source alpha), `'additive'` (destination plus source weighted by
 source alpha), and `'subtractive'` (destination minus source weighted by
-source alpha, clamped at zero). The mode SHALL be recorded per draw
-(value-snapshot, ADR 0019) and apply to draws recorded after the call;
-unrelated draws MUST NOT be affected.
+source alpha, clamped at zero). The selected mode SHALL be the engine's blend
+**render state**. The engine SHALL reset the blend render state to `'alpha'`
+at the start of every frame, so a mode set at load time does not carry into
+later frames; the default at frame start SHALL be `'alpha'`.
+
+The blend render state SHALL apply to every draw record type that does not
+specify a per-object blend: 2D quads and sprite batches, 3D mesh surfaces
+whose bound material does not specify a blend, and billboards. The state
+SHALL be value-snapshotted into each record at record time (ADR 0019), so a
+recorded draw MUST NOT observe a later `setBlendMode` change. A draw that
+supplies a per-object `blend` override SHALL use that value instead of the
+frame state. Particle systems SHALL use their own configured blend when they
+have one and otherwise the frame state in effect when `drawParticles` is
+recorded. Draws recorded before a `setBlendMode` call MUST NOT be affected.
 
 #### Scenario: Alpha is the default
 - **WHEN** a partially transparent quad is drawn without ever calling
@@ -232,6 +270,23 @@ unrelated draws MUST NOT be affected.
 - **WHEN** a script records a quad, switches the blend mode, records another
   quad
 - **THEN** playback blends each quad with the mode active at its record time
+
+#### Scenario: The state resets every frame
+- **WHEN** a script calls `setBlendMode('additive')` at load time and records
+  a quad in a later frame without calling `setBlendMode` again
+- **THEN** the quad uses `'alpha'`, because the frame began by resetting the
+  blend render state
+
+#### Scenario: Per-object override wins over the frame state
+- **WHEN** the frame's blend state is `'additive'` and a draw supplies its own
+  `blend` of `'subtractive'`
+- **THEN** only that draw is subtractive and other draws in the frame keep the
+  frame state
+
+#### Scenario: Invalid mode throws
+- **WHEN** `setBlendMode` is called with an unknown mode string, a non-string,
+  or no argument
+- **THEN** the call throws `TypeError` and the blend render state is unchanged
 
 ### Requirement: Display list record and playback
 All `draw*` calls SHALL record into an internal per-frame display list that
@@ -269,7 +324,7 @@ plain engine state: the most recent value at frame start applies.
 
 ### Requirement: Batched 2D sprite drawing
 
-`efx.graphics.drawSprites(texture, sprites)` SHALL record one textured 2D quad per
+`efx.graphics.drawSprites(texture, sprites, opts?)` SHALL record one textured 2D quad per
 entry in `sprites`, each exactly equivalent to a `drawQuad(texture, sprite.x,
 sprite.y, sprite)` call with the entry's fields. It SHALL be C-implemented
 mid-level and 2D-only: sprites SHALL be placed and transformed in the current
@@ -283,11 +338,18 @@ pixels) plus the `drawQuad` options `size`, `sourceRect`, `color`, `rotation`,
 `scale`, and `origin`, with the same types, defaults, and error behavior as
 `drawQuad`. If any entry is invalid, the call SHALL throw (`TypeError` or
 `RangeError` as appropriate) and SHALL record none of the call's sprites.
-Each recorded sprite SHALL snapshot the 2D camera and blend mode in effect at
-the time of the call, and the sprites SHALL play back in entry order,
-consistent with the display-list painter's-order contract. Consecutive sprites
-sharing a texture and blend mode SHALL render identically to the equivalent
-sequence of individual `drawQuad` calls.
+
+The optional trailing `opts` bag SHALL accept only `blend`, a batch-level
+blend mode string (`'alpha'` | `'additive'` | `'subtractive'`) applied to
+every sprite recorded by the call; an unknown field or an invalid `blend`
+value SHALL throw `TypeError` and record none of the call's sprites. Each
+recorded sprite SHALL snapshot the 2D camera in effect at the time of the
+call and the batch blend: `opts.blend` when supplied, otherwise the frame's
+blend render state at call time. There SHALL be no per-entry `blend` field.
+The sprites SHALL play back in entry order, consistent with the display-list
+painter's-order contract. Consecutive sprites sharing a texture and blend mode
+SHALL render identically to the equivalent sequence of individual `drawQuad`
+calls.
 
 #### Scenario: Equivalent to individual quad draws
 
@@ -303,6 +365,13 @@ sequence of individual `drawQuad` calls.
 - **THEN** each sprite is drawn exactly as the corresponding `drawQuad` call
   would draw it
 
+#### Scenario: Batch blend applies to every sprite
+
+- **WHEN** `drawSprites(tex, entries, { blend: 'additive' })` is recorded while
+  the frame state is `'alpha'`
+- **THEN** every sprite in the call is additive and a subsequent `drawQuad`
+  without a `blend` uses the frame state
+
 #### Scenario: Entry order is painter's order
 
 - **WHEN** two overlapping sprites are supplied with the same texture, in a
@@ -312,8 +381,8 @@ sequence of individual `drawQuad` calls.
 #### Scenario: Invalid argument records nothing
 
 - **WHEN** `drawSprites` is called with a non-array `sprites`, with a missing
-  or destroyed texture, or with an entry missing `x`/`y` or holding an
-  invalid option
+  or destroyed texture, with an entry missing `x`/`y` or holding an invalid
+  option, or with an unknown `opts` field or invalid `blend`
 - **THEN** the call throws (`TypeError` or `RangeError` as appropriate) and
   records no sprites from the call
 

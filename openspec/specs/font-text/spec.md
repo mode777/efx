@@ -83,7 +83,7 @@ property on a destroyed `Font` SHALL throw `TypeError`.
 
 ### Requirement: Typesetting and word wrapping
 
-`efx.graphics.drawText` and `efx.graphics.measureText` SHALL lay out the input string
+`efx.graphics.drawText` and `Font.measure` SHALL lay out the input string
 deterministically using the font's baked metrics and kerning. A newline
 character (`\n`) SHALL start a new line. When a wrap `width` is supplied, the
 layout SHALL greedily break lines at whitespace so that a line's width does
@@ -168,19 +168,25 @@ option field SHALL throw `TypeError`.
 
 ### Requirement: Text measurement
 
-`efx.graphics.measureText(text, font, opts?)` SHALL compute and return the same
-`{ width, height, lines }` bounds as `efx.graphics.drawText` for the same `text`,
-`font`, and layout options (`align`, `valign`, `width`, `lineHeight`,
-`scale`) without recording any draw or otherwise mutating render state. The
-measurement SHALL agree with the drawn layout.
+`Font.measure(text, opts?)` SHALL compute and return the same
+`{ width, height, lines }` bounds as `efx.graphics.drawText` for the same
+`text`, receiver `font`, and layout options (`align`, `valign`, `width`,
+`lineHeight`, `scale`) without recording any draw or otherwise mutating render
+state. The measurement SHALL agree with the drawn layout.
 
 #### Scenario: Measurement agrees with drawing
-- **WHEN** the same text and options are passed to `measureText` and `drawText`
+- **WHEN** the same text and options are passed to `Font.measure` and
+  `efx.graphics.drawText`
 - **THEN** both return identical bounds
 
 #### Scenario: Measurement does not draw
-- **WHEN** a script calls `measureText` and then renders a frame
+- **WHEN** a script calls `Font.measure` and then renders a frame
 - **THEN** no glyphs are drawn and the frame is unchanged
+
+#### Scenario: No free-function measurement remains
+- **WHEN** a script reads `efx.graphics.measureText` after this change
+- **THEN** it is `undefined`, and measurement is reachable only as the
+  `Font.measure` method on a live `Font`
 
 ### Requirement: Deterministic atlas and layout
 

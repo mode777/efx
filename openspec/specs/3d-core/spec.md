@@ -159,11 +159,13 @@ throws `TypeError` when destroyed). A Mesh is a copy: later changes to the
 source MeshData object MUST NOT affect the Mesh. Passing a non-MeshData or a
 destroyed MeshData SHALL throw `TypeError`. Surface material bindings
 carried by the MeshData (from F4) SHALL carry over to the Mesh at upload;
-from F4, `efx.graphics.setMeshSurfaceMaterial(mesh, surfaceIndex, mat)` SHALL rebind
+from F4, `Mesh.setSurfaceMaterial(surfaceIndex, mat)` SHALL rebind
 one surface's material after upload (the Godot `surface_set_material`
 analog: `mat` is a JS-managed object snapshotted at call time; an index out
 of range throws `RangeError`); a surface without a bound material SHALL
-render with an engine default material. Meshes are never slot-based; scripts
+render with an engine default material. The former free function
+`efx.graphics.setMeshSurfaceMaterial` SHALL NOT exist (hard cut, no alias).
+Meshes are never slot-based; scripts
 manage Mesh objects directly (ADR 0011 resource model — the roadmap's
 "mesh slots" phrase is realized as resource objects, per the pinned js-api
 taxonomy).
@@ -178,6 +180,11 @@ taxonomy).
   destroyed
 - **THEN** the Mesh keeps rendering identically (destroyed-use rules apply
   only to the destroyed object)
+
+#### Scenario: Surface material is rebound through the Mesh
+- **WHEN** a script calls `mesh.setSurfaceMaterial(0, material)` after upload
+- **THEN** surface 0 renders with a snapshot of `material`, and the former
+  `efx.graphics.setMeshSurfaceMaterial` is `undefined`
 
 #### Scenario: Destroyed mesh is safe
 - **WHEN** `destroy()` is called on a Mesh twice and a `drawMesh` references
@@ -207,9 +214,15 @@ equal to the tint multiplied by the surface's vertex color where the `colors`
 attribute is present, or the tint alone otherwise. The surface `uvs`
 attribute (validated and stored since F3) SHALL be consumed by that shading
 as the map/alpha-mask texture coordinate; a surface without `uvs` uses the
-`(0, 0)` default, so shading stays defined for every mesh. 2D quad records
-SHALL be untouched by mesh depth (F2 behavior and goldens unchanged). Mesh
-draws participate in the per-frame record budget like any record.
+`(0, 0)` default, so shading stays defined for every mesh. Each surface SHALL
+blend using its bound material's `blend` override when the material specifies
+one, and otherwise the frame's blend render state (see the `2d-layer` blending
+requirement) in effect when the mesh draw was recorded. Both the frame state
+and the per-surface material blend SHALL be resolved and value-snapshotted at
+record time (ADR 0019): a later `setBlendMode` call or a later
+`setMeshSurfaceMaterial` rebind MUST NOT change the recorded draw. 2D quad
+records SHALL be untouched by mesh depth (F2 behavior and goldens unchanged).
+Mesh draws participate in the per-frame record budget like any record.
 
 #### Scenario: Multi-surface mesh draws all surfaces
 
@@ -245,6 +258,14 @@ draws participate in the per-frame record budget like any record.
   `diffuse.map`
 - **THEN** each surface samples the map at its own interpolated `uv`, and a
   surface with no `uvs` samples `(0, 0)`
+
+#### Scenario: Per-surface blend resolves at record time
+
+- **WHEN** a mesh whose surface 0 has `blend: 'additive'` and surface 1 has no
+  blend override is drawn while the frame state is `'alpha'`, and the frame
+  state is then changed before playback
+- **THEN** surface 0 is additive and surface 1 is alpha, using the values in
+  effect at record time
 
 #### Scenario: Mesh is a required positional argument
 
