@@ -32,7 +32,148 @@ function __efxBoot() {
     }
     __efxEnsureApi();
     __efxSyncExit();
+    __efxDropInstall();
     __efxResolveAssets();
+}
+
+/* ---------------------------------------------- F6a web drag-and-drop
+   A zip dropped on the canvas is validated, stashed in IndexedDB under a
+   one-shot token, and the document reloads with the token in the URL. Boot
+   consumes the token, mounts the archive, and evaluates its main.js. This is
+   the web analogue of the desktop relaunch (ADR 0056); an invalid or
+   un-storable drop is reported on the error channel and the running game is
+   left alone. */
+var __EFX_DROP_TOKEN = '__efx_drop';
+var __EFX_DROP_DB = 'efx-drop';
+var __EFX_DROP_STORE = 'roots';
+var __EFX_DROP_MAX = 256 * 1024 * 1024;
+
+function __efxDropError(msg) {
+    console.error('player: ' + msg);
+}
+
+function __efxIdbOpen() {
+    return new Promise(function (resolve, reject) {
+        var req = indexedDB.open(__EFX_DROP_DB, 1);
+        req.onupgradeneeded = function () {
+            req.result.createObjectStore(__EFX_DROP_STORE);
+        };
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+    });
+}
+
+function __efxIdbOp(mode, run) {
+    return __efxIdbOpen().then(function (db) {
+        return new Promise(function (resolve, reject) {
+            var tx = db.transaction(__EFX_DROP_STORE, mode);
+            var out = run(tx.objectStore(__EFX_DROP_STORE));
+            tx.oncomplete = function () {
+                resolve(out && out.result !== undefined ? out.result : undefined);
+            };
+            tx.onerror = function () { reject(tx.error); };
+        });
+    });
+}
+
+function __efxDropInstall() {
+    if (typeof document === 'undefined') {
+        return;
+    }
+    var canvas = document.getElementById('canvas') || document.body;
+    if (!canvas || canvas['__efxDropBound']) {
+        return;
+    }
+    canvas['__efxDropBound'] = true;
+    canvas.addEventListener('dragover', function (ev) {
+        ev.preventDefault();
+        if (ev.dataTransfer) {
+            ev.dataTransfer.dropEffect = 'copy';
+        }
+    });
+    canvas.addEventListener('drop', function (ev) {
+        ev.preventDefault();
+        var files = ev.dataTransfer && ev.dataTransfer.files;
+        if (files && files.length > 0) {
+            __efxHandleDrop(files[0]);
+        }
+    });
+}
+
+function __efxHandleDrop(file) {
+    if (typeof indexedDB === 'undefined') {
+        __efxDropError('dropped archive cannot be stored (no IndexedDB)');
+        return;
+    }
+    if (file.size > __EFX_DROP_MAX) {
+        __efxDropError('dropped archive exceeds 256 MiB');
+        return;
+    }
+    file.arrayBuffer().then(function (buf) {
+        var bytes = new Uint8Array(buf);
+        var scratch = '/__efx_drop_probe.zip';
+        FS.writeFile(scratch, bytes);
+        var p = __efxAllocCStr(scratch);
+        var ok = Module['_efx_bridge_probe_root'](p);
+        Module['_free'](p);
+        try { FS.unlink(scratch); } catch (e) {}
+        if (!ok) {
+            __efxDropError('dropped file is not a game (no main.js)');
+            return;
+        }
+        var token = String(Date.now()) + '-' +
+            Math.random().toString(36).slice(2);
+        __efxIdbOp('readwrite', function (store) {
+            return store.put(bytes, token);
+        }).then(function () {
+            var url = new URL(location.href);
+            url.searchParams.set(__EFX_DROP_TOKEN, token);
+            location.replace(url.toString());
+        }).catch(function (e) {
+            __efxDropError('could not store dropped archive: ' +
+                (e && e.message ? e.message : e));
+        });
+    }).catch(function (e) {
+        __efxDropError('could not read dropped file: ' +
+            (e && e.message ? e.message : e));
+    });
+}
+
+function __efxConsumeDropToken() {
+    var token = null;
+    try {
+        token = new URLSearchParams(location.search).get(__EFX_DROP_TOKEN);
+    } catch (e) {
+        token = null;
+    }
+    if (!token) {
+        return Promise.resolve(false);
+    }
+    /* clear the token from the address bar so it is not re-consumed or
+       observable after boot */
+    try {
+        var clean = new URL(location.href);
+        clean.searchParams.delete(__EFX_DROP_TOKEN);
+        history.replaceState(null, '', clean.toString());
+    } catch (e) {}
+    return __efxIdbOp('readonly', function (store) {
+        return store.get(token);
+    }).then(function (bytes) {
+        __efxIdbOp('readwrite', function (store) {
+            return store.delete(token);
+        }).catch(function () {});
+        if (!bytes) {
+            return false;
+        }
+        FS.writeFile('__efx_assets.zip', new Uint8Array(bytes));
+        var p = __efxAllocCStr('__efx_assets.zip');
+        var ok = Module['_efx_bridge_set_root'](p);
+        Module['_free'](p);
+        if (!ok) {
+            __efxFail('player: dropped archive could not be opened');
+        }
+        return true;
+    });
 }
 
 /* F6a async boot. When a host asset-root URL is supplied, fetch the single
@@ -40,6 +181,21 @@ function __efxBoot() {
    evaluate the entry script; the script-facing load API stays synchronous.
    With no URL the existing resource-root path is unchanged. */
 function __efxResolveAssets() {
+    /* a dropped archive, stashed by the previous document and named by the
+       URL token, takes precedence over the host asset URL */
+    __efxConsumeDropToken().then(function (used) {
+        if (used) {
+            __efxStartAfterAssets();
+            return;
+        }
+        __efxResolveAssetsFromUrl();
+    }).catch(function (e) {
+        __efxFail('player: dropped archive restore failed: ' +
+            (e && e.message ? e.message : e));
+    });
+}
+
+function __efxResolveAssetsFromUrl() {
     var url = null;
     try {
         var v = globalThis['__efx_assets'];

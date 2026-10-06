@@ -11,6 +11,16 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#if defined(_WIN32)
+#include <process.h>
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 #ifdef _WIN32
 #define EFX_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #define EFX_ISREG(m) (((m) & S_IFMT) == S_IFREG)
@@ -18,6 +28,11 @@
 #define EFX_ISDIR(m) S_ISDIR(m)
 #define EFX_ISREG(m) S_ISREG(m)
 #endif
+
+/* dropped archives larger than this are rejected before mounting (design
+ * D-risk: miniz decompresses whole entries into memory). Directories are not
+ * size-capped here. 256 MiB is far above the shipped samples. */
+#define EFX_DROP_MAX_ARCHIVE_BYTES (256u * 1024u * 1024u)
 
 static int usage(void) {
     fprintf(stderr,
@@ -73,6 +88,103 @@ static char *path_dir(const char *path) {
     memcpy(out, path, n);
     out[n] = '\0';
     return out;
+}
+
+/* --------------------------------------------------- dropped-root relaunch */
+
+/* set once a drop has been accepted; the frame loop stops and the spawned
+ * child takes over (the current process exits 0) */
+static int g_drop_relaunch;
+
+#if defined(_WIN32)
+static int spawn_player(const char *root) {
+    wchar_t exe[4096];
+    DWORD n = GetModuleFileNameW(NULL, exe, (DWORD)(sizeof(exe) / sizeof(exe[0])));
+    if (n == 0 || n >= sizeof(exe) / sizeof(exe[0])) {
+        return 0;
+    }
+    int rlen = MultiByteToWideChar(CP_UTF8, 0, root, -1, NULL, 0);
+    if (rlen <= 0) {
+        return 0;
+    }
+    wchar_t *root_w = malloc((size_t)rlen * sizeof(wchar_t));
+    if (!root_w) {
+        return 0;
+    }
+    MultiByteToWideChar(CP_UTF8, 0, root, -1, root_w, rlen);
+    const wchar_t *argv[3] = {exe, root_w, NULL};
+    intptr_t rc = _wspawnv(_P_NOWAIT, exe, argv);
+    free(root_w);
+    return rc != -1;
+}
+#else
+static int spawn_player(const char *root) {
+#if defined(__APPLE__)
+    uint32_t size = 0;
+    _NSGetExecutablePath(NULL, &size);
+    char *exe = malloc(size + 1);
+    if (!exe) {
+        return 0;
+    }
+    if (_NSGetExecutablePath(exe, &size) != 0) {
+        free(exe);
+        return 0;
+    }
+#else
+    char *exe = dupstr("/proc/self/exe");
+    if (!exe) {
+        return 0;
+    }
+#endif
+    pid_t pid = fork();
+    if (pid < 0) {
+        free(exe);
+        return 0;
+    }
+    if (pid == 0) {
+        setsid(); /* detach from the terminal/session */
+        char *argv[3];
+        argv[0] = exe;
+        argv[1] = (char *)root;
+        argv[2] = NULL;
+        execv(exe, argv);
+        _exit(127); /* exec failed */
+    }
+    free(exe);
+    return 1;
+}
+#endif
+
+/* Native drag-and-drop (ADR 0056): validate the dropped root, then relaunch
+ * the player on it and stop this run. An unusable drop prints a diagnostic and
+ * leaves the running game untouched. */
+static void player_on_files_dropped(void *ud, const char *path) {
+    (void)ud;
+    if (g_drop_relaunch) {
+        return; /* coalesce drops while a relaunch is pending */
+    }
+    struct stat st;
+    if (stat(path, &st) != 0) {
+        fprintf(stderr, "player: dropped path is unreadable: %s\n", path);
+        return;
+    }
+    if (EFX_ISREG(st.st_mode) &&
+        (unsigned long long)st.st_size > EFX_DROP_MAX_ARCHIVE_BYTES) {
+        fprintf(stderr,
+                "player: dropped archive exceeds %u MiB: %s\n",
+                (unsigned)(EFX_DROP_MAX_ARCHIVE_BYTES / (1024u * 1024u)), path);
+        return;
+    }
+    if (!efx_resource_probe_root(path)) {
+        fprintf(stderr, "player: dropped root has no main.js: %s\n", path);
+        return;
+    }
+    if (!spawn_player(path)) {
+        fprintf(stderr, "player: could not relaunch on dropped root: %s\n",
+                path);
+        return;
+    }
+    g_drop_relaunch = 1;
 }
 
 static int run_script_mode(const char *path, const char *root_override,
@@ -150,6 +262,9 @@ static int player_stop(efx_runtime *rt) {
 
 int efx_player_frame(void *ud, double dt) {
     efx_runtime *rt = (efx_runtime *)ud;
+    if (g_drop_relaunch) {
+        return player_stop(rt);
+    }
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
         return player_stop(rt);
     }
@@ -253,6 +368,7 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
     hooks.ud = rt;
     hooks.on_init = on_init_root;
     hooks.on_frame = on_frame;
+    hooks.on_files_dropped = player_on_files_dropped;
     efx_platform_run(&desc, hooks);
     int exit_code = efx_player_exit_code(rt);
     /* release native resources while the GPU context is still alive:

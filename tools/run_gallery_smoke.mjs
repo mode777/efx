@@ -34,7 +34,16 @@ if (!fs.existsSync(path.join(DIST, 'index.html'))) {
     process.exit(2);
 }
 
-const server = serveStatic(DIST, {}, { index: 'index.html', notFound: 'not found' });
+const server = serveStatic(
+    DIST,
+    {
+        '/__drop_fixture.zip': {
+            contentType: 'application/zip',
+            body: fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'root_zip.zip')),
+        },
+    },
+    { index: 'index.html', notFound: 'not found' }
+);
 
 const fails = [];
 function check(ok, label) {
@@ -58,12 +67,16 @@ const browser = await launchBrowser({
 });
 
 const consoleErrors = [];
+const consoleAll = [];
+const navigations = [];
 const pageErrors = [];
 try {
     const page = await browser.newPage();
     page.on('console', (m) => {
+        consoleAll.push(m.text());
         if (m.type() === 'error') consoleErrors.push(m.text());
     });
+    page.on('framenavigated', (f) => navigations.push(f.url()));
     page.on('pageerror', (e) => pageErrors.push(e.message));
 
     await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'load', timeout: 30000 });
@@ -201,6 +214,55 @@ try {
 
     check(consoleErrors.length === 0, `no console errors (${consoleErrors.length})`);
     check(pageErrors.length === 0, `no page errors (${pageErrors.length})`);
+
+    // A dropped archive loads as the active sample (ADR 0056): the boot glue
+    // validates it, stashes it, and reloads the runner bound to it; an
+    // unusable drop is reported and leaves the running game alone.
+    async function dropIntoRunner(bytes, name) {
+        const target = runner();
+        if (!target) return false;
+        return target
+            .evaluate(
+                async (arr, n) => {
+                    const file = new File([new Uint8Array(arr)], n, { type: 'application/zip' });
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    const canvas = document.getElementById('canvas') || document.body;
+                    canvas.dispatchEvent(
+                        new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true })
+                    );
+                    canvas.dispatchEvent(
+                        new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })
+                    );
+                    return true;
+                },
+                Array.from(bytes),
+                name
+            )
+            .catch(() => false);
+    }
+
+    const dropZip = fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'root_zip.zip'));
+    await dropIntoRunner(dropZip, 'root_zip.zip');
+    await waitBoot();
+    check(
+        navigations.some((u) => u.includes('__efx_drop=')),
+        'dropped archive reloads the runner bound to it'
+    );
+    check(
+        consoleAll.some((t) => t.includes('zip-entry-ok')),
+        'dropped archive runs as the active sample'
+    );
+
+    const beforeInvalid = runner() ? runner().url() : '';
+    await dropIntoRunner(new Uint8Array([0, 1, 2, 3, 4, 5]), 'bad.bin');
+    await new Promise((r) => setTimeout(r, 500));
+    const afterInvalid = runner() ? runner().url() : '';
+    check(
+        consoleAll.some((t) => t.includes('not a game')),
+        'unusable drop is reported on the error channel'
+    );
+    check(afterInvalid === beforeInvalid, 'unusable drop does not reload the runner');
 
     // Intentional script error must surface inline and not break the shell.
     // Runs last: it legitimately logs to the console.

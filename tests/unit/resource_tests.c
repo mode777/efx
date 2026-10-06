@@ -212,6 +212,24 @@ static int zip_bad_root(void) {
     return err == EFX_RESOURCE_ERR_OPEN ? 0 : fail("bad zip err code");
 }
 
+/* dropped-root probe: accepts a directory or zip containing main.js, rejects
+ * a root without one or a non-archive file */
+static int probe_root(void) {
+    if (!efx_resource_probe_root(EFX_RES_FIXTURES "/../root_zip.zip"))
+        return fail("probe rejected a zip root with main.js");
+    if (!efx_resource_probe_root(EFX_RES_FIXTURES "/../root_ok"))
+        return fail("probe rejected a directory root with main.js");
+    if (efx_resource_probe_root(EFX_RES_FIXTURES "/data"))
+        return fail("probe accepted a directory without main.js");
+    if (efx_resource_probe_root(EFX_RES_FIXTURES "/hello.txt"))
+        return fail("probe accepted a non-archive file");
+    if (efx_resource_probe_root(EFX_RES_FIXTURES "/no_such_dir"))
+        return fail("probe accepted a missing root");
+    if (efx_resource_probe_root(NULL))
+        return fail("probe accepted a NULL root");
+    return 0;
+}
+
 /* ---------------------------------------------------------- F6b glTF import */
 
 static void *gltf_mock_create(void *ud, int w, int h, const uint8_t *rgba,
@@ -608,6 +626,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(zip_image),
     EFX_CASE(zip_missing),
     EFX_CASE(zip_bad_root),
+    EFX_CASE(probe_root),
     EFX_CASE(gltf_triangle),
     EFX_CASE(gltf_zip),
     EFX_CASE(gltf_transform),

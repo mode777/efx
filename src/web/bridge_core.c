@@ -210,6 +210,7 @@ EMSCRIPTEN_KEEPALIVE void efx_web_start_loop(void) {
     hooks.ud = NULL;
     hooks.on_init = web_on_init;
     hooks.on_frame = web_frame;
+    hooks.on_files_dropped = NULL; /* web drops are handled by the boot JS */
     efx_platform_run(&desc, hooks);
 }
 

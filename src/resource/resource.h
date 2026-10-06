@@ -50,4 +50,10 @@ void efx_resource_free(void *bytes);
 /* 1 when the root is a zip archive, 0 for a directory. */
 int efx_resource_is_zip(const efx_resource *r);
 
+/* Probes a candidate resource root: returns 1 when `root` opens as a
+ * directory or zip archive AND contains a readable `main.js` entry, else 0.
+ * Opens and closes a throwaway provider; no state is retained. Used to
+ * validate a dropped root before committing to it. */
+int efx_resource_probe_root(const char *root);
+
 #endif
