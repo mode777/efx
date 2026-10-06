@@ -158,25 +158,32 @@ static int spawn_player(const char *root) {
 /* Native drag-and-drop (ADR 0056): validate the dropped root, then relaunch
  * the player on it and stop this run. An unusable drop prints a diagnostic and
  * leaves the running game untouched. */
-static void player_on_files_dropped(void *ud, const char *path) {
-    (void)ud;
-    if (g_drop_relaunch) {
-        return; /* coalesce drops while a relaunch is pending */
-    }
+static int drop_check(const char *path) {
     struct stat st;
     if (stat(path, &st) != 0) {
         fprintf(stderr, "player: dropped path is unreadable: %s\n", path);
-        return;
+        return 0;
     }
     if (EFX_ISREG(st.st_mode) &&
         (unsigned long long)st.st_size > EFX_DROP_MAX_ARCHIVE_BYTES) {
         fprintf(stderr,
                 "player: dropped archive exceeds %u MiB: %s\n",
                 (unsigned)(EFX_DROP_MAX_ARCHIVE_BYTES / (1024u * 1024u)), path);
-        return;
+        return 0;
     }
     if (!efx_resource_probe_root(path)) {
         fprintf(stderr, "player: dropped root has no main.js: %s\n", path);
+        return 0;
+    }
+    return 1;
+}
+
+static void player_on_files_dropped(void *ud, const char *path) {
+    (void)ud;
+    if (g_drop_relaunch) {
+        return; /* coalesce drops while a relaunch is pending */
+    }
+    if (!drop_check(path)) {
         return;
     }
     if (!spawn_player(path)) {
@@ -383,6 +390,16 @@ static int run_root_mode(const char *root, const efx_platform_capture *capture) 
 }
 
 int efx_player_main(int argc, char **argv) {
+    /* test-only seam (ADR 0036): exercise the dropped-root acceptance and
+       load in-process, without spawning a child, so ctest can assert the
+       dropped game's output. The player never sets this itself. */
+    const char *drop_sim = getenv("EFX_DROP_SIM_ROOT");
+    if (drop_sim && drop_sim[0] != '\0') {
+        if (!drop_check(drop_sim)) {
+            return 1;
+        }
+        return run_root_mode(drop_sim, NULL);
+    }
     if (argc < 2) {
         return usage();
     }
