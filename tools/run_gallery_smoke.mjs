@@ -243,16 +243,20 @@ try {
     }
 
     const dropZip = fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'root_zip.zip'));
+    async function waitFor(pred, timeout = 15000) {
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+            if (pred()) return true;
+            await new Promise((r) => setTimeout(r, 200));
+        }
+        return false;
+    }
     await dropIntoRunner(dropZip, 'root_zip.zip');
+    const reloaded = await waitFor(() => navigations.some((u) => u.includes('__efx_drop=')));
+    check(reloaded, 'dropped archive reloads the runner bound to it');
     await waitBoot();
-    check(
-        navigations.some((u) => u.includes('__efx_drop=')),
-        'dropped archive reloads the runner bound to it'
-    );
-    check(
-        consoleAll.some((t) => t.includes('zip-entry-ok')),
-        'dropped archive runs as the active sample'
-    );
+    const droppedRan = await waitFor(() => consoleAll.some((t) => t.includes('zip-entry-ok')));
+    check(droppedRan, 'dropped archive runs as the active sample');
 
     const beforeInvalid = runner() ? runner().url() : '';
     await dropIntoRunner(new Uint8Array([0, 1, 2, 3, 4, 5]), 'bad.bin');
