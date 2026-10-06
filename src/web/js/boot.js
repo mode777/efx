@@ -185,6 +185,11 @@ function __efxResolveAssets() {
        URL token, takes precedence over the host asset URL */
     __efxConsumeDropToken().then(function (used) {
         if (used) {
+            /* the dropped root is authoritative: an embedding page may have
+               set a host entry source while this document reloaded (the
+               gallery re-sends the previous sample on `ready`), and it must
+               not override the dropped archive's main.js */
+            try { delete globalThis['__efx_main_js']; } catch (e) {}
             __efxStartAfterAssets();
             return;
         }
