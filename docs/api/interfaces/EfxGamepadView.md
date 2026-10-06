@@ -9,38 +9,6 @@
 A pad slot view: plain data plus query methods. Not a resource — there is
 nothing to create or destroy.
 
-## Properties
-
-### connected
-
-> `readonly` **connected**: `boolean`
-
-`true` while a pad occupies this slot.
-
-***
-
-### index
-
-> `readonly` **index**: `number`
-
-Slot index this view reports (0-based).
-
-***
-
-### mapped
-
-> `readonly` **mapped**: `boolean`
-
-`true` when a semantic mapping was found (else only `rawButton`/`rawAxis`).
-
-***
-
-### name
-
-> `readonly` **name**: `string`
-
-Device name string reported by the platform.
-
 ## Methods
 
 ### axis()
@@ -172,3 +140,35 @@ Raw button index.
 `number`
 
 The raw device value (0 when out of range).
+
+## Properties
+
+### connected
+
+> `readonly` **connected**: `boolean`
+
+`true` while a pad occupies this slot.
+
+***
+
+### index
+
+> `readonly` **index**: `number`
+
+Slot index this view reports (0-based).
+
+***
+
+### mapped
+
+> `readonly` **mapped**: `boolean`
+
+`true` when a semantic mapping was found (else only `rawButton`/`rawAxis`).
+
+***
+
+### name
+
+> `readonly` **name**: `string`
+
+Device name string reported by the platform.

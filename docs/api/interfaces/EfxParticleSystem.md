@@ -8,22 +8,6 @@
 
 A native-backed CPU particle system.
 
-## Properties
-
-### count
-
-> `readonly` **count**: `number`
-
-Number of live particles.
-
-***
-
-### speedScale
-
-> **speedScale**: `number`
-
-Read-write simulated-time factor.
-
 ## Methods
 
 ### destroy()
@@ -123,3 +107,19 @@ Stop emitting (live particles keep simulating).
 #### Returns
 
 `void`
+
+## Properties
+
+### count
+
+> `readonly` **count**: `number`
+
+Number of live particles.
+
+***
+
+### speedScale
+
+> **speedScale**: `number`
+
+Read-write simulated-time factor.

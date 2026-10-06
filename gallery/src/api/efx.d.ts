@@ -16,6 +16,34 @@
 // gallery editor (Monaco `addExtraLib`) and type-checked by `tsc`.
 
 /**
+ * @packageDocumentation
+ * @groupDescription Start Here
+ * The `efx` global and the sub-namespaces it offers.
+ * @groupDescription Graphics
+ * 2D/3D drawing, cameras, lights, materials, text, post FX, and GPU resources.
+ * @groupDescription Math
+ * Pure-JS `mat4`, `vec3`, and `quat` helpers.
+ * @groupDescription Input
+ * Keyboard, mouse, window, and gamepad queries and events.
+ * @groupDescription Physics
+ * The single physics world: bodies, a character controller, and queries.
+ * @groupDescription Audio
+ * Streamed music and engine-mixed sound effects.
+ * @groupDescription IO
+ * Synchronous resource loaders.
+ * @groupDescription Values
+ * Shared value records, primitive aliases, and descriptors.
+ * @groupDescription Configuration
+ * Option and parameter bags that are not inlined into their operations.
+ * @groupDescription Events
+ * Payloads delivered to event callbacks.
+ * @groupDescription Enums
+ * Fixed string-union identifier sets.
+ * @groupDescription Results
+ * Records returned by queries and layout operations.
+ */
+
+/**
  * An RGBA color: four normalized floats in `0..1`, ordered `[r, g, b, a]`.
  * Most lighting and material channels ignore the alpha component.
  *
@@ -24,13 +52,22 @@
  * efx.graphics.setClearColor([0.05, 0.05, 0.1, 1]);
  * efx.graphics.drawQuad(tex, 0, 0, { color: [1, 0.5, 0, 1] });
  * ```
+ * @group Values
  */
 type Color = [number, number, number, number];
 
-/** A 2-component vector `[x, y]` (frame pixels for 2D APIs, world units for 3D). */
+/**
+ * A 2-component vector `[x, y]` (frame pixels for 2D APIs, world units for 3D).
+ *
+ * @group Values
+ */
 type Vec2 = [number, number];
 
-/** A 3-component vector `[x, y, z]` in world units. */
+/**
+ * A 3-component vector `[x, y, z]` in world units.
+ *
+ * @group Values
+ */
 type Vec3 = [number, number, number];
 
 /**
@@ -44,6 +81,7 @@ type Vec3 = [number, number, number];
  * );
  * efx.graphics.drawMesh(mesh, { transform: model });
  * ```
+ * @group Values
  */
 type Mat4 = [
   number, number, number, number,
@@ -60,6 +98,7 @@ type Mat4 = [
  * const q = efx.math.quat.fromAxisAngle(90, [0, 1, 0]);
  * const m = efx.math.quat.toMat4(q);
  * ```
+ * @group Values
  */
 type Quat = [number, number, number, number];
 
@@ -67,7 +106,11 @@ type Quat = [number, number, number, number];
 // Input: keyboard, mouse & window
 // ---------------------------------------------------------------------------
 
-/** The engine-owned lowercase keyboard identifier set. */
+/**
+ * The engine-owned lowercase keyboard identifier set.
+ *
+ * @group Enums
+ */
 type EfxKey =
   | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l'
   | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x'
@@ -87,13 +130,25 @@ type EfxKey =
   | 'rshift' | 'rctrl' | 'ralt' | 'rsuper'
   | 'menu';
 
-/** The engine-owned mouse button identifier set. */
+/**
+ * The engine-owned mouse button identifier set.
+ *
+ * @group Enums
+ */
 type EfxMouseButton = 'left' | 'right' | 'middle';
 
-/** An active keyboard modifier name reported in an event's `mods`. */
+/**
+ * An active keyboard modifier name reported in an event's `mods`.
+ *
+ * @group Enums
+ */
 type EfxMod = 'shift' | 'ctrl' | 'alt' | 'super';
 
-/** Payload of a key-down event. */
+/**
+ * Payload of a key-down event.
+ *
+ * @group Events
+ */
 interface KeyboardDownEvent {
   /** The key that went down. */
   key: EfxKey;
@@ -103,7 +158,11 @@ interface KeyboardDownEvent {
   mods: EfxMod[];
 }
 
-/** Payload of a key-up event. */
+/**
+ * Payload of a key-up event.
+ *
+ * @group Events
+ */
 interface KeyboardUpEvent {
   /** The key that went up. */
   key: EfxKey;
@@ -111,13 +170,21 @@ interface KeyboardUpEvent {
   mods: EfxMod[];
 }
 
-/** Payload of a text-input event. */
+/**
+ * Payload of a text-input event.
+ *
+ * @group Events
+ */
 interface CharEvent {
   /** The decoded character, e.g. `'A'` (may be more than one UTF-16 unit). */
   char: string;
 }
 
-/** Payload of a mouse button event. */
+/**
+ * Payload of a mouse button event.
+ *
+ * @group Events
+ */
 interface MouseButtonEvent {
   /** The button that changed state. */
   button: EfxMouseButton;
@@ -129,7 +196,11 @@ interface MouseButtonEvent {
   mods: EfxMod[];
 }
 
-/** Payload of a mouse move event. */
+/**
+ * Payload of a mouse move event.
+ *
+ * @group Events
+ */
 interface MouseMoveEvent {
   /** Cursor x in surface pixels. */
   x: number;
@@ -141,7 +212,11 @@ interface MouseMoveEvent {
   dy: number;
 }
 
-/** Payload of a mouse wheel event. */
+/**
+ * Payload of a mouse wheel event.
+ *
+ * @group Events
+ */
 interface MouseWheelEvent {
   /** Horizontal scroll delta for this frame. */
   dx: number;
@@ -165,6 +240,7 @@ interface MouseWheelEvent {
  *   if (efx.keyboard.isDown('left') || efx.keyboard.isDown('a')) wx -= 240;
  * });
  * ```
+ * @group Input
  */
 interface EfxKeyboard {
   /**
@@ -227,6 +303,7 @@ interface EfxKeyboard {
  *   if (efx.mouse.isDown('left')) well = 1;
  * });
  * ```
+ * @group Input
  */
 interface EfxMouse {
   /**
@@ -300,6 +377,7 @@ interface EfxMouse {
  * const [w, h] = efx.window.size;
  * const logicalW = w / efx.window.dpiScale;
  * ```
+ * @group Input
  */
 interface EfxWindow {
   /** Window size `[width, height]` in surface pixels. */
@@ -316,20 +394,29 @@ interface EfxWindow {
 // Gamepad input
 // ---------------------------------------------------------------------------
 
-/** The engine-owned semantic gamepad button identifier set. */
+/**
+ * The engine-owned semantic gamepad button identifier set.
+ *
+ * @group Enums
+ */
 type EfxGamepadButton =
   | 'south' | 'east' | 'west' | 'north'
   | 'leftShoulder' | 'rightShoulder' | 'leftTrigger' | 'rightTrigger'
   | 'back' | 'start' | 'guide' | 'leftStick' | 'rightStick'
   | 'dpadUp' | 'dpadDown' | 'dpadLeft' | 'dpadRight';
 
-/** The engine-owned semantic gamepad axis identifier set. */
+/**
+ * The engine-owned semantic gamepad axis identifier set.
+ *
+ * @group Enums
+ */
 type EfxGamepadAxis =
   | 'leftX' | 'leftY' | 'rightX' | 'rightY' | 'leftTrigger' | 'rightTrigger';
 
 /**
  * A pad slot view: plain data plus query methods. Not a resource — there is
  * nothing to create or destroy.
+ * @group Input
  */
 interface EfxGamepadView {
   /** Slot index this view reports (0-based). */
@@ -398,6 +485,7 @@ interface EfxGamepadView {
  *   x += pad.axis('leftX') * speed * dt;
  * });
  * ```
+ * @group Input
  */
 interface EfxGamepad {
   /** Number of currently connected pads. */
@@ -429,7 +517,11 @@ interface EfxGamepad {
 // Resource types
 // ---------------------------------------------------------------------------
 
-/** Raw CPU pixels plus size and format (opaque native-backed class). */
+/**
+ * Raw CPU pixels plus size and format (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxImageData {
   /** Image width in pixels. Throws `TypeError` when destroyed. */
   readonly width: number;
@@ -439,7 +531,11 @@ interface EfxImageData {
   destroy(): void;
 }
 
-/** A GPU texture (opaque native-backed class). */
+/**
+ * A GPU texture (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxTexture {
   /** Texture width in pixels. Throws `TypeError` when destroyed. */
   readonly width: number;
@@ -449,7 +545,11 @@ interface EfxTexture {
   destroy(): void;
 }
 
-/** A GPU render target with color and depth attachments (opaque native-backed class). */
+/**
+ * A GPU render target with color and depth attachments (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxRenderTarget {
   /** Target width in pixels. Throws `TypeError` when destroyed. */
   readonly width: number;
@@ -459,10 +559,18 @@ interface EfxRenderTarget {
   destroy(): void;
 }
 
-/** A live Texture or RenderTarget — accepted anywhere a texture is sampled. */
+/**
+ * A live Texture or RenderTarget — accepted anywhere a texture is sampled.
+ *
+ * @group Graphics
+ */
 type EfxSample = EfxTexture | EfxRenderTarget;
 
-/** CPU mesh data holding 1..16 surfaces (opaque native-backed class). */
+/**
+ * CPU mesh data holding 1..16 surfaces (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxMeshData {
   /** Number of surfaces (1..16). */
   readonly surfaceCount: number;
@@ -470,7 +578,11 @@ interface EfxMeshData {
   destroy(): void;
 }
 
-/** A GPU mesh uploaded from MeshData (opaque native-backed class). */
+/**
+ * A GPU mesh uploaded from MeshData (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxMesh {
   /** Number of surfaces (1..16). */
   readonly surfaceCount: number;
@@ -496,13 +608,21 @@ interface EfxMesh {
 // Font + text
 // ---------------------------------------------------------------------------
 
-/** A parsed TrueType/OpenType font, CPU only (opaque native-backed class). */
+/**
+ * A parsed TrueType/OpenType font, CPU only (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxFontData {
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** A baked glyph atlas plus layout metrics (opaque native-backed class). */
+/**
+ * A baked glyph atlas plus layout metrics (opaque native-backed class).
+ *
+ * @group Graphics
+ */
 interface EfxFont {
   /** Pixel size the atlas was baked at. */
   readonly size: number;
@@ -524,13 +644,21 @@ interface EfxFont {
   destroy(): void;
 }
 
-/** A baked outline ring around glyphs. */
+/**
+ * A baked outline ring around glyphs.
+ *
+ * @group Values
+ */
 interface FontOutline {
   /** Outline thickness in pixels (must be > 0). */
   width: number;
 }
 
-/** A baked blurred shadow behind glyphs. */
+/**
+ * A baked blurred shadow behind glyphs.
+ *
+ * @group Values
+ */
 interface FontShadow {
   /** Blur radius in pixels (must be > 0). */
   blur: number;
@@ -549,6 +677,8 @@ interface FontShadow {
  * });
  * const body = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 24);
  * ```
+ * @hidden
+ * @inline
  */
 interface CreateFontOptions {
   /** Codepoints to bake; defaults to the printable Latin-1 set. */
@@ -574,6 +704,8 @@ interface CreateFontOptions {
  *   color: [0.85, 0.88, 0.95, 1],
  * });
  * ```
+ * @hidden
+ * @inline
  */
 interface TextOptions {
   /** Horizontal alignment (default `'left'`); `'justify'` requires `width`. */
@@ -596,7 +728,11 @@ interface TextOptions {
   scale?: number;
 }
 
-/** Laid-out text bounds returned by `drawText` / `Font.measure`. */
+/**
+ * Laid-out text bounds returned by `drawText` / `Font.measure`.
+ *
+ * @group Results
+ */
 interface TextBounds {
   /** Laid-out width in pixels. */
   readonly width: number;
@@ -623,6 +759,8 @@ interface TextBounds {
  *   sourceRect: { x: 128, y: 128, w: 256, h: 256 },
  * });
  * ```
+ * @hidden
+ * @inline
  */
 interface DrawQuadOptions {
   /** Tint `[r, g, b, a]` (default opaque white). */
@@ -649,6 +787,8 @@ interface DrawQuadOptions {
  * efx.graphics.setCamera2D({ frame: [640, 480] });          // virtual 640x480 frame
  * efx.graphics.setCamera2D({ frame: [640, 480], zoom: 2 }); // 2x zoom about the center
  * ```
+ * @hidden
+ * @inline
  */
 interface Camera2DOptions {
   /** Virtual resolution `[width, height]`; defaults to the current window size. */
@@ -680,6 +820,8 @@ interface Camera2DOptions {
  * }
  * const glow = efx.graphics.createImageData(size, size, px);
  * ```
+ * @hidden
+ * @inline
  */
 interface CreateImageDataOptions {
   /** Pixel format; only `'rgba8'` is supported (default `'rgba8'`). Reserved for future options. */
@@ -695,6 +837,8 @@ interface CreateImageDataOptions {
  * const tex = efx.graphics.createTexture(efx.graphics.loadImage('paving_color.jpg'),
  *                               { mipmaps: true });
  * ```
+ * @hidden
+ * @inline
  */
 interface TextureOptions {
   /** Texture wrap mode (default `'repeat'`). */
@@ -705,7 +849,11 @@ interface TextureOptions {
   mipmaps?: boolean;
 }
 
-/** A `{ x, y, w, h }` rectangle in texture pixels. */
+/**
+ * A `{ x, y, w, h }` rectangle in texture pixels.
+ *
+ * @group Values
+ */
 interface SourceRect {
   /** Left edge in texture pixels. */
   x: number;
@@ -728,6 +876,8 @@ interface SourceRect {
  * ```js
  * efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
  * ```
+ * @hidden
+ * @inline
  */
 interface Camera3DOptions {
   /** Near plane distance (default 0.1). */
@@ -736,13 +886,25 @@ interface Camera3DOptions {
   far?: number;
 }
 
-/** Flat floating-point attribute arrays: a plain array or a typed array. */
+/**
+ * Flat floating-point attribute arrays: a plain array or a typed array.
+ *
+ * @group Values
+ */
 type FlatNumbers = number[] | Float32Array;
 
-/** Flat index arrays: a plain array or a typed array of unsigned integers. */
+/**
+ * Flat index arrays: a plain array or a typed array of unsigned integers.
+ *
+ * @group Values
+ */
 type FlatIndices = number[] | Uint32Array;
 
-/** One mesh surface's attribute arrays (a Godot surface / glTF primitive). */
+/**
+ * One mesh surface's attribute arrays (a Godot surface / glTF primitive).
+ *
+ * @group Values
+ */
 interface MeshSurfaceData {
   /** Required flat xyz positions (3 numbers per vertex). */
   positions: FlatNumbers;
@@ -760,7 +922,11 @@ interface MeshSurfaceData {
   indices?: FlatIndices;
 }
 
-/** An ambient/diffuse/emissive Phong channel. */
+/**
+ * An ambient/diffuse/emissive Phong channel.
+ *
+ * @group Values
+ */
 interface PhongChannel {
   /** Channel color `[r, g, b, a]` (alpha ignored by shading). */
   color: Color;
@@ -768,7 +934,11 @@ interface PhongChannel {
   map?: EfxSample | null;
 }
 
-/** The specular Phong channel (adds a shininess exponent). */
+/**
+ * The specular Phong channel (adds a shininess exponent).
+ *
+ * @group Values
+ */
 interface SpecularChannel {
   /** Specular color `[r, g, b, a]` (alpha ignored by shading). */
   color: Color;
@@ -792,6 +962,7 @@ interface SpecularChannel {
  *   emissive: { color: [0, 0, 0, 1] },
  * });
  * ```
+ * @group Values
  */
 interface Material {
   /** Ambient channel (default black). */
@@ -818,6 +989,8 @@ interface Material {
  *   color: [0.95, 0.5, 0.2, 1],
  * });
  * ```
+ * @hidden
+ * @inline
  */
 interface DrawMeshOptions {
   /** Column-major transform (default identity). */
@@ -835,6 +1008,8 @@ interface DrawMeshOptions {
  * ```js
  * const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
  * ```
+ * @hidden
+ * @inline
  */
 interface MakeCubeOptions {
   /** Edge length (default 1, must be > 0). */
@@ -850,6 +1025,8 @@ interface MakeCubeOptions {
  * ```js
  * const ground = efx.graphics.createMesh(efx.graphics.makePlane({ size: 10, segments: 4 }));
  * ```
+ * @hidden
+ * @inline
  */
 interface MakePlaneOptions {
   /** Edge length (default 1, must be > 0). */
@@ -867,6 +1044,8 @@ interface MakePlaneOptions {
  * ```js
  * const ball = efx.graphics.createMesh(efx.graphics.makeSphere({ radius: 1.6, segments: 32 }));
  * ```
+ * @hidden
+ * @inline
  */
 interface MakeSphereOptions {
   /** Sphere radius (default 1, must be > 0). */
@@ -885,6 +1064,8 @@ interface MakeSphereOptions {
  * // a capsule matching a physics character (radius 0.4, height 1.8)
  * const body = efx.graphics.createMesh(efx.graphics.makeCapsule({ radius: 0.4, height: 1.8 }));
  * ```
+ * @hidden
+ * @inline
  */
 interface MakeCapsuleOptions {
   /** Capsule radius (default 1, must be > 0). */
@@ -908,6 +1089,8 @@ interface MakeCapsuleOptions {
  * ```js
  * efx.graphics.setLight(0, { pos: [3, 4, 2], color: [1, 0.95, 0.9, 1], range: 20 });
  * ```
+ * @hidden
+ * @inline
  */
 interface PointLightOptions {
   /** Light position in world units. */
@@ -925,6 +1108,8 @@ interface PointLightOptions {
  * ```js
  * efx.graphics.setDirectionalLight({ dir: [-0.5, -1, -0.3], color: [0.2, 0.25, 0.35, 1] });
  * ```
+ * @hidden
+ * @inline
  */
 interface DirectionalLightOptions {
   /** Direction the light travels (the direction to the light is `-dir`). */
@@ -937,7 +1122,11 @@ interface DirectionalLightOptions {
 // Post effects & render scale
 // ---------------------------------------------------------------------------
 
-/** A color-filter post effect (identity with all defaults). */
+/**
+ * A color-filter post effect (identity with all defaults).
+ *
+ * @group Configuration
+ */
 interface ColorFilterPostEffect {
   /** Discriminator selecting the color-filter effect. */
   effect: 'colorFilter';
@@ -953,7 +1142,11 @@ interface ColorFilterPostEffect {
   tint?: Color;
 }
 
-/** A separable gaussian blur post effect. */
+/**
+ * A separable gaussian blur post effect.
+ *
+ * @group Configuration
+ */
 interface BlurPostEffect {
   /** Discriminator selecting the blur effect. */
   effect: 'blur';
@@ -963,7 +1156,11 @@ interface BlurPostEffect {
   radius?: number;
 }
 
-/** A bloom post effect. */
+/**
+ * A bloom post effect.
+ *
+ * @group Configuration
+ */
 interface BloomPostEffect {
   /** Discriminator selecting the bloom effect. */
   effect: 'bloom';
@@ -975,7 +1172,11 @@ interface BloomPostEffect {
   strength?: number;
 }
 
-/** One entry of the declarative post-effect chain (`setPostEffects`). */
+/**
+ * One entry of the declarative post-effect chain (`setPostEffects`).
+ *
+ * @group Configuration
+ */
 type EfxPostEffect = ColorFilterPostEffect | BlurPostEffect | BloomPostEffect;
 
 /**
@@ -986,6 +1187,8 @@ type EfxPostEffect = ColorFilterPostEffect | BlurPostEffect | BloomPostEffect;
  * efx.graphics.setRenderScale(0.5, { filter: 'nearest' }); // crisp half-res pixels
  * efx.graphics.setRenderScale(1);                          // back to native
  * ```
+ * @hidden
+ * @inline
  */
 interface RenderScaleOptions {
   /** Final blit filter (default `'linear'`). */
@@ -1005,6 +1208,8 @@ interface RenderScaleOptions {
  * const named = efx.graphics.loadMeshData('scene.gltf', { mesh: 'Teapot' });
  * const byIndex = efx.graphics.loadMeshData('scene.gltf', { mesh: 2 });
  * ```
+ * @hidden
+ * @inline
  */
 interface LoadMeshDataOptions {
   /** Mesh selector: a non-negative index or a mesh name; defaults to the first mesh. */
@@ -1028,6 +1233,7 @@ interface LoadMeshDataOptions {
  *   { clip: 'Run',  time: t, weight: k },
  * ]);
  * ```
+ * @group Values
  */
 interface PoseSample {
   /** Clip name (glTF `name`, or stable `clipN`) or a non-negative clip index. */
@@ -1042,10 +1248,18 @@ interface PoseSample {
 // Billboards, 2D sprites & CPU particles
 // ---------------------------------------------------------------------------
 
-/** Quad render mode for world-space billboards and particles. */
+/**
+ * Quad render mode for world-space billboards and particles.
+ *
+ * @group Enums
+ */
 type EfxFacing = 'view' | 'y' | 'plane';
 
-/** Blend mode for 2D quads, sprites, and particle batches. */
+/**
+ * Blend mode for 2D quads, sprites, and particle batches.
+ *
+ * @group Enums
+ */
 type EfxBlendMode = 'alpha' | 'additive' | 'subtractive';
 
 /**
@@ -1058,6 +1272,8 @@ type EfxBlendMode = 'alpha' | 'additive' | 'subtractive';
  *   color: [1, 0.7, 0.3, 0.9],
  * });
  * ```
+ * @hidden
+ * @inline
  */
 interface DrawBillboardOptions {
   /** World-unit size: a single number or `[w, h]` (default 1). */
@@ -1088,6 +1304,8 @@ interface DrawBillboardOptions {
  *   { x: 74,  y: 20, size: [48, 48], color: [1, 0.7, 0.3, 0.9] },
  * ]);
  * ```
+ * @hidden
+ * @inline
  */
 interface SpriteOptions {
   /** Quad top-left x in frame pixels. */
@@ -1115,13 +1333,19 @@ interface SpriteOptions {
  * ```js
  * efx.graphics.drawSprites(spark, sprites, { blend: 'additive' });
  * ```
+ * @hidden
+ * @inline
  */
 interface DrawSpritesOptions {
   /** Blend mode applied to every sprite in the batch; overrides the frame's blend state. */
   blend?: EfxBlendMode;
 }
 
-/** Emission volume for a particle system. */
+/**
+ * Emission volume for a particle system.
+ *
+ * @group Configuration
+ */
 interface EmissionShapeOptions {
   /** Shape kind. */
   shape: 'point' | 'box' | 'sphere' | 'sphereSurface' | 'disc';
@@ -1149,6 +1373,7 @@ interface EmissionShapeOptions {
  *   facing: 'view',
  * });
  * ```
+ * @group Configuration
  */
 interface ParticleSystemCreateOptions {
   /** Simulation space: `'world'` (default, 3D) or `'screen'` (2D). */
@@ -1205,7 +1430,11 @@ interface ParticleSystemCreateOptions {
   speedScale?: number;
 }
 
-/** Full particle configuration; the creation inputs (`texture`, `max`, `lifetime`) are positional on `createParticleSystem`. */
+/**
+ * Full particle configuration; the creation inputs (`texture`, `max`, `lifetime`) are positional on `createParticleSystem`.
+ *
+ * @group Configuration
+ */
 interface ParticleSystemOptions extends ParticleSystemCreateOptions {
   /** Texture (or render target) for particle quads. */
   texture: EfxSample;
@@ -1215,10 +1444,18 @@ interface ParticleSystemOptions extends ParticleSystemCreateOptions {
   lifetime: number | [number, number];
 }
 
-/** Partial update bag for `ParticleSystem.set`. */
+/**
+ * Partial update bag for `ParticleSystem.set`.
+ *
+ * @group Configuration
+ */
 type ParticleSystemSetOptions = Partial<ParticleSystemOptions>;
 
-/** A native-backed CPU particle system. */
+/**
+ * A native-backed CPU particle system.
+ *
+ * @group Graphics
+ */
 interface EfxParticleSystem {
   /**
    * Emit a burst of particles immediately.
@@ -1252,7 +1489,11 @@ interface EfxParticleSystem {
 // Pure-JS math layer
 // ---------------------------------------------------------------------------
 
-/** Pure-JS 4×4 matrix helpers (inputs are never mutated). */
+/**
+ * Pure-JS 4×4 matrix helpers (inputs are never mutated).
+ *
+ * @group Math
+ */
 interface EfxMat4 {
   /**
    * Build the identity matrix.
@@ -1315,7 +1556,11 @@ interface EfxMat4 {
   multiply(a: Mat4, b: Mat4): Mat4;
 }
 
-/** Pure-JS 3-component vector helpers (inputs are never mutated). */
+/**
+ * Pure-JS 3-component vector helpers (inputs are never mutated).
+ *
+ * @group Math
+ */
 interface EfxVec3 {
   /**
    * Add two vectors.
@@ -1366,7 +1611,11 @@ interface EfxVec3 {
   dot(a: Vec3, b: Vec3): number;
 }
 
-/** Pure-JS quaternion helpers (inputs are never mutated). */
+/**
+ * Pure-JS quaternion helpers (inputs are never mutated).
+ *
+ * @group Math
+ */
 interface EfxQuat {
   /**
    * Build the identity quaternion.
@@ -1403,6 +1652,7 @@ interface EfxQuat {
  * Pure-JS math helpers, reached as `efx.math`. Each helper is a pure
  * function that never mutates its arguments and returns plain JS data
  * (column-major `Mat4` arrays, `Vec3` arrays, `Quat` arrays).
+ * @group Math
  */
 interface EfxMath {
   /** Pure-JS 4×4 matrix helpers. */
@@ -1417,7 +1667,11 @@ interface EfxMath {
 // Collision, character & impulse dynamics
 // ---------------------------------------------------------------------------
 
-/** A sphere collider. */
+/**
+ * A sphere collider.
+ *
+ * @group Values
+ */
 interface SphereShape {
   /** Discriminator selecting the sphere shape. */
   type: 'sphere';
@@ -1425,7 +1679,11 @@ interface SphereShape {
   radius: number;
 }
 
-/** An axis-aligned box collider. */
+/**
+ * An axis-aligned box collider.
+ *
+ * @group Values
+ */
 interface BoxShape {
   /** Discriminator selecting the box shape. */
   type: 'box';
@@ -1433,7 +1691,11 @@ interface BoxShape {
   size: Vec3;
 }
 
-/** A vertical capsule collider. */
+/**
+ * A vertical capsule collider.
+ *
+ * @group Values
+ */
 interface CapsuleShape {
   /** Discriminator selecting the capsule shape. */
   type: 'capsule';
@@ -1443,7 +1705,11 @@ interface CapsuleShape {
   height: number;
 }
 
-/** A static triangle-mesh collider built from a live Mesh. */
+/**
+ * A static triangle-mesh collider built from a live Mesh.
+ *
+ * @group Values
+ */
 interface MeshShape {
   /** Discriminator selecting the triangle-mesh shape. */
   type: 'mesh';
@@ -1461,6 +1727,7 @@ interface MeshShape {
  * const hero = { type: 'capsule', radius: 0.4, height: 1.8 };
  * const ramp = { type: 'mesh', mesh: rampMesh };
  * ```
+ * @group Values
  */
 type PhysicsShape = SphereShape | BoxShape | CapsuleShape | MeshShape;
 
@@ -1474,6 +1741,8 @@ type PhysicsShape = SphereShape | BoxShape | CapsuleShape | MeshShape;
  *   { dynamic: true, mass: 2, friction: 0.6, restitution: 0.1, position: [0, 3, 0] },
  * );
  * ```
+ * @hidden
+ * @inline
  */
 interface CreateBodyOptions {
   /** Simulated by the solver when true (default `false` = static). */
@@ -1501,6 +1770,8 @@ interface CreateBodyOptions {
  * ```js
  * const ramp = efx.physics.createStaticMesh(rampMesh, { friction: 0.8 });
  * ```
+ * @hidden
+ * @inline
  */
 interface CreateStaticMeshOptions {
   /** Initial position in world units (default `[0, 0, 0]`). */
@@ -1527,6 +1798,8 @@ interface CreateStaticMeshOptions {
  *   floorMaxAngle: 50, stepHeight: 0.35, floorSnapLength: 0.15,
  * });
  * ```
+ * @hidden
+ * @inline
  */
 interface CreateCharacterOptions {
   /** Initial position in world units (default `[0, 0, 0]`). */
@@ -1549,7 +1822,11 @@ interface CreateCharacterOptions {
   mask?: number;
 }
 
-/** One contact reported on a dynamic body's `contacts` list. */
+/**
+ * One contact reported on a dynamic body's `contacts` list.
+ *
+ * @group Results
+ */
 interface PhysicsContact {
   /** The other collider's handle (`null` for a static mesh or character). */
   readonly body: EfxBody | null;
@@ -1569,6 +1846,7 @@ interface PhysicsContact {
  * A native-backed collider in the single physics world. The world holds it
  * until `destroy()` or `physics.clear()`: dropping the last script reference
  * does not remove it from the simulation.
+ * @group Physics
  */
 interface EfxBody {
   /** Read-only world position (mutate `velocity` to move a dynamic body). */
@@ -1595,7 +1873,11 @@ interface EfxBody {
   destroy(): void;
 }
 
-/** One collision reported by `Character.moveAndSlide`. */
+/**
+ * One collision reported by `Character.moveAndSlide`.
+ *
+ * @group Results
+ */
 interface PhysicsMoveCollision {
   /** The blocking collider's handle (`null` for a static mesh or character). */
   readonly body: EfxBody | null;
@@ -1605,7 +1887,11 @@ interface PhysicsMoveCollision {
   readonly point: Vec3;
 }
 
-/** The result of `Character.moveAndSlide`. */
+/**
+ * The result of `Character.moveAndSlide`.
+ *
+ * @group Results
+ */
 interface PhysicsMoveResult {
   /** Resulting world position. */
   readonly position: Vec3;
@@ -1625,6 +1911,7 @@ interface PhysicsMoveResult {
  * A native-backed kinematic capsule character controller. The world holds it
  * until `destroy()` or `physics.clear()`: dropping the last script reference
  * does not remove it from the simulation.
+ * @group Physics
  */
 interface EfxCharacter {
   /** Read-only world position. */
@@ -1652,6 +1939,8 @@ interface EfxCharacter {
  * const hit = efx.physics.raycast(hero.position, [1, 0, 0], { maxDistance: 6 });
  * if (hit) efx.log('hit at ' + hit.distance.toFixed(2));
  * ```
+ * @hidden
+ * @inline
  */
 interface RaycastOptions {
   /** Collision mask bitmask filter. */
@@ -1662,7 +1951,11 @@ interface RaycastOptions {
   sensors?: boolean;
 }
 
-/** One raycast hit. */
+/**
+ * One raycast hit.
+ *
+ * @group Results
+ */
 interface PhysicsRayHit {
   /** Hit point `[x, y, z]`. */
   readonly point: Vec3;
@@ -1674,7 +1967,12 @@ interface PhysicsRayHit {
   readonly body: EfxBody | EfxCharacter | null;
 }
 
-/** Options for `physics.overlap`. */
+/**
+ * Options for `physics.overlap`.
+ *
+ * @hidden
+ * @inline
+ */
 interface OverlapOptions {
   /** Query position in world units (default `[0, 0, 0]`). */
   position?: Vec3;
@@ -1682,7 +1980,12 @@ interface OverlapOptions {
   mask?: number;
 }
 
-/** Options for `physics.shapeCast`. */
+/**
+ * Options for `physics.shapeCast`.
+ *
+ * @hidden
+ * @inline
+ */
 interface ShapeCastOptions {
   /** Collision mask bitmask filter. */
   mask?: number;
@@ -1690,7 +1993,11 @@ interface ShapeCastOptions {
   sensors?: boolean;
 }
 
-/** One shape-cast hit. */
+/**
+ * One shape-cast hit.
+ *
+ * @group Results
+ */
 interface PhysicsShapeHit {
   /** Hit point `[x, y, z]`. */
   readonly point: Vec3;
@@ -1720,6 +2027,7 @@ interface PhysicsShapeHit {
  *   hero.moveAndSlide([1.5 * dt, -9.81 * dt, 0]);
  * });
  * ```
+ * @group Physics
  */
 interface EfxPhysics {
   /** World gravity `[x, y, z]` (read-write; default `[0, -9.81, 0]`). */
@@ -1817,6 +2125,7 @@ interface EfxPhysics {
  * processing, and the graphics resource factories. Reached as
  * `efx.graphics`; names, signatures, semantics, and error behavior are
  * unchanged by the move from the `efx` root.
+ * @group Graphics
  */
 interface EfxGraphics {
   // 2D drawing
@@ -2093,6 +2402,7 @@ interface EfxGraphics {
  * the resource root (directory or zip) and obey its escape rules; a non-string
  * path throws `TypeError` and a missing, unreadable, or escaping path throws
  * a standard `Error`.
+ * @group IO
  */
 interface EfxIo {
   /**
@@ -2115,6 +2425,7 @@ interface EfxIo {
  * Named color constants, reached as `efx.color`: the CSS basic 16 plus
  * `transparent`. Each is a `Color` (`[r, g, b, a]`) frozen at runtime, so a
  * script cannot mutate engine state through it. There are no functions here.
+ * @group Values
  */
 interface EfxColor {
   /** `[0, 1, 1, 1]`. */
@@ -2158,31 +2469,9 @@ interface EfxColor {
 // ---------------------------------------------------------------------------
 
 /**
- * The engine-provided script surface; the only global scripts use.
- *
- * @example
- * ```js
- * // the smallest complete 3D scene (the "Hello Cube" sample)
- * efx.graphics.setClearColor([0.03, 0.04, 0.09, 1]);
- * efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
- * efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
- * efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
- *
- * const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
- * cube.setSurfaceMaterial(0, {
- *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
- *   diffuse:  { color: [1, 1, 1, 1] },
- *   specular: { color: [1, 1, 1, 1], shininess: 32 },
- *   emissive: { color: [0, 0, 0, 1] },
- * });
- *
- * let t = 0;
- * function update(dt) { t += dt; }
- * function render() {
- *   const model = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 40, [0, 1, 0]);
- *   efx.graphics.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
- * }
- * ```
+ * @hidden
+ * @inline
+ * @group Start Here
  */
 interface Efx {
   // Environment & lifecycle
@@ -2265,7 +2554,12 @@ interface Efx {
 // Audio playback (F14)
 // ---------------------------------------------------------------------------
 
-/** Options for `audio.playAudio`; these set initial values only. */
+/**
+ * Options for `audio.playAudio`; these set initial values only.
+ *
+ * @hidden
+ * @inline
+ */
 interface PlayAudioOptions {
   /** Initial linear gain (default `1`); a negative value throws `RangeError`. */
   volume?: number;
@@ -2277,19 +2571,31 @@ interface PlayAudioOptions {
   loop?: boolean;
 }
 
-/** Fully-decoded PCM loaded from the resource root (opaque native-backed class). */
+/**
+ * Fully-decoded PCM loaded from the resource root (opaque native-backed class).
+ *
+ * @group Audio
+ */
 interface EfxAudioData {
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** A streamed audio resource; each `playAudio` opens an independent decoder (opaque native-backed class). */
+/**
+ * A streamed audio resource; each `playAudio` opens an independent decoder (opaque native-backed class).
+ *
+ * @group Audio
+ */
 interface EfxAudioStream {
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
 
-/** One playing audio handle (opaque native-backed class). */
+/**
+ * One playing audio handle (opaque native-backed class).
+ *
+ * @group Audio
+ */
 interface EfxAudioHandle {
   /** Whether this handle is currently audible (false when paused, ended, stolen, or before web unlock). */
   readonly playing: boolean;
@@ -2321,6 +2627,7 @@ interface EfxAudioHandle {
  * are supported; only decoded PCM is played (no sequenced/modular formats).
  * All volume control is per-handle plus the single master `volume`; fades are
  * plain handle writes.
+ * @group Audio
  */
 interface EfxAudio {
   /**
@@ -2351,6 +2658,39 @@ interface EfxAudio {
   resume(): void;
 }
 
+/**
+ * The engine-provided script surface; the only global scripts use. It exposes
+ * the runtime and lifecycle facilities (`log`, `quit`, the read-only `args`,
+ * and the frame-hook registrations) directly, and groups the rest of the
+ * engine into domain sub-namespaces: `graphics`, `math`, `io`, `physics`,
+ * `keyboard`, `mouse`, `gamepad`, `window`, `audio`, and `color`.
+ *
+ * @example
+ * ```js
+ * // the smallest complete 3D scene (the "Hello Cube" sample)
+ * efx.graphics.setClearColor([0.03, 0.04, 0.09, 1]);
+ * efx.graphics.setCamera3D([0, 1.6, 4.2], [0, 0, 0], 60);
+ * efx.graphics.setLight(0, { pos: [2.6, 3.6, 3.0], color: [1, 0.95, 0.9, 1], range: 30 });
+ * efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.18, 0.2, 0.26, 1] });
+ *
+ * const cube = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1.4 }));
+ * cube.setSurfaceMaterial(0, {
+ *   ambient:  { color: [0.12, 0.12, 0.16, 1] },
+ *   diffuse:  { color: [1, 1, 1, 1] },
+ *   specular: { color: [1, 1, 1, 1], shininess: 32 },
+ *   emissive: { color: [0, 0, 0, 1] },
+ * });
+ *
+ * let t = 0;
+ * function update(dt) { t += dt; }
+ * function render() {
+ *   const model = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 40, [0, 1, 0]);
+ *   efx.graphics.drawMesh(cube, { transform: model, color: [0.95, 0.5, 0.2, 1] });
+ * }
+ * ```
+ *
+ * @group Start Here
+ */
 declare const efx: Efx;
 
 // ---------------------------------------------------------------------------
@@ -2363,7 +2703,11 @@ declare const efx: Efx;
 // TypeScript authors normally write `import`/`export` and let `tsc`
 // (`module: commonjs`) emit the `require` form.
 
-/** One entry of `require.cache`. */
+/**
+ * One entry of `require.cache`.
+ *
+ * @hidden
+ */
 interface EfxModuleCacheEntry {
   /** Root-relative resolved module path. */
   id: string;
@@ -2383,6 +2727,7 @@ interface EfxModuleCacheEntry {
  * const orbit = require('./lib/orbit');        // no extension -> .js fallback
  * const scene = require('./data/scene.json');  // JSON module -> parsed value
  * ```
+ * @hidden
  */
 interface EfxRequire {
   /**
@@ -2403,7 +2748,11 @@ interface EfxRequire {
   readonly cache: Record<string, EfxModuleCacheEntry>;
 }
 
-/** The module-scoped `module` object. */
+/**
+ * The module-scoped `module` object.
+ *
+ * @hidden
+ */
 interface EfxModule {
   /** The value `require` returns for this module. */
   exports: unknown;
@@ -2413,8 +2762,13 @@ interface EfxModule {
   loaded: boolean;
 }
 
+/** @hidden */
 declare const require: EfxRequire;
+/** @hidden */
 declare const module: EfxModule;
+/** @hidden */
 declare const exports: Record<string, unknown>;
+/** @hidden */
 declare const __filename: string;
+/** @hidden */
 declare const __dirname: string;

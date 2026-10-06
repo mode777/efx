@@ -11,15 +11,6 @@ processing, and the graphics resource factories. Reached as
 `efx.graphics`; names, signatures, semantics, and error behavior are
 unchanged by the move from the `efx` root.
 
-## Properties
-
-### whiteTexture
-
-> `readonly` **whiteTexture**: [`EfxTexture`](EfxTexture.md)
-
-Engine-owned 1×1 opaque-white texture usable in any draw (read-only;
-`destroy()` on it throws).
-
 ## Methods
 
 ### beginRenderTarget()
@@ -64,9 +55,37 @@ Pixel size baked into the atlas (must be > 0).
 
 ##### opts?
 
-[`CreateFontOptions`](CreateFontOptions.md)
-
 Optional charset, gutter, filter, and baked effects.
+
+###### filter?
+
+`"nearest"` \| `"linear"`
+
+Atlas sampler filter (default `'linear'`).
+
+###### glyphs?
+
+`string`
+
+Codepoints to bake; defaults to the printable Latin-1 set.
+
+###### outline?
+
+[`FontOutline`](FontOutline.md) \| `null`
+
+Baked outline ring; `null`/omitted bakes none.
+
+###### padding?
+
+`number`
+
+Atlas gutter in pixels (default 1).
+
+###### shadow?
+
+[`FontShadow`](FontShadow.md) \| `null`
+
+Baked blurred shadow; `null`/omitted bakes none.
 
 #### Returns
 
@@ -104,9 +123,13 @@ Flat RGBA8 bytes of length `width * height * 4`.
 
 ##### opts?
 
-[`CreateImageDataOptions`](CreateImageDataOptions.md)
-
 Optional format (reserved for future options).
+
+###### format?
+
+`"rgba8"`
+
+Pixel format; only `'rgba8'` is supported (default `'rgba8'`). Reserved for future options.
 
 #### Returns
 
@@ -250,9 +273,25 @@ Source pixels.
 
 ##### opts?
 
-[`TextureOptions`](TextureOptions.md)
-
 Optional wrap, filter, and mipmap settings.
+
+###### filter?
+
+`"nearest"` \| `"linear"`
+
+Texture filter (default `'linear'`); also drives the mipmap filter.
+
+###### mipmaps?
+
+`boolean`
+
+Build and use a full mip chain (default `false`).
+
+###### wrap?
+
+`"repeat"` \| `"clamp"` \| `"mirror"`
+
+Texture wrap mode (default `'repeat'`).
 
 #### Returns
 
@@ -284,9 +323,55 @@ World position `[x, y, z]`.
 
 ##### opts?
 
-[`DrawBillboardOptions`](DrawBillboardOptions.md)
-
 Optional size, tint, facing, and depth options.
+
+###### blend?
+
+[`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
+
+Blend mode for this billboard; overrides the frame's blend state for this draw only.
+
+###### color?
+
+[`Color`](../type-aliases/Color.md)
+
+Tint `[r, g, b, a]` (default opaque white).
+
+###### depthTest?
+
+`boolean`
+
+Depth-test against opaque geometry (default `true`); never writes depth.
+
+###### facing?
+
+[`EfxFacing`](../type-aliases/EfxFacing.md)
+
+`'view'` (default, full camera-facing), `'y'` (world-up), or `'plane'` (fixed oriented plane).
+
+###### normal?
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Plane orientation normal for `facing: 'plane'` (default `[0, 1, 0]`).
+
+###### rotation?
+
+`number`
+
+In-plane rotation in degrees (default 0).
+
+###### size?
+
+`number` \| [`Vec2`](../type-aliases/Vec2.md)
+
+World-unit size: a single number or `[w, h]` (default 1).
+
+###### sourceRect?
+
+[`SourceRect`](SourceRect.md)
+
+Texture-pixel atlas region; defaults to the full texture.
 
 #### Returns
 
@@ -310,9 +395,25 @@ Live mesh to draw (required positional argument).
 
 ##### opts?
 
-[`DrawMeshOptions`](DrawMeshOptions.md)
-
 Optional transform, tint, and skinned flag.
+
+###### color?
+
+[`Color`](../type-aliases/Color.md)
+
+Tint multiplying vertex colors (default opaque white).
+
+###### skinned?
+
+`boolean`
+
+`true` draws the current CPU-posed vertices; absent/false the bind pose.
+
+###### transform?
+
+[`Mat4`](../type-aliases/Mat4.md)
+
+Column-major transform (default identity).
 
 #### Returns
 
@@ -368,9 +469,49 @@ Quad top-left y in frame pixels.
 
 ##### opts?
 
-[`DrawQuadOptions`](DrawQuadOptions.md)
-
 Optional tint, transform, size, origin, source rect, and blend.
+
+###### blend?
+
+[`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
+
+Blend mode for this quad; overrides the frame's blend state for this draw only.
+
+###### color?
+
+[`Color`](../type-aliases/Color.md)
+
+Tint `[r, g, b, a]` (default opaque white).
+
+###### origin?
+
+[`Vec2`](../type-aliases/Vec2.md)
+
+Pivot `[px, py]` in quad-local pixels for rotation/scale (default the size's center).
+
+###### rotation?
+
+`number`
+
+Rotation in degrees clockwise (default 0).
+
+###### scale?
+
+`number`
+
+Uniform scale factor applied after the size is determined (default 1, must be > 0).
+
+###### size?
+
+[`Vec2`](../type-aliases/Vec2.md)
+
+Quad size `[width, height]` in frame pixels; defaults to the source rect or texture size.
+
+###### sourceRect?
+
+[`SourceRect`](SourceRect.md)
+
+Texture-pixel region to sample; defaults to the full texture.
 
 #### Returns
 
@@ -394,15 +535,19 @@ Live texture or render target to sample.
 
 ##### sprites
 
-[`SpriteOptions`](SpriteOptions.md)[]
+`object`[]
 
 One options bag per quad; validation is atomic.
 
 ##### opts?
 
-[`DrawSpritesOptions`](DrawSpritesOptions.md)
-
 Optional batch-level blend mode.
+
+###### blend?
+
+[`EfxBlendMode`](../type-aliases/EfxBlendMode.md)
+
+Blend mode applied to every sprite in the batch; overrides the frame's blend state.
 
 #### Returns
 
@@ -444,9 +589,61 @@ Anchor y in frame pixels.
 
 ##### opts?
 
-[`TextOptions`](TextOptions.md)
-
 Optional alignment, wrap, colors, rotation, and scale.
+
+###### align?
+
+`"left"` \| `"center"` \| `"right"` \| `"justify"`
+
+Horizontal alignment (default `'left'`); `'justify'` requires `width`.
+
+###### color?
+
+[`Color`](../type-aliases/Color.md)
+
+Fill color (default opaque white).
+
+###### lineHeight?
+
+`number`
+
+Line advance in pixels; defaults to the font's `lineHeight`.
+
+###### outlineColor?
+
+[`Color`](../type-aliases/Color.md)
+
+Baked-outline color (default black).
+
+###### rotation?
+
+`number`
+
+Rotation in degrees about the anchor (default 0).
+
+###### scale?
+
+`number`
+
+Uniform scale (default 1).
+
+###### shadowColor?
+
+[`Color`](../type-aliases/Color.md)
+
+Baked-shadow color (default black).
+
+###### valign?
+
+`"top"` \| `"middle"` \| `"bottom"`
+
+Vertical alignment relative to `y` (default `'top'`).
+
+###### width?
+
+`number`
+
+Wrap width in pixels; required for `'justify'`.
 
 #### Returns
 
@@ -528,9 +725,13 @@ Resource-root-relative path.
 
 ##### opts?
 
-[`LoadMeshDataOptions`](LoadMeshDataOptions.md)
-
 Optional mesh selector.
+
+###### mesh?
+
+`string` \| `number`
+
+Mesh selector: a non-negative index or a mesh name; defaults to the first mesh.
 
 #### Returns
 
@@ -550,9 +751,31 @@ Build single-surface vertical capsule MeshData.
 
 ##### opts?
 
-[`MakeCapsuleOptions`](MakeCapsuleOptions.md)
-
 Optional radius, height, segments, and bound material.
+
+###### height?
+
+`number`
+
+Total tip-to-tip length including caps; must be >= 2 * radius (default 2).
+
+###### material?
+
+[`Material`](Material.md) \| `null`
+
+Material bound to the primitive's single surface; `null` = engine default.
+
+###### radius?
+
+`number`
+
+Capsule radius (default 1, must be > 0).
+
+###### segments?
+
+`number`
+
+Longitude/latitude subdivisions (positive integer, default 16).
 
 #### Returns
 
@@ -572,9 +795,19 @@ Build single-surface cube MeshData.
 
 ##### opts?
 
-[`MakeCubeOptions`](MakeCubeOptions.md)
-
 Optional size and bound material.
+
+###### material?
+
+[`Material`](Material.md) \| `null`
+
+Material bound to the primitive's single surface; `null` = engine default.
+
+###### size?
+
+`number`
+
+Edge length (default 1, must be > 0).
 
 #### Returns
 
@@ -594,9 +827,25 @@ Build single-surface plane MeshData (on XZ, facing +Y).
 
 ##### opts?
 
-[`MakePlaneOptions`](MakePlaneOptions.md)
-
 Optional size, segments, and bound material.
+
+###### material?
+
+[`Material`](Material.md) \| `null`
+
+Material bound to the primitive's single surface; `null` = engine default.
+
+###### segments?
+
+`number`
+
+Grid subdivisions per side (positive integer, default 1).
+
+###### size?
+
+`number`
+
+Edge length (default 1, must be > 0).
 
 #### Returns
 
@@ -616,9 +865,25 @@ Build single-surface UV sphere MeshData.
 
 ##### opts?
 
-[`MakeSphereOptions`](MakeSphereOptions.md)
-
 Optional radius, segments, and bound material.
+
+###### material?
+
+[`Material`](Material.md) \| `null`
+
+Material bound to the primitive's single surface; `null` = engine default.
+
+###### radius?
+
+`number`
+
+Sphere radius (default 1, must be > 0).
+
+###### segments?
+
+`number`
+
+Longitude/latitude subdivisions (positive integer, default 16).
 
 #### Returns
 
@@ -664,9 +929,37 @@ Set the 2D virtual pixel frame and its projection state.
 
 ##### opts
 
-[`Camera2DOptions`](Camera2DOptions.md)
-
 Frame, center, zoom, and rotation.
+
+###### frame?
+
+[`Vec2`](../type-aliases/Vec2.md)
+
+Virtual resolution `[width, height]`; defaults to the current window size.
+
+###### rotation?
+
+`number`
+
+Rotation in degrees around the frame center (default 0).
+
+###### x?
+
+`number`
+
+World x shown at the frame center (default: frame center).
+
+###### y?
+
+`number`
+
+World y shown at the frame center (default: frame center).
+
+###### zoom?
+
+`number`
+
+Zoom factor around the frame center (default 1, must be > 0).
 
 #### Returns
 
@@ -702,9 +995,19 @@ Vertical field of view in degrees.
 
 ##### opts?
 
-[`Camera3DOptions`](Camera3DOptions.md)
-
 Optional near and far clip planes.
+
+###### far?
+
+`number`
+
+Far plane distance (default 100).
+
+###### near?
+
+`number`
+
+Near plane distance (default 0.1).
 
 #### Returns
 
@@ -742,9 +1045,31 @@ Set the single directional light.
 
 ##### opts
 
-[`DirectionalLightOptions`](DirectionalLightOptions.md) \| `null`
+\{ `color`: [`Color`](../type-aliases/Color.md); `dir`: [`Vec3`](../type-aliases/Vec3.md); \} \| `null`
 
 Light options, or `null` to disable it.
+
+###### Type Literal
+
+\{ `color`: [`Color`](../type-aliases/Color.md); `dir`: [`Vec3`](../type-aliases/Vec3.md); \}
+
+Light options, or `null` to disable it.
+
+###### color
+
+[`Color`](../type-aliases/Color.md)
+
+Light color `[r, g, b, a]` (alpha ignored).
+
+###### dir
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Direction the light travels (the direction to the light is `-dir`).
+
+***
+
+`null`
 
 #### Returns
 
@@ -768,9 +1093,37 @@ Slot index `0..3`.
 
 ##### opts
 
-[`PointLightOptions`](PointLightOptions.md) \| `null`
+\{ `color`: [`Color`](../type-aliases/Color.md); `pos`: [`Vec3`](../type-aliases/Vec3.md); `range?`: `number`; \} \| `null`
 
 Light options, or `null` to disable the slot.
+
+###### Type Literal
+
+\{ `color`: [`Color`](../type-aliases/Color.md); `pos`: [`Vec3`](../type-aliases/Vec3.md); `range?`: `number`; \}
+
+Light options, or `null` to disable the slot.
+
+###### color
+
+[`Color`](../type-aliases/Color.md)
+
+Light color `[r, g, b, a]` (alpha ignored).
+
+###### pos
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Light position in world units.
+
+###### range?
+
+`number`
+
+Attenuation radius (finite, >= 0; default 0 = no falloff).
+
+***
+
+`null`
 
 #### Returns
 
@@ -814,10 +1167,23 @@ Scene resolution ratio in `(0, 2]` (default 1).
 
 ##### opts?
 
-[`RenderScaleOptions`](RenderScaleOptions.md)
-
 Optional blit filter.
+
+###### filter?
+
+`"nearest"` \| `"linear"`
+
+Final blit filter (default `'linear'`).
 
 #### Returns
 
 `void`
+
+## Properties
+
+### whiteTexture
+
+> `readonly` **whiteTexture**: [`EfxTexture`](EfxTexture.md)
+
+Engine-owned 1×1 opaque-white texture usable in any draw (read-only;
+`destroy()` on it throws).

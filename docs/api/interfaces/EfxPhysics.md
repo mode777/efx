@@ -25,22 +25,6 @@ efx.registerUpdateHook((dt) => {
 });
 ```
 
-## Properties
-
-### gravity
-
-> **gravity**: [`Vec3`](../type-aliases/Vec3.md)
-
-World gravity `[x, y, z]` (read-write; default `[0, -9.81, 0]`).
-
-***
-
-### iterations
-
-> **iterations**: `number`
-
-Solver iteration count (read-write positive integer; default 8).
-
 ## Methods
 
 ### clear()
@@ -71,9 +55,55 @@ Collider shape (required, positional).
 
 ##### opts?
 
-[`CreateBodyOptions`](CreateBodyOptions.md)
-
 Optional kind, placement, and material options.
+
+###### dynamic?
+
+`boolean`
+
+Simulated by the solver when true (default `false` = static).
+
+###### friction?
+
+`number`
+
+Surface friction (default 0.5).
+
+###### layer?
+
+`number`
+
+Collision layer bitmask (32-bit; default all bits).
+
+###### mask?
+
+`number`
+
+Collision mask bitmask (32-bit; default all bits).
+
+###### mass?
+
+`number`
+
+Dynamic mass (default 1, must be positive).
+
+###### position?
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Initial position in world units (default `[0, 0, 0]`).
+
+###### restitution?
+
+`number`
+
+Bounciness in `[0, 1]` (default 0).
+
+###### sensor?
+
+`boolean`
+
+Report-only volume that never resolves (default `false`).
 
 #### Returns
 
@@ -105,9 +135,61 @@ Total tip-to-tip capsule height; must be >= 2 * radius.
 
 ##### opts?
 
-[`CreateCharacterOptions`](CreateCharacterOptions.md)
-
 Optional placement, movement, and collision options.
+
+###### floorMaxAngle?
+
+`number`
+
+Maximum walkable floor angle in degrees (default 45).
+
+###### floorSnapLength?
+
+`number`
+
+Floor snap distance (default 0.1).
+
+###### layer?
+
+`number`
+
+Collision layer bitmask (32-bit; default all bits).
+
+###### mask?
+
+`number`
+
+Collision mask bitmask (32-bit; default all bits).
+
+###### maxSlides?
+
+`number`
+
+Maximum slide iterations per move (positive integer, default 6).
+
+###### position?
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Initial position in world units (default `[0, 0, 0]`).
+
+###### safeMargin?
+
+`number`
+
+Collision safe margin (default 0.001).
+
+###### stepHeight?
+
+`number`
+
+Step-up height; `0` disables step-up (default 0.3).
+
+###### up?
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Up direction (default `[0, 1, 0]`, must be non-zero).
 
 #### Returns
 
@@ -133,9 +215,43 @@ Source mesh (arbitrary surface count).
 
 ##### opts?
 
-[`CreateStaticMeshOptions`](CreateStaticMeshOptions.md)
-
 Optional placement and material options.
+
+###### friction?
+
+`number`
+
+Surface friction (default 0.5).
+
+###### layer?
+
+`number`
+
+Collision layer bitmask (32-bit; default all bits).
+
+###### mask?
+
+`number`
+
+Collision mask bitmask (32-bit; default all bits).
+
+###### position?
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Initial position in world units (default `[0, 0, 0]`).
+
+###### restitution?
+
+`number`
+
+Bounciness in `[0, 1]` (default 0).
+
+###### sensor?
+
+`boolean`
+
+Report-only volume that never resolves (default `false`).
 
 #### Returns
 
@@ -161,9 +277,19 @@ Query shape.
 
 ##### opts?
 
-[`OverlapOptions`](OverlapOptions.md)
-
 Optional query position and mask.
+
+###### mask?
+
+`number`
+
+Collision mask bitmask filter.
+
+###### position?
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Query position in world units (default `[0, 0, 0]`).
 
 #### Returns
 
@@ -203,9 +329,25 @@ Maximum ray distance (positive finite).
 
 ###### opts?
 
-[`RaycastOptions`](RaycastOptions.md)
-
 Optional mask, all-hits, and sensor options.
+
+###### all?
+
+`boolean`
+
+Return every hit sorted by distance instead of the first.
+
+###### mask?
+
+`number`
+
+Collision mask bitmask filter.
+
+###### sensors?
+
+`boolean`
+
+Include sensors (excluded by default).
 
 ##### Returns
 
@@ -241,7 +383,7 @@ Maximum ray distance (positive finite).
 
 ###### opts?
 
-[`RaycastOptions`](RaycastOptions.md) & `object`
+`object` & `object`
 
 Query options with `all: true`.
 
@@ -281,9 +423,19 @@ Sweep displacement in world units.
 
 ##### opts?
 
-[`ShapeCastOptions`](ShapeCastOptions.md)
-
 Optional mask and sensor inclusion.
+
+###### mask?
+
+`number`
+
+Collision mask bitmask filter.
+
+###### sensors?
+
+`boolean`
+
+Include sensors (excluded by default).
 
 #### Returns
 
@@ -315,3 +467,19 @@ Time step in seconds.
 #### Returns
 
 `void`
+
+## Properties
+
+### gravity
+
+> **gravity**: [`Vec3`](../type-aliases/Vec3.md)
+
+World gravity `[x, y, z]` (read-write; default `[0, -9.81, 0]`).
+
+***
+
+### iterations
+
+> **iterations**: `number`
+
+Solver iteration count (read-write positive integer; default 8).

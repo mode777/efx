@@ -8,14 +8,6 @@
 
 A GPU mesh uploaded from MeshData (opaque native-backed class).
 
-## Properties
-
-### surfaceCount
-
-> `readonly` **surfaceCount**: `number`
-
-Number of surfaces (1..16).
-
 ## Methods
 
 ### destroy()
@@ -74,3 +66,11 @@ Material object, or `null` to restore the engine default.
 #### Returns
 
 `void`
+
+## Properties
+
+### surfaceCount
+
+> `readonly` **surfaceCount**: `number`
+
+Number of surfaces (1..16).

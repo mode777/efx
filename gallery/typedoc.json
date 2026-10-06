@@ -3,6 +3,21 @@
   "name": "EFX API",
   "entryPoints": ["src/api/efx.d.ts"],
   "exclude": ["src/api/efx.type-test.ts"],
-  "readme": "none",
-  "disableSources": true
+  "readme": "src/api/README.md",
+  "disableSources": true,
+  "groupOrder": [
+    "Start Here",
+    "Graphics",
+    "Math",
+    "Input",
+    "Physics",
+    "Audio",
+    "IO",
+    "Values",
+    "Configuration",
+    "Events",
+    "Enums",
+    "Results",
+    "*"
+  ]
 }

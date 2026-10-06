@@ -14,14 +14,6 @@ are supported; only decoded PCM is played (no sequenced/modular formats).
 All volume control is per-handle plus the single master `volume`; fades are
 plain handle writes.
 
-## Properties
-
-### volume
-
-> **volume**: `number`
-
-Master output gain applied to all playback. Setting a negative value throws `RangeError`.
-
 ## Methods
 
 ### loadAudioData()
@@ -84,9 +76,31 @@ Data from `loadAudioData` or a stream from `loadAudioStream`.
 
 ##### opts?
 
-[`PlayAudioOptions`](PlayAudioOptions.md)
-
 Initial volume, pan, pitch, and loop values.
+
+###### loop?
+
+`boolean`
+
+Loop until stopped (default `false`).
+
+###### pan?
+
+`number`
+
+Initial stereo pan in `[-1, 1]` (default `0` = center).
+
+###### pitch?
+
+`number`
+
+Initial playback-rate multiplier (default `1`); values `<= 0` are treated as `1`.
+
+###### volume?
+
+`number`
+
+Initial linear gain (default `1`); a negative value throws `RangeError`.
 
 #### Returns
 
@@ -105,3 +119,11 @@ Unlock/resume audio after a user gesture (web autoplay); a no-op on desktop.
 #### Returns
 
 `void`
+
+## Properties
+
+### volume
+
+> **volume**: `number`
+
+Master output gain applied to all playback. Setting a negative value throws `RangeError`.

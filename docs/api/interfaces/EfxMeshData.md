@@ -8,14 +8,6 @@
 
 CPU mesh data holding 1..16 surfaces (opaque native-backed class).
 
-## Properties
-
-### surfaceCount
-
-> `readonly` **surfaceCount**: `number`
-
-Number of surfaces (1..16).
-
 ## Methods
 
 ### destroy()
@@ -27,3 +19,11 @@ Release the native storage deterministically and idempotently.
 #### Returns
 
 `void`
+
+## Properties
+
+### surfaceCount
+
+> `readonly` **surfaceCount**: `number`
+
+Number of surfaces (1..16).

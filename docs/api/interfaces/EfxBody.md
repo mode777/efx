@@ -10,38 +10,6 @@ A native-backed collider in the single physics world. The world holds it
 until `destroy()` or `physics.clear()`: dropping the last script reference
 does not remove it from the simulation.
 
-## Properties
-
-### contacts
-
-> `readonly` **contacts**: [`PhysicsContact`](PhysicsContact.md)[]
-
-Read-only contacts from the last `step`; valid until the next `step`.
-
-***
-
-### position
-
-> `readonly` **position**: [`Vec3`](../type-aliases/Vec3.md)
-
-Read-only world position (mutate `velocity` to move a dynamic body).
-
-***
-
-### transform
-
-> `readonly` **transform**: [`Mat4`](../type-aliases/Mat4.md)
-
-Read-only column-major translation matrix, usable directly by `drawMesh`.
-
-***
-
-### velocity
-
-> **velocity**: [`Vec3`](../type-aliases/Vec3.md)
-
-Read-write linear velocity.
-
 ## Methods
 
 ### applyForce()
@@ -93,3 +61,35 @@ Release the native storage deterministically and idempotently.
 #### Returns
 
 `void`
+
+## Properties
+
+### contacts
+
+> `readonly` **contacts**: [`PhysicsContact`](PhysicsContact.md)[]
+
+Read-only contacts from the last `step`; valid until the next `step`.
+
+***
+
+### position
+
+> `readonly` **position**: [`Vec3`](../type-aliases/Vec3.md)
+
+Read-only world position (mutate `velocity` to move a dynamic body).
+
+***
+
+### transform
+
+> `readonly` **transform**: [`Mat4`](../type-aliases/Mat4.md)
+
+Read-only column-major translation matrix, usable directly by `drawMesh`.
+
+***
+
+### velocity
+
+> **velocity**: [`Vec3`](../type-aliases/Vec3.md)
+
+Read-write linear velocity.

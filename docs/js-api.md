@@ -11,6 +11,29 @@ Markdown rendering is [`docs/api/`](api/README.md) and its HTML rendering is
 published on the gallery site under `/api`. Never hand-write per-function
 catalog entries here — update the declaration and regenerate the reference.
 
+**How the reference is organized.** The declaration is also the source of the
+reference's information architecture, through TSDoc tags and the pinned
+TypeDoc config:
+
+- The reference leads with the `efx` global (`@group Start Here`) and groups
+  the rest of the surface into domains (`Graphics`, `Math`, `Input`,
+  `Physics`, `Audio`, `IO`, `Values`, `Configuration`, `Events`, `Enums`,
+  `Results`); `groupOrder` in `gallery/typedoc.json` fixes the order and
+  `gallery/typedoc.markdown.json` renders each group as a table. Every new
+  top-level symbol carries a `@group`.
+- A **single-use, per-operation option bag** is tagged `@hidden @inline`:
+  it gets no index entry or page, and its fields render inline in the
+  operation that accepts it. Reusable value records and the configuration
+  bags that are referenced from more than one place keep their own pages.
+- The `Efx` interface is `@hidden @inline`; the `efx` variable page expands
+  it. New symbols reference `efx`'s members (for example `EfxGraphics`),
+  never the hidden `Efx` interface.
+- Module-scoped authoring facilities (`require`, `module`, `exports`,
+  `__dirname`, `__filename`) are `@hidden`: they exist for the type checker,
+  not the public reference.
+- A curated landing page (`gallery/src/api/README.md`) is merged as the root
+  of both renderings. It introduces the API; it is not a per-symbol catalog.
+
 See `vision.md` for product goals and `openspec/specs/` for required
 behavior.
 
@@ -359,7 +382,10 @@ single source of truth, so the reference can never drift from it.
      constraints, and error behavior;
    - types precise enough to reject invalid calls at compile time (literal
      unions for fixed string sets, exclusive unions for alternative call
-     forms, fixed-length tuples for vectors/matrices).
+     forms, fixed-length tuples for vectors/matrices);
+   - reference tags: a `@group` on every new top-level symbol, and `@hidden
+     @inline` on a new single-use per-operation option bag (a bag referenced
+     from more than one place keeps its page and belongs in `Configuration`).
 2. **Regenerate the committed reference:** `npm --prefix gallery run
    docs:markdown` and commit `docs/api/`. The drift guard
    (`npm --prefix gallery run docs:check`) fails the Pages build if the

@@ -23,46 +23,6 @@ efx.registerUpdateHook(() => {
 });
 ```
 
-## Properties
-
-### delta
-
-> `readonly` **delta**: [`Vec2`](../type-aliases/Vec2.md)
-
-Cursor movement `[dx, dy]` for the current frame, in surface pixels.
-
-***
-
-### position
-
-> `readonly` **position**: [`Vec2`](../type-aliases/Vec2.md)
-
-Cursor position `[x, y]` in surface pixels.
-
-***
-
-### wheel
-
-> `readonly` **wheel**: [`Vec2`](../type-aliases/Vec2.md)
-
-Wheel delta `[dx, dy]` for the current frame.
-
-***
-
-### x
-
-> `readonly` **x**: `number`
-
-Cursor x in surface pixels.
-
-***
-
-### y
-
-> `readonly` **y**: `number`
-
-Cursor y in surface pixels.
-
 ## Methods
 
 ### isDown()
@@ -216,3 +176,43 @@ Called with each wheel event, before the update hooks.
 An idempotent unsubscribe function.
 
 () => `void`
+
+## Properties
+
+### delta
+
+> `readonly` **delta**: [`Vec2`](../type-aliases/Vec2.md)
+
+Cursor movement `[dx, dy]` for the current frame, in surface pixels.
+
+***
+
+### position
+
+> `readonly` **position**: [`Vec2`](../type-aliases/Vec2.md)
+
+Cursor position `[x, y]` in surface pixels.
+
+***
+
+### wheel
+
+> `readonly` **wheel**: [`Vec2`](../type-aliases/Vec2.md)
+
+Wheel delta `[dx, dy]` for the current frame.
+
+***
+
+### x
+
+> `readonly` **x**: `number`
+
+Cursor x in surface pixels.
+
+***
+
+### y
+
+> `readonly` **y**: `number`
+
+Cursor y in surface pixels.

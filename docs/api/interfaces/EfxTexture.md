@@ -8,6 +8,18 @@
 
 A GPU texture (opaque native-backed class).
 
+## Methods
+
+### destroy()
+
+> **destroy**(): `void`
+
+Release the native storage deterministically and idempotently.
+
+#### Returns
+
+`void`
+
 ## Properties
 
 ### height
@@ -23,15 +35,3 @@ Texture height in pixels. Throws `TypeError` when destroyed.
 > `readonly` **width**: `number`
 
 Texture width in pixels. Throws `TypeError` when destroyed.
-
-## Methods
-
-### destroy()
-
-> **destroy**(): `void`
-
-Release the native storage deterministically and idempotently.
-
-#### Returns
-
-`void`

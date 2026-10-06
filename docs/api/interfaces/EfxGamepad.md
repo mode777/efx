@@ -21,14 +21,6 @@ efx.registerUpdateHook(() => {
 });
 ```
 
-## Properties
-
-### count
-
-> `readonly` **count**: `number`
-
-Number of currently connected pads.
-
 ## Methods
 
 ### get()
@@ -94,3 +86,11 @@ Called with the pad view when a pad disconnects, before the update hooks.
 An idempotent unsubscribe function.
 
 () => `void`
+
+## Properties
+
+### count
+
+> `readonly` **count**: `number`
+
+Number of currently connected pads.
