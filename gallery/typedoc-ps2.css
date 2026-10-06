@@ -56,6 +56,32 @@
   --color-document: #eaf3ff;
 }
 
+/*
+ * Force the dark code palette.
+ *
+ * TypeDoc's generated `highlight.css` selects its code background and syntax
+ * tokens (`--code-background`, `--hl-*`) by OS preference and by the in-page
+ * theme toggle (`data-theme`), using variables separate from the always-dark
+ * palette above. Left alone, light mode renders inline and block code on a
+ * white backdrop. These rules are unlayered and load after `highlight.css`,
+ * and the `[data-theme]` selectors match the toggle's own specificity, so the
+ * dark code scheme wins in every case.
+ */
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  --code-background: #0a1224;
+  --hl-0: var(--dark-hl-0);
+  --hl-1: var(--dark-hl-1);
+  --hl-2: var(--dark-hl-2);
+  --hl-3: var(--dark-hl-3);
+  --hl-4: var(--dark-hl-4);
+  --hl-5: var(--dark-hl-5);
+  --hl-6: var(--dark-hl-6);
+  --hl-7: var(--dark-hl-7);
+  --hl-8: var(--dark-hl-8);
+}
+
 /* A faint PS2 boot-screen glow behind the toolbar title. */
 .tsd-page-toolbar .title {
   text-shadow: 0 0 8px rgba(79, 163, 255, 0.55);
