@@ -158,6 +158,20 @@ static int spawn_player(const char *root) {
 /* Native drag-and-drop (ADR 0056): validate the dropped root, then relaunch
  * the player on it and stop this run. An unusable drop prints a diagnostic and
  * leaves the running game untouched. */
+static unsigned long long drop_max_archive_bytes(void) {
+    /* default cap; a test-only env override (never set by the player itself)
+       lets a small fixture exercise the oversized-rejection path */
+    const char *v = getenv("EFX_DROP_MAX_BYTES");
+    if (v && v[0] != '\0') {
+        char *end = NULL;
+        unsigned long long n = strtoull(v, &end, 10);
+        if (end && end != v && n > 0) {
+            return n;
+        }
+    }
+    return EFX_DROP_MAX_ARCHIVE_BYTES;
+}
+
 static int drop_check(const char *path) {
     struct stat st;
     if (stat(path, &st) != 0) {
@@ -165,10 +179,10 @@ static int drop_check(const char *path) {
         return 0;
     }
     if (EFX_ISREG(st.st_mode) &&
-        (unsigned long long)st.st_size > EFX_DROP_MAX_ARCHIVE_BYTES) {
+        (unsigned long long)st.st_size > drop_max_archive_bytes()) {
         fprintf(stderr,
-                "player: dropped archive exceeds %u MiB: %s\n",
-                (unsigned)(EFX_DROP_MAX_ARCHIVE_BYTES / (1024u * 1024u)), path);
+                "player: dropped archive exceeds the %llu-byte cap: %s\n",
+                drop_max_archive_bytes(), path);
         return 0;
     }
     if (!efx_resource_probe_root(path)) {

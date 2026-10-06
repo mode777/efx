@@ -141,6 +141,9 @@ add_player_test(smoke_drop_dir EXPECT 0 EXPECT_OUT "entry-ok")
 set_tests_properties(smoke_drop_dir PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/root_ok")
 add_player_test(smoke_drop_bad EXPECT nonzero EXPECT_ERR "no main.js")
 set_tests_properties(smoke_drop_bad PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/resource/corrupt.png")
+# oversized-archive rejection: the test lowers the cap below the fixture size
+add_player_test(smoke_drop_oversized EXPECT nonzero EXPECT_ERR "exceeds the")
+set_tests_properties(smoke_drop_oversized PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/root_zip.zip;EFX_DROP_MAX_BYTES=8")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
 
