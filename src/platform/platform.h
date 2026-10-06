@@ -8,6 +8,10 @@ typedef struct efx_frame_hooks {
      * has recorded the exit code via efx_platform_set_exit_code) */
     int (*on_init)(void *ud);
     int (*on_frame)(void *ud, double dt); /* dt: seconds since previous frame */
+    /* native drag-and-drop: called with the first dropped path (UTF-8,
+     * absolute) when files are dropped on the window; optional (NULL ignores
+     * drops). Not fired on Emscripten, where the boot JS owns drops. */
+    void (*on_files_dropped)(void *ud, const char *path);
 } efx_frame_hooks;
 
 typedef struct efx_platform_capture {

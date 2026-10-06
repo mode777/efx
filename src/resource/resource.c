@@ -144,6 +144,21 @@ int efx_resource_is_zip(const efx_resource *r) {
     return r ? r->is_zip : 0;
 }
 
+int efx_resource_probe_root(const char *root) {
+    if (!root || root[0] == '\0') {
+        return 0;
+    }
+    int err = EFX_RESOURCE_OK;
+    efx_resource *r = efx_resource_open(root, &err);
+    if (!r) {
+        return 0;
+    }
+    char *entry = efx_resource_read_text(r, "main.js", &err);
+    efx_resource_free(entry);
+    efx_resource_close(r);
+    return entry != NULL;
+}
+
 static int dir_read(efx_resource *r, const char *path, uint8_t **out,
                     size_t *out_size, int *err) {
     char *full = join_path(r->root, path);

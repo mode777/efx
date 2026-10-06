@@ -23,6 +23,13 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_set_root(const char *path) {
     return W.resource ? 1 : 0;
 }
 
+/* Probe a candidate resource root (a scratch MEMFS archive written by the
+ * drop glue) for a readable main.js without disturbing the active root.
+ * Returns 1 when the path opens as a directory/zip with main.js, else 0. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_probe_root(const char *path) {
+    return efx_resource_probe_root(path);
+}
+
 /* Returns a malloc'd NUL-terminated string the JS side frees with _free, or
  * NULL on failure. */
 EMSCRIPTEN_KEEPALIVE const char *efx_bridge_load_text(const char *path) {

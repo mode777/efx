@@ -132,6 +132,18 @@ add_player_test(smoke_showcase_physics ARGS "--script;${GALLERY}/physics-showcas
 add_player_test(smoke_showcase_gamepad ARGS "--script;${GALLERY}/gamepad-tester/main.js;--root;${GALLERY}/gamepad-tester" EXPECT 0)
 add_player_test(smoke_showcase_audio ARGS "--script;${GALLERY}/audio-showcase/main.js;--root;${GALLERY}/audio-showcase" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
+# dropped-root acceptance + load (ADR 0056): the test-only env seam runs the
+# same validation as a real drop, then loads the root in-process (no spawn),
+# so the dropped game's output is observable
+add_player_test(smoke_drop_zip EXPECT 0 EXPECT_OUT "zip-entry-ok")
+set_tests_properties(smoke_drop_zip PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/root_zip.zip")
+add_player_test(smoke_drop_dir EXPECT 0 EXPECT_OUT "entry-ok")
+set_tests_properties(smoke_drop_dir PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/root_ok")
+add_player_test(smoke_drop_bad EXPECT nonzero EXPECT_ERR "no main.js")
+set_tests_properties(smoke_drop_bad PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/resource/corrupt.png")
+# oversized-archive rejection: the test lowers the cap below the fixture size
+add_player_test(smoke_drop_oversized EXPECT nonzero EXPECT_ERR "exceeds the")
+set_tests_properties(smoke_drop_oversized PROPERTIES ENVIRONMENT "EFX_DROP_SIM_ROOT=${F}/root_zip.zip;EFX_DROP_MAX_BYTES=8")
 add_player_test(smoke_repl_bad_root ARGS "--repl;${F}/no_such_dir" EXPECT nonzero EXPECT_ERR "not a directory")
 endif()
 

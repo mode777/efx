@@ -263,6 +263,7 @@ int efx_repl_run(struct efx_resource *resource) {
     hooks.ud = &r;
     hooks.on_init = repl_init;
     hooks.on_frame = repl_on_frame;
+    hooks.on_files_dropped = NULL;
     efx_platform_run(&desc, hooks);
 
     int exit_code = efx_player_exit_code(rt);

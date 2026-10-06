@@ -99,7 +99,11 @@ is tracked (it ignores the rest), so a fresh clone has the directory.
   dr_libs, minigamepad — `vendor/README.md`, ADR 0006).
 - Run modes (ADR 0007): windowed resource root (`main.js` `update`/`render`
   hooks), headless `--script` (exit-code contract), `--repl` console,
-  golden capture (`--capture-frame`, ADR 0020).
+  golden capture (`--capture-frame`, ADR 0020). A game root dropped on the
+  window/canvas loads that game (ADR 0056): native accepts a zip or folder and
+  relaunches, web accepts a zip and reloads — a host-level action with no
+  script API. The follow-on `in-place-game-swap` replaces the desktop relaunch
+  with an in-place session swap.
 - `src/prelude/prelude.js` is embedded via `tools/gen_prelude.py`;
   `src/prelude/prelude.h` is committed and the Linux gate job fails on drift
   (`gen_prelude.py --check`) — regenerate after every prelude edit.

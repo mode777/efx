@@ -61,6 +61,17 @@
           post({ type: 'error', message: (r && r.message) || String(r) });
         });
 
+        // A zip dropped on the runner is a game to load: the player's boot
+        // glue handles the canvas drop, and this keeps the browser from
+        // navigating away to the file when the drop lands elsewhere on the
+        // page (ADR 0056).
+        window.addEventListener('dragover', function (ev) {
+          ev.preventDefault();
+        });
+        window.addEventListener('drop', function (ev) {
+          ev.preventDefault();
+        });
+
         function boot(code, assets) {
           if (booted) return;
           booted = true;

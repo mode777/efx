@@ -215,6 +215,13 @@ static void efx_event_cb(const sapp_event *e) {
                                      (float)e->window_width);
         }
         break;
+    case SAPP_EVENTTYPE_FILES_DROPPED:
+        if (g_hooks.on_files_dropped &&
+            sapp_get_num_dropped_files() > 0) {
+            g_hooks.on_files_dropped(g_hooks.ud,
+                                     sapp_get_dropped_file_path(0));
+        }
+        break;
     default:
         break;
     }
@@ -365,6 +372,15 @@ int efx_platform_run(const efx_platform_desc *desc, efx_frame_hooks hooks) {
         d.height = EFX_CAP_H;
     }
     d.window_title = "EFX";
+#if !defined(__EMSCRIPTEN__)
+    /* native drag-and-drop: a dropped root is offered to the player through
+       the on_files_dropped hook. The web build handles drops in the boot JS
+       (reading the File bytes and reloading), so sokol's dragndrop stays off
+       there. */
+    d.enable_dragndrop = true;
+    d.max_dropped_files = 4;
+    d.max_dropped_file_path_length = 4096;
+#endif
 #if defined(__EMSCRIPTEN__)
     if (g_capture.frame > 0) {
         d.html5.preserve_drawing_buffer = true; /* canvas readback after commit */
