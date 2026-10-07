@@ -55,6 +55,6 @@ function render() {
         transform: efx.math.mat4.translate(efx.math.mat4.identity(), [4, 0, -12]),
     });
     efx.graphics.drawMesh(near, {
-        transform: efx.math.mat4.translate(efx.math.mat4.identity(), [-2.5, 0, -3]),
+        transform: efx.math.mat4.translate(efx.math.mat4.identity(), [-1.3, 0, -3]),
     });
 }
