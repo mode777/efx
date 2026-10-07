@@ -55,7 +55,7 @@ layout(binding=1) uniform fs_params {
     vec4 diffuse;         /* material diffuse (rgb) */
     vec4 specular;        /* material specular (rgb) */
     vec4 emissive;        /* material emissive (rgb) */
-    vec4 mat_params;      /* x = shininess */
+    vec4 mat_params;      /* x = shininess, y = unlit flag (1 = bypass lighting) */
     vec4 camera_pos;      /* xyz = eye position */
     vec4 point_pos[4];    /* xyz = position, w = range (0 = no falloff) */
     vec4 point_color[4];  /* rgb = color, w = enabled (1/0) */
@@ -105,6 +105,14 @@ void main() {
     vec3 diff_c = diffuse.rgb * m_dif;
     vec3 spec_c = specular.rgb * m_spe;
     vec3 albedo = efx_color.rgb * tint.rgb;
+    if (mat_params.y > 0.5) {
+        /* unlit (F14+): diffuse color × map × albedo; no light contribution.
+           alpha mask and albedo alpha already handled above, blend is
+           pipeline state, so this is the whole shading path. */
+        frag_color = vec4(clamp(diff_c * albedo, 0.0, 1.0),
+                          efx_color.a * tint.a);
+        return;
+    }
     vec3 N = normalize(efx_normal);
     vec3 V = normalize(camera_pos.xyz - efx_world_pos);
     vec3 col = ambient.rgb * m_amb * albedo + emissive.rgb * m_emi;

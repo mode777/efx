@@ -18,6 +18,7 @@ from the directory.
 | `text-showcase/` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
 | `gamepad-tester/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
 | `audio-showcase/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `skybox-showcase/` | `sky.jpg` | Poly Haven (Jarod Guest) | Poly Haven, `kloofendal_43d_clear_puresky`, https://polyhaven.com/a/kloofendal_43d_clear_puresky | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
@@ -106,3 +107,13 @@ python3 gallery/scripts/gen-audio-assets.py --check   # drift check
 
 The committed sources live under `gallery/samples/curated/audio-showcase/`
 (`music.mp3`, `font.ttf`).
+
+### `skybox-showcase/`
+
+1. Download the tonemapped JPG rendition of Poly Haven's
+   `kloofendal_43d_clear_puresky` (CC0 1.0, 8192x4096):
+   `https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/kloofendal_43d_clear_puresky.jpg`.
+2. Downscale to 2048x1024 (LANCZOS) and re-encode JPEG quality 85, optimized
+   -> `gallery/samples/curated/skybox-showcase/sky.jpg`. The tonemapped LDR
+   JPG is used because the engine has no HDR/EXR decoder; the image is
+   equirectangular, matching the inverted sphere's UVs.

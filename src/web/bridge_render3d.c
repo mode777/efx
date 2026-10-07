@@ -245,8 +245,10 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_surface_count(double handle) {
 EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_mesh(double handle,
                                               const float *transform,
                                               const float *color,
-                                              int skinned) {
-    return efx_render_mesh((uint64_t)handle, transform, color, skinned);
+                                              int skinned,
+                                              int depth_write) {
+    return efx_render_mesh((uint64_t)handle, transform, color, skinned,
+                           depth_write);
 }
 
 /* F7: one wire pose sample: [clip_index, time, weight] per entry */
@@ -296,6 +298,7 @@ static void bridge_mat_from_wire(efx_material *m, const float *f,
     }
     m->shininess = f[16];
     m->blend = (int)f[17];
+    m->unlit = (int)f[18];
     if (maps) {
         m->ambient_map = (uint64_t)maps[0];
         m->diffuse_map = (uint64_t)maps[1];

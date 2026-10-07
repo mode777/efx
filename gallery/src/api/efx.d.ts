@@ -977,6 +977,14 @@ interface Material {
   alphaMask?: EfxSample | null;
   /** Blend mode for surfaces bound to this material; `null`/absent uses the frame's blend state. */
   blend?: EfxBlendMode | null;
+  /**
+   * Bypass the lighting equation (default `false`). When `true`, the shaded
+   * color is the `diffuse` channel color × its `diffuse` map × the albedo, with
+   * no light contribution; `ambient`, `specular`, `emissive`, and all lights are
+   * ignored. `alphaMask` and `blend` still apply. Use for skies, UI, and other
+   * surfaces that should show their texture exactly as authored.
+   */
+  unlit?: boolean;
 }
 
 /**
@@ -999,6 +1007,12 @@ interface DrawMeshOptions {
   color?: Color;
   /** `true` draws the current CPU-posed vertices; absent/false the bind pose. */
   skinned?: boolean;
+  /**
+   * Depth writing (default `true`). When `false`, the mesh is depth-tested but
+   * does not write depth, so later geometry is never occluded by it — used to
+   * draw a camera-locked sky before the scene.
+   */
+  depthWrite?: boolean;
 }
 
 /**
@@ -1014,6 +1028,8 @@ interface DrawMeshOptions {
 interface MakeCubeOptions {
   /** Edge length (default 1, must be > 0). */
   size?: number;
+  /** Point normals inward and reverse winding so the inside renders (default `false`). */
+  inverted?: boolean;
   /** Material bound to the primitive's single surface; `null` = engine default. */
   material?: Material | null;
 }
@@ -1052,6 +1068,8 @@ interface MakeSphereOptions {
   radius?: number;
   /** Longitude/latitude subdivisions (positive integer, default 16). */
   segments?: number;
+  /** Point normals inward and reverse winding so the inside renders (default `false`); use for a sky dome. */
+  inverted?: boolean;
   /** Material bound to the primitive's single surface; `null` = engine default. */
   material?: Material | null;
 }

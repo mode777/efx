@@ -30,7 +30,8 @@ static const efx_material DEFAULT_MATERIAL = {
     .specular = {0.0f, 0.0f, 0.0f, 1.0f},
     .emissive = {0.0f, 0.0f, 0.0f, 1.0f},
     .shininess = 32.0f,
-    .blend = EFX_BLEND_INHERIT};
+    .blend = EFX_BLEND_INHERIT,
+    .unlit = 0};
 
 static void apply_default_state(void) {
     R.camera = DEFAULT_CAMERA2D;
@@ -300,7 +301,7 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
 }
 
 int efx_render_mesh(uint64_t mesh, const float transform[16],
-                    const float color[4], int skinned) {
+                    const float color[4], int skinned, int depth_write) {
     ensure_state();
     if (!mesh || !efx_render_mesh_alive(mesh)) {
         return EFX_RENDER_ERR_HANDLE;
@@ -356,6 +357,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
         }
     }
     mr->skinned = skinned ? 1 : 0;
+    mr->depth_write = depth_write ? 1 : 0;
     return record_push(&rec);
 }
 

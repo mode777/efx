@@ -403,6 +403,14 @@ Optional transform, tint, and skinned flag.
 
 Tint multiplying vertex colors (default opaque white).
 
+###### depthWrite?
+
+`boolean`
+
+Depth writing (default `true`). When `false`, the mesh is depth-tested but
+does not write depth, so later geometry is never occluded by it — used to
+draw a camera-locked sky before the scene.
+
 ###### skinned?
 
 `boolean`
@@ -797,6 +805,12 @@ Build single-surface cube MeshData.
 
 Optional size and bound material.
 
+###### inverted?
+
+`boolean`
+
+Point normals inward and reverse winding so the inside renders (default `false`).
+
 ###### material?
 
 [`Material`](Material.md) \| `null`
@@ -866,6 +880,12 @@ Build single-surface UV sphere MeshData.
 ##### opts?
 
 Optional radius, segments, and bound material.
+
+###### inverted?
+
+`boolean`
+
+Point normals inward and reverse winding so the inside renders (default `false`); use for a sky dome.
 
 ###### material?
 

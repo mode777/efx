@@ -138,8 +138,9 @@ function __efxQuatToMat4(q) {
 
 /* option validation shared by the primitives (spec: finite positive
    size/radius -> RangeError; positive integer segments -> RangeError;
-   unknown fields -> TypeError; missing object takes all defaults) */
-function __efxPrimOpts(opts, keys, floats, ints, defaults) {
+   non-boolean flag -> TypeError; unknown fields -> TypeError; missing
+   object takes all defaults) */
+function __efxPrimOpts(opts, keys, floats, ints, defaults, bools) {
     var out = {};
     for (var d = 0; d < keys.length; d++) {
         out[keys[d]] = defaults[d];
@@ -183,6 +184,17 @@ function __efxPrimOpts(opts, keys, floats, ints, defaults) {
             out[ikey] = iv;
         }
     }
+    if (bools) {
+        for (var b = 0; b < bools.length; b++) {
+            var bkey = bools[b];
+            if (opts[bkey] !== undefined) {
+                if (typeof opts[bkey] !== 'boolean') {
+                    throw new TypeError(bkey + ' must be a boolean');
+                }
+                out[bkey] = opts[bkey];
+            }
+        }
+    }
     return out;
 }
 
@@ -197,10 +209,26 @@ function __efxPrimMaterial(opts) {
     return opts.material === undefined ? undefined : [opts.material];
 }
 
+/* `inverted` primitive support: negate every normal and reverse each
+   triangle's winding so the inside becomes the front face under the engine's
+   BACK/CCW culling (used by makeCube/makeSphere) */
+function __efxInvertPrimitive(normals, indices) {
+    for (var i = 0; i < normals.length; i++) {
+        normals[i] = -normals[i];
+    }
+    for (var t = 0; t < indices.length; t += 3) {
+        var tmp = indices[t + 1];
+        indices[t + 1] = indices[t + 2];
+        indices[t + 2] = tmp;
+    }
+}
+
 /* axis-aligned cube centered on the origin; per-face normals and per-face
-   0..1 uvs; outward CCW winding; 24 verts / 36 indices */
+   0..1 uvs; outward CCW winding; 24 verts / 36 indices. `inverted` points the
+   normals inward and reverses the winding so the inside is front-facing. */
 function __efxMakeCube(opts) {
-    var o = __efxPrimOpts(opts, ['size', 'material'], ['size'], [], [1]);
+    var o = __efxPrimOpts(opts, ['size', 'inverted', 'material'], ['size'], [],
+                          [1, false], ['inverted']);
     var h = o.size / 2;
     /* normal, edge u, edge v with cross(u, v) = normal */
     var faces = [
@@ -227,6 +255,9 @@ function __efxMakeCube(opts) {
             uvs.push(cornerUVs[c][0], cornerUVs[c][1]);
         }
         indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    if (o.inverted) {
+        __efxInvertPrimitive(normals, indices);
     }
     return efx.graphics.createMeshData([{
         positions: positions, normals: normals, uvs: uvs, indices: indices,
@@ -260,9 +291,12 @@ function __efxMakePlane(opts) {
 }
 
 /* UV sphere centered on the origin; segments latitude rings x segments
-   longitude slices; normals = normalized positions; equirectangular uv */
+   longitude slices; normals = normalized positions; equirectangular uv.
+   `inverted` points the normals inward and reverses the winding so the inside
+   is front-facing (a sky dome). */
 function __efxMakeSphere(opts) {
-    var o = __efxPrimOpts(opts, ['radius', 'segments', 'material'], ['radius'], ['segments'], [1, 16]);
+    var o = __efxPrimOpts(opts, ['radius', 'segments', 'inverted', 'material'],
+                          ['radius'], ['segments'], [1, 16, false], ['inverted']);
     var S = o.segments, R = o.radius;
     var positions = [], normals = [], uvs = [], indices = [];
     for (var i = 0; i <= S; i++) {
@@ -288,6 +322,9 @@ function __efxMakeSphere(opts) {
             var d = (ii + 1) * S + ((jj + 1) % S);
             indices.push(a, d, c2, a, b, d);
         }
+    }
+    if (o.inverted) {
+        __efxInvertPrimitive(normals, indices);
     }
     return efx.graphics.createMeshData([{
         positions: positions, normals: normals, uvs: uvs, indices: indices,
@@ -1418,21 +1455,22 @@ function __efxSampleHandle(sample) {
                                                            : sample;
 }
 
-/* Phong material -> the 17-float block + 5 map-handles wire (the layout of
+/* Phong material -> the 19-float block + 5 map-handles wire (the layout of
  * the bindings' material marshalling); `sample` resolves map resources */
 function __efxMaterialWire(v, sample) {
     if (!__efxIsObject(v)) {
         throw new TypeError('material must be an object');
     }
     __efxCheckKnown(v, { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
-                         alphaMask: 1, blend: 1 }, 'material');
-    var out = new Float32Array(18);
+                         alphaMask: 1, blend: 1, unlit: 1 }, 'material');
+    var out = new Float32Array(19);
     out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;     /* ambient */
     out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;     /* diffuse */
     out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1;   /* specular */
     out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
     out[16] = 32;                                       /* shininess */
     out[17] = -1;                                       /* blend: inherit */
+    out[18] = 0;                                        /* unlit: false */
     var maps = new Float64Array(5);                     /* all absent (0) */
     var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
     for (var ci = 0; ci < 4; ci++) {
@@ -1473,6 +1511,12 @@ function __efxMaterialWire(v, sample) {
         out[17] = __efxPartEnum(v['blend'],
                                 { alpha: 0, additive: 1, subtractive: 2 }, -1,
                                 'blend', 'unknown blend mode');
+    }
+    if (v['unlit'] !== undefined && v['unlit'] !== null) {
+        if (typeof v['unlit'] !== 'boolean') {
+            throw new TypeError('unlit must be a boolean');
+        }
+        out[18] = v['unlit'] ? 1 : 0;
     }
     return { blocks: out, maps: maps };
 }
@@ -1551,7 +1595,7 @@ function __efxMeshDataWire(surfaces, materials, natives) {
     }
     var blocks = null, maps = null, matHas = new Int32Array(count);
     if (materials !== undefined) {
-        blocks = new Float32Array(count * 18);
+        blocks = new Float32Array(count * 19);
         maps = new Float64Array(count * 5);
         for (var mi = 0; mi < count; mi++) {
             var mv = materials[mi];
@@ -1559,7 +1603,7 @@ function __efxMeshDataWire(surfaces, materials, natives) {
                 continue;
             }
             var mf = __efxMaterialWire(mv, natives.liveSample);
-            blocks.set(mf.blocks, mi * 18);
+            blocks.set(mf.blocks, mi * 19);
             maps.set(mf.maps, mi * 5);
             matHas[mi] = 1;
         }

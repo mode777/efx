@@ -104,7 +104,7 @@ typedef struct efx_light_set {
  * may reference a Texture or a RenderTarget (texture coercion).
  *
  * This struct is marshalled as a parallel float block (channels + shininess
- * + blend); adding a field means updating every copy together:
+ * + blend + unlit); adding a field means updating every copy together:
  * src/prelude/prelude.js __efxMaterialWire, src/web/js/core.js
  * __efxMaterial, src/api/api_3d.c wire_mat_from_block,
  * src/web/bridge_render3d.c bridge_mat_from_wire, and the web createMeshData
@@ -121,6 +121,7 @@ typedef struct efx_material {
     uint64_t emissive_map;
     uint64_t alpha_mask;
     int blend; /* EFX_BLEND_* override, or EFX_BLEND_INHERIT (frame state) */
+    int unlit; /* 1 = bypass lighting: diffuse color × map × albedo (F14+) */
 } efx_material;
 
 /* documented default material: white diffuse Phong, no maps */
@@ -162,6 +163,7 @@ typedef struct efx_mesh_record {
     uint8_t blend;         /* frame-state fallback for surfaces without one */
     uint8_t surface_blend[EFX_MESH_MAX_SURFACES]; /* per-surface resolved */
     uint8_t skinned;       /* F7: draw the posed buffer instead of bind pose */
+    uint8_t depth_write;   /* 1 = depth write on (default), 0 = test only */
 } efx_mesh_record;
 
 /* beginRenderTarget control record (ADR 0028): opens a segment; the
@@ -565,7 +567,7 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                     const float src_rect[4], int has_src,
                     float origin_x, float origin_y, int blend_override);
 int efx_render_mesh(uint64_t mesh, const float transform[16],
-                    const float color[4], int skinned);
+                    const float color[4], int skinned, int depth_write);
 const efx_record *efx_render_records(int *count);
 const efx_draw_run *efx_render_runs(int *count); /* batched quad plan */
 
