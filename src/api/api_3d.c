@@ -17,6 +17,7 @@ static void wire_mat_from_block(efx_material *m, const float *f,
     }
     m->shininess = f[16];
     m->blend = (int)f[17];
+    m->unlit = (int)f[18];
     m->ambient_map = (uint64_t)maps[0];
     m->diffuse_map = (uint64_t)maps[1];
     m->specular_map = (uint64_t)maps[2];
@@ -170,7 +171,7 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
                 continue;
             }
             efx_material m;
-            wire_mat_from_block(&m, blocks + (size_t)i * 18,
+            wire_mat_from_block(&m, blocks + (size_t)i * 19,
                                 maps + (size_t)i * 5);
             efx_meshdata_set_material(md, i, &m, 1);
         }
@@ -230,14 +231,16 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
     int has_transform = 0;
     float color[4] = {1, 1, 1, 1};
     int skinned = 0;
+    int depth_write = 1;
 
     if (argc >= 2 && !JS_IsUndefined(argv[1])) {
         JSValueConst opts = argv[1];
         if (!JS_IsObject(opts)) {
             return efx_api_type_error(ctx, "drawMesh options must be an object");
         }
-        static const char *known[] = {"transform", "color", "skinned"};
-        if (efx_api_check_known_fields(ctx, opts, known, 3, "drawMesh") != 0) {
+        static const char *known[] = {"transform", "color", "skinned",
+                                      "depthWrite"};
+        if (efx_api_check_known_fields(ctx, opts, known, 4, "drawMesh") != 0) {
             return JS_EXCEPTION;
         }
         JSValue tv = JS_GetPropertyStr(ctx, opts, "transform");
@@ -288,10 +291,20 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
             skinned = JS_ToBool(ctx, sv) ? 1 : 0;
         }
         JS_FreeValue(ctx, sv);
+
+        JSValue dv = JS_GetPropertyStr(ctx, opts, "depthWrite");
+        if (!JS_IsUndefined(dv)) {
+            if (!JS_IsBool(dv)) {
+                JS_FreeValue(ctx, dv);
+                return efx_api_type_error(ctx, "depthWrite must be a boolean");
+            }
+            depth_write = JS_ToBool(ctx, dv) ? 1 : 0;
+        }
+        JS_FreeValue(ctx, dv);
     }
 
     int rc = efx_render_mesh(mesh->handle, has_transform ? transform : NULL,
-                             color, skinned);
+                             color, skinned, depth_write);
     if (rc == EFX_RENDER_ERR_BUDGET) {
         return efx_api_range_error(ctx, "display list budget exceeded");
     }

@@ -22,8 +22,22 @@ efx.graphics.drawMesh(cube);
 const mat: Material = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
 const matBlend: Material = { blend: 'additive' };
 const matInherit: Material = { blend: null };
+const matUnlit: Material = { unlit: true, diffuse: { color: [1, 1, 1, 1] } };
 efx.graphics.makeCube({ size: 1, material: mat });
 efx.graphics.makeSphere({ material: null });
+// @ts-expect-error — unlit is a boolean flag
+const matUnlitBad: Material = { unlit: 1 };
+
+// Inverted primitives (sky domes) and depthWrite:false (sky drawn first).
+const skyCube: EfxMeshData = efx.graphics.makeCube({ size: 20, inverted: true });
+const skySphere: EfxMeshData = efx.graphics.makeSphere({ radius: 50, inverted: true });
+skyCube.destroy();
+skySphere.destroy();
+efx.graphics.drawMesh(cube, { depthWrite: false });
+// @ts-expect-error — depthWrite is a boolean
+efx.graphics.drawMesh(cube, { depthWrite: 1 });
+// @ts-expect-error — inverted is a boolean
+efx.graphics.makeCube({ inverted: 1 });
 
 // The surface list is positional and the materials array is an optional second argument.
 const batch: EfxMeshData = efx.graphics.createMeshData(

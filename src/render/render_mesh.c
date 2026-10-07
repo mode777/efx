@@ -871,6 +871,16 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
     if (maps->has_mask && maps->mask_alpha < 0.5f) {
         return 1; /* alpha-mask cutout (ADR 0027) */
     }
+    if (mat->unlit) {
+        /* unlit bypass: diffuse color × map × albedo, no light contribution
+           (mirrors the shader's mat_params.y branch) */
+        for (int c = 0; c < 3; c++) {
+            out[c] = lclampf(mat->diffuse[c] * maps->diffuse[c] * albedo[c],
+                             0.0f, 1.0f);
+        }
+        out[3] = albedo[3];
+        return 0;
+    }
     float N[3];
     lnormalize3(N, normal);
     float V[3] = {camera_pos[0] - world_pos[0],

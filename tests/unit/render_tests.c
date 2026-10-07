@@ -652,7 +652,7 @@ static int mesh_record_fields(void) {
     cam.near_z = 0.1f;
     cam.far_z = 100.0f;
     efx_render_set_camera3d(&cam);
-    efx_render_mesh(m, transform, tint, 0);
+    efx_render_mesh(m, transform, tint, 0, 1);
     /* value snapshot: a later camera change must not apply */
     efx_camera3d cam2;
     memset(&cam2, 0, sizeof(cam2));
@@ -660,7 +660,7 @@ static int mesh_record_fields(void) {
     cam2.fov = 30;
     efx_render_set_camera3d(&cam2);
     /* dead mesh handle rejected */
-    if (efx_render_mesh(0, NULL, NULL, 0) != EFX_RENDER_ERR_HANDLE)
+    if (efx_render_mesh(0, NULL, NULL, 0, 1) != EFX_RENDER_ERR_HANDLE)
         return fail("null mesh accepted");
 
     int count = 0;
@@ -680,7 +680,7 @@ static int mesh_record_fields(void) {
         return fail("camera depth range");
 
     /* default transform = identity, default tint = white */
-    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
         return fail("default args rejected");
     recs = efx_render_records(&count);
     mr = &recs[1].u.mesh;
@@ -694,7 +694,7 @@ static int mesh_record_fields(void) {
         return fail("new camera on later record");
     /* blend value-snapshots into mesh records too */
     efx_render_set_blend(EFX_BLEND_ADDITIVE);
-    efx_render_mesh(m, NULL, NULL, 0);
+    efx_render_mesh(m, NULL, NULL, 0, 1);
     recs = efx_render_records(&count);
     if (recs[2].u.mesh.blend != EFX_BLEND_ADDITIVE) return fail("mesh blend");
     efx_render_end_frame();
@@ -739,7 +739,7 @@ static int blend_overrides(void) {
     mat.blend = EFX_BLEND_ADDITIVE;
     efx_render_mesh_set_material(m, 0, &mat, 1);
     efx_render_set_blend(EFX_BLEND_SUBTRACTIVE);
-    efx_render_mesh(m, NULL, NULL, 0);
+    efx_render_mesh(m, NULL, NULL, 0, 1);
     recs = efx_render_records(&count);
     const efx_mesh_record *mr = &recs[count - 1].u.mesh;
     if (mr->surface_blend[0] != EFX_BLEND_ADDITIVE)
@@ -793,7 +793,7 @@ static int mesh_record_order(void) {    install_mock_sink();
     /* quads A A, mesh, quad B: quad runs must not span the mesh record */
     efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
-    efx_render_mesh(m, NULL, NULL, 0);
+    efx_render_mesh(m, NULL, NULL, 0, 1);
     efx_render_quad(9, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -834,7 +834,7 @@ static int mesh_record_budget(void) {
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
     if (!m) return fail("16-surface mesh create");
-    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
         return fail("16-surface mesh record");
     int count = 0;
     efx_render_records(&count);
@@ -842,7 +842,7 @@ static int mesh_record_budget(void) {
     /* and the budget still trips eventually on mesh records */
     int pushed = 0;
     for (;;) {
-        int rc = efx_render_mesh(m, NULL, NULL, 0);
+        int rc = efx_render_mesh(m, NULL, NULL, 0, 1);
         if (rc == EFX_RENDER_ERR_BUDGET) break;
         if (rc != EFX_RENDER_OK) return fail("mesh budget loop error");
         pushed++;
@@ -932,7 +932,7 @@ static int light_snapshot(void) {
     p.pos[0] = 1; p.pos[1] = 1; p.pos[2] = 1;
     p.color[0] = 1; p.color[3] = 1;
     efx_render_set_point_light(0, &p);
-    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
         return fail("record");
     /* later light change must not alter the recorded snapshot */
     efx_render_set_point_light(0, NULL);
@@ -1085,6 +1085,30 @@ static int lighting_reference(void) {
     dls.directional.color[0] = 1; dls.directional.color[1] = 0; dls.directional.color[2] = 0;
     efx_lighting_shade(&mat, &dls, world, n, cam, alb, NULL, out);
     if (!feq(out[0], 1) || !feq(out[1], 0)) return fail("directional");
+
+    /* unlit bypass: diffuse × map × albedo, lights/ambient/emissive ignored */
+    efx_material un;
+    efx_material_default(&un);
+    un.unlit = 1;
+    un.diffuse[0] = 0.25f; un.diffuse[1] = 0.5f; un.diffuse[2] = 0.75f;
+    un.ambient[0] = un.ambient[1] = un.ambient[2] = 1.0f;
+    un.emissive[0] = un.emissive[1] = un.emissive[2] = 1.0f;
+    float half[4] = {0.5f, 0.5f, 0.5f, 1};
+    efx_lighting_shade(&un, &ls, world, back, cam, half, NULL, out);
+    if (!feq(out[0], 0.125f) || !feq(out[1], 0.25f) || !feq(out[2], 0.375f))
+        return fail("unlit diffuse x albedo, lights ignored");
+    efx_map_samples um;
+    for (int c = 0; c < 3; c++) {
+        um.ambient[c] = 1.0f;
+        um.diffuse[c] = 0.5f;
+        um.specular[c] = 1.0f;
+        um.emissive[c] = 1.0f;
+    }
+    um.mask_alpha = 1.0f;
+    um.has_mask = 0;
+    efx_lighting_shade(&un, &none, world, n, cam, alb, &um, out);
+    if (!feq(out[0], 0.125f) || !feq(out[1], 0.25f) || !feq(out[2], 0.375f))
+        return fail("unlit map multiplies diffuse");
     return 0;
 }
 
@@ -1444,7 +1468,7 @@ static int feedback_guard(void) {
     efx_material_default(&mat);
     mat.diffuse_map = rt;
     efx_render_mesh_set_material(mesh, 0, &mat, 1);
-    if (efx_render_mesh(mesh, NULL, NULL, 0) != EFX_RENDER_ERR_FEEDBACK)
+    if (efx_render_mesh(mesh, NULL, NULL, 0, 1) != EFX_RENDER_ERR_FEEDBACK)
         return fail("mesh feedback accepted");
     int after = 0;
     efx_render_records(&after);
@@ -2039,15 +2063,15 @@ static int mesh_skinned_flag(void) {
     uint64_t sm = efx_render_mesh_create(smd);
     efx_meshdata_destroy(smd);
 
-    if (efx_render_mesh(sm, NULL, NULL, 1) != EFX_RENDER_ERR_RIG)
+    if (efx_render_mesh(sm, NULL, NULL, 1, 1) != EFX_RENDER_ERR_RIG)
         return fail("static skinned draw accepted");
     int count = 0;
     efx_render_records(&count);
     if (count != 0) return fail("rejected draw recorded");
 
-    if (efx_render_mesh(m, NULL, NULL, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 1, 1) != EFX_RENDER_OK)
         return fail("skinned draw");
-    if (efx_render_mesh(m, NULL, NULL, 0) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
         return fail("bind draw");
     const efx_record *recs = efx_render_records(&count);
     if (count != 2) return fail("record count");

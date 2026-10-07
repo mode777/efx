@@ -600,6 +600,46 @@ static int f4b_js(void) {
     return 0;
 }
 
+/* unlit material flag + drawMesh depthWrite + inverted primitives */
+static int unlit_depth_js(void) {
+    const char *code =
+        "const P=[0,0,0, 1,0,0, 0,1,0];"
+        "const M={ diffuse:{color:[0.5,0.6,0.7,1]}, unlit:true };"
+        "const md=efx.graphics.createMeshData([{positions:P, indices:[0,1,2]}], [M]);"
+        "const mesh=efx.graphics.createMesh(md);"
+        "efx.graphics.setCamera3D([0,2,5], [0,0,0], 60);"
+        "efx.graphics.drawMesh(mesh);"                         /* default depth write */
+        "efx.graphics.drawMesh(mesh, { depthWrite: false });"  /* test only */
+        T_HELPER
+        "t(()=>mesh.setSurfaceMaterial(0,{unlit:1}), TypeError);"
+        "t(()=>mesh.setSurfaceMaterial(0,{unlit:'yes'}), TypeError);"
+        "t(()=>efx.graphics.drawMesh(mesh,{depthWrite:1}), TypeError);"
+        "t(()=>efx.graphics.drawMesh(mesh,{depthWrite:null}), TypeError);"
+        "t(()=>efx.graphics.makeCube({inverted:1}), TypeError);"
+        "t(()=>efx.graphics.makeSphere({inverted:'no'}), TypeError);"
+        "const invCube=efx.graphics.createMesh(efx.graphics.makeCube({inverted:true}));"
+        "if(invCube.surfaceCount!==1) throw new Error('inverted cube');"
+        "const invSphere=efx.graphics.createMesh(efx.graphics.makeSphere({inverted:true}));"
+        "if(invSphere.surfaceCount!==1) throw new Error('inverted sphere');"
+        "invCube.destroy(); invSphere.destroy();"
+        "globalThis.__efxKeep = mesh;" /* keep alive for the C-side record check */
+        "md.destroy();";
+    REQUIRE(!ok_js(code), "unlit/depth js");
+    const efx_record *r = efx_render_records(NULL);
+    int n = rec_count();
+    REQUIRE(n == 2, "unlit/depth record count");
+    REQUIRE(r[0].type == EFX_RECORD_MESH && r[1].type == EFX_RECORD_MESH,
+            "unlit/depth record type");
+    efx_material mat;
+    REQUIRE(efx_render_mesh_surface_material(r[0].u.mesh.mesh, 0, &mat) == 1,
+            "unlit material bound");
+    REQUIRE(mat.unlit == 1, "unlit flag snapshot");
+    REQUIRE(r[0].u.mesh.depth_write == 1, "default depth write on");
+    REQUIRE(r[1].u.mesh.depth_write == 0, "depthWrite false snapshot");
+    end_js();
+    return 0;
+}
+
 /* F5a: render targets through the JS bindings — lifecycle, validation,
  * redirection errors, texture coercion in drawQuad and material maps */
 static int f5a_js(void) {
@@ -1900,6 +1940,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(camera3d_js),
     EFX_CASE(f4a_js),
     EFX_CASE(f4b_js),
+    EFX_CASE(unlit_depth_js),
     EFX_CASE(f5a_js),
     EFX_CASE(f5b_js),
     EFX_CASE(resource_js),

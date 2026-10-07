@@ -1183,8 +1183,8 @@ int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
     }
     efx_material_default(out);
     static const char *known[] = {"ambient", "diffuse", "specular", "emissive",
-                                  "alphaMask", "blend"};
-    if (efx_api_check_known_fields(ctx, v, known, 6, "material") != 0) {
+                                  "alphaMask", "blend", "unlit"};
+    if (efx_api_check_known_fields(ctx, v, known, 7, "material") != 0) {
         return -1;
     }
     static const char *chan_keys[] = {"ambient", "diffuse", "specular", "emissive"};
@@ -1266,6 +1266,16 @@ int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
         }
     }
     JS_FreeValue(ctx, bv);
+    JSValue uv = JS_GetPropertyStr(ctx, v, "unlit");
+    if (!JS_IsUndefined(uv) && !JS_IsNull(uv)) {
+        if (!JS_IsBool(uv)) {
+            JS_FreeValue(ctx, uv);
+            efx_api_type_error(ctx, "unlit must be a boolean");
+            return -1;
+        }
+        out->unlit = JS_ToBool(ctx, uv) ? 1 : 0;
+    }
+    JS_FreeValue(ctx, uv);
     return 0;
 }
 

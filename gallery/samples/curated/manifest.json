@@ -88,5 +88,17 @@
     "title": "Physics Playground",
     "category": "Showcase",
     "description": "F12 collision + character + dynamics: a capsule character walks a static course with moveAndSlide (floor/wall classification, a ramp, and a step), triggers a sensor volume, pushes falling and pushable crates, and casts a raycast for line of sight. Procedural geometry, no asset pack."
+  },
+  {
+    "dir": "skybox-showcase",
+    "title": "Skybox",
+    "category": "Showcase",
+    "description": "A period sky dome: an inverted sphere with an unlit, diffuse-mapped material drawn camera-locked and first with depthWrite:false, so a real CC0 equirectangular sky (Poly Haven) fills the background and never occludes the lit scene as the camera orbits."
+  },
+  {
+    "dir": "blob-shadow-showcase",
+    "title": "Blob Shadow",
+    "category": "Showcase",
+    "description": "A flat blob shadow under a moving character, drawn as a ground-plane billboard (facing:'plane') with alpha blending and a small lift, using a radial texture generated at runtime with createImageData. The camera orbits to show the shadow stays flat on the ground."
   }
 ]

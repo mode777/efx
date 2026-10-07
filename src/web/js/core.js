@@ -870,25 +870,27 @@ function __efxEnsureApi() {
         return out;
     }
 
-    /* Parse a Phong material object into the F4a 17-float wire layout
-       [ambient(4), diffuse(4), specular(4), emissive(4), shininess] plus the
-       F4b map-handle vector [ambient, diffuse, specular, emissive, alphaMask]
-       (doubles; 0 = absent). Desktop parity: unknown fields throw; a map/
-       alphaMask must be a live Texture or RenderTarget (F5a). */
+    /* Parse a Phong material object into the F4a float wire layout
+       [ambient(4), diffuse(4), specular(4), emissive(4), shininess, blend,
+       unlit] plus the F4b map-handle vector [ambient, diffuse, specular,
+       emissive, alphaMask] (doubles; 0 = absent). Desktop parity: unknown
+       fields throw; a map/alphaMask must be a live Texture or RenderTarget
+       (F5a). */
     function __efxMaterial(v) {
         if (!__efxIsObject(v)) {
             throw new TypeError('material must be an object');
         }
         var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
-                      alphaMask: 1, blend: 1 };
+                      alphaMask: 1, blend: 1, unlit: 1 };
                 __efxCheckKnown(v, known, 'material');
-        var out = new Float32Array(18);
+        var out = new Float32Array(19);
         out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;   /* ambient */
         out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;   /* diffuse */
         out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1; /* specular */
         out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1; /* emissive */
         out[16] = 32;                                     /* shininess */
         out[17] = -1;                                     /* blend: inherit */
+        out[18] = 0;                                      /* unlit: false */
         var maps = new Float64Array(5);                   /* all absent (0) */
         var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
         for (var ci = 0; ci < 4; ci++) {
@@ -928,6 +930,12 @@ function __efxEnsureApi() {
         }
         if (v.blend !== undefined && v.blend !== null) {
             out[17] = __efxBlend(v.blend);
+        }
+        if (v.unlit !== undefined && v.unlit !== null) {
+            if (typeof v.unlit !== 'boolean') {
+                throw new TypeError('unlit must be a boolean');
+            }
+            out[18] = v.unlit ? 1 : 0;
         }
         return { blocks: out, maps: maps };
     }

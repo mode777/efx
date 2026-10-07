@@ -108,6 +108,14 @@ behavior.
   `DrawBillboardOptions.blend`. A particle system with no configured `blend`
   inherits the state at `drawParticles` time. Clear color, cameras, and lights
   remain plain state that persists until changed.
+- **Material appearance flags.** `Material.unlit` (default `false`) bypasses
+  the lighting equation: the surface shows its `diffuse` color × its `diffuse`
+  map × the albedo with no light contribution, while `alphaMask` and `blend`
+  still apply; it is snapshotted with the rest of the material. `DrawMeshOptions.depthWrite`
+  (default `true`) is per-draw render state: `false` depth-tests without
+  writing depth, so a camera-locked sky recorded first is neither occluded by
+  nor occluding the scene. The `makeCube`/`makeSphere` `inverted` flag builds
+  inward-facing geometry for such skies.
 - **Resources.** Loaders and creators return opaque resource objects (see
   [Resource & memory model](#resource--memory-model)); `res.destroy()`
   releases deterministically and GC is the backstop. Native-backed classes
@@ -249,7 +257,7 @@ fixed light bank is slot-based.
 | Mesh | GPU mesh (all surfaces uploaded); skinned meshes carry the skeleton and clips internally; per-surface material binding slot | Native class | GPU | `createMesh(meshData)`; read-only `surfaceCount`; `pose(pose)` and `setSurfaceMaterial(surfaceIndex, mat)` methods |
 | Texture | GPU texture | Native class | GPU | `createTexture(imageData, opts?)` (`wrap`/`filter`/`mipmaps`); read-only `width` / `height`; `efx.graphics.whiteTexture` is an engine-owned instance (destroy throws) |
 | RenderTarget | GPU render target (color + depth attachments, env-default formats) | Native class | GPU | `createRenderTarget(width, height)` (1..4096 per side); read-only `width` / `height`; a live RenderTarget is accepted **wherever a live Texture is** — `drawQuad`, material `map`s, `alphaMask` — with no alias Texture object |
-| Materials (Phong parameter objects) | — | JS-managed | — | Bound per surface via the `Mesh.setSurfaceMaterial` method / the `materials` array; per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound |
+| Materials (Phong parameter objects) | — | JS-managed | — | Bound per surface via the `Mesh.setSurfaceMaterial` method / the `materials` array; per-channel `map`s and `alphaMask` reference native-backed `Texture`s the engine retains while bound; `unlit: true` bypasses lighting |
 | Post-effect chain entries | `{ effect, ...options, mix? }` option bags | JS-managed | — | Snapshotted at `setPostEffects` call time; no native handle and no `destroy()` |
 | FontData | Parsed TrueType/OpenType font (CPU, no GPU resource) | Native class | CPU | `loadFontData(path)`; no query properties |
 | Font | Fixed baked glyph atlas (RGBA8 Texture) + layout metrics | Native class | GPU | `createFont(fontData, size, opts?)`; read-only `size`/`lineHeight`/`ascent`/`descent`; `measure(text, opts?)` method |

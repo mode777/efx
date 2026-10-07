@@ -68,3 +68,15 @@ Emissive channel (default black).
 > `optional` **specular?**: [`SpecularChannel`](SpecularChannel.md)
 
 Specular channel (default black, shininess 32).
+
+***
+
+### unlit?
+
+> `optional` **unlit?**: `boolean`
+
+Bypass the lighting equation (default `false`). When `true`, the shaded
+color is the `diffuse` channel color × its `diffuse` map × the albedo, with
+no light contribution; `ambient`, `specular`, `emissive`, and all lights are
+ignored. `alphaMask` and `blend` still apply. Use for skies, UI, and other
+surfaces that should show their texture exactly as authored.

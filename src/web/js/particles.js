@@ -113,7 +113,9 @@
             if (opts['rotation'] !== undefined) {
                 rotation = __efxFinite(opts['rotation'], 'rotation must be a finite number');
             }
-            var facing = __efxPartEnum(opts['facing'], { view: 0, y: 1 }, 0, 'facing');
+            var facing = __efxPartEnum(opts['facing'],
+                                       { view: 0, y: 1, plane: 2 }, 0, 'facing',
+                                       "facing must be 'view', 'y', or 'plane'");
             var normal = [0, 1, 0];
             if (opts['normal'] !== undefined) {
                 normal = __efxPartVec(opts['normal'], 'normal', false);

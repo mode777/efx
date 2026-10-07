@@ -76,9 +76,9 @@ typedef struct {
     sg_pipeline quad_pip[3];
     sg_pipeline bill_pip[3]; /* F11: same shader/layout, depth test/no write */
     sg_shader mesh_shd;
-    sg_pipeline mesh_pip[3];
-    sg_pipeline mesh_pip_cw[3]; /* GL-family RT passes: projection y-flip
-                                   mirrors winding (F5a) */
+    sg_pipeline mesh_pip[3][2];    /* [blend][depth write on/off] */
+    sg_pipeline mesh_pip_cw[3][2]; /* GL-family RT passes: projection y-flip
+                                      mirrors winding (F5a) */
     /* F5b post passes: one shader + pipeline per pass type (uniform-driven,
        no permutations) */
     sg_shader post_shd[6];
@@ -515,9 +515,14 @@ void efx_pipeline_install(void) {
             .face_winding = SG_FACEWINDING_CCW,
             .sample_count = 1,
         };
-        P.mesh_pip[i] = sg_make_pipeline(&md);
-        md.face_winding = SG_FACEWINDING_CW;
-        P.mesh_pip_cw[i] = sg_make_pipeline(&md);
+        for (int w = 0; w < 2; w++) {
+            /* w=1 depth write on (default), w=0 depth test only (sky/decals) */
+            md.depth.write_enabled = w ? true : false;
+            md.face_winding = SG_FACEWINDING_CCW;
+            P.mesh_pip[i][w] = sg_make_pipeline(&md);
+            md.face_winding = SG_FACEWINDING_CW;
+            P.mesh_pip_cw[i][w] = sg_make_pipeline(&md);
+        }
     }
 
     /* D3D11/Metal use a 0..1 depth range: fold the GL-style (-1..1)
@@ -760,22 +765,25 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
     uint64_t white = efx_render_white_texture(); /* absent-map fallback (D3) */
     pipe_tex *white_tex = (pipe_tex *)efx_render_texture_native(white);
     sg_view white_view = white_tex ? white_tex->view : P.white_view;
-    int cur_blend = -1;
+    int cur_key = -1;
+    int depth_write = mr->depth_write ? 1 : 0;
     for (int i = 0; i < m->surface_count; i++) {
         pipe_mesh_surface *s = &m->surfaces[i];
         if (!s->index_count) {
             continue;
         }
         /* D4: per-surface blend resolved at record time; switch the
-           pipeline only when it changes and re-apply the vs uniforms the
-           pipeline change invalidates (documented order: pipeline ->
-           bindings -> uniforms -> draw) */
+           pipeline only when the blend or depth-write variant changes and
+           re-apply the vs uniforms the pipeline change invalidates
+           (documented order: pipeline -> bindings -> uniforms -> draw) */
         int blend = mr->surface_blend[i];
-        if (blend != cur_blend) {
-            sg_apply_pipeline(flip ? P.mesh_pip_cw[blend] : P.mesh_pip[blend]);
+        int key = blend * 2 + depth_write;
+        if (key != cur_key) {
+            sg_apply_pipeline(flip ? P.mesh_pip_cw[blend][depth_write]
+                                   : P.mesh_pip[blend][depth_write]);
             sg_apply_uniforms(UB_vs_params,
                               &(sg_range){.ptr = &vs, .size = sizeof(vs)});
-            cur_blend = blend;
+            cur_key = key;
         }
         efx_material mat;
         efx_render_mesh_surface_material(mr->mesh, i, &mat);
@@ -784,6 +792,7 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         memcpy(fs.specular, mat.specular, sizeof(fs.specular));
         memcpy(fs.emissive, mat.emissive, sizeof(fs.emissive));
         fs.mat_params[0] = mat.shininess;
+        fs.mat_params[1] = mat.unlit ? 1.0f : 0.0f;
 
         /* F4b D3: bind all five maps; absent ones fall back to the engine
            white texture (color maps sample (1,1,1,1); the mask samples
@@ -1560,8 +1569,10 @@ void efx_pipeline_shutdown(void) {
     for (int i = 0; i < 3; i++) {
         sg_destroy_pipeline(P.quad_pip[i]);
         sg_destroy_pipeline(P.bill_pip[i]);
-        sg_destroy_pipeline(P.mesh_pip[i]);
-        sg_destroy_pipeline(P.mesh_pip_cw[i]);
+        for (int w = 0; w < 2; w++) {
+            sg_destroy_pipeline(P.mesh_pip[i][w]);
+            sg_destroy_pipeline(P.mesh_pip_cw[i][w]);
+        }
     }
     for (int i = 0; i < POST_PROG_COUNT; i++) {
         sg_destroy_pipeline(P.post_pip[i]);
