@@ -24,7 +24,7 @@
 
 - [x] 4.1 Extend the CPU lighting reference (`efx_lighting_shade` in `src/render/render_mesh.c`) with an unlit mode, and add a unit test asserting the unlit result equals `diffuse.color × map × albedo` with and without lights; verify `ctest` passes
 - [x] 4.2 Author a new pure-geometry golden scene under `tests/goldens/unlit_inverted/` (`main.js`) covering `unlit`, `inverted`, and `depthWrite: false` with no third-party asset; verify the scene runs headless under `--script`/`--capture-frame` without error
-- [ ] 4.3 Capture the golden on the SSH build box with the llvmpipe recipe from `docs/verification-server.md` and commit `tests/goldens/unlit_inverted/golden.png`; verify the desktop golden comparison passes locally before dispatch
+- [x] 4.3 Capture the golden on the SSH build box with the llvmpipe recipe from `docs/verification-server.md` and commit `tests/goldens/unlit_inverted/golden.png`; verify the desktop golden comparison passes locally before dispatch
 
 ## 5. Docs, type document, and guidance
 
@@ -35,14 +35,14 @@
 
 ## 6. Gallery showcases
 
-- [ ] 6.1 Produce the sky asset: download Poly Haven `kloofendal_43d_clear_puresky` (CC0) tonemapped JPG, downscale to 2048×1024 and re-encode, commit as `gallery/samples/curated/skybox-showcase/sky.jpg`, and add its provenance + recipe row to `gallery/samples/curated/CREDITS.md`; verify the file loads through `efx.io.loadImage` in the sample
-- [ ] 6.2 Author `gallery/samples/curated/skybox-showcase/main.js`: an inverted sphere with an `unlit` diffuse-mapped material, drawn camera-locked with `depthWrite: false` before a small lit scene; verify it runs under the player against its directory
-- [ ] 6.3 Author `gallery/samples/curated/blob-shadow-showcase/main.js`: a moving character mesh over a ground plane with a `createImageData` radial shadow drawn as a `facing: 'plane'` billboard (dark color, alpha blend, small lift) under an orbiting camera; verify the shadow stays flat and follows the character
-- [ ] 6.4 Add both entries to `gallery/samples/curated/manifest.json` (or the generated catalog) and regenerate with `gallery/scripts/gen-catalog.mjs`; verify both samples appear in the built catalog
-- [ ] 6.5 Build the gallery (`npm --prefix gallery ci && npm --prefix gallery run build`) and run the smoke against both new samples; verify no console or page errors
+- [x] 6.1 Produce the sky asset: download Poly Haven `kloofendal_43d_clear_puresky` (CC0) tonemapped JPG, downscale to 2048×1024 and re-encode, commit as `gallery/samples/curated/skybox-showcase/sky.jpg`, and add its provenance + recipe row to `gallery/samples/curated/CREDITS.md`; verify the file loads through `efx.io.loadImage` in the sample
+- [x] 6.2 Author `gallery/samples/curated/skybox-showcase/main.js`: an inverted sphere with an `unlit` diffuse-mapped material, drawn camera-locked with `depthWrite: false` before a small lit scene; verify it runs under the player against its directory
+- [x] 6.3 Author `gallery/samples/curated/blob-shadow-showcase/main.js`: a moving character mesh over a ground plane with a `createImageData` radial shadow drawn as a `facing: 'plane'` billboard (dark color, alpha blend, small lift) under an orbiting camera; verify the shadow stays flat and follows the character
+- [x] 6.4 Add both entries to `gallery/samples/curated/manifest.json` (or the generated catalog) and regenerate with `gallery/scripts/gen-catalog.mjs`; verify both samples appear in the built catalog
+- [x] 6.5 Build the gallery (`npm --prefix gallery ci && npm --prefix gallery run build`) and run the smoke against both new samples; verify no console or page errors
 
 ## 7. Verification
 
-- [ ] 7.1 Run `npx openspec validate "skybox-and-blob-shadows" --type change --strict` and confirm it passes
-- [ ] 7.2 Build and run the non-golden suite locally (`cmake -B build -DEFX_HEADLESS=ON` + `ctest -E golden`) and confirm all unit tests pass
-- [ ] 7.3 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, fix until green, then dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` (ADR 0020/0023)
+- [x] 7.1 Run `npx openspec validate "skybox-and-blob-shadows" --type change --strict` and confirm it passes
+- [x] 7.2 Build and run the non-golden suite locally (`cmake -B build -DEFX_HEADLESS=ON` + `ctest -E golden`) and confirm all unit tests pass
+- [x] 7.3 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, fix until green, then dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` (ADR 0020/0023)
