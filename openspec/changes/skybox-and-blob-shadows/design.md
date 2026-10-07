@@ -173,6 +173,14 @@ existing CPU lighting reference (`efx_lighting_shade`) gains an unlit mode so
 the shader result can be asserted headlessly. The golden is captured on the
 SSH server (llvmpipe) before dispatching the four-target gate (ADR 0020/0023).
 
+## Apply notes
+
+- The web `drawBillboard` binding accepted `facing: 'view' | 'y'` only, while
+  the desktop binding and the `billboards` spec accept `'plane'` too. The
+  blob-shadow showcase (`facing: 'plane'`) surfaced the divergence; the web
+  validator now maps `plane` and uses the desktop's canonical message. No ADR —
+  this restores documented parity rather than changing behavior.
+
 ## Risks / Trade-offs
 
 - **Mesh pipeline variant growth (12)** → contained: pipelines are created
