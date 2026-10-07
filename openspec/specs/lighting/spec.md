@@ -76,12 +76,12 @@ nothing. The directional light contributes no attenuation.
 
 ### Requirement: Phong material model
 A material is a **JS-managed** plain object (ADR 0011; no native class, no
-`destroy()`) with four optional Phong channels. Channel values are
-snapshotted by the engine when the material is bound — later mutation of
-the script object MUST NOT change the bound material. Channel maps are held
-by **handle** (ADR 0019) and the referenced Textures and RenderTargets are
-retained by the engine while bound (see below). Omitted channels or fields
-take documented defaults:
+`destroy()`) with four optional Phong channels plus an optional `unlit` flag.
+Channel values are snapshotted by the engine when the material is bound —
+later mutation of the script object MUST NOT change the bound material.
+Channel maps are held by **handle** (ADR 0019) and the referenced Textures and
+RenderTargets are retained by the engine while bound (see below). Omitted
+channels or fields take documented defaults:
 
 - `ambient: { color, map? }` — default color black `[0, 0, 0, 1]`, no map;
 - `diffuse: { color, map? }` — default color white `[1, 1, 1, 1]`, no map;
@@ -95,19 +95,25 @@ take documented defaults:
   with the existing frame content; absent or `null` means the surface uses the
   frame's blend render state at draw record time (see the `2d-layer` blending
   requirement).
+- `unlit?` — an optional boolean (default `false`). When `true`, the surface
+  is shaded without the lighting equation and without any light contribution:
+  its color is the `diffuse` channel color multiplied by the `diffuse` map
+  sample and the albedo (see the F4a lit shading requirement). `alphaMask`
+  and `blend` still apply; `ambient`, `specular`, `emissive`, and every light
+  are ignored.
 
 Each channel `color` SHALL be a `[r, g, b, a]` array of normalized floats;
 the alpha component SHALL be ignored by shading. `shininess` SHALL be a finite
 number `> 0`. A `map` field and the material-level `alphaMask`, when present,
 MUST be a live `Texture` or a live `RenderTarget` (F5a). A non-object
 material, an unknown field, a wrong-typed or wrong-length `color`, a
-non-number `shininess`, a wrongly-typed `map`/`alphaMask`, or a destroyed
-`Texture` or destroyed `RenderTarget` passed as a map SHALL throw
-`TypeError`; a `blend` that is present and is neither one of the three mode
-strings nor `null` SHALL throw `TypeError`; a non-positive or non-finite
-`shininess` SHALL throw `RangeError`; the call that was passed the material
-SHALL record nothing. `map`/`alphaMask` were rejected as unknown in F4a and
-are now accepted.
+non-number `shininess`, a wrongly-typed `map`/`alphaMask`, a non-boolean
+`unlit`, or a destroyed `Texture` or destroyed `RenderTarget` passed as a map
+SHALL throw `TypeError`; a `blend` that is present and is neither one of the
+three mode strings nor `null` SHALL throw `TypeError`; a non-positive or
+non-finite `shininess` SHALL throw `RangeError`; the call that was passed the
+material SHALL record nothing. `map`/`alphaMask` were rejected as unknown in
+F4a and are now accepted.
 
 The engine SHALL **retain** each bound map's `Texture` or `RenderTarget`:
 calling `destroy()` on the bound resource releases the script's handle, and
@@ -118,7 +124,7 @@ handle. An omitted or `null` map means no modulation.
 
 #### Scenario: Omitted channels take defaults
 - **WHEN** `mesh.setSurfaceMaterial(0, {})` is called
-- **THEN** the surface uses the default white-diffuse Phong material with no maps, no alpha mask, and no blend override
+- **THEN** the surface uses the default white-diffuse Phong material with no maps, no alpha mask, no unlit flag, and no blend override
 
 #### Scenario: Specular channel accepts color and shininess
 - **WHEN** a material sets `specular: { color: [1, 1, 1, 1], shininess: 64 }`
@@ -145,6 +151,11 @@ handle. An omitted or `null` map means no modulation.
 
 #### Scenario: Invalid blend throws
 - **WHEN** a material sets `blend: 'multiply'` or `blend: 1`
+- **THEN** the binding call throws `TypeError` and the surface's previous
+  binding is unchanged
+
+#### Scenario: Unlit accepts only a boolean
+- **WHEN** a material sets `unlit: 1` or `unlit: 'yes'`
 - **THEN** the binding call throws `TypeError` and the surface's previous
   binding is unchanged
 
@@ -235,6 +246,16 @@ position, `d` is the distance, and attenuation is `atten = 1` when `range` is
 `0`, else `atten = clamp(1 - d / range, 0, 1)`. For the directional light, `L`
 is the unit direction toward the light (`normalize(-dir)`) and `atten = 1`.
 
+When the material has `unlit: true`, the surface SHALL bypass the entire
+lighting equation and the light bank: the final fragment color SHALL be the
+**unlit color** `material.diffuse.color × M_diffuse × albedo`, clamped to
+`[0, 1]`. The `alphaMask`, the albedo alpha, and the blend mode SHALL behave
+exactly as in the lit path; `ambient`, `specular`, `emissive`, and every
+point/directional light SHALL have no effect. A material with `unlit: true`
+and no `diffuse.map` therefore renders its `diffuse` color scaled by the
+albedo, and a material with no lights enabled but `unlit: false` continues to
+render its lit result (which is black except for its emissive term).
+
 A surface without `normals` SHALL use the F3 default normal `(0, 0, 1)` in
 object space. A surface without `uvs` SHALL sample every map at the F3 default
 `(0, 0)`. Absent maps contribute the neutral factor `1`, so a material that
@@ -248,9 +269,10 @@ alpha and no alpha blending or dithering is applied by the mask. Material
 channel alphas remain ignored by shading.
 
 2D quad records SHALL be unaffected and the committed F2 goldens SHALL remain
-valid. Because absent maps are neutral, the committed F3 and F4a goldens SHALL
-remain byte-identical. With every light disabled, a default-material surface
-renders black except for its emissive term.
+valid. Because absent maps are neutral and `unlit` defaults to `false`, the
+committed F3 and F4a goldens SHALL remain byte-identical. With every light
+disabled, a default-material surface renders black except for its emissive
+term.
 
 #### Scenario: Ambient alone is flat
 
@@ -311,6 +333,21 @@ renders black except for its emissive term.
 - **WHEN** a masked surface is drawn with a tint alpha below `1`
 - **THEN** fragments that survive the mask keep the tint-modulated albedo
   alpha, and the mask's own alpha does not alter it
+
+#### Scenario: Unlit ignores lights and the lit channels
+
+- **WHEN** a surface with `unlit: true`, a `diffuse` color and map, and a
+  non-black ambient is drawn with lights enabled and again with every light
+  disabled
+- **THEN** both renders are identical and equal the diffuse color × map ×
+  albedo, with no ambient/specular/emissive contribution
+
+#### Scenario: Unlit still honors alpha mask and blend
+
+- **WHEN** an unlit surface with an `alphaMask` and `blend: 'additive'` is
+  drawn
+- **THEN** fragments below the mask threshold are discarded and the survivors
+  blend additively, exactly as in the lit path
 
 ### Requirement: Lighting CPU reference
 

@@ -196,20 +196,27 @@ taxonomy).
 `efx.graphics.drawMesh(mesh, opts?)` SHALL record one draw for the whole mesh, with
 `mesh` as a required first positional argument that MUST be a live Mesh
 (nothing, a non-Mesh, or a destroyed Mesh throws `TypeError`). `opts?` is an
-optional option bag restricted to `{ transform?, color?, skinned? }`: `transform?`
+optional option bag restricted to `{ transform?, color?, skinned?, depthWrite? }`: `transform?`
 is a flat array (or typed array) of exactly 16 finite numbers — a column-major
 4×4 matrix, default identity (a wrong length throws `RangeError`, non-number
 elements throw `TypeError`); `color?` is a `[r, g, b, a]` tint, default
 opaque white; `skinned?` is a boolean, default `false` — `false`/absent draws
 the mesh's bind-pose vertices and `true` draws the current CPU-posed vertices,
-and `true` on a mesh without a rig throws `TypeError`. The option bag, when
-present, MUST be an object; unknown option fields (including `mesh`, which is no
-longer an option) SHALL throw `TypeError`. Playback SHALL draw every surface in
-surface order under the recorded camera, with the depth test enabled and depth
-writing on: a nearer surface occludes a farther one regardless of record order,
-and equal-depth fragments resolve by record order (deterministic). Per-surface
+and `true` on a mesh without a rig throws `TypeError`; `depthWrite?` is a
+boolean, default `true` (a non-boolean throws `TypeError`). The option bag,
+when present, MUST be an object; unknown option fields (including `mesh`,
+which is no longer an option) SHALL throw `TypeError`. Playback SHALL draw
+every surface in surface order under the recorded camera, with the depth test
+enabled: a nearer surface occludes a farther one regardless of record order,
+and equal-depth fragments resolve by record order (deterministic). Depth
+**writing** SHALL be enabled when `depthWrite` is `true` and disabled when it
+is `false`; with `depthWrite: false` the mesh is depth-tested against the
+existing depth buffer but MUST NOT change it, so any geometry recorded after
+it (near or far) is not occluded by it. The option SHALL be value-snapshotted
+at record time (ADR 0019), like the other draw state. Per-surface
 shading SHALL be the `lighting` capability's F4 lit result — the F4a Phong
-equation **including the F4b per-channel maps and alpha mask** — with albedo
+equation **including the F4b per-channel maps and alpha mask**, or the F4a
+**unlit** result when the bound material sets `unlit: true` — with albedo
 equal to the tint multiplied by the surface's vertex color where the `colors`
 attribute is present, or the tint alone otherwise. The surface `uvs`
 attribute (validated and stored since F3) SHALL be consumed by that shading
@@ -267,6 +274,26 @@ Mesh draws participate in the per-frame record budget like any record.
 - **THEN** surface 0 is additive and surface 1 is alpha, using the values in
   effect at record time
 
+#### Scenario: Depth write can be disabled
+
+- **WHEN** a mesh is drawn with `depthWrite: false` and then a farther mesh
+  occupying the same screen area is recorded after it
+- **THEN** the later, farther mesh renders where it is visible, because the
+  first draw wrote no depth
+
+#### Scenario: Disabled depth write still occludes against existing depth
+
+- **WHEN** an opaque mesh is recorded first, then a mesh is drawn with
+  `depthWrite: false` at a position behind it
+- **THEN** the second mesh is not visible through the first, because it is
+  still depth-tested against the existing depth buffer
+
+#### Scenario: Depth write is snapshotted at record time
+
+- **WHEN** a mesh draw is recorded with `depthWrite: false`, and then another
+  draw is recorded with the default, and the frame plays back
+- **THEN** only the first draw skips depth writing
+
 #### Scenario: Mesh is a required positional argument
 
 - **WHEN** `drawMesh` is called without a mesh (no argument), with a non-Mesh
@@ -279,8 +306,8 @@ Mesh draws participate in the per-frame record budget like any record.
   or `drawMesh(mesh, { mesh })` / `drawMesh(mesh, { frobnicate: 1 })` is
   called with an unknown field
 - **THEN** the valid bag records the draw (transform/color applied; the
-  documented `skinned` option is also accepted), and the unknown field throws
-  `TypeError` and records nothing
+  documented `skinned` and `depthWrite` options are also accepted), and the
+  unknown field throws `TypeError` and records nothing
 
 #### Scenario: Skinned draw on a static mesh rejected
 
@@ -291,8 +318,9 @@ Mesh draws participate in the per-frame record budget like any record.
 #### Scenario: Validation errors
 
 - **WHEN** `drawMesh(mesh, { transform })` is called with a 15-element
-  `transform`
-- **THEN** the call throws `RangeError` and records nothing
+  `transform`, or `drawMesh(mesh, { depthWrite: 1 })` is called
+- **THEN** the call throws (`RangeError` for the transform length,
+  `TypeError` for the non-boolean) and records nothing
 
 ### Requirement: Procedural primitives
 
@@ -301,20 +329,25 @@ The engine-bundled pure-JS primitives `efx.graphics.makeCube(opts?)`,
 single-surface MeshData (directly usable by `createMesh`), with pinned
 defaults so scenes are reproducible:
 
-- `makeCube({ size? = 1, material? })` — an axis-aligned cube centered on the
-  origin with side length `size`, outward per-face normals, outward-facing
-  (CCW) winding, and per-face uv mapping of the full 0..1 square;
+- `makeCube({ size? = 1, inverted? = false, material? })` — an axis-aligned
+  cube centered on the origin with side length `size`, per-face normals,
+  outward-facing (CCW) winding, and per-face uv mapping of the full 0..1
+  square; when `inverted` is `true` the per-face normals point inward and the
+  winding is reversed so the inside of the cube is front-facing;
 - `makePlane({ size? = 1, segments? = 1, material? })` — a plane in the XZ
   plane facing `+Y`, centered on the origin with side length `size`,
   subdivided into `segments × segments` quads, uv coordinates spanning 0..1;
-- `makeSphere({ radius? = 1, segments? = 16, material? })` — a UV sphere
-  centered on the origin with radius `radius` and `segments` latitude and
-  longitude bands, normals equal to normalized positions, equirectangular uv
-  spanning 0..1.
+- `makeSphere({ radius? = 1, segments? = 16, inverted? = false, material? })` —
+  a UV sphere centered on the origin with radius `radius` and `segments`
+  latitude and longitude bands, normals equal to normalized positions,
+  equirectangular uv spanning 0..1; when `inverted` is `true` the normals
+  point inward and the winding is reversed so the inside of the sphere is
+  front-facing.
 
 A non-finite or non-positive `size`/`radius` SHALL throw `RangeError`;
-`segments` SHALL be a positive integer (`RangeError` otherwise); unknown
-fields SHALL throw `TypeError`. Missing option objects take all defaults.
+`segments` SHALL be a positive integer (`RangeError` otherwise); a non-boolean
+`inverted` SHALL throw `TypeError`; unknown fields SHALL throw `TypeError`.
+Missing option objects take all defaults.
 
 When `material` is present it SHALL be bound to the primitive's single
 surface at MeshData creation, exactly as `createMeshData`'s parallel
@@ -335,10 +368,17 @@ that are not material objects throw `TypeError`).
 - **THEN** the surface's positions lie on a radius-2 sphere and the vertex
   count follows the 24-band layout deterministically
 
+#### Scenario: Inverted primitive faces inward
+- **WHEN** `makeCube({ inverted: true })` or `makeSphere({ inverted: true })`
+  is created and drawn with the camera inside it
+- **THEN** the inside surface renders (the winding is reversed and the normals
+  point inward), where the non-inverted primitive would be back-face culled
+
 #### Scenario: Invalid parameters throw
-- **WHEN** `makeCube({ size: 0 })` or `makePlane({ segments: 1.5 })` is
-  called
-- **THEN** the call throws `RangeError`
+- **WHEN** `makeCube({ size: 0 })`, `makePlane({ segments: 1.5 })`, or
+  `makeCube({ inverted: 1 })` is called
+- **THEN** the call throws (`RangeError` for the numeric bounds,
+  `TypeError` for the non-boolean)
 
 #### Scenario: Primitive binds its material at creation
 - **WHEN** `makeCube({ size: 1, material })` is called and the result is
