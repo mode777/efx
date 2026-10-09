@@ -118,5 +118,11 @@
     "title": "Glow Gauntlet",
     "category": "Games",
     "description": "Rung 3 of the game gallery series: a one-button copter dodger. Hold to rise, release to sink, and thread scrolling gates on keyboard, mouse, or gamepad. Score ramps speed and tightens gaps, death bursts into particles with a sting, and a synthesized music loop streams underneath. It self-plays until the first input."
+  },
+  {
+    "dir": "game-mini-golf",
+    "title": "Mini Golf",
+    "category": "Games",
+    "description": "Rung 4 of the game gallery series: a nine-hole 3D mini-golf built on impulse dynamics. Mouse-raycast aiming onto the course plane, a hold-to-charge power meter, a dynamic ball rolling under friction and restitution, wall and ramp colliders, and a sensor cup. Procedural course and textures; it self-plays until the first input."
   }
 ]

@@ -23,6 +23,7 @@ from the directory.
 | `game-bloom-breakout/` | `paddle.wav`, `brick.wav`, `wall.wav`, `life.wav` | Authored in-repo | Synthesized by `gallery/scripts/gen-audio-assets.py` | CC0 1.0 |
 | `game-glow-gauntlet/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
 | `game-glow-gauntlet/` | `music.wav`, `sting.wav` | Authored in-repo | Synthesized by `gallery/scripts/gen-audio-assets.py` | CC0 1.0 |
+| `game-mini-golf/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
 | `skybox-showcase/` | `sky.jpg` | Poly Haven (Jarod Guest) | Poly Haven, `kloofendal_43d_clear_puresky`, https://polyhaven.com/a/kloofendal_43d_clear_puresky | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
@@ -146,3 +147,9 @@ deterministically by `gallery/scripts/gen-audio-assets.py` (its
 `game-glow-gauntlet` bank), committed loose in the sample directory.
 Regenerate with `python3 gallery/scripts/gen-audio-assets.py`; verify with
 `--check`. All game graphics are procedural quads and textures.
+
+### `game-mini-golf/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance).
+All geometry (course, ramps, ball) and the grass and shadow textures are
+generated procedurally in the sample; no other asset is introduced.
