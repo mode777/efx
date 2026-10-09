@@ -23,7 +23,7 @@ const CAM_DIST = 7.5;
 const CAM_HEIGHT = 3.2;
 const CAM_FOV = 52;
 
-const FOX_SCALE = 1.0; // the fox mesh is authored under a 100x node; keep the recipe scale
+const FOX_SCALE = 100; // the fox mesh is authored under a 100x Z-up node (fox-walk recipe)
 const FOX_Y_OFFSET = -0.9;
 
 // ---- fonts ---------------------------------------------------------------
