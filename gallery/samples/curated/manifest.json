@@ -100,5 +100,23 @@
     "title": "Blob Shadow",
     "category": "Showcase",
     "description": "A flat blob shadow under a moving character, drawn as a ground-plane billboard (facing:'plane') with alpha blending and a small lift, using a radial texture generated at runtime with createImageData. The camera orbits to show the shadow stays flat on the ground."
+  },
+  {
+    "dir": "game-neon-pong",
+    "title": "Neon Pong",
+    "category": "Games",
+    "description": "Rung 1 of the game gallery series: a complete Pong match — serve, rally, score to 7, restart — built from 2D quads, text, and keyboard/mouse input only. An imperfect AI opposes the player, P toggles two-player, and it self-plays until the first input."
+  },
+  {
+    "dir": "game-bloom-breakout",
+    "title": "Bloom Breakout",
+    "category": "Games",
+    "description": "Rung 2 of the game gallery series: a complete Breakout — paddle, ball, three brick layouts, three lives, score to win — with additive particle shatter, a bloom + color-filter post chain, screen shake, and one-shot synthesized SFX. It self-plays until the first input."
+  },
+  {
+    "dir": "game-glow-gauntlet",
+    "title": "Glow Gauntlet",
+    "category": "Games",
+    "description": "Rung 3 of the game gallery series: a one-button copter dodger. Hold to rise, release to sink, and thread scrolling gates on keyboard, mouse, or gamepad. Score ramps speed and tightens gaps, death bursts into particles with a sting, and a synthesized music loop streams underneath. It self-plays until the first input."
   }
 ]
