@@ -27,6 +27,8 @@ from the directory.
 | `game-sky-steps/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
 | `game-sky-steps/` | `Fox.glb` | Quaternius (Tomás Laulhé) | Same asset as `fox-walk/` (Ultimate Animated Animals; matte-dielectric recipe) | CC0 1.0 |
 | `game-sky-steps/` | `sky.jpg` | Poly Haven (Jarod Guest) | Same asset as `skybox-showcase/` (`kloofendal_43d_clear_puresky`, 2048×1024 recipe) | CC0 1.0 |
+| `game-bot-arena/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-bot-arena/` | `shot.wav`, `hit.wav`, `explosion.wav`, `wave.wav`, `music.wav` | Authored in-repo | Synthesized by `gallery/scripts/gen-audio-assets.py` | CC0 1.0 |
 | `skybox-showcase/` | `sky.jpg` | Poly Haven (Jarod Guest) | Poly Haven, `kloofendal_43d_clear_puresky`, https://polyhaven.com/a/kloofendal_43d_clear_puresky | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
@@ -164,3 +166,13 @@ Reuses the exact `font.ttf` from `text-showcase/`, the `Fox.glb` from
 `sky.jpg` from `skybox-showcase/` (the 2048x1024 downscale recipe). All are
 copied under `gallery/samples/curated/game-sky-steps/`; no new asset is
 introduced. Platform geometry and the shadow texture are procedural.
+
+### `game-bot-arena/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance).
+The four effect WAVs (`shot.wav`, `hit.wav`, `explosion.wav`, `wave.wav`)
+and the looping `music.wav` are synthesized deterministically by
+`gallery/scripts/gen-audio-assets.py` (its `game-bot-arena` bank), committed
+loose in the sample directory. Regenerate with
+`python3 gallery/scripts/gen-audio-assets.py`; verify with `--check`. Arena
+geometry and textures are procedural.

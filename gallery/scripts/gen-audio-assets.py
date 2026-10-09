@@ -183,6 +183,88 @@ def synth_gauntlet_sting():
     return wav_bytes(out)
 
 
+# ---- game-bot-arena -------------------------------------------------------
+def _lcg(seed):
+    s = seed & 0x7FFFFFFF
+    while True:
+        s = (s * 1103515245 + 12345) & 0x7FFFFFFF
+        yield s / 0x7FFFFFFF
+
+
+def synth_arena_shot():
+    """Laser zap: 900->220 Hz with a fast decay."""
+    n = int(0.09 * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 900.0 + (220.0 - 900.0) * (t / 0.09)
+        phase += f / RATE
+        env = math.exp(-t * 40.0)
+        out[i] = math.sin(2.0 * math.pi * phase) * env * 0.6
+    return wav_bytes(out)
+
+
+def synth_arena_hit():
+    """Bright tick: 1200 Hz, very short."""
+    n = int(0.05 * RATE)
+    out = [0.0] * n
+    for i in range(n):
+        t = i / RATE
+        env = math.exp(-t * 70.0)
+        out[i] = math.sin(2.0 * math.pi * 1200.0 * t) * env * 0.55
+    return wav_bytes(out)
+
+
+def synth_arena_explosion():
+    """Noise burst over a low thump."""
+    n = int(0.5 * RATE)
+    out = [0.0] * n
+    noise = _lcg(0x9E3779B9)
+    prev = 0.0
+    for i in range(n):
+        t = i / RATE
+        env = math.exp(-t * 8.0)
+        white = next(noise) * 2.0 - 1.0
+        prev = prev * 0.6 + white * 0.4  # cheap low-pass
+        thump = 0.6 * math.sin(2.0 * math.pi * 60.0 * t) * math.exp(-t * 10.0)
+        out[i] = (prev * 0.5 + thump) * env * 0.9
+    return wav_bytes(out)
+
+
+def synth_arena_wave():
+    """Rising two-tone alert for a new wave."""
+    n = int(0.5 * RATE)
+    out = [0.0] * n
+    for i in range(n):
+        t = i / RATE
+        f = 330.0 if t < 0.25 else 495.0
+        env = min(1.0, t / 0.005) * math.exp(-(t % 0.25) * 6.0)
+        out[i] = (math.sin(2.0 * math.pi * f * t) + 0.3 * math.sin(4.0 * math.pi * f * t)) * env * 0.55
+    return wav_bytes(out)
+
+
+def synth_arena_music():
+    """~8 s seamless looping synth bassline over a minor progression."""
+    beat = 0.5
+    bar = 4.0 * beat
+    n = int(4.0 * bar * RATE)
+    roots = [110.00, 98.00, 87.31, 82.41]  # A2, G2, F2, E2
+    out = [0.0] * n
+    for i in range(n):
+        t = i / RATE
+        bar_i = int(t / bar) % 4
+        root = roots[bar_i]
+        step = int((t % bar) / (beat / 2.0))
+        # eighth-note bass with an accent on the offbeat
+        f = root * (2.0 if step % 3 == 2 else 1.0)
+        tn = t % (beat / 2.0)
+        bass = 0.34 * math.sin(2.0 * math.pi * f * t) * math.exp(-tn * 7.0)
+        pad = 0.12 * math.sin(2.0 * math.pi * (root * 2.0) * t)
+        out[i] = (bass + pad) * 0.75
+    return wav_bytes(out)
+
+
 def build_banks():
     return {
         CURATED / "audio-showcase": {
@@ -199,6 +281,13 @@ def build_banks():
         CURATED / "game-glow-gauntlet": {
             "music.wav": synth_gauntlet_music(),
             "sting.wav": synth_gauntlet_sting(),
+        },
+        CURATED / "game-bot-arena": {
+            "shot.wav": synth_arena_shot(),
+            "hit.wav": synth_arena_hit(),
+            "explosion.wav": synth_arena_explosion(),
+            "wave.wav": synth_arena_wave(),
+            "music.wav": synth_arena_music(),
         },
     }
 

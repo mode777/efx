@@ -130,5 +130,11 @@
     "title": "Sky Steps",
     "category": "Games",
     "description": "Rung 5 of the game gallery series: a third-person collect-them-all platformer. moveAndSlide drives a capsule over a floating course of platforms and ramps; stars, checkpoints, and a finish are sensors; a CC0 rigged fox is drawn skinned and posed by speed under a CC0 sky dome with a blob shadow. It self-plays until the first input."
+  },
+  {
+    "dir": "game-bot-arena",
+    "title": "Bot Arena",
+    "category": "Games",
+    "description": "Rung 6, the capstone of the game gallery series: a wave-based twin-stick arena composing 3D, lighting, bloom, particles, physics (character controller, dynamic bots with knockback, raycast line-of-sight), text, keyboard/mouse/gamepad input, and audio. The fixed 4-light budget is spent on muzzle flashes and explosions. It self-plays until the first input."
   }
 ]
