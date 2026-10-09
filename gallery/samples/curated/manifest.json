@@ -124,5 +124,11 @@
     "title": "Mini Golf",
     "category": "Games",
     "description": "Rung 4 of the game gallery series: a nine-hole 3D mini-golf built on impulse dynamics. Mouse-raycast aiming onto the course plane, a hold-to-charge power meter, a dynamic ball rolling under friction and restitution, wall and ramp colliders, and a sensor cup. Procedural course and textures; it self-plays until the first input."
+  },
+  {
+    "dir": "game-sky-steps",
+    "title": "Sky Steps",
+    "category": "Games",
+    "description": "Rung 5 of the game gallery series: a third-person collect-them-all platformer. moveAndSlide drives a capsule over a floating course of platforms and ramps; stars, checkpoints, and a finish are sensors; a CC0 rigged fox is drawn skinned and posed by speed under a CC0 sky dome with a blob shadow. It self-plays until the first input."
   }
 ]
