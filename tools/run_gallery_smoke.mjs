@@ -125,6 +125,33 @@ try {
         check(ok, `sample ${i + 1}/${n} runs (no context exhaustion)`);
     }
 
+    // The game gallery series must each boot cleanly. Select every game by its
+    // title so all six are driven (and any console/page error is counted
+    // below), regardless of where they sort in the catalog.
+    const GAME_TITLES = [
+        'Neon Pong',
+        'Bloom Breakout',
+        'Glow Gauntlet',
+        'Mini Golf',
+        'Sky Steps',
+        'Bot Arena',
+    ];
+    for (const title of GAME_TITLES) {
+        const clicked = await page.evaluate((t) => {
+            const items = [...document.querySelectorAll('.item')];
+            const hit = items.find(
+                (el) => ((el.querySelector('.name') || {}).textContent || '').trim() === t
+            );
+            if (hit) hit.click();
+            return !!hit;
+        }, title);
+        check(clicked, `game sample present: ${title}`);
+        if (clicked) {
+            const ok = !!(await waitBoot());
+            check(ok, `game sample runs: ${title}`);
+        }
+    }
+
     // Editor surface + edit -> Run + inline error surfacing.
     async function setEditor(src) {
         return page.evaluate((code) => {
