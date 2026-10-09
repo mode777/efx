@@ -27,9 +27,7 @@ context: |
   invariants). openspec/specs/ pin required behavior; docs hold
   invariants and rationale; AGENTS.md points rather than restates.
 
-  The roadmap is complete: milestones F1–F14 are implemented and gated
-  on all four targets (openspec/specs/feature-roadmap). Post-roadmap
-  proposals name the capability spec(s) under openspec/specs/ they
+  Proposals name the capability spec(s) under openspec/specs/ they
   modify or create; docs/tooling changes may set skip_specs. Behavior
   changes still cross the four-target verification gate (ADR 0020),
   dispatched per the ADR 0023 trigger policy.
@@ -70,5 +68,11 @@ operations:
     guidance:
       - Before archiving, confirm any ADR the change promised is written in
         docs/decisions/ and indexed in docs/decisions/README.md
+      - Review the session and note what was discovered that was surprising,
+        caused delay, or stemmed from a wrong assumption. If it could be
+        relevant to future changes, document it as guidance in the most
+        appropriate place (AGENTS.md, docs/js-api.md, an ADR, etc.). Only
+        document it if you are highly confident it will be needed in the
+        future.
 githubCopilot:
   cloudAgent: false
