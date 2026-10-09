@@ -28,6 +28,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Run the built gallery sample through attract → several played waves → game over → restart with no console or page errors at steady frame rate on the web build; verify the gallery smoke run includes the sample and passes
-- [ ] 5.2 Run `npx openspec validate "game-bot-arena" --type change --strict` and confirm it passes
-- [ ] 5.3 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, then dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` (ADR 0020/0023) and confirm all targets are green
+- [x] 5.1 Run the built gallery sample through attract → several played waves → game over → restart with no console or page errors at steady frame rate on the web build; verify the gallery smoke run includes the sample and passes
+- [x] 5.2 Run `npx openspec validate "game-bot-arena" --type change --strict` and confirm it passes
+- [x] 5.3 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, then dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` (ADR 0020/0023) and confirm all targets are green

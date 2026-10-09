@@ -19,6 +19,6 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run the sample in the built gallery and confirm the full loop (attract → match → win → restart) with no console or page errors; verify the gallery smoke run includes the sample and passes
-- [ ] 4.2 Run `npx openspec validate "game-neon-pong" --type change --strict` and confirm it passes
-- [ ] 4.3 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, then dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` (ADR 0020/0023) and confirm all targets are green
+- [x] 4.1 Run the sample in the built gallery and confirm the full loop (attract → match → win → restart) with no console or page errors; verify the gallery smoke run includes the sample and passes
+- [x] 4.2 Run `npx openspec validate "game-neon-pong" --type change --strict` and confirm it passes
+- [x] 4.3 Commit, push the branch, run `python3 tools/verify_remote.py all <branch>`, then dispatch the four-target gate with `gh workflow run ci.yml --ref <branch>` (ADR 0020/0023) and confirm all targets are green
