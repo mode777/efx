@@ -283,6 +283,37 @@ try {
         (await page.evaluate(() => document.querySelectorAll('.item').length)) > 0,
         'shell remains usable after a script error'
     );
+
+    // The game gallery series must each boot cleanly. Run last so selecting
+    // samples cannot perturb the editor checks above; any console/page error
+    // raised by a game is measured as a delta from this point.
+    const errBase = consoleErrors.length;
+    const pageErrBase = pageErrors.length;
+    const GAME_TITLES = [
+        'Neon Pong',
+        'Bloom Breakout',
+        'Glow Gauntlet',
+        'Mini Golf',
+        'Sky Steps',
+        'Bot Arena',
+    ];
+    for (const title of GAME_TITLES) {
+        const clicked = await page.evaluate((t) => {
+            const items = [...document.querySelectorAll('.item')];
+            const hit = items.find(
+                (el) => ((el.querySelector('.name') || {}).textContent || '').trim() === t
+            );
+            if (hit) hit.click();
+            return !!hit;
+        }, title);
+        check(clicked, `game sample present: ${title}`);
+        if (clicked) {
+            const ok = !!(await waitBoot());
+            check(ok, `game sample runs: ${title}`);
+        }
+    }
+    check(consoleErrors.length === errBase, `game samples add no console errors (${consoleErrors.length - errBase})`);
+    check(pageErrors.length === pageErrBase, `game samples add no page errors (${pageErrors.length - pageErrBase})`);
 } finally {
     await browser.close();
     server.close();

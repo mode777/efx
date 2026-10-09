@@ -18,6 +18,17 @@ from the directory.
 | `text-showcase/` | `font.ttf` | Kenney (www.kenney.nl) | Kenney Fonts, "Kenney Future"; mirror: https://github.com/ereborstudios/kenney-fonts | CC0 1.0 |
 | `gamepad-tester/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
 | `audio-showcase/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-neon-pong/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-bloom-breakout/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-bloom-breakout/` | `paddle.wav`, `brick.wav`, `wall.wav`, `life.wav` | Authored in-repo | Synthesized by `gallery/scripts/gen-audio-assets.py` | CC0 1.0 |
+| `game-glow-gauntlet/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-glow-gauntlet/` | `music.wav`, `sting.wav` | Authored in-repo | Synthesized by `gallery/scripts/gen-audio-assets.py` | CC0 1.0 |
+| `game-mini-golf/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-sky-steps/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-sky-steps/` | `Fox.glb` | Quaternius (Tomás Laulhé) | Same asset as `fox-walk/` (Ultimate Animated Animals; matte-dielectric recipe) | CC0 1.0 |
+| `game-sky-steps/` | `sky.jpg` | Poly Haven (Jarod Guest) | Same asset as `skybox-showcase/` (`kloofendal_43d_clear_puresky`, 2048×1024 recipe) | CC0 1.0 |
+| `game-bot-arena/` | `font.ttf` | Kenney (www.kenney.nl) | Same font as `text-showcase/` | CC0 1.0 |
+| `game-bot-arena/` | `shot.wav`, `hit.wav`, `explosion.wav`, `wave.wav`, `music.wav` | Authored in-repo | Synthesized by `gallery/scripts/gen-audio-assets.py` | CC0 1.0 |
 | `skybox-showcase/` | `sky.jpg` | Poly Haven (Jarod Guest) | Poly Haven, `kloofendal_43d_clear_puresky`, https://polyhaven.com/a/kloofendal_43d_clear_puresky | CC0 1.0 |
 
 License text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
@@ -117,3 +128,51 @@ The committed sources live under `gallery/samples/curated/audio-showcase/`
    -> `gallery/samples/curated/skybox-showcase/sky.jpg`. The tonemapped LDR
    JPG is used because the engine has no HDR/EXR decoder; the image is
    equirectangular, matching the inverted sphere's UVs.
+
+### `game-neon-pong/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance),
+committed under `gallery/samples/curated/game-neon-pong/`. No other asset is
+introduced; all game graphics are procedurally generated quads and textures.
+
+### `game-bloom-breakout/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance).
+The four effect WAVs (`paddle.wav`, `brick.wav`, `wall.wav`, `life.wav`) are
+synthesized deterministically by `gallery/scripts/gen-audio-assets.py` (its
+`game-bloom-breakout` bank), committed loose in the sample directory.
+Regenerate with `python3 gallery/scripts/gen-audio-assets.py`; verify with
+`--check`. All game graphics are procedural quads and textures.
+
+### `game-glow-gauntlet/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance).
+`music.wav` (a ~8 s seamless loop) and `sting.wav` are synthesized
+deterministically by `gallery/scripts/gen-audio-assets.py` (its
+`game-glow-gauntlet` bank), committed loose in the sample directory.
+Regenerate with `python3 gallery/scripts/gen-audio-assets.py`; verify with
+`--check`. All game graphics are procedural quads and textures.
+
+### `game-mini-golf/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance).
+All geometry (course, ramps, ball) and the grass and shadow textures are
+generated procedurally in the sample; no other asset is introduced.
+
+### `game-sky-steps/`
+
+Reuses the exact `font.ttf` from `text-showcase/`, the `Fox.glb` from
+`fox-walk/` (already carrying its matte-dielectric material edit), and the
+`sky.jpg` from `skybox-showcase/` (the 2048x1024 downscale recipe). All are
+copied under `gallery/samples/curated/game-sky-steps/`; no new asset is
+introduced. Platform geometry and the shadow texture are procedural.
+
+### `game-bot-arena/`
+
+Reuses the exact `font.ttf` from `text-showcase/` (same CC0 provenance).
+The four effect WAVs (`shot.wav`, `hit.wav`, `explosion.wav`, `wave.wav`)
+and the looping `music.wav` are synthesized deterministically by
+`gallery/scripts/gen-audio-assets.py` (its `game-bot-arena` bank), committed
+loose in the sample directory. Regenerate with
+`python3 gallery/scripts/gen-audio-assets.py`; verify with `--check`. Arena
+geometry and textures are procedural.
