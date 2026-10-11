@@ -70,6 +70,23 @@ efx_add_vendor_library(efx_drlibs
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/dr_libs
     MSVC_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
 
+# efx.noise engine (ADR 0059): the vendored FastNoise Lite C99 port, its
+# implementation compiled in a dedicated relaxed-warnings TU behind the
+# stateless wrapper in src/noise/efx_noise.c.
+efx_add_vendor_library(efx_fastnoise
+    SOURCES src/noise/fastnoise_impl.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/fastnoise-lite)
+# ADR 0059 determinism: FMA contraction changes FNL's dot-product rounding
+# (Apple arm64 contracts by default and drifts the pinned values by 1 ulp;
+# x86-64, MSVC /fp:precise, and wasm do not contract). The noise engine must
+# evaluate identically on every target — keep contraction off. MSVC does not
+# contract under its default /fp:precise.
+if(NOT MSVC)
+    target_compile_options(efx_fastnoise PRIVATE -ffp-contract=off)
+    set_source_files_properties(src/noise/efx_noise.c PROPERTIES
+        COMPILE_OPTIONS "-ffp-contract=off")
+endif()
+
 # Per-module source lists, each spelled out once: efx_core (below) and the
 # headless test executables (bottom of this file) are composed from them.
 set(EFX_RENDER_CORE_SOURCES
@@ -102,6 +119,9 @@ set(EFX_AUDIO_SOURCES
     src/audio/audio.c
     src/audio/decode.c
 )
+set(EFX_NOISE_SOURCES
+    src/noise/efx_noise.c
+)
 set(EFX_RESOURCE_SOURCES
     src/resource/image.c
     src/resource/resource.c
@@ -122,6 +142,7 @@ set(EFX_API_SOURCES
     src/api/api_input.c
     src/api/api_physics.c
     src/api/api_audio.c
+    src/api/api_noise.c
     src/runtime/runtime.c
 )
 
@@ -141,7 +162,8 @@ if(EMSCRIPTEN)
         src/web/bridge_render3d.c
         src/web/bridge_input.c
         src/web/bridge_audio.c
-        src/web/bridge_physics.c)
+        src/web/bridge_physics.c
+        src/web/bridge_noise.c)
 endif()
 add_library(efx_core STATIC
     ${EFX_RENDER_CORE_SOURCES}
@@ -149,6 +171,7 @@ add_library(efx_core STATIC
     ${EFX_INPUT_SOURCES}
     ${EFX_PHYSICS_SOURCES}
     ${EFX_AUDIO_SOURCES}
+    ${EFX_NOISE_SOURCES}
     ${EFX_RESOURCE_SOURCES}
 )
 if(NOT EMSCRIPTEN)
@@ -156,7 +179,7 @@ if(NOT EMSCRIPTEN)
 endif()
 target_include_directories(efx_core PUBLIC src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf efx_drlibs)
+target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf efx_drlibs efx_fastnoise)
 if(NOT EMSCRIPTEN)
     target_link_libraries(efx_core PUBLIC qjs)
 endif()
@@ -244,6 +267,7 @@ if(EMSCRIPTEN)
         src/web/js/render3d.js
         src/web/js/input.js
         src/web/js/physics.js
+        src/web/js/noise.js
         src/web/js/audio.js
         src/web/js/boot.js)
     set(EFX_WEB_POST_JS "")
@@ -463,6 +487,14 @@ efx_add_test_exe(efx_physics_tests
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/tests/physics
 )
 
+# headless noise-core tests (ADR 0059): pure-C wrapper over FastNoise Lite;
+# the determinism case pins exact bit values as the cross-target receipt
+# (the noise golden scene re-proves it end-to-end)
+efx_add_test_exe(efx_noise_tests
+    SOURCES ${EFX_NOISE_SOURCES} tests/unit/noise_tests.c
+    LIBS efx_fastnoise
+)
+
 # headless audio-core tests (F14): pure-C mixer/decoder/voice bank with no
 # device. The WAV and MP3 fixtures are embedded at configure time so the suite
 # is portable (no filesystem) and runs on Emscripten too.
@@ -516,10 +548,11 @@ efx_add_test_exe(efx_api_tests
             ${EFX_AUDIO_SOURCES}
             ${EFX_INPUT_SOURCES}
             ${EFX_PHYSICS_SOURCES}
+            ${EFX_NOISE_SOURCES}
             ${EFX_RESOURCE_SOURCES}
             tests/unit/api_tests.c
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
-    LIBS qjs efx_miniz efx_cgltf efx_drlibs
+    LIBS qjs efx_miniz efx_cgltf efx_drlibs efx_fastnoise
     DEFS EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
          EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
          EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error"

@@ -100,6 +100,19 @@ void efx_api_physics_release(JSContext *ctx);
 /* F14: attach the efx.audio sub-namespace to the single efx object */
 int efx_api_register_audio(JSContext *ctx, JSValueConst efx);
 
+/* efx.noise (ADR 0059): attach the efx.noise sub-namespace; members are
+ * installed by the shared prelude */
+int efx_api_register_noise(JSContext *ctx, JSValueConst efx);
+
+/* efx.noise prelude natives (ADR 0049/0059): validated scalars in, raw
+ * value or filled buffer out */
+JSValue efx_js_noise2_wire(JSContext *ctx, JSValueConst this_val, int argc,
+                           JSValueConst *argv);
+JSValue efx_js_noise3_wire(JSContext *ctx, JSValueConst this_val, int argc,
+                           JSValueConst *argv);
+JSValue efx_js_noise_fill2_wire(JSContext *ctx, JSValueConst this_val,
+                                int argc, JSValueConst *argv);
+
 /* F14 prelude natives (ADR 0049): loaders return the wrapper or a negative
  * code (-1 unreadable, -2 undecodable); play takes the validated scalars */
 JSValue efx_js_audio_load_data_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);

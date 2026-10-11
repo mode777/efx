@@ -29,6 +29,8 @@
  * The single physics world: bodies, a character controller, and queries.
  * @groupDescription Audio
  * Streamed music and engine-mixed sound effects.
+ * @groupDescription Noise
+ * Deterministic procedural noise: point queries, bulk fills, and textures.
  * @groupDescription IO
  * Synchronous resource loaders.
  * @groupDescription Values
@@ -2566,6 +2568,11 @@ interface Efx {
 
   /** Streamed background music and sound effects. */
   audio: EfxAudio;
+
+  // Procedural noise (stateless, seeded, deterministic on every target)
+
+  /** Deterministic procedural noise. */
+  readonly noise: EfxNoise;
 }
 
 // ---------------------------------------------------------------------------
@@ -2681,7 +2688,7 @@ interface EfxAudio {
  * the runtime and lifecycle facilities (`log`, `quit`, the read-only `args`,
  * and the frame-hook registrations) directly, and groups the rest of the
  * engine into domain sub-namespaces: `graphics`, `math`, `io`, `physics`,
- * `keyboard`, `mouse`, `gamepad`, `window`, `audio`, and `color`.
+ * `keyboard`, `mouse`, `gamepad`, `window`, `audio`, `noise`, and `color`.
  *
  * @example
  * ```js
@@ -2710,6 +2717,140 @@ interface EfxAudio {
  * @group Start Here
  */
 declare const efx: Efx;
+
+// ---------------------------------------------------------------------------
+// Procedural noise (ADR 0059)
+// ---------------------------------------------------------------------------
+
+/**
+ * The procedural noise algorithm behind `noise.noise2`/`noise3`/`fill2`.
+ *
+ * @group Enums
+ */
+type NoiseType =
+  | 'opensimplex2' | 'opensimplex2s' | 'cellular' | 'perlin'
+  | 'valuecubic' | 'value';
+
+/**
+ * The domain warp applied to coordinates before sampling.
+ *
+ * @group Enums
+ */
+type NoiseWarp = 'none' | 'opensimplex2' | 'gradient';
+
+/**
+ * Options for `noise.noise2`, `noise.noise3`, and `noise.fill2`; every
+ * field is optional and omitted fields take their documented default.
+ *
+ * @example
+ * ```js
+ * // 129x129 island heightmap: simplex fBm at 0.01 frequency
+ * const heights = new Float32Array(129 * 129);
+ * efx.noise.fill2(heights, 129, 129, {
+ *   seed: 7, type: 'opensimplex2', frequency: 0.01, octaves: 5,
+ * });
+ * ```
+ * @hidden
+ * @inline
+ */
+interface NoiseOptions {
+  /** Seed selecting an independent value channel (integer `0..4294967295`; default `0`). */
+  seed?: number;
+  /** Noise algorithm (default `'opensimplex2'`). */
+  type?: NoiseType;
+  /** Coordinate scale in cycles per world unit (positive; default `1`). */
+  frequency?: number;
+  /** Stacked fBm octaves for values `> 1` (integer `1..16`; default `1`). */
+  octaves?: number;
+  /** Frequency multiplier between octaves (positive; default `2`). */
+  lacunarity?: number;
+  /** Amplitude falloff between octaves in `(0, 1]` (default `0.5`). */
+  gain?: number;
+  /** Domain warp applied before sampling (default `'none'`). */
+  warp?: NoiseWarp;
+}
+
+/**
+ * Options for `noise.imageData`: the shared noise options plus the raw
+ * value range mapped onto the grayscale byte range.
+ *
+ * @hidden
+ * @inline
+ */
+interface NoiseImageDataOptions extends NoiseOptions {
+  /**
+   * Raw value range `[lo, hi]` mapped linearly onto `[0, 255]` grayscale
+   * and clamped at both ends (default `[-1, 1]`). Cellular noise uses the
+   * engine's centered distance convention (approximately `[-1, 0.5]`), so
+   * pass a matching domain for a full-contrast image.
+   */
+  domain?: [number, number];
+}
+
+/**
+ * Deterministic procedural noise. Pure functions of a seed, coordinates,
+ * and options: no generator objects, no state, and bit-identical values on
+ * every target platform. Values pass through raw per type — approximately
+ * `[-1, 1]` for `'opensimplex2'`, `'opensimplex2s'`, `'perlin'`,
+ * `'valuecubic'`, and `'value'`; `'cellular'` is the nearest-feature
+ * distance in the engine's centered convention (approximately
+ * `[-1, 0.5]`).
+ *
+ * @example
+ * ```js
+ * // terrain heights from fBm simplex, plus a matching grayscale minimap
+ * const heights = new Float32Array(129 * 129);
+ * const opts = { seed: 7, frequency: 0.01, octaves: 5 };
+ * efx.noise.fill2(heights, 129, 129, opts);
+ * const minimap = efx.graphics.createTexture(
+ *   efx.noise.imageData(129, 129, opts));
+ * ```
+ *
+ * @group Noise
+ */
+interface EfxNoise {
+  /**
+   * Sample 2D noise at a point.
+   *
+   * @param x - X coordinate in world units.
+   * @param y - Y coordinate in world units.
+   * @param opts - Optional seed, algorithm, fractal, and warp options.
+   * @returns The raw generator value in the type's documented range.
+   */
+  noise2(x: number, y: number, opts?: NoiseOptions): number;
+  /**
+   * Sample 3D noise at a point (same options and ranges as `noise2`).
+   *
+   * @param x - X coordinate in world units.
+   * @param y - Y coordinate in world units.
+   * @param z - Z coordinate in world units.
+   * @param opts - Optional seed, algorithm, fractal, and warp options.
+   * @returns The raw generator value in the type's documented range.
+   */
+  noise3(x: number, y: number, z: number, opts?: NoiseOptions): number;
+  /**
+   * Fill a buffer with a 2D noise grid in one call: value `(col, row)`
+   * lands at `buf[row * w + col]` and equals `noise2(col, row, opts)`.
+   * Octave stacking and warping happen inside the engine.
+   *
+   * @param buf - Destination `Float32Array` with at least `w*h` elements.
+   * @param w - Grid width (positive integer).
+   * @param h - Grid height (positive integer).
+   * @param opts - Optional seed, algorithm, fractal, and warp options.
+   */
+  fill2(buf: Float32Array, w: number, h: number, opts?: NoiseOptions): void;
+  /**
+   * Build a grayscale `ImageData` of `w*h` noise pixels in one call:
+   * the raw values are mapped linearly from `domain` onto `[0, 255]`
+   * (clamped). Pure JS over `fill2` and `createImageData`.
+   *
+   * @param w - Image width in pixels (positive integer).
+   * @param h - Image height in pixels (positive integer).
+   * @param opts - Noise options plus the `domain` mapping.
+   * @returns The new ImageData; upload it with `graphics.createTexture`.
+   */
+  imageData(w: number, h: number, opts?: NoiseImageDataOptions): EfxImageData;
+}
 
 // ---------------------------------------------------------------------------
 // CommonJS module authoring facilities

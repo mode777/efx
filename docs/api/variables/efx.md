@@ -12,7 +12,7 @@ The engine-provided script surface; the only global scripts use. It exposes
 the runtime and lifecycle facilities (`log`, `quit`, the read-only `args`,
 and the frame-hook registrations) directly, and groups the rest of the
 engine into domain sub-namespaces: `graphics`, `math`, `io`, `physics`,
-`keyboard`, `mouse`, `gamepad`, `window`, `audio`, and `color`.
+`keyboard`, `mouse`, `gamepad`, `window`, `audio`, `noise`, and `color`.
 
 ## Type Declaration
 
@@ -76,6 +76,12 @@ Pure-JS math helpers.
 > **mouse**: [`EfxMouse`](../interfaces/EfxMouse.md)
 
 Mouse queries and events.
+
+### noise
+
+> `readonly` **noise**: [`EfxNoise`](../interfaces/EfxNoise.md)
+
+Deterministic procedural noise.
 
 ### physics
 

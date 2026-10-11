@@ -70,6 +70,7 @@ directory holds only what stays true after a change is archived.
 | [0056](0056-dropped-resource-roots.md) | Accepted (desktop restart mechanism superseded by [0057](0057-desktop-in-place-game-swap.md)) | A dropped resource root is a host-level feature (no script API; native zip/folder, web zip) loaded by restarting the run |
 | [0057](0057-desktop-in-place-game-swap.md) | Accepted | A dropped root swaps the desktop game in place: a stable player session, a frame-start swap, and a render reset/pipeline rebind that keep the window and sg context alive (supersedes ADR 0056's desktop relaunch) |
 | [0058](0058-unlit-material-and-geometry-skybox.md) | Accepted | A `Material.unlit` flag (one shader branch, wire 18→19) and a per-draw `DrawMeshOptions.depthWrite` (mesh pipeline matrix 3×2→3×2×2) plus `inverted` cube/sphere primitives enable geometry skyboxes drawn camera-locked and first; cubemaps/environment mapping deferred, blob shadows compose existing plane billboards |
+| [0059](0059-procedural-noise-fastnoise-lite.md) | Accepted | Script noise is a stateless `efx.noise` surface over the vendored FastNoise Lite C99 port: raw per-type ranges (cellular centered), one bulk fill + point-query natives, prelude-only ImageData helper, and pinned exact-bit + golden determinism receipts |
 
 ## Adding a decision
 
