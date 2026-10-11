@@ -1903,7 +1903,7 @@ static int graphics_ns_js(void) {
         "if (efx.args.length !== 0) throw new Error('args not empty');"
         "var root = ['log', 'quit', 'args', 'registerUpdateHook',"
         "  'registerRenderHook', 'math', 'io', 'color', 'keyboard', 'mouse',"
-        "  'window', 'physics', 'gamepad', 'audio', 'graphics'];"
+        "  'window', 'physics', 'gamepad', 'audio', 'graphics', 'noise'];"
         "for (i = 0; i < root.length; i++) {"
         "  if (!(root[i] in efx)) throw new Error('root missing ' + root[i]);"
         "}"
@@ -1916,6 +1916,103 @@ static int graphics_ns_js(void) {
         "    Object.getOwnPropertyNames(efx).join(','));");
     end_js();
     return rc == 0 ? 0 : fail("namespace shape");
+}
+
+/* ---------------------------------------------- efx.noise (ADR 0059) */
+
+static int noise_js(void) {
+    /* namespace membership (ADR 0050 rule): a member of efx, no free
+     * globals, prelude-installed members present */
+    REQUIRE(!ok_js(
+        "if (typeof efx.noise !== 'object') throw new Error('namespace');"
+        "for (var m of ['noise2', 'noise3', 'fill2', 'imageData']) {"
+        "  if (typeof efx.noise[m] !== 'function') throw new Error(m);"
+        "}"
+        "if (typeof noise2 !== 'undefined') throw new Error('free global');"),
+        "noise namespace");
+    /* pinned determinism values through the full JS stack (same receipts
+     * as efx_noise_tests, proving wire marshaling keeps exact bits) */
+    REQUIRE(!ok_js(
+        "var f = Math.fround;"
+        "if (efx.noise.noise2(0.5, 0.25) !== f(0.687727332))"
+        "  throw new Error('default query');"
+        "if (efx.noise.noise2(0.5, 0.25,"
+        "    {seed: 0, type: 'opensimplex2', frequency: 1, octaves: 1,"
+        "     lacunarity: 2, gain: 0.5, warp: 'none'}) !== f(0.687727332))"
+        "  throw new Error('explicit defaults');"
+        "if (efx.noise.noise3(0.5, 0.25, 0.75) !== f(-0.853126228))"
+        "  throw new Error('noise3');"
+        "if (efx.noise.noise2(3, 4,"
+        "    {type: 'cellular', seed: 9, frequency: 0.11}) !== f(-0.947269678))"
+        "  throw new Error('cellular centered distance');"
+        "if (efx.noise.noise2(12, 7,"
+        "    {seed: 7, frequency: 0.05}) !== f(-0.218802363))"
+        "  throw new Error('seeded');"),
+        "pinned values");
+    /* fill == repeated queries, octaves + warp in one native call */
+    REQUIRE(!ok_js(
+        "var b = new Float32Array(64);"
+        "var o = {seed: 13, type: 'perlin', frequency: 0.04, octaves: 4};"
+        "efx.noise.fill2(b, 8, 8, o);"
+        "for (var y = 0; y < 8; y++) for (var x = 0; x < 8; x++) {"
+        "  if (b[y * 8 + x] !== efx.noise.noise2(x, y, o))"
+        "    throw new Error('fill != query at ' + x + ',' + y);"
+        "}"),
+        "fill contract");
+    end_js();
+    return 0;
+}
+
+static int noise_errors_js(void) {
+    REQUIRE(!ok_js(
+        T_HELPER
+        "t(function () { efx.noise.noise2(0, 0, {type: 'worley'}); }, TypeError);"
+        "t(function () { efx.noise.noise2(0, 0, {seed: 1.5}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {seed: -1}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {octaves: 0}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {octaves: 17}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {frequency: 0}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {frequency: -1}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {lacunarity: 0}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {gain: 2}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {gain: 0}); }, RangeError);"
+        "t(function () { efx.noise.noise2(0, 0, {warp: 'zigzag'}); }, TypeError);"
+        "t(function () { efx.noise.noise2(0, 0, {seedd: 1}); }, TypeError);"
+        "t(function () { efx.noise.noise2(0, 0, 'x'); }, TypeError);"
+        "t(function () { efx.noise.noise2('a', 0); }, TypeError);"
+        "t(function () { efx.noise.fill2([1, 2], 2, 1); }, TypeError);"
+        "t(function () {"
+        "  efx.noise.fill2(new Float32Array(3), 2, 2);"
+        "}, RangeError);"
+        /* rejected fill leaves the buffer untouched */
+        "var b = new Float32Array(4); b[0] = 7; b[3] = 9;"
+        "t(function () { efx.noise.fill2(b, 3, 3); }, RangeError);"
+        "if (b[0] !== 7 || b[3] !== 9) throw new Error('buffer mutated');"
+        "t(function () { efx.noise.imageData(4, 4, {domain: [0, 0]}); },"
+        " RangeError);"
+        "t(function () { efx.noise.imageData(4, 4, {domain: 3}); },"
+        " TypeError);"
+        "t(function () { efx.noise.imageData(0, 4); }, RangeError);"),
+        "noise validation");
+    end_js();
+    return 0;
+}
+
+static int noise_imagedata_js(void) {
+    /* the helper composes fill2 + remap + createImageData: observable as a
+     * live ImageData with the requested extent (byte-level mapping is the
+     * golden scene's job) */
+    REQUIRE(!ok_js(
+        "var im = efx.noise.imageData(8, 5);"
+        "if (im.width !== 8 || im.height !== 5) throw new Error('extent');"
+        "im.destroy();"
+        "var im2 = efx.noise.imageData(4, 4,"
+        "  {seed: 9, type: 'cellular', domain: [-1, 0.15]});"
+        "if (im2.width !== 4 || im2.height !== 4) throw new Error('extent2');"
+        "im2.destroy();"),
+        "imageData helper");
+    end_js();
+    return 0;
 }
 
 static const efx_test_case cases[] = {
@@ -1959,6 +2056,9 @@ static const efx_test_case cases[] = {
     EFX_CASE(sprites_js),
     EFX_CASE(physics_js),
     EFX_CASE(audio_js),
+    EFX_CASE(noise_js),
+    EFX_CASE(noise_errors_js),
+    EFX_CASE(noise_imagedata_js),
     EFX_CASE(destroy_no_pending_exception),
     EFX_CASE(white_sinkless),
 };

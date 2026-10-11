@@ -15,6 +15,7 @@ replacing the snapshot and editing the table below.
 | `cgltf/` | jkuhlmann/cgltf | v1.15 @ `360db1a95480fe102ae9c69b27c5d101167ff5ba` | https://github.com/jkuhlmann/cgltf (`cgltf.h` single header; MIT, in-header notice) |
 | `minigamepad/` | ColleagueRiley/minigamepad | main @ `a7f8fde128a3732053dd17ce9ced440ed9926125` (2026-06-13) | https://github.com/ColleagueRiley/minigamepad (`minigamepad.h` + `LICENSE`; Zlib, in-header notice mislabels it "libpng license") |
 | `dr_libs/` | mackron/dr_libs | master @ `dfe8377631000664666519fdb83da193fd8037f4` (2026-08-31) | https://github.com/mackron/dr_libs (`dr_wav.h`, `dr_mp3.h` + `LICENSE`; choice of public domain (Unlicense) **or** MIT-0) |
+| `fastnoise-lite/` | Auburn/FastNoiseLite | master @ `785f37a9ad76e283586a379675085f2063ae03f7` (2026-10-11) | https://github.com/Auburn/FastNoiseLite (only `C/FastNoiseLite.h`, the official C99 port, + `LICENSE`; MIT) |
 | — (tool, not vendored) | floooh/sokol-tools-bin | master @ `11d0cf678105d614d675e6d9bd2aaf3eeff12f8c` (2026-08-29) | https://github.com/floooh/sokol-tools-bin (`bin/linux/sokol-shdc`) — generation-time tool for `shaders/quad.h`; never linked into the player |
 
 Notes:
@@ -124,3 +125,13 @@ Notes:
   live in `src/audio/dr_impl.c`, compiled with warnings relaxed exactly like
   the miniz/cgltf/stb TUs; the engine includes only the declarations.
   Evaluation record: `openspec/changes/f14-audio/design.md` (D1).
+- FastNoise Lite is vendored for the script-facing `efx.noise` API
+  (ADR 0059): the official C99 port from the FastNoise Lite repository
+  (`C/FastNoiseLite.h`, single header, no external deps, MIT). Chosen over
+  stb_perlin (Perlin-only, awkward seeding), FastNoise2 (C++/SIMD, wasm
+  friction), libnoise (LGPL — static-link obligations), and a hand-rolled
+  hash implementation. The implementation TU lives in
+  `src/noise/fastnoise_impl.c` (warnings relaxed exactly like the
+  miniz/cgltf/stb TUs); the engine includes only the declarations through
+  the stateless wrapper `src/noise/efx_noise.h`. Evaluation record:
+  `openspec/changes/noise-api/design.md` (D1).

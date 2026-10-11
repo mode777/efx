@@ -532,6 +532,29 @@
             }
             return new EfxAudio(id, volume, pan, pitch, loop);
         },
+        /* efx.noise wires (ADR 0059): validated scalars in, raw value or
+         * filled buffer out — same wire layouts as the desktop binding */
+        noise2: function (seed, type, frequency, octaves, lacunarity, gain,
+                          warp, x, y) {
+            return bridge['_efx_bridge_noise2'](seed, type, frequency,
+                octaves, lacunarity, gain, warp, x, y);
+        },
+        noise3: function (seed, type, frequency, octaves, lacunarity, gain,
+                          warp, x, y, z) {
+            return bridge['_efx_bridge_noise3'](seed, type, frequency,
+                octaves, lacunarity, gain, warp, x, y, z);
+        },
+        noiseFill2: function (seed, type, frequency, octaves, lacunarity,
+                              gain, warp, buf, w, h) {
+            var ptr = bridge['_malloc'](buf.length * 4);
+            try {
+                bridge['_efx_bridge_noise_fill2'](seed, type, frequency,
+                    octaves, lacunarity, gain, warp, w, h, ptr);
+                buf.set(HEAPF32.subarray(ptr >> 2, (ptr >> 2) + w * h));
+            } finally {
+                bridge['_free'](ptr);
+            }
+        },
     };
     var preludeSrc = UTF8ToString(bridge['_efx_bridge_js_prelude']());
     st.createModuleRuntime = new Function('efx', 'natives', preludeSrc)(api, natives);

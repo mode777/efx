@@ -271,6 +271,12 @@ static int install_efx_api(efx_runtime *rt) {
         JS_FreeValue(rt->ctx, glob);
         return -1;
     }
+    if (efx_api_register_noise(rt->ctx, efx) < 0) {
+        fprintf(stderr, "player: noise api init failed\n");
+        JS_FreeValue(rt->ctx, efx);
+        JS_FreeValue(rt->ctx, glob);
+        return -1;
+    }
     JS_SetPropertyStr(rt->ctx, glob, "efx", efx);
     JS_FreeValue(rt->ctx, glob);
     return 0;
@@ -355,6 +361,12 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JS_SetPropertyStr(rt->ctx, natives, "checkAudioSource", n);
     n = JS_NewCFunction(rt->ctx, efx_js_audio_play_wire, "playAudio", 5);
     JS_SetPropertyStr(rt->ctx, natives, "playAudio", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_noise2_wire, "noise2", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "noise2", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_noise3_wire, "noise3", 10);
+    JS_SetPropertyStr(rt->ctx, natives, "noise3", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_noise_fill2_wire, "noiseFill2", 10);
+    JS_SetPropertyStr(rt->ctx, natives, "noiseFill2", n);
     return natives;
 }
 

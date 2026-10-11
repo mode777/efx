@@ -1667,6 +1667,104 @@ function __efxLightSlot(slot) {
     return slot | 0;
 }
 
+/* ------------------------------------------ noise (ADR 0059)
+ * Raw generator values, per-type documented ranges: ~[-1, 1] for the
+ * gradient/value types, cellular in the engine's centered distance
+ * convention (~[-1, 0.5]). Cold-path bag validation lives here; the
+ * natives stay marshal-only (ADR 0049). */
+
+var __EFX_NOISE_TYPES = {
+    opensimplex2: 0, opensimplex2s: 1, cellular: 2,
+    perlin: 3, valuecubic: 4, value: 5,
+};
+var __EFX_NOISE_WARPS = { none: 0, opensimplex2: 1, gradient: 2 };
+
+function __efxNoiseInt(v, lo, hi, name) {
+    if (typeof v !== 'number' || !isFinite(v) || Math.floor(v) !== v ||
+        v < lo || v > hi) {
+        throw new RangeError(name + ' must be an integer ' + lo + '..' + hi);
+    }
+    return v;
+}
+
+/* parse + validate the shared noise option bag into wire scalars
+ * [seed, type, frequency, octaves, lacunarity, gain, warp]; `extra` names
+ * additional allowed keys the caller validates itself */
+function __efxNoiseParse(opts, where, extra) {
+    if (opts === undefined || opts === null) {
+        opts = {};
+    }
+    if (!__efxIsObject(opts) || Array.isArray(opts)) {
+        throw new TypeError(where + ' options must be an object');
+    }
+    var known = ['seed', 'type', 'frequency', 'octaves', 'lacunarity',
+                 'gain', 'warp'];
+    if (extra) {
+        for (var e = 0; e < extra.length; e++) {
+            known.push(extra[e]);
+        }
+    }
+    __efxCheckKnown(opts, known, where, true);
+    var seed = 0;
+    if (opts['seed'] !== undefined) {
+        var sv = opts['seed'];
+        if (typeof sv !== 'number' || !isFinite(sv) || Math.floor(sv) !== sv ||
+            sv < 0 || sv > 4294967295) {
+            throw new RangeError('seed must be an integer 0..4294967295');
+        }
+        seed = sv;
+    }
+    var type = 0;
+    if (opts['type'] !== undefined) {
+        var tv = opts['type'];
+        if (typeof tv !== 'string' || !(tv in __EFX_NOISE_TYPES)) {
+            throw new TypeError("type must be one of 'opensimplex2', " +
+                "'opensimplex2s', 'cellular', 'perlin', 'valuecubic', " +
+                "'value'");
+        }
+        type = __EFX_NOISE_TYPES[tv];
+    }
+    var frequency = 1;
+    if (opts['frequency'] !== undefined) {
+        var fv = __efxFinite(opts['frequency'], 'frequency must be a number');
+        if (!(fv > 0)) {
+            throw new RangeError('frequency must be a positive number');
+        }
+        frequency = fv;
+    }
+    var octaves = 1;
+    if (opts['octaves'] !== undefined) {
+        octaves = __efxNoiseInt(opts['octaves'], 1, 16, 'octaves');
+    }
+    var lacunarity = 2;
+    if (opts['lacunarity'] !== undefined) {
+        var lv = __efxFinite(opts['lacunarity'],
+                             'lacunarity must be a number');
+        if (!(lv > 0)) {
+            throw new RangeError('lacunarity must be a positive number');
+        }
+        lacunarity = lv;
+    }
+    var gain = 0.5;
+    if (opts['gain'] !== undefined) {
+        var gv = __efxFinite(opts['gain'], 'gain must be a number');
+        if (!(gv > 0) || gv > 1) {
+            throw new RangeError('gain must be a number in (0, 1]');
+        }
+        gain = gv;
+    }
+    var warp = 0;
+    if (opts['warp'] !== undefined) {
+        var wv = opts['warp'];
+        if (typeof wv !== 'string' || !(wv in __EFX_NOISE_WARPS)) {
+            throw new TypeError("warp must be one of 'none', 'opensimplex2', " +
+                "'gradient'");
+        }
+        warp = __EFX_NOISE_WARPS[wv];
+    }
+    return [seed, type, frequency, octaves, lacunarity, gain, warp];
+}
+
 function __efxPreludeInstall(efx, natives) {
     /* graphics sub-namespace (ADR 0050): created by the bindings; the
      * prelude installs its members onto the same object in place. */
@@ -2138,6 +2236,101 @@ function __efxPreludeInstall(efx, natives) {
                                      sh.height, sh.mesh, f[0], f[1], f[2],
                                      m[0], m[1], m[2], mask,
                                      !!opts['sensors']);
+        };
+    }
+    if (natives && natives.noise2) {
+        var noise = efx.noise;
+        if (!noise) {
+            noise = {};
+            efx.noise = noise;
+        }
+        noise.noise2 = function (x, y, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('noise2 requires (x, y)');
+            }
+            var xv = __efxFinite(x, 'x must be a number');
+            var yv = __efxFinite(y, 'y must be a number');
+            var p = __efxNoiseParse(opts, 'noise2');
+            return natives.noise2(p[0], p[1], p[2], p[3], p[4], p[5], p[6],
+                                  xv, yv);
+        };
+        noise.noise3 = function (x, y, z, opts) {
+            if (arguments.length < 3) {
+                throw new TypeError('noise3 requires (x, y, z)');
+            }
+            var xv = __efxFinite(x, 'x must be a number');
+            var yv = __efxFinite(y, 'y must be a number');
+            var zv = __efxFinite(z, 'z must be a number');
+            var p = __efxNoiseParse(opts, 'noise3');
+            return natives.noise3(p[0], p[1], p[2], p[3], p[4], p[5], p[6],
+                                  xv, yv, zv);
+        };
+        noise.fill2 = function (buf, w, h, opts) {
+            if (arguments.length < 3) {
+                throw new TypeError('fill2 requires (buf, w, h)');
+            }
+            if (!(buf instanceof Float32Array)) {
+                throw new TypeError('fill2 buffer must be a Float32Array');
+            }
+            var wv = __efxNoiseInt(w, 1, 2147483647, 'w');
+            var hv = __efxNoiseInt(h, 1, 2147483647, 'h');
+            if (buf.length < wv * hv) {
+                throw new RangeError(
+                    'fill2 buffer length must be at least w*h floats');
+            }
+            var p = __efxNoiseParse(opts, 'fill2');
+            natives.noiseFill2(p[0], p[1], p[2], p[3], p[4], p[5], p[6],
+                               buf, wv, hv);
+        };
+        noise.imageData = function (w, h, opts) {
+            if (arguments.length < 2) {
+                throw new TypeError('imageData requires (w, h)');
+            }
+            var wv = __efxNoiseInt(w, 1, 2147483647, 'w');
+            var hv = __efxNoiseInt(h, 1, 2147483647, 'h');
+            var domain = [-1, 1];
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                    throw new TypeError('imageData options must be an object');
+                }
+                var dv = opts['domain'];
+                if (dv !== undefined) {
+                    if (!Array.isArray(dv) || dv.length !== 2) {
+                        throw new TypeError('domain must be [lo, hi]');
+                    }
+                    var lo = __efxFinite(dv[0],
+                                         'domain must contain numbers');
+                    var hi = __efxFinite(dv[1],
+                                         'domain must contain numbers');
+                    if (!(hi > lo)) {
+                        throw new RangeError('domain must satisfy lo < hi');
+                    }
+                    domain = [lo, hi];
+                }
+            }
+            var p = __efxNoiseParse(opts, 'imageData', ['domain']);
+            var count = wv * hv;
+            var buf = new Float32Array(count);
+            natives.noiseFill2(p[0], p[1], p[2], p[3], p[4], p[5], p[6],
+                               buf, wv, hv);
+            /* raw value -> byte: linear map of `domain` onto [0, 255],
+             * clamped at both ends (deterministic floor rounding) */
+            var lo = domain[0], span = domain[1] - domain[0];
+            var px = new Uint8Array(count * 4);
+            for (var i = 0, j = 0; i < count; i++, j += 4) {
+                var t = (buf[i] - lo) / span;
+                if (!(t > 0)) {
+                    t = 0;
+                } else if (t > 1) {
+                    t = 1;
+                }
+                var b = (t * 255 + 0.5) | 0;
+                px[j] = b;
+                px[j + 1] = b;
+                px[j + 2] = b;
+                px[j + 3] = 255;
+            }
+            return g.createImageData(wv, hv, px);
         };
     }
     if (natives && natives.createFont) {

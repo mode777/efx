@@ -67,7 +67,7 @@ The `efx` global and the sub-namespaces it offers.
 
 | Variable | Description |
 | ------ | ------ |
-| [efx](variables/efx.md) | The engine-provided script surface; the only global scripts use. It exposes the runtime and lifecycle facilities (`log`, `quit`, the read-only `args`, and the frame-hook registrations) directly, and groups the rest of the engine into domain sub-namespaces: `graphics`, `math`, `io`, `physics`, `keyboard`, `mouse`, `gamepad`, `window`, `audio`, and `color`. |
+| [efx](variables/efx.md) | The engine-provided script surface; the only global scripts use. It exposes the runtime and lifecycle facilities (`log`, `quit`, the read-only `args`, and the frame-hook registrations) directly, and groups the rest of the engine into domain sub-namespaces: `graphics`, `math`, `io`, `physics`, `keyboard`, `mouse`, `gamepad`, `window`, `audio`, `noise`, and `color`. |
 
 ## Graphics
 
@@ -207,6 +207,8 @@ Fixed string-union identifier sets.
 | [EfxKey](type-aliases/EfxKey.md) | The engine-owned lowercase keyboard identifier set. |
 | [EfxMod](type-aliases/EfxMod.md) | An active keyboard modifier name reported in an event's `mods`. |
 | [EfxMouseButton](type-aliases/EfxMouseButton.md) | The engine-owned mouse button identifier set. |
+| [NoiseType](type-aliases/NoiseType.md) | The procedural noise algorithm behind `noise.noise2`/`noise3`/`fill2`. |
+| [NoiseWarp](type-aliases/NoiseWarp.md) | The domain warp applied to coordinates before sampling. |
 
 ## Results
 
@@ -220,3 +222,11 @@ Records returned by queries and layout operations.
 | [PhysicsRayHit](interfaces/PhysicsRayHit.md) | One raycast hit. |
 | [PhysicsShapeHit](interfaces/PhysicsShapeHit.md) | One shape-cast hit. |
 | [TextBounds](interfaces/TextBounds.md) | Laid-out text bounds returned by `drawText` / `Font.measure`. |
+
+## Noise
+
+Deterministic procedural noise: point queries, bulk fills, and textures.
+
+| Interface | Description |
+| ------ | ------ |
+| [EfxNoise](interfaces/EfxNoise.md) | Deterministic procedural noise. Pure functions of a seed, coordinates, and options: no generator objects, no state, and bit-identical values on every target platform. Values pass through raw per type — approximately `[-1, 1]` for `'opensimplex2'`, `'opensimplex2s'`, `'perlin'`, `'valuecubic'`, and `'value'`; `'cellular'` is the nearest-feature distance in the engine's centered convention (approximately `[-1, 0.5]`). |

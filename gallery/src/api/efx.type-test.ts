@@ -251,3 +251,20 @@ efx.physics.createBody({ shape: { type: 'sphere', radius: 1 } });
 efx.physics.raycast([0, 1, 0], [1, 0, 0]);
 // @ts-expect-error — createCharacter requires positional radius/height
 efx.physics.createCharacter({ radius: 0.4, height: 1.8 });
+
+// Noise — pure functions of seed + coordinates; raw per-type value ranges.
+const hmap = new Float32Array(129 * 129);
+efx.noise.fill2(hmap, 129, 129, { seed: 7, type: 'opensimplex2', frequency: 0.01, octaves: 5, lacunarity: 2, gain: 0.5, warp: 'none' });
+const n2: number = efx.noise.noise2(0.5, 0.25);
+const n2c: number = efx.noise.noise2(3, 4, { type: 'cellular', seed: 9 });
+const n3: number = efx.noise.noise3(0.5, 0.25, 0.75, { warp: 'gradient' });
+const nimg = efx.noise.imageData(64, 64, { seed: 9, type: 'cellular', domain: [-1, 0.15] });
+n2; n2c; n3; hmap; nimg;
+// @ts-expect-error — fill2 requires a Float32Array
+efx.noise.fill2([0.1, 0.2], 2, 1);
+// @ts-expect-error — the value buffer is positional, not a bag field
+efx.noise.fill2({ buf: new Float32Array(4) }, 2, 2);
+// @ts-expect-error — unknown noise type
+efx.noise.noise2(0, 0, { type: 'worley' });
+// @ts-expect-error — domain is a [lo, hi] tuple
+efx.noise.imageData(4, 4, { domain: 3 });
