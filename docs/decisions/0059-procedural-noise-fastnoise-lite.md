@@ -39,9 +39,14 @@ points.
 
 Cross-target determinism is a pinned contract with two receipts: exact-bit
 values in `tests/unit/noise_tests.c`, and a committed noise golden scene
-gated on all four targets. The noise core must stay off any fast-math flag
-and must not adopt trig-based hashing (`sin` is not bit-identical across
-libm/wasm).
+gated on all four targets. The noise core must stay off any fast-math flag,
+must not adopt trig-based hashing (`sin` is not bit-identical across
+libm/wasm), and is compiled with **FP contraction disabled**
+(`-ffp-contract=off` on the noise TUs; MSVC's default `/fp:precise` never
+contracts): Apple arm64 clang contracts `a*b+c` into FMA by default, which
+drifted FastNoise Lite's dot products by 1 ulp and failed the bit-exact
+receipts on macOS while the tolerance-based golden still passed — the unit
+receipt is the stricter catcher.
 
 ## Consequences
 

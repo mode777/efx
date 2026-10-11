@@ -32,7 +32,7 @@
 ## 7. Golden scene
 
 - [x] 7.1 Add the noise golden scene (three blitted textures: simplex fBm seed 7 `[-1,1]`, cellular seed 9 `[0,1]`, warped value fBm seed 13) to the golden harness with committed expected images, and verify the Linux golden test passes on an ON build dir (`ctest -R golden`)
-- [ ] 7.2 Capture/regenerate goldens on the verification server per `docs/verification-server.md` and confirm the Emscripten golden job agrees pixel-wise
+- [x] 7.2 Capture/regenerate goldens on the verification server per `docs/verification-server.md` and confirm the Emscripten golden job agrees pixel-wise
 
 ## 8. Docs + ADR
 
@@ -41,5 +41,5 @@
 
 ## 9. Full verification gate
 
-- [ ] 9.1 Commit and push the branch, run `python3 tools/verify_remote.py all <branch>` and iterate until green (Linux golden-bearing jobs first, per AGENTS.md)
+- [x] 9.1 Commit and push the branch, run `python3 tools/verify_remote.py all <branch>` and iterate until green (Linux golden-bearing jobs first, per AGENTS.md)
 - [ ] 9.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS until green

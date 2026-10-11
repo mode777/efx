@@ -76,6 +76,16 @@ efx_add_vendor_library(efx_drlibs
 efx_add_vendor_library(efx_fastnoise
     SOURCES src/noise/fastnoise_impl.c
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/fastnoise-lite)
+# ADR 0059 determinism: FMA contraction changes FNL's dot-product rounding
+# (Apple arm64 contracts by default and drifts the pinned values by 1 ulp;
+# x86-64, MSVC /fp:precise, and wasm do not contract). The noise engine must
+# evaluate identically on every target — keep contraction off. MSVC does not
+# contract under its default /fp:precise.
+if(NOT MSVC)
+    target_compile_options(efx_fastnoise PRIVATE -ffp-contract=off)
+    set_source_files_properties(src/noise/efx_noise.c PROPERTIES
+        COMPILE_OPTIONS "-ffp-contract=off")
+endif()
 
 # Per-module source lists, each spelled out once: efx_core (below) and the
 # headless test executables (bottom of this file) are composed from them.

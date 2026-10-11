@@ -119,6 +119,13 @@ enables fast-math). Trig-based GLSL-style hashing is rejected outright —
 `sin` is not bit-identical across libm implementations. If a future change
 ever touches the noise engine, the golden is the regression gate.
 
+Implementation note (discovered by the macOS gate job): bit-identity also
+requires **FP contraction off** on the noise TUs — Apple arm64 clang fuses
+`a*b+c` into FMA by default and drifted the pinned values by 1 ulp (the
+tolerance-based golden still passed; the exact-bit unit receipt caught it).
+`-ffp-contract=off` is applied to `efx_fastnoise` and `efx_noise.c`; MSVC's
+default `/fp:precise` does not contract.
+
 ### D8 — Surface and layering
 
 `efx.noise` is a domain sub-namespace per the ADR 0050 organization rule
