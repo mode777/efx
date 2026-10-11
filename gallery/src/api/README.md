@@ -22,6 +22,8 @@ sub-namespaces:
   queries and events.
 - {@link EfxAudio | efx.audio} — streamed music and engine-mixed sound
   effects.
+- {@link EfxNoise | efx.noise} — deterministic procedural noise: point
+  queries, bulk fills, and grayscale textures.
 - {@link EfxColor | efx.color} — named color constants.
 
 ## The smallest complete scene
