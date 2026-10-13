@@ -177,6 +177,9 @@ add_library(efx_core STATIC
 if(NOT EMSCRIPTEN)
     target_sources(efx_core PRIVATE ${EFX_API_SOURCES})
 endif()
+# the script clock is binding-independent (efx.time.now); the physics
+# debugDraw recorder is shared by the desktop binding and the web bridge
+target_sources(efx_core PRIVATE src/runtime/clock.c src/api/api_physics_debug.c)
 target_include_directories(efx_core PUBLIC src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
 target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf efx_drlibs efx_fastnoise)
@@ -197,6 +200,7 @@ endif()
 
 add_library(efx_math STATIC
     src/math/efx_math.cpp
+    src/math/transform.c
 )
 target_include_directories(efx_math PUBLIC src)
 target_include_directories(efx_math SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor)
@@ -297,6 +301,8 @@ if(EMSCRIPTEN)
         _efx_input_gamepad_disconnect_count _efx_input_gamepad_disconnect_at
         _efx_audio_master_volume _efx_audio_set_master_volume
         _efx_audio_request_resume
+        _efx_bridge_time_now _efx_bridge_mat4_transform
+        _efx_bridge_screen_ray _efx_bridge_physics_debug_draw
         _efx_render_set_blend _efx_render_end_target
         _efx_render_set_render_scale)
     list(JOIN EFX_WEB_CORE_EXPORTS "," EFX_WEB_CORE_EXPORTS_CSV)
@@ -543,6 +549,8 @@ efx_add_test_exe(efx_text_tests
 # desktop-only: ADR 0022 keeps quickjs out of every Emscripten target
 efx_add_test_exe(efx_api_tests
     SOURCES ${EFX_API_SOURCES}
+            src/api/api_physics_debug.c
+            src/runtime/clock.c
             ${EFX_RENDER_CORE_SOURCES}
             ${EFX_TEXT_SOURCES}
             ${EFX_AUDIO_SOURCES}
@@ -552,7 +560,7 @@ efx_add_test_exe(efx_api_tests
             ${EFX_RESOURCE_SOURCES}
             tests/unit/api_tests.c
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
-    LIBS qjs efx_miniz efx_cgltf efx_drlibs efx_fastnoise
+    LIBS qjs efx_miniz efx_cgltf efx_drlibs efx_fastnoise efx_math
     DEFS EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
          EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
          EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error"
@@ -568,7 +576,7 @@ efx_add_test_exe(efx_api_tests
 # runtime, ADR 0022)
 if(NOT EMSCRIPTEN)
     add_executable(efx_catalog_runner tests/catalog_runner.c)
-    target_link_libraries(efx_catalog_runner PRIVATE efx_core)
+    target_link_libraries(efx_catalog_runner PRIVATE efx_core efx_math)
     if(MSVC)
         target_compile_definitions(efx_catalog_runner PRIVATE _CRT_SECURE_NO_WARNINGS)
     else()

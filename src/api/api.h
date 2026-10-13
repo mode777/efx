@@ -2,6 +2,8 @@
 #define EFX_API_H
 
 #include "quickjs.h"
+#include "physics/physics.h"
+#include "api/api_physics_debug.h"
 
 JSValue efx_js_log(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_quit(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
@@ -23,6 +25,9 @@ JSValue efx_js_whiteTexture(JSContext *ctx, JSValueConst this_val);
 
 /* F3 — 3D core */
 JSValue efx_js_set_camera3d_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_mat4_transform_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_screenRay(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_physics_debug_draw_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);

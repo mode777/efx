@@ -30,8 +30,7 @@ JSValue efx_js_setClearColor(JSContext *ctx, JSValueConst this_val, int argc, JS
         return efx_api_type_error(ctx, "setClearColor requires a [r,g,b,a] array");
     }
     float c[4];
-    int rc = efx_api_get_float_array(ctx, argv[0], c, 4);
-    if (rc != 0) {
+    if (efx_api_read_color(ctx, argv[0], c) != 0) {
         return JS_EXCEPTION;
     }
     efx_render_set_clear_color(c);
@@ -219,7 +218,7 @@ static int read_quad_opts(JSContext *ctx, uint64_t tex_handle,
 
     JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
     if (!JS_IsUndefined(cv)) {
-        if (efx_api_get_float_array(ctx, cv, q->color, 4) != 0) {
+        if (efx_api_read_color(ctx, cv, q->color) != 0) {
             JS_FreeValue(ctx, cv);
             return -1;
         }
@@ -261,11 +260,8 @@ static int read_quad_opts(JSContext *ctx, uint64_t tex_handle,
             JS_FreeValue(ctx, zv);
             return -1;
         }
-        if (q->size[0] <= 0 || q->size[1] <= 0) {
-            JS_FreeValue(ctx, zv);
-            efx_api_range_error(ctx, "size entries must be > 0");
-            return -1;
-        }
+        /* finite entries are accepted here; a <= 0 component is a
+         * degenerate draw (no-op) decided at record time */
         q->has_size = 1;
     }
     JS_FreeValue(ctx, zv);
@@ -327,6 +323,12 @@ JSValue efx_js_drawQuad(JSContext *ctx, JSValueConst this_val, int argc, JSValue
         }
     } else {
         quad_opts_default(&q);
+    }
+
+    /* degenerate draw: a finite size component <= 0 records nothing and
+     * throws nothing (health bars and meters shrinking to zero) */
+    if (q.has_size && (q.size[0] <= 0 || q.size[1] <= 0)) {
+        return JS_UNDEFINED;
     }
 
     /* size derivation: explicit size -> sourceRect extent -> texture

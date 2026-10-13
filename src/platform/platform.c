@@ -25,6 +25,13 @@
 #include "platform/audio_backend.h"
 #include "render/render.h"
 #include "input/input.h"
+#include "audio/audio.h"
+
+/* efx_input gesture hook target: bridge to the audio resume entry */
+static void efx_platform_gesture_resume(void *ud) {
+    (void)ud;
+    efx_audio_request_resume();
+}
 
 #include "sokol_app.h"
 #include "sokol_gfx.h"
@@ -238,6 +245,9 @@ static void efx_init_cb(void) {
     /* F14: initialize the audio device (push model); idempotent, soft-fails
        when no device is available */
     efx_audio_backend_init();
+    /* web autoplay unlock: the first key-down/mouse-down is a real user
+       gesture, so the input core fires the audio resume from there */
+    efx_input_set_gesture_callback(efx_platform_gesture_resume, NULL);
 #ifdef SOKOL_METAL
     if (g_capture.frame > 0) {
         efx_capture_setup();
@@ -260,6 +270,11 @@ static void efx_frame_cb(void) {
     g_frame++;
     double dt = (g_frame == 1) ? 0.0 : sapp_frame_duration();
     efx_input_set_window(sapp_width(), sapp_height(), sapp_dpi_scale());
+    /* publish the current 2D frame to the input mapping before events for
+       this frame are dispatched (frame-space pointer, script-api-ergonomics) */
+    float frame_w = 0, frame_h = 0;
+    efx_render_frame_extent(&frame_w, &frame_h);
+    efx_input_set_frame(frame_w, frame_h);
     efx_input_begin_frame();
     efx_render_begin_frame();
     efx_render_set_viewport(sapp_width(), sapp_height());

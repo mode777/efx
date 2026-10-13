@@ -20,6 +20,12 @@
         },
         registerUpdateHook: makeRegister(1),
         registerRenderHook: makeRegister(0),
+        /* efx.time sub-namespace: the script clock (one snapshot per frame) */
+        time: {
+            get now() {
+                return bridge['_efx_bridge_time_now']();
+            },
+        },
         /* efx.io sub-namespace: resource loaders. `loadText` moved off the
          * root; `loadData` returns raw bytes as a Uint8Array copy. */
         io: {
@@ -64,7 +70,7 @@
                 if (arguments.length < 1) {
                     throw new TypeError('setClearColor requires a [r,g,b,a] array');
                 }
-                var c = __efxFloatArray(color, 4);
+                var c = __efxColor(color);
                 bridge['_efx_bridge_set_clear_color'](c[0], c[1], c[2], c[3]);
             },
                 /* setCamera2D is installed by the shared prelude (ADR 0049) */

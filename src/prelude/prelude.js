@@ -136,6 +136,14 @@ function __efxQuatToMat4(q) {
     ];
 }
 
+function __efxClamp(v, lo, hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+}
+
+function __efxLerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
 /* option validation shared by the primitives (spec: finite positive
    size/radius -> RangeError; positive integer segments -> RangeError;
    non-boolean flag -> TypeError; unknown fields -> TypeError; missing
@@ -265,16 +273,29 @@ function __efxMakeCube(opts) {
 }
 
 /* plane in the XZ plane facing +Y, centered; segments x segments quads;
-   uv spans 0..1; CCW seen from above */
+   uv spans 0..1 (or 0..u / 0..v with `uvs`); CCW seen from above */
 function __efxMakePlane(opts) {
-    var o = __efxPrimOpts(opts, ['size', 'segments', 'material'], ['size'], ['segments'], [1, 1]);
+    var o = __efxPrimOpts(opts, ['size', 'segments', 'uvs', 'material'],
+                          ['size'], ['segments'], [1, 1]);
+    /* `uvs` (number | [u, v]) is not a __efxPrimOpts scalar list member, so
+       read it from the raw bag — __efxPrimOpts only copies listed scalars */
+    var rawUvs = (opts !== undefined && opts !== null &&
+                  typeof opts === 'object') ? opts['uvs'] : undefined;
+    var uvSpan = [1, 1];
+    if (rawUvs !== undefined) {
+        var uv = __efxPartRange(rawUvs, 'uvs');
+        if (uv[0] <= 0 || uv[1] <= 0) {
+            throw new RangeError('uvs must be > 0');
+        }
+        uvSpan = uv;
+    }
     var S = o.segments, h = o.size / 2;
     var step = o.size / S;
     var positions = [], uvs = [], indices = [];
     for (var r = 0; r <= S; r++) {
         for (var c = 0; c <= S; c++) {
             positions.push(-h + c * step, 0, -h + r * step);
-            uvs.push(c / S, r / S);
+            uvs.push((c / S) * uvSpan[0], (r / S) * uvSpan[1]);
         }
     }
     for (var rr = 0; rr < S; rr++) {
@@ -678,6 +699,16 @@ function __efxFloatArray(v, n) {
     throw new TypeError('expected an array');
 }
 
+/* Color value acceptance (script-api-ergonomics): 3-component [r, g, b]
+   arrays are accepted wherever a Color is expected, treated as opaque. */
+function __efxColor(v) {
+    if (Array.isArray(v) && v.length === 3) {
+        var c = __efxFloatArray(v, 3);
+        return [c[0], c[1], c[2], 1];
+    }
+    return __efxFloatArray(v, 4);
+}
+
 function __efxPartVec(v, what, allow2) {
     if (!Array.isArray(v)) {
         throw new TypeError(what + ' must be an array');
@@ -875,7 +906,7 @@ function __efxParticleWire(opts, liveSample) {
             throw new RangeError('colors must hold 1..8 entries');
         }
         for (var c = 0; c < cols.length; c++) {
-            var col = __efxFloatArray(cols[c], 4);
+            var col = __efxColor(cols[c]);
             for (var k = 0; k < 4; k++) {
                 w[52 + c * 4 + k] = col[k];
             }
@@ -1030,7 +1061,7 @@ function __efxPostEntry(v) {
             out[4] = __efxPostNumber(v['saturation'], 'saturation');
         }
         if (v['tint'] !== undefined) {
-            var t = __efxFloatArray(v['tint'], 4);
+            var t = __efxColor(v['tint']);
             for (var k = 0; k < 4; k++) {
                 out[5 + k] = t[k];
             }
@@ -1486,7 +1517,7 @@ function __efxMaterialWire(v, sample) {
         if (ch['color'] === undefined) {
             throw new TypeError(chan[ci] + ' channel requires color');
         }
-        var c = __efxFloatArray(ch['color'], 4);
+        var c = __efxColor(ch['color']);
         out[ci * 4] = c[0];
         out[ci * 4 + 1] = c[1];
         out[ci * 4 + 2] = c[2];
@@ -1774,6 +1805,8 @@ function __efxPreludeInstall(efx, natives) {
         efx.graphics = g;
     }
     efx.math = {
+        clamp: __efxClamp,
+        lerp: __efxLerp,
         mat4: {
             identity: __efxM4Identity,
             perspective: __efxM4Perspective,
@@ -1798,6 +1831,44 @@ function __efxPreludeInstall(efx, natives) {
             toMat4: __efxQuatToMat4,
         },
     };
+    if (natives && natives.transform) {
+        /* native-backed hot composition (ADR 0049 wire): T·Ry·Rx·Rz·S */
+        efx.math.mat4.transform = function (pos, yawDeg, pitchDeg, rollDeg, scale) {
+            if (arguments.length < 1) {
+                throw new TypeError('transform requires a position');
+            }
+            var p = __efxVec3Field(pos, 'pos');
+            var angs = [0, 0, 0];
+            var names = ['yawDeg', 'pitchDeg', 'rollDeg'];
+            for (var i = 0; i < 3; i++) {
+                var a = arguments.length > i + 1 ? arguments[i + 1] : undefined;
+                if (a !== undefined) {
+                    if (typeof a !== 'number' || !isFinite(a)) {
+                        throw new TypeError(names[i] + ' must be a finite number');
+                    }
+                    angs[i] = a;
+                }
+            }
+            var s = [1, 1, 1];
+            if (scale !== undefined) {
+                if (typeof scale === 'number') {
+                    if (!isFinite(scale) || scale <= 0) {
+                        throw new RangeError('scale must be > 0');
+                    }
+                    s = [scale, scale, scale];
+                } else {
+                    var sv = __efxFloatArray(scale, 3);
+                    if (sv[0] <= 0 || sv[1] <= 0 || sv[2] <= 0) {
+                        throw new RangeError('scale entries must be > 0');
+                    }
+                    s = sv;
+                }
+            }
+            return natives.transform(p[0], p[1], p[2],
+                                     angs[0], angs[1], angs[2],
+                                     s[0], s[1], s[2]);
+        };
+    }
     /* named color constants (CSS basic 16 + transparent): frozen plain
      * [r, g, b, a] data, no functions. The 128/192 sRGB levels are
      * expressed as 0.5/0.75 for readability. */
@@ -1845,7 +1916,7 @@ function __efxPreludeInstall(efx, natives) {
             if (opts['color'] === undefined) {
                 throw new TypeError('setLight requires color');
             }
-            var lc = __efxFloatArray(opts['color'], 4);
+            var lc = __efxColor(opts['color']);
             var range = 0;
             if (opts['range'] !== undefined) {
                 if (typeof opts['range'] !== 'number') {
@@ -1881,7 +1952,7 @@ function __efxPreludeInstall(efx, natives) {
             if (opts['color'] === undefined) {
                 throw new TypeError('setDirectionalLight requires color');
             }
-            var dc = __efxFloatArray(opts['color'], 4);
+            var dc = __efxColor(opts['color']);
             natives.setDirectionalLight(1, dv[0], dv[1], dv[2],
                                         dc[0], dc[1], dc[2], dc[3]);
         };
@@ -2178,6 +2249,29 @@ function __efxPreludeInstall(efx, natives) {
             return natives.createCharacter(radius, height,
                 position[0], position[1], position[2], up[0], up[1], up[2],
                 floorMaxAngle, snap, step, safe, maxSlides, layer, mask);
+        };
+        phys.debugDraw = function (opts) {
+            var color = [0.2, 1, 0.3, 0.35];
+            if (opts !== undefined && opts !== null) {
+                if (!__efxIsObject(opts) || Array.isArray(opts)) {
+                    throw new TypeError('debugDraw options must be an object');
+                }
+                __efxCheckKnown(opts, ['color', 'alpha'], 'debugDraw', true);
+                if (opts['color'] !== undefined) {
+                    color = __efxColor(opts['color']);
+                }
+                if (opts['alpha'] !== undefined) {
+                    var a = opts['alpha'];
+                    if (typeof a !== 'number' || !isFinite(a)) {
+                        throw new TypeError('alpha must be a finite number');
+                    }
+                    if (a < 0 || a > 1) {
+                        throw new RangeError('alpha must be in 0..1');
+                    }
+                    color[3] = a;
+                }
+            }
+            natives.debugDraw(color[0], color[1], color[2], color[3]);
         };
         phys.raycast = function (origin, direction, maxDistance, opts) {
             if (arguments.length < 2) {

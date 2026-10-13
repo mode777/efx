@@ -387,24 +387,14 @@ static JSValue efx_js_audio_set_master(JSContext *ctx, JSValueConst this_val,
 }
 
 
-static JSValue efx_js_audio_resume(JSContext *ctx, JSValueConst this_val, int argc,
-                                   JSValueConst *argv) {
-    (void)ctx;
-    (void)this_val;
-    (void)argc;
-    (void)argv;
-    efx_audio_request_resume();
-    return JS_UNDEFINED;
-}
-
-
 int efx_api_register_audio(JSContext *ctx, JSValueConst efx) {
     static const JSCFunctionListEntry audio_funcs[] = {
         /* loadAudioData/loadAudioStream/playAudio are installed by the
-         * shared prelude (ADR 0049) */
+         * shared prelude (ADR 0049). Web autoplay unlock is engine-managed
+         * on first input (first key-down/mouse-down); there is no
+         * script-facing resume entry point. */
         JS_CGETSET_DEF("volume", efx_js_audio_get_master,
                        efx_js_audio_set_master),
-        JS_CFUNC_DEF("resume", 0, efx_js_audio_resume),
     };
     JSValue audio = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, audio, audio_funcs,

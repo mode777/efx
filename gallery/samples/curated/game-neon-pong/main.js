@@ -79,10 +79,6 @@ let pointerY = FRAME_H / 2;
 let pointerMoved = false;
 let winFlash = 0;
 
-function clamp(v, a, b) {
-    return v < a ? a : (v > b ? b : v);
-}
-
 function resetBall() {
     ballX = FRAME_W / 2 - BALL / 2;
     ballY = FRAME_H / 2 - BALL / 2;
@@ -167,20 +163,20 @@ function paddleInput(dt) {
         if (efx.keyboard.isDown('up')) { rightY -= PADDLE_SPEED * dt; }
         if (efx.keyboard.isDown('down')) { rightY += PADDLE_SPEED * dt; }
     }
-    rightY = clamp(rightY, 0, FRAME_H - PADDLE_H);
+    rightY = efx.math.clamp(rightY, 0, FRAME_H - PADDLE_H);
 }
 
 function aiPaddle(y, dt, error) {
     const target = ballY + BALL / 2 - PADDLE_H / 2 + error;
     const diff = target - y;
-    const step = clamp(diff, -PADDLE_SPEED * dt, PADDLE_SPEED * dt);
-    return clamp(y + step, 0, FRAME_H - PADDLE_H);
+    const step = efx.math.clamp(diff, -PADDLE_SPEED * dt, PADDLE_SPEED * dt);
+    return efx.math.clamp(y + step, 0, FRAME_H - PADDLE_H);
 }
 
 // ---- physics -------------------------------------------------------------
 function bounceOffPaddle(paddleY, fromLeft) {
     const ballCY = ballY + BALL / 2;
-    const rel = clamp((ballCY - (paddleY + PADDLE_H / 2)) / (PADDLE_H / 2), -1, 1);
+    const rel = efx.math.clamp((ballCY - (paddleY + PADDLE_H / 2)) / (PADDLE_H / 2), -1, 1);
     const angle = rel * (MAX_BOUNCE_DEG * Math.PI / 180);
     ballSpeed = Math.min(ballSpeed * BALL_SPEEDUP, BALL_SPEED_MAX);
     const dir = fromLeft ? 1 : -1;
@@ -258,7 +254,7 @@ function update(dt) {
         if (twoPlayer && !attract) {
             if (efx.keyboard.isDown('w')) { leftY -= PADDLE_SPEED * dt; }
             if (efx.keyboard.isDown('s')) { leftY += PADDLE_SPEED * dt; }
-            leftY = clamp(leftY, 0, FRAME_H - PADDLE_H);
+            leftY = efx.math.clamp(leftY, 0, FRAME_H - PADDLE_H);
         } else {
             const err = attract ? Math.sin(winFlash * 3.1) * 22 : Math.sin(winFlash * 2.3) * 14;
             leftY = aiPaddle(leftY, dt, err);

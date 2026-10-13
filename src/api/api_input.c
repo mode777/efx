@@ -110,7 +110,7 @@ static JSValue num_pair(JSContext *ctx, float a, float b) {
 static JSValue efx_js_mouse_getPosition(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;
     float x = 0, y = 0;
-    efx_input_pointer(&x, &y);
+    efx_input_pointer_frame(&x, &y);
     return num_pair(ctx, x, y);
 }
 
@@ -118,7 +118,7 @@ static JSValue efx_js_mouse_getPosition(JSContext *ctx, JSValueConst this_val) {
 static JSValue efx_js_mouse_getX(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;
     float x = 0, y = 0;
-    efx_input_pointer(&x, &y);
+    efx_input_pointer_frame(&x, &y);
     return JS_NewFloat64(ctx, x);
 }
 
@@ -126,7 +126,7 @@ static JSValue efx_js_mouse_getX(JSContext *ctx, JSValueConst this_val) {
 static JSValue efx_js_mouse_getY(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;
     float x = 0, y = 0;
-    efx_input_pointer(&x, &y);
+    efx_input_pointer_frame(&x, &y);
     return JS_NewFloat64(ctx, y);
 }
 
@@ -134,7 +134,7 @@ static JSValue efx_js_mouse_getY(JSContext *ctx, JSValueConst this_val) {
 static JSValue efx_js_mouse_getDelta(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;
     float dx = 0, dy = 0;
-    efx_input_delta(&dx, &dy);
+    efx_input_delta_frame(&dx, &dy);
     return num_pair(ctx, dx, dy);
 }
 

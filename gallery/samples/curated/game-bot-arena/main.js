@@ -116,16 +116,14 @@ const musicStream = efx.audio.loadAudioStream('music.wav');
 let music = null;
 let musicVolume = 0.45;
 let muted = false;
-let audioReady = false;
-function unlockAudio() {
-    if (audioReady) { return; }
-    audioReady = true;
-    try { efx.audio.resume(); } catch (e) { /* no audio device */ }
-    music = efx.audio.playAudio(musicStream, { loop: true, volume: muted ? 0 : musicVolume });
+// The engine unlocks audio on the first key/click; start music on first wake.
+function startMusic() {
+    if (!music) {
+        music = efx.audio.playAudio(musicStream, { loop: true, volume: muted ? 0 : musicVolume });
+    }
 }
 function sfx(name, pan, pitch) {
-    if (!audioReady) { return; }
-    efx.audio.playAudio(SFX[name], { volume: 0.8, pan: Math.max(-1, Math.min(1, pan || 0)), pitch: pitch || 1 });
+    efx.audio.playAudio(SFX[name], { volume: 0.8, pan: pan || 0, pitch: pitch || 1 });
 }
 function applyVolume() { if (music) { music.volume = muted ? 0 : musicVolume; } }
 
@@ -153,7 +151,11 @@ for (const p of PILLARS) {
 
 let player = null;
 function spawnPlayer(p) {
-    if (player) { player.destroy(); }
+    if (player) {
+        // teleport the existing character instead of recreating it
+        player.setPosition(p);
+        return;
+    }
     player = efx.physics.createCharacter(PLAYER_R, PLAYER_H, { position: p, up: [0, 1, 0] });
 }
 spawnPlayer([0, PLAYER_H / 2, 12]);
@@ -169,7 +171,6 @@ let interT = WAVE_INTERMISSION;
 let spawnQueue = [];
 let spawnT = 0;
 let fireCd = 0;
-let clock = 0;
 let shake = 0;
 let shakeX = 0;
 let shakeY = 0;
@@ -184,7 +185,6 @@ const bolts = [];
 for (let i = 0; i < MAXP; i++) { bolts.push({ active: false, owner: 0, x: 0, y: 0, z: 0, vx: 0, vz: 0, life: 0 }); }
 const flashes = [];
 
-function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 function clampLen(x, z, m) {
     const l = Math.hypot(x, z);
     if (l > m) { return [x / l * m, z / l * m]; }
@@ -224,7 +224,7 @@ function killEnemy(e, index) {
     const p = e.body.position;
     burstAt(p[0], p[1] + 0.3, p[2], [1, 0.6, 0.25, 1], 30);
     addFlash(p, [1, 0.6, 0.3, 1], 0.32, 2);
-    sfx('explosion', clamp(p[0] / ARENA_HALF, -1, 1), 0.95 + Math.random() * 0.1);
+    sfx('explosion', efx.math.clamp(p[0] / ARENA_HALF, -1, 1), 0.95 + Math.random() * 0.1);
     addShake(7);
     score += 100;
     e.body.destroy();
@@ -280,7 +280,7 @@ function fireBolt(owner, x, y, z, nx, nz) {
     b.life = BOLT_LIFE;
     if (owner === 0) {
         addFlash([x, y, z], [0.5, 0.9, 1, 1], 0.09, 1);
-        sfx('shot', clamp(x / ARENA_HALF, -1, 1), 0.97 + Math.random() * 0.06);
+        sfx('shot', efx.math.clamp(x / ARENA_HALF, -1, 1), 0.97 + Math.random() * 0.06);
     }
 }
 function stepBolts(dt) {
@@ -304,7 +304,7 @@ function stepBolts(dt) {
                     e.body.applyImpulse([nx / l * 3.5, 0, nz / l * 3.5]);
                     e.flash = 0.18;
                     e.hp--;
-                    sfx('hit', clamp(b.x / ARENA_HALF, -1, 1), 1.0 + Math.random() * 0.1);
+                    sfx('hit', efx.math.clamp(b.x / ARENA_HALF, -1, 1), 1.0 + Math.random() * 0.1);
                     b.active = false;
                     if (e.hp <= 0) { killEnemy(e, i); }
                     break;
@@ -366,18 +366,16 @@ efx.keyboard.onDown(function (e) {
     if (attract) { wake(); return; }
     if (over) { resetGame(); return; }
     if (e.key === 'm' && !e.repeat) { muted = !muted; applyVolume(); }
-    else if (e.key === '[') { musicVolume = clamp(musicVolume - 0.1, 0, 1); applyVolume(); }
-    else if (e.key === ']') { musicVolume = clamp(musicVolume + 0.1, 0, 1); applyVolume(); }
+    else if (e.key === '[') { musicVolume = efx.math.clamp(musicVolume - 0.1, 0, 1); applyVolume(); }
+    else if (e.key === ']') { musicVolume = efx.math.clamp(musicVolume + 0.1, 0, 1); applyVolume(); }
 });
 efx.mouse.onDown(function () {
     restartEdge = true;
     if (attract) { wake(); } else if (over) { resetGame(); }
 });
 efx.mouse.onMove(function (e) {
-    const s = efx.window.size;
-    const fw = s[0] > 0 ? s[0] : FRAME_W;
-    const fh = s[1] > 0 ? s[1] : FRAME_H;
-    pointer = [e.x * (FRAME_W / fw), e.y * (FRAME_H / fh)];
+    // events arrive in frame pixels, the space this game draws in
+    pointer = [e.x, e.y];
     havePointer = true;
     if (attract) { wake(); }
 });
@@ -446,8 +444,8 @@ function playerMove(dt) {
     if (l > 1) { ix /= l; iz /= l; }
     const tx = ix * PLAYER_SPEED;
     const tz = iz * PLAYER_SPEED;
-    vel[0] += clamp(tx - vel[0], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
-    vel[1] += clamp(tz - vel[1], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
+    vel[0] += efx.math.clamp(tx - vel[0], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
+    vel[1] += efx.math.clamp(tz - vel[1], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
     player.moveAndSlide([vel[0] * dt, 0, vel[1] * dt]);
     player.velocity = [vel[0], 0, vel[1]];
 }
@@ -460,8 +458,8 @@ function attractMove(dt) {
     const dx = tx - pp[0];
     const dz = tz - pp[2];
     const l = Math.hypot(dx, dz) || 1;
-    vel[0] += clamp((dx / l) * PLAYER_SPEED * 0.6 - vel[0], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
-    vel[1] += clamp((dz / l) * PLAYER_SPEED * 0.6 - vel[1], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
+    vel[0] += efx.math.clamp((dx / l) * PLAYER_SPEED * 0.6 - vel[0], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
+    vel[1] += efx.math.clamp((dz / l) * PLAYER_SPEED * 0.6 - vel[1], -PLAYER_ACCEL * dt, PLAYER_ACCEL * dt);
     player.moveAndSlide([vel[0] * dt, 0, vel[1] * dt]);
     player.velocity = [vel[0], 0, vel[1]];
     let best = null;
@@ -497,14 +495,14 @@ function resetGame() {
 function wake() {
     if (!attract) { return; }
     attract = false;
-    unlockAudio();
+    startMusic();
     resetGame();
 }
 
 // ---- update --------------------------------------------------------------
 function update(dt) {
     if (dt > 0.05) { dt = 0.05; }
-    clock += dt;
+    clock = efx.time.now;
     hurtCd = Math.max(0, hurtCd - dt);
     if (shake > 0) {
         shake = Math.max(0, shake - dt * 30);

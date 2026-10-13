@@ -386,6 +386,17 @@ int efx_render_set_blend(int mode);
 void efx_render_clear_color(float out_rgba[4]);
 void efx_render_camera3d(float out_pos[3], float out_target[3], float *out_fov,
                          float *out_near, float *out_far);
+/* current 2D frame extent (most recent setCamera2D frame; 0 = default) */
+void efx_render_frame_extent(float *out_w, float *out_h);
+/* the active rendering surface extent (viewport; screenRay's fallback) */
+void efx_render_viewport_size(int *out_w, int *out_h);
+/* whether a 3D camera was ever explicitly set (screenRay guard) */
+int efx_render_camera3d_active(void);
+/* world-space ray through a frame-space screen point (screenRay);
+ * rc 0 ok, -1 no 3D camera, -2 degenerate camera or extent */
+int efx_render_screen_ray(double sx, double sy, double extent_w,
+                          double extent_h, float out_origin[3],
+                          float out_dir[3]);
 
 /* fixed light bank (ADR 0026); NULL disables the slot / the single
  * directional light. Slot outside 0..EFX_MAX_POINT_LIGHTS-1 is ignored. */

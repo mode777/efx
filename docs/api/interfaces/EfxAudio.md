@@ -108,18 +108,6 @@ Initial linear gain (default `1`); a negative value throws `RangeError`.
 
 The playing handle, or `null` when no voice is available (the playback bank and streaming cap are full, or no device).
 
-***
-
-### resume()
-
-> **resume**(): `void`
-
-Unlock/resume audio after a user gesture (web autoplay); a no-op on desktop.
-
-#### Returns
-
-`void`
-
 ## Properties
 
 ### volume

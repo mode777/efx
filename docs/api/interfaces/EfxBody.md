@@ -62,6 +62,26 @@ Release the native storage deterministically and idempotently.
 
 `void`
 
+***
+
+### setPosition()
+
+> **setPosition**(`p`): `void`
+
+Teleport the body: place it at `p` immediately, clearing velocity.
+
+#### Parameters
+
+##### p
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Target world position `[x, y, z]`.
+
+#### Returns
+
+`void`
+
 ## Properties
 
 ### contacts

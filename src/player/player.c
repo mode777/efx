@@ -8,6 +8,7 @@
 #include "resource/resource.h"
 #include "input/input.h"
 #include "audio/audio.h"
+#include "runtime/clock.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -303,6 +304,8 @@ int efx_player_frame(void *ud, double dt) {
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
         return player_stop(rt);
     }
+    /* script clock: one frame-start snapshot per frame (efx.time.now) */
+    efx_clock_begin_frame(dt);
     /* F9: input callbacks run before the update hooks, in arrival order */
     int r = efx_runtime_dispatch_input(rt);
     if (r != EFX_HOOK_OK) {

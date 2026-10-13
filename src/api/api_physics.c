@@ -30,17 +30,18 @@ typedef struct {
     int (*position)(efx_physics_world *, uint32_t, efx_vec3 *);
     int (*velocity)(efx_physics_world *, uint32_t, efx_vec3 *);
     int (*set_velocity)(efx_physics_world *, uint32_t, efx_vec3);
+    int (*set_position)(efx_physics_world *, uint32_t, efx_vec3);
 } collider_ops;
 
 static const collider_ops OPS[EFX_COLLIDER_KINDS] = {
     {&body_class_id, "expected a Body", "using a destroyed Body",
      efx_physics_destroy_body, efx_physics_body_alive,
      efx_physics_body_position, efx_physics_body_velocity,
-     efx_physics_body_set_velocity},
+     efx_physics_body_set_velocity, efx_physics_body_set_position},
     {&character_class_id, "expected a Character", "using a destroyed Character",
      efx_physics_destroy_character, efx_physics_character_alive,
      efx_physics_character_position, efx_physics_character_velocity,
-     efx_physics_character_set_velocity},
+     efx_physics_character_set_velocity, efx_physics_character_set_position},
 };
 
 
@@ -237,6 +238,24 @@ static JSValue collider_set_velocity(JSContext *ctx, JSValueConst this_val,
 }
 
 
+/* setPosition(p) — instant teleport: clears velocity, applies immediately */
+static JSValue collider_set_position(JSContext *ctx, JSValueConst this_val,
+                                     int argc, JSValueConst *argv, int kind) {
+    efxjs_collider *c = live_collider(ctx, this_val, kind);
+    if (!c) return JS_EXCEPTION;
+    if (argc < 1) {
+        return efx_api_type_error(ctx, "setPosition requires an [x, y, z] position");
+    }
+    /* same reader/messages as the velocity setter (cross-runtime parity) */
+    float f[3];
+    if (efx_api_get_float_array(ctx, argv[0], f, 3) != 0) {
+        return JS_EXCEPTION;
+    }
+    OPS[kind].set_position(c->w, c->handle, efx_v3(f[0], f[1], f[2]));
+    return JS_UNDEFINED;
+}
+
+
 /* ---- Body methods / properties ---- */
 
 static efxjs_collider *live_body(JSContext *ctx, JSValueConst v) {
@@ -311,12 +330,14 @@ static JSValue body_get_transform(JSContext *ctx, JSValueConst this_val) {
 }
 
 
-_Static_assert(sizeof(body_proto_funcs) / sizeof((body_proto_funcs)[0]) == 7,
+_Static_assert(sizeof(body_proto_funcs) / sizeof((body_proto_funcs)[0]) == 8,
                 "body_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry body_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("destroy", 0, collider_destroy, EFX_COLLIDER_BODY),
     JS_CFUNC_DEF("applyImpulse", 1, body_applyImpulse),
     JS_CFUNC_DEF("applyForce", 1, body_applyForce),
+    JS_CFUNC_MAGIC_DEF("setPosition", 1, collider_set_position,
+                       EFX_COLLIDER_BODY),
     JS_CGETSET_MAGIC_DEF("position", collider_get_position, NULL,
                          EFX_COLLIDER_BODY),
     JS_CGETSET_MAGIC_DEF("velocity", collider_get_velocity,
@@ -378,11 +399,13 @@ static JSValue character_moveAndSlide(JSContext *ctx, JSValueConst this_val,
 }
 
 
-_Static_assert(sizeof(character_proto_funcs) / sizeof((character_proto_funcs)[0]) == 5,
+_Static_assert(sizeof(character_proto_funcs) / sizeof((character_proto_funcs)[0]) == 6,
                 "character_proto_funcs must match the api_internal.h declaration");
 const JSCFunctionListEntry character_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("destroy", 0, collider_destroy, EFX_COLLIDER_CHARACTER),
     JS_CFUNC_DEF("moveAndSlide", 1, character_moveAndSlide),
+    JS_CFUNC_MAGIC_DEF("setPosition", 1, collider_set_position,
+                       EFX_COLLIDER_CHARACTER),
     JS_CGETSET_MAGIC_DEF("position", collider_get_position, NULL,
                          EFX_COLLIDER_CHARACTER),
     JS_CGETSET_MAGIC_DEF("velocity", collider_get_velocity,
@@ -395,6 +418,28 @@ const JSCFunctionListEntry character_proto_funcs[] = {
 
 
 /* ================================================= F12 physics namespace */
+
+
+/* debugDraw wire (shared prelude, ADR 0049): the prelude validated the color
+ * and alpha; this records the debug hulls for the host world. */
+JSValue efx_js_physics_debug_draw_wire(JSContext *ctx, JSValueConst this_val,
+                                       int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 4) {
+        return efx_api_type_error(ctx, "debugDraw wire native requires 4 arguments");
+    }
+    double d[4];
+    for (int i = 0; i < 4; i++) {
+        if (JS_ToFloat64(ctx, &d[i], argv[i]) < 0) {
+            return JS_EXCEPTION;
+        }
+    }
+    float color[4] = {(float)d[0], (float)d[1], (float)d[2], (float)d[3]};
+    if (efx_physics_debug_draw_recorder(physics_world(ctx), color) != 0) {
+        return efx_api_generic_error(ctx, "out of memory");
+    }
+    return JS_UNDEFINED;
+}
 
 static JSValue physics_get_gravity(JSContext *ctx, JSValueConst this_val) {
     (void)this_val;

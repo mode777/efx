@@ -330,7 +330,7 @@ JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc,
     if (JS_IsObject(opts)) {
         JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
         if (!JS_IsUndefined(cv)) {
-            if (efx_api_get_float_array(ctx, cv, color, 4) != 0) {
+            if (efx_api_read_color(ctx, cv, color) != 0) {
                 JS_FreeValue(ctx, cv);
                 return JS_EXCEPTION;
             }
@@ -338,7 +338,7 @@ JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc,
         JS_FreeValue(ctx, cv);
         JSValue ov = JS_GetPropertyStr(ctx, opts, "outlineColor");
         if (!JS_IsUndefined(ov)) {
-            if (efx_api_get_float_array(ctx, ov, outline_color, 4) != 0) {
+            if (efx_api_read_color(ctx, ov, outline_color) != 0) {
                 JS_FreeValue(ctx, ov);
                 return JS_EXCEPTION;
             }
@@ -346,7 +346,7 @@ JSValue efx_js_drawText(JSContext *ctx, JSValueConst this_val, int argc,
         JS_FreeValue(ctx, ov);
         JSValue sv = JS_GetPropertyStr(ctx, opts, "shadowColor");
         if (!JS_IsUndefined(sv)) {
-            if (efx_api_get_float_array(ctx, sv, shadow_color, 4) != 0) {
+            if (efx_api_read_color(ctx, sv, shadow_color) != 0) {
                 JS_FreeValue(ctx, sv);
                 return JS_EXCEPTION;
             }

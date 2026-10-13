@@ -114,17 +114,13 @@ const SFX = {
     wall: efx.audio.loadAudioData('wall.wav'),
     life: efx.audio.loadAudioData('life.wav'),
 };
-let audioReady = false;
-function unlockAudio() {
-    if (audioReady) { return; }
-    audioReady = true;
-    try { efx.audio.resume(); } catch (e) { /* no audio device */ }
-}
+// The engine unlocks audio on the first key/click (no script gate needed).
 function sfx(name, pan, pitch) {
-    if (!audioReady) { return; }
-    const p = Math.max(-1, Math.min(1, pan || 0));
-    const pt = pitch || 1;
-    efx.audio.playAudio(SFX[name], { volume: 0.85, pan: p, pitch: pt });
+    efx.audio.playAudio(SFX[name], {
+        volume: 0.85,
+        pan: pan || 0,
+        pitch: pitch || 1,
+    });
 }
 
 // ---- state ---------------------------------------------------------------
@@ -146,9 +142,7 @@ let shakeX = 0;
 let shakeY = 0;
 let pointerX = FRAME_W / 2;
 let pointerMoved = false;
-let clock = 0;
 
-function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
 function loadLayout(index) {
     const rows = LAYOUTS[index];
@@ -201,7 +195,6 @@ function startGame() {
 
 function wake() {
     if (state !== 'attract') { return; }
-    unlockAudio();
     startGame();
 }
 
@@ -221,9 +214,7 @@ efx.mouse.onDown(function () {
 });
 
 efx.mouse.onMove(function (e) {
-    const s = efx.window.size;
-    const fw = s[0] > 0 ? s[0] : FRAME_W;
-    pointerX = e.x * (FRAME_W / fw);
+    pointerX = e.x;
     pointerMoved = true;
     if (state === 'attract') { wake(); }
 });
@@ -237,7 +228,7 @@ function paddleInput(dt) {
     } else if (pointerMoved) {
         paddleX = pointerX - PADDLE_W / 2;
     }
-    paddleX = clamp(paddleX, 0, FRAME_W - PADDLE_W);
+    paddleX = efx.math.clamp(paddleX, 0, FRAME_W - PADDLE_W);
 }
 
 // ---- collision -----------------------------------------------------------
@@ -275,7 +266,7 @@ function moveBall(dt) {
         if (ballVY > 0 && ballY + BALL_R >= PADDLE_Y && ballY - BALL_R <= PADDLE_Y + PADDLE_H &&
             ballX + BALL_R >= paddleX && ballX - BALL_R <= paddleX + PADDLE_W) {
             ballY = PADDLE_Y - BALL_R;
-            const rel = clamp((ballX - (paddleX + PADDLE_W / 2)) / (PADDLE_W / 2), -1, 1);
+            const rel = efx.math.clamp((ballX - (paddleX + PADDLE_W / 2)) / (PADDLE_W / 2), -1, 1);
             const angle = rel * (60 * Math.PI / 180);
             ballSpeed = Math.min(ballSpeed + BALL_SPEEDUP, BALL_SPEED_MAX);
             ballVX = Math.sin(angle) * ballSpeed;
@@ -341,7 +332,7 @@ function clearLayout() {
 // ---- update --------------------------------------------------------------
 function update(dt) {
     if (dt > 0.05) { dt = 0.05; }
-    clock += dt;
+    clock = efx.time.now;
     if (shake > 0) {
         shake = Math.max(0, shake - dt * 26);
         shakeX = (Math.random() * 2 - 1) * shake;
@@ -355,8 +346,8 @@ function update(dt) {
     if (attract) {
         // AI paddle tracks the ball with a lag
         const target = ballX - PADDLE_W / 2;
-        paddleX += clamp(target - paddleX, -PADDLE_SPEED * dt, PADDLE_SPEED * dt);
-        paddleX = clamp(paddleX, 0, FRAME_W - PADDLE_W);
+        paddleX += efx.math.clamp(target - paddleX, -PADDLE_SPEED * dt, PADDLE_SPEED * dt);
+        paddleX = efx.math.clamp(paddleX, 0, FRAME_W - PADDLE_W);
         if (ballVX === 0 && ballVY === 0) { resetBall(); launchBall(); state = 'rally'; }
     } else if (state === 'serve' || state === 'rally' || state === 'life') {
         paddleInput(dt);

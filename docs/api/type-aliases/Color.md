@@ -6,7 +6,7 @@
 
 # Type Alias: Color
 
-> **Color** = \[`number`, `number`, `number`, `number`\]
+> **Color** = \[`number`, `number`, `number`\] \| \[`number`, `number`, `number`, `number`\]
 
 An RGBA color: four normalized floats in `0..1`, ordered `[r, g, b, a]`.
 Most lighting and material channels ignore the alpha component.

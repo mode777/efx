@@ -43,6 +43,13 @@ void efx_math_rotate(float out[16], const float m[16], float deg,
 /* out = m·S(v); out may alias m */
 void efx_math_scale(float out[16], const float m[16], const float v[3]);
 
+/* out = T(pos)·Ry(yaw)·Rx(pitch)·Rz(roll)·S(scale) in one call — the
+ * mat4.transform composition shared by both bindings; degrees, doubles in
+ * and out */
+void efx_math_trs(double out[16], double px, double py, double pz,
+                  double yaw_deg, double pitch_deg, double roll_deg,
+                  double sx, double sy, double sz);
+
 /* out = transpose(inverse(mat3(model))) expanded to mat4 with zero
  * translation — the normal matrix for the F4a lit mesh shader (D3) */
 void efx_math_normal_matrix(float out[16], const float model[16]);

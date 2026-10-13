@@ -24,6 +24,22 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_set_camera3d(float px, float py, float pz,
     efx_render_set_camera3d(&cam);
 }
 
+/* screenRay wire: origin (3), direction (3), rc — 0 ok, -1 no 3D camera,
+ * -2 degenerate camera or extent (same messages as the desktop binding) */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_screen_ray(double sx, double sy,
+                                               double extent_w,
+                                               double extent_h, double *out) {
+    float origin[3], dir[3];
+    int rc = efx_render_screen_ray(sx, sy, extent_w, extent_h, origin, dir);
+    if (rc == 0) {
+        for (int i = 0; i < 3; i++) {
+            out[i] = origin[i];
+            out[3 + i] = dir[i];
+        }
+    }
+    return rc;
+}
+
 /* MeshData slot table (mirrors the desktop api.c wrapper ownership).
    Surfaces arrive one at a time from JS: they are validated as a probe
    MeshData, then their storage moves into the staging array; commit

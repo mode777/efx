@@ -302,7 +302,7 @@ static int read_billboard_pos(JSContext *ctx, JSValueConst v, float pos[3]) {
 }
 
 static int read_billboard_size(JSContext *ctx, JSValueConst opts, float *out_w,
-                               float *out_h) {
+                               float *out_h, int *out_degenerate) {
     float w = 1.0f, h = 1.0f;
     JSValue zv = JS_GetPropertyStr(ctx, opts, "size");
     if (!JS_IsUndefined(zv)) {
@@ -325,10 +325,9 @@ static int read_billboard_size(JSContext *ctx, JSValueConst opts, float *out_w,
         }
     }
     JS_FreeValue(ctx, zv);
-    if (!(w > 0) || !(h > 0)) {
-        efx_api_range_error(ctx, "size entries must be > 0");
-        return -1;
-    }
+    /* a finite component <= 0 is a degenerate draw (no-op), decided by the
+     * caller after the rest of the bag validates */
+    *out_degenerate = (!(w > 0) || !(h > 0)) ? 1 : 0;
     *out_w = w;
     *out_h = h;
     return 0;
@@ -397,13 +396,14 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
     float src[4] = {0, 0, 0, 0};
     int has_src = 0;
 
-    if (read_billboard_size(ctx, opts, &w, &h) != 0) {
+    int degenerate = 0;
+    if (read_billboard_size(ctx, opts, &w, &h, &degenerate) != 0) {
         return JS_EXCEPTION;
     }
 
     JSValue cv = JS_GetPropertyStr(ctx, opts, "color");
     if (!JS_IsUndefined(cv)) {
-        if (efx_api_get_float_array(ctx, cv, color, 4) != 0) {
+        if (efx_api_read_color(ctx, cv, color) != 0) {
             JS_FreeValue(ctx, cv);
             return JS_EXCEPTION;
         }
@@ -462,6 +462,11 @@ JSValue efx_js_drawBillboard(JSContext *ctx, JSValueConst this_val, int argc,
     }
     JS_FreeValue(ctx, bv);
 
+    /* degenerate size: nothing recorded, nothing thrown */
+    if (degenerate) {
+        return JS_UNDEFINED;
+    }
+
     int rc = efx_render_billboard(tex, pos, w, h, color, rotation, facing, normal,
                                   depth_test, src, has_src, blend);
     if (rc == EFX_RENDER_ERR_HANDLE) {
@@ -501,7 +506,7 @@ static int parse_sprite_transform(JSContext *ctx, JSValueConst e,
                                   sprite_params *s) {
     JSValue cv = JS_GetPropertyStr(ctx, e, "color");
     if (!JS_IsUndefined(cv)) {
-        if (efx_api_get_float_array(ctx, cv, s->color, 4) != 0) {
+        if (efx_api_read_color(ctx, cv, s->color) != 0) {
             JS_FreeValue(ctx, cv);
             return -1;
         }

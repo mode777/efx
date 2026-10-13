@@ -56,7 +56,7 @@
  * ```
  * @group Values
  */
-type Color = [number, number, number, number];
+type Color = [number, number, number] | [number, number, number, number];
 
 /**
  * A 2-component vector `[x, y]` (frame pixels for 2D APIs, world units for 3D).
@@ -190,9 +190,9 @@ interface CharEvent {
 interface MouseButtonEvent {
   /** The button that changed state. */
   button: EfxMouseButton;
-  /** Cursor x in surface (framebuffer) pixels, top-left origin. */
+  /** Cursor x in frame pixels (surface pixels when no 2D frame was set). */
   x: number;
-  /** Cursor y in surface (framebuffer) pixels, top-left origin, y down. */
+  /** Cursor y in frame pixels (surface pixels when no 2D frame was set). */
   y: number;
   /** Modifier keys held at the moment of the event. */
   mods: EfxMod[];
@@ -204,13 +204,13 @@ interface MouseButtonEvent {
  * @group Events
  */
 interface MouseMoveEvent {
-  /** Cursor x in surface pixels. */
+  /** Cursor x in frame pixels (surface pixels when no 2D frame was set). */
   x: number;
-  /** Cursor y in surface pixels. */
+  /** Cursor y in frame pixels (surface pixels when no 2D frame was set). */
   y: number;
-  /** Horizontal movement since the previous frame, in surface pixels. */
+  /** Horizontal movement since the previous frame, in frame pixels. */
   dx: number;
-  /** Vertical movement since the previous frame, in surface pixels. */
+  /** Vertical movement since the previous frame, in frame pixels. */
   dy: number;
 }
 
@@ -357,13 +357,17 @@ interface EfxMouse {
    * @returns An idempotent unsubscribe function.
    */
   onWheel(fn: (e: MouseWheelEvent) => void): () => void;
-  /** Cursor position `[x, y]` in surface pixels. */
+  /**
+   * Cursor position `[x, y]` in frame pixels — the active 2D frame's space
+   * (surface pixels when no frame was ever set), the same space `drawQuad`
+   * uses. Deltas use the same scale; `wheel` is unscaled.
+   */
   readonly position: Vec2;
-  /** Cursor x in surface pixels. */
+  /** Cursor x in frame pixels (surface pixels when no 2D frame was set). */
   readonly x: number;
-  /** Cursor y in surface pixels. */
+  /** Cursor y in frame pixels (surface pixels when no 2D frame was set). */
   readonly y: number;
-  /** Cursor movement `[dx, dy]` for the current frame, in surface pixels. */
+  /** Cursor movement `[dx, dy]` for the current frame, in frame pixels. */
   readonly delta: Vec2;
   /** Wheel delta `[dx, dy]` for the current frame. */
   readonly wheel: Vec2;
@@ -1051,6 +1055,11 @@ interface MakePlaneOptions {
   size?: number;
   /** Grid subdivisions per side (positive integer, default 1). */
   segments?: number;
+  /**
+   * UV span: a positive number tiles both axes (default 1), or `[u, v]`
+   * tiles each axis independently.
+   */
+  uvs?: number | [number, number];
   /** Material bound to the primitive's single surface; `null` = engine default. */
   material?: Material | null;
 }
@@ -1516,6 +1525,21 @@ interface EfxParticleSystem {
  */
 interface EfxMat4 {
   /**
+   * Build a model matrix in one call: translate, then yaw/pitch/roll (degrees
+   * about +Y/+X/+Z), then scale — `T(pos) · Ry(yaw) · Rx(pitch) · Rz(roll) · S(scale)`.
+   * Native-backed for hot per-draw use; returns the same plain flat array as
+   * the other helpers.
+   *
+   * @param pos - Translation `[x, y, z]`.
+   * @param yawDeg - Rotation about +Y in degrees (default 0).
+   * @param pitchDeg - Rotation about +X in degrees (default 0).
+   * @param rollDeg - Rotation about +Z in degrees (default 0).
+   * @param scale - Uniform positive number or `[x, y, z]` positive extents (default 1).
+   * @returns A new `Mat4`.
+   */
+  transform(pos: Vec3, yawDeg?: number, pitchDeg?: number, rollDeg?: number,
+            scale?: number | Vec3): Mat4;
+  /**
    * Build the identity matrix.
    *
    * @returns A new identity `Mat4`.
@@ -1675,6 +1699,24 @@ interface EfxQuat {
  * @group Math
  */
 interface EfxMath {
+  /**
+   * Clamp `v` into `[lo, hi]`.
+   *
+   * @param v - Value to clamp.
+   * @param lo - Lower bound.
+   * @param hi - Upper bound.
+   * @returns The clamped value.
+   */
+  clamp(v: number, lo: number, hi: number): number;
+  /**
+   * Linearly interpolate from `a` to `b` by `t`.
+   *
+   * @param a - Value at `t = 0`.
+   * @param b - Value at `t = 1`.
+   * @param t - Interpolation factor.
+   * @returns The interpolated value.
+   */
+  lerp(a: number, b: number, t: number): number;
   /** Pure-JS 4×4 matrix helpers. */
   mat4: EfxMat4;
   /** Pure-JS 3-component vector helpers. */
@@ -1889,6 +1931,12 @@ interface EfxBody {
    * @param v - Force vector in world units.
    */
   applyForce(v: Vec3): void;
+  /**
+   * Teleport the body: place it at `p` immediately, clearing velocity.
+   *
+   * @param p - Target world position `[x, y, z]`.
+   */
+  setPosition(p: Vec3): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
@@ -1947,6 +1995,12 @@ interface EfxCharacter {
    * @returns The move result: position, floor/wall/ceiling flags, and collisions.
    */
   moveAndSlide(motion: Vec3): PhysicsMoveResult;
+  /**
+   * Teleport the character: place it at `p` immediately, clearing velocity.
+   *
+   * @param p - Target world position `[x, y, z]`.
+   */
+  setPosition(p: Vec3): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
@@ -2049,6 +2103,19 @@ interface PhysicsShapeHit {
  * ```
  * @group Physics
  */
+/**
+ * Options for `physics.debugDraw`.
+ *
+ * @hidden
+ * @inline
+ */
+interface DebugDrawOptions {
+  /** Hull tint (default a debug green); a 3-component color is opaque. */
+  color?: Color;
+  /** Hull alpha in `[0, 1]` (default translucent). */
+  alpha?: number;
+}
+
 interface EfxPhysics {
   /** World gravity `[x, y, z]` (read-write; default `[0, -9.81, 0]`). */
   gravity: Vec3;
@@ -2067,6 +2134,14 @@ interface EfxPhysics {
   step(dt: number): void;
   /** Remove every collider and character from the world (existing handles become destroyed). */
   clear(): void;
+  /**
+   * Record an unlit translucent hull for every live collider into the display
+   * list (call from a render hook). Boxes, spheres, and capsules draw their
+   * shape; static triangle-mesh colliders draw their world AABB.
+   *
+   * @param opts - Optional tint and alpha.
+   */
+  debugDraw(opts?: DebugDrawOptions): void;
   /**
    * Create a static, dynamic, or sensor body.
    *
@@ -2147,6 +2222,18 @@ interface EfxPhysics {
  * unchanged by the move from the `efx` root.
  * @group Graphics
  */
+/**
+ * A world-space picking ray returned by `graphics.screenRay`.
+ *
+ * @group Results
+ */
+interface ScreenRay {
+  /** Ray origin (the 3D camera eye position). */
+  origin: Vec3;
+  /** Unit-length ray direction. */
+  direction: Vec3;
+}
+
 interface EfxGraphics {
   // 2D drawing
 
@@ -2265,6 +2352,17 @@ interface EfxGraphics {
    * @returns The new CPU MeshData.
    */
   makeCapsule(opts?: MakeCapsuleOptions): EfxMeshData;
+  /**
+   * Cast a world-space ray through a frame-space screen point under the
+   * current 3D camera. `x, y` use the same space mouse input reports (the
+   * active 2D frame; the rendering surface when no frame was set), so
+   * `screenRay(...efx.mouse.position)` picks what the cursor is over.
+   *
+   * @param x - Screen x in frame pixels.
+   * @param y - Screen y in frame pixels.
+   * @returns The ray `{ origin, direction }` (eye position, unit direction); throws `Error` before any `setCamera3D`.
+   */
+  screenRay(x: number, y: number): ScreenRay;
 
   // Lights & per-surface Phong materials
 
@@ -2493,6 +2591,21 @@ interface EfxColor {
  * @inline
  * @group Start Here
  */
+/**
+ * The engine-owned script clock.
+ *
+ * @group Runtime
+ */
+interface EfxTime {
+  /**
+   * Seconds elapsed since the script started, snapshotted at frame start so
+   * every read within one frame is identical. A stalled frame advances the
+   * clock by at most the engine's maximum step, so time-driven animation
+   * cannot teleport. Read-only.
+   */
+  readonly now: number;
+}
+
 interface Efx {
   // Environment & lifecycle
 
@@ -2538,6 +2651,11 @@ interface Efx {
 
   /** Graphics drawing, state, and resources. */
   readonly graphics: EfxGraphics;
+
+  // Time (engine clock)
+
+  /** Engine-owned script clock. */
+  readonly time: EfxTime;
 
   // Math, IO, and color sub-namespaces (ADR 0051)
 
@@ -2679,8 +2797,6 @@ interface EfxAudio {
   playAudio(source: EfxAudioData | EfxAudioStream, opts?: PlayAudioOptions): EfxAudioHandle | null;
   /** Master output gain applied to all playback. Setting a negative value throws `RangeError`. */
   volume: number;
-  /** Unlock/resume audio after a user gesture (web autoplay); a no-op on desktop. */
-  resume(): void;
 }
 
 /**

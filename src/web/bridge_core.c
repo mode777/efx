@@ -88,6 +88,8 @@ EMSCRIPTEN_KEEPALIVE const char *efx_bridge_arg(int i) {
 static int web_frame(void *ud, double dt) {
     (void)ud;
     int stop = 0;
+    /* script clock: one frame-start snapshot per frame (efx.time.now) */
+    efx_clock_begin_frame(dt);
     if (W.quit_requested || W.in_error) {
         stop = 1;
     } else if (efx_web_call_hook_js(1, dt) != 0) {
@@ -118,6 +120,11 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_frame(void) {
     double dt = W.frame_have_now ? (now - W.frame_last_now) / 1000.0 : 0.0;
     W.frame_have_now = 1;
     W.frame_last_now = now;
+    /* publish the 2D frame for the pointer mapping (sokol-path frames do it
+       in the platform frame callback) */
+    float frame_w = 0, frame_h = 0;
+    efx_render_frame_extent(&frame_w, &frame_h);
+    efx_input_set_frame(frame_w, frame_h);
     efx_input_begin_frame();
     int rc = web_frame(NULL, dt);
     efx_input_end_frame();
@@ -126,6 +133,24 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_frame(void) {
 
 EMSCRIPTEN_KEEPALIVE const char *efx_web_root(void) {
     return W.root;
+}
+
+/* efx.time.now — the shared script clock (runtime/clock.c) */
+EMSCRIPTEN_KEEPALIVE double efx_bridge_time_now(void) {
+    return efx_clock_now();
+}
+
+/* mat4.transform wire (shared prelude, ADR 0049): the prelude wrapper
+ * validated the inputs; the composition lives in the shared math TU. Writes
+ * into a static double[16] that single-threaded JS reads back immediately. */
+EMSCRIPTEN_KEEPALIVE double *efx_bridge_mat4_transform(double px, double py,
+                                                       double pz, double yaw,
+                                                       double pitch,
+                                                       double roll, double sx,
+                                                       double sy, double sz) {
+    static double out[16];
+    efx_math_trs(out, px, py, pz, yaw, pitch, roll, sx, sy, sz);
+    return out;
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_web_set_golden_mode(void) {

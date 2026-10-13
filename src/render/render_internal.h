@@ -114,6 +114,7 @@ typedef struct {
     int viewport_w, viewport_h;
     efx_camera2d camera;      /* frame_w == 0 => default camera */
     efx_camera3d camera3d;
+    int camera3d_set;         /* a 3D camera was explicitly set (screenRay) */
     efx_light_set lights;     /* fixed bank; all disabled until set (F4a) */
     float clear_color[4];
     int blend;

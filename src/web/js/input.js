@@ -64,11 +64,12 @@
         onMove: makeInputRegister(st.mouseMove),
         onWheel: makeInputRegister(st.mouseWheel),
     };
-    /* x, y, dx, dy, wheel dx, wheel dy, width, height, dpi (one batched read) */
+    /* x, y, dx, dy, wheel dx, wheel dy, width, height, dpi, frame w, frame h
+     * (one batched read) */
     function __inputState() {
         var buf = __efxScratch();
         bridge['_efx_bridge_input_state'](buf);
-        return Array.prototype.slice.call(HEAPF64, buf >> 3, (buf >> 3) + 9);
+        return Array.prototype.slice.call(HEAPF64, buf >> 3, (buf >> 3) + 11);
     }
     function stateGetter(a, b) {
         return {

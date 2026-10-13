@@ -194,6 +194,55 @@ A new scaled `Mat4`.
 
 ***
 
+### transform()
+
+> **transform**(`pos`, `yawDeg?`, `pitchDeg?`, `rollDeg?`, `scale?`): [`Mat4`](../type-aliases/Mat4.md)
+
+Build a model matrix in one call: translate, then yaw/pitch/roll (degrees
+about +Y/+X/+Z), then scale — `T(pos) · Ry(yaw) · Rx(pitch) · Rz(roll) · S(scale)`.
+Native-backed for hot per-draw use; returns the same plain flat array as
+the other helpers.
+
+#### Parameters
+
+##### pos
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Translation `[x, y, z]`.
+
+##### yawDeg?
+
+`number`
+
+Rotation about +Y in degrees (default 0).
+
+##### pitchDeg?
+
+`number`
+
+Rotation about +X in degrees (default 0).
+
+##### rollDeg?
+
+`number`
+
+Rotation about +Z in degrees (default 0).
+
+##### scale?
+
+`number` \| [`Vec3`](../type-aliases/Vec3.md)
+
+Uniform positive number or `[x, y, z]` positive extents (default 1).
+
+#### Returns
+
+[`Mat4`](../type-aliases/Mat4.md)
+
+A new `Mat4`.
+
+***
+
 ### translate()
 
 > **translate**(`m`, `v`): [`Mat4`](../type-aliases/Mat4.md)

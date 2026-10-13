@@ -1,6 +1,7 @@
 #include "player/repl.h"
 #include "player/player.h"
 #include "runtime/runtime.h"
+#include "runtime/clock.h"
 #include "platform/platform.h"
 #include "render/render.h"
 #include "resource/resource.h"
@@ -171,6 +172,8 @@ static int repl_on_frame(void *ud, double dt) {
     if (efx_runtime_quit_requested(rt) || efx_runtime_in_error(rt)) {
         return repl_stop(r);
     }
+    /* script clock: one frame-start snapshot per frame (efx.time.now) */
+    efx_clock_begin_frame(dt);
 
     if (!r->done && !r->eof) {
         if (r->interactive && !r->prompted) {

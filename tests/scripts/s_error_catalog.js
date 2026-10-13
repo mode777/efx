@@ -427,6 +427,34 @@ C('14.playaudio-bad-source', function () { efx.audio.playAudio({}); });
 C('14.playaudio-null', function () { efx.audio.playAudio(null); });
 C('14.volume-negative', function () { efx.audio.volume = -1; });
 
+
+/* --------------------------------- script-api-ergonomics (ADR 0060) */
+
+C('60.transform-noargs', function () { efx.math.mat4.transform(); });
+C('60.transform-bad-pos', function () { efx.math.mat4.transform('x'); });
+C('60.transform-short-pos', function () { efx.math.mat4.transform([1, 2]); });
+C('60.transform-nan-angle', function () { efx.math.mat4.transform([0, 0, 0], NaN); });
+C('60.transform-zero-scale', function () { efx.math.mat4.transform([0, 0, 0], 0, 0, 0, 0); });
+C('60.transform-bad-scale-vec', function () { efx.math.mat4.transform([0, 0, 0], 0, 0, 0, [1, 0, -1]); });
+C('60.plane-uvs-zero', function () { efx.graphics.makePlane({ uvs: 0 }); });
+C('60.plane-uvs-type', function () { efx.graphics.makePlane({ uvs: 'big' }); });
+C('60.screenray-no-camera', function () { efx.graphics.screenRay(0, 0); });
+C('60.screenray-type', function () { efx.graphics.screenRay('a', 0); });
+C('60.debugdraw-unknown', function () { efx.physics.debugDraw({ bogus: 1 }); });
+C('60.debugdraw-alpha-range', function () { efx.physics.debugDraw({ alpha: 2 }); });
+C('60.debugdraw-alpha-type', function () { efx.physics.debugDraw({ alpha: 'x' }); });
+C('60.debugdraw-nonobject', function () { efx.physics.debugDraw(5); });
+C('60.setposition-type', function () {
+    var b = efx.physics.createBody({ type: 'sphere', radius: 1 });
+    b.setPosition('x');
+});
+C('60.setposition-short', function () {
+    var b = efx.physics.createBody({ type: 'sphere', radius: 1 });
+    b.setPosition([1, 2]);
+});
+C('60.quad-color-2', function () { efx.graphics.drawQuad(tex, 0, 0, { color: [1, 0] }); });
+C('60.clearcolor-2', function () { efx.graphics.setClearColor([1, 0]); });
+
 tex.destroy();
 img.destroy();
 mesh.destroy();

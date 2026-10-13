@@ -16,7 +16,9 @@
 #include "platform/platform.h"
 #include "platform/audio_backend.h"
 #include "audio/audio.h"
+#include "runtime/clock.h"
 #include "physics/physics.h"
+#include "api/api_physics_debug.h"
 #include "physics/broadphase.h"
 #include "render/render.h"
 #include "input/input.h"
@@ -26,6 +28,7 @@
 #include "resource/image.h"
 #include "resource/resource.h"
 #include "render/text.h"
+#include "math/efx_math.h"
 #include "web/web.h"
 
 #define EFX_WEB_ROOT_MAX 512

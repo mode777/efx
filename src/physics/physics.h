@@ -187,4 +187,19 @@ int efx_physics_shape_cast(efx_physics_world *w, const efx_shape *shape,
                            efx_vec3 from, efx_vec3 motion, uint32_t mask,
                            int sensors, efx_shape_hit *out);
 
+/* debug-draw enumeration (physics.debugDraw): one entry per live collider,
+ * bodies first then characters. Character shapes are capsules built from
+ * their radius/height; static mesh colliders report their world-AABB box
+ * (center in `position`, full extent in shape.box half*2). Returns the live
+ * collider count; fills up to `cap` entries. */
+typedef struct efx_debug_collider {
+    int kind;  /* 0 = body, 1 = character */
+    int sensor;
+    efx_shape shape;
+    efx_vec3 position;
+} efx_debug_collider;
+
+int efx_physics_debug_colliders(const efx_physics_world *w,
+                                efx_debug_collider *out, int cap);
+
 #endif /* EFX_PHYSICS_H */

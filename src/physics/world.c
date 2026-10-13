@@ -257,6 +257,9 @@ int efx_physics_body_set_position(efx_physics_world *w, efx_phys_body id,
     int s = efx_world_body_slot(w, id);
     if (s < 0) return 0;
     w->bodies[s].position = p;
+    /* teleport: place, don't preserve motion */
+    w->bodies[s].velocity = efx_v3(0.0f, 0.0f, 0.0f);
+    w->bodies[s].force = efx_v3(0.0f, 0.0f, 0.0f);
     update_body_aabb(w, &w->bodies[s]);
     return 1;
 }
@@ -932,4 +935,57 @@ int efx_physics_shape_cast(efx_physics_world *w, const efx_shape *shape,
         }
     }
     return ctx.found;
+}
+
+/* -------------------------------------------------------- debug drawing */
+
+int efx_physics_debug_colliders(const efx_physics_world *w,
+                                efx_debug_collider *out, int cap) {
+    if (!w) {
+        return 0;
+    }
+    int n = 0;
+    for (int i = 0; i < w->body_count; i++) {
+        const efx_pbody *b = &w->bodies[i];
+        if (!b->alive) {
+            continue;
+        }
+        if (n < cap && out) {
+            efx_debug_collider *d = &out[n];
+            d->kind = 0;
+            d->sensor = b->sensor;
+            d->shape = b->shape;
+            if (b->shape.type == EFX_PHYS_SHAPE_MESH) {
+                /* mesh colliders visualize as their world-AABB box */
+                efx_aabb bb;
+                efx_phys_mesh_bounds(b->shape.mesh, &bb);
+                d->shape.type = EFX_PHYS_SHAPE_BOX;
+                d->shape.half = efx_v3((bb.max.x - bb.min.x) * 0.5f,
+                                       (bb.max.y - bb.min.y) * 0.5f,
+                                       (bb.max.z - bb.min.z) * 0.5f);
+                d->position = efx_v3((bb.max.x + bb.min.x) * 0.5f,
+                                     (bb.max.y + bb.min.y) * 0.5f,
+                                     (bb.max.z + bb.min.z) * 0.5f);
+            } else {
+                d->position = b->position;
+            }
+        }
+        n++;
+    }
+    for (int i = 0; i < w->char_count; i++) {
+        const efx_pcharacter *ch = &w->chars[i];
+        if (!ch->alive) {
+            continue;
+        }
+        if (n < cap && out) {
+            efx_debug_collider *d = &out[n];
+            d->kind = 1;
+            d->sensor = 0;
+            d->shape = efx_shape_capsule(ch->radius,
+                                         ch->half_height * 2 + ch->radius * 2);
+            d->position = ch->position;
+        }
+        n++;
+    }
+    return n;
 }
