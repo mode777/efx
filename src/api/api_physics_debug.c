@@ -100,8 +100,8 @@ static uint64_t hull_box(float hx, float hy, float hz,
             nrm[p] = n[0];
             nrm[p + 1] = n[1];
             nrm[p + 2] = n[2];
-            uv[(p / 3) * 2] = (c == 1 || c == 2) ? 1 : 0;
-            uv[(p / 3) * 2 + 1] = (c == 2 || c == 3) ? 1 : 0;
+            uv[(p / 3) * 2] = (c == 1 || c == 2) ? 1.0f : 0.0f;
+            uv[(p / 3) * 2 + 1] = (c == 2 || c == 3) ? 1.0f : 0.0f;
             p += 3;
         }
         idx[t++] = (uint32_t)(f * 4 + 0);

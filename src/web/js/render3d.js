@@ -1,10 +1,12 @@
                 /* setCamera3D is installed by the shared prelude (ADR 0049) */
                 /* createMeshData is installed by the shared prelude (ADR 0049) */
         screenRay: function (x, y) {
-            if (arguments.length < 2 || typeof x !== 'number' ||
-                typeof y !== 'number') {
-                throw new TypeError('x and y must be numbers');
+            if (arguments.length < 2) {
+                throw new TypeError('screenRay requires (x, y)');
             }
+            /* same coercion + messages as the desktop binding */
+            x = Number(x);
+            y = Number(y);
             if (!isFinite(x) || !isFinite(y)) {
                 throw new RangeError('x and y must be finite');
             }

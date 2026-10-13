@@ -47,8 +47,8 @@
 ## 9. Corpus migration + verification
 
 - [x] 9.1 Migrate curated samples: delete `toFrame`/`readWindow` mapping (audio-showcase, input-playground, game-bot-arena, game-mini-golf, game-bloom-breakout, game-neon-pong), audio unlock gates (audio-showcase, game-bot-arena, game-bloom-breakout, game-glow-gauntlet), recreate-on-teleport workarounds (game-bot-arena, game-mini-golf, game-sky-steps), hand-rolled `clamp`/clock/matrix ladders where the new helpers apply; each edited sample runs headless (`--script` smoke or gallery build) without error
-- [ ] 9.2 Add a golden scene exercising a zero-size quad between valid draws (frame must equal the scene without the degenerate call) and capture llvmpipe goldens per `docs/verification-server.md`; `ctest` golden suite passes on an ON build
+- [x] 9.2 Add a golden scene exercising a zero-size quad between valid draws (frame must equal the scene without the degenerate call) and capture llvmpipe goldens per `docs/verification-server.md`; `ctest` golden suite passes on an ON build
 - [x] 9.3 Extend the cross-runtime error catalog for the new validation messages (`transform`, `setPosition`, `debugDraw`, `screenRay`, color lengths) and verify byte-identical outputs
 - [x] 9.4 Update portable script tests for mouse units and removed `resume`; full unit suite green locally (`cmake -B build -DEFX_HEADLESS=ON && ctest -E golden`)
-- [ ] 9.5 Verify on the SSH server first (`python3 tools/verify_remote.py all script-api-ergonomics`), then dispatch the gate (`gh workflow run ci.yml --ref script-api-ergonomics`) and iterate Linux → Windows → macOS to green
+- [x] 9.5 Verify on the SSH server first (`python3 tools/verify_remote.py all script-api-ergonomics`), then dispatch the gate (`gh workflow run ci.yml --ref script-api-ergonomics`) and iterate Linux → Windows → macOS to green
 - [x] 9.6 `npx openspec validate "script-api-ergonomics" --type change --strict` passes before archive
