@@ -33,7 +33,9 @@ efx.graphics.drawQuad(white, 0, 0, { size: [4, 4] });
 if (tex.width !== 8 || tex.height !== 4) { efx.log('FAIL texture size getters'); efx.quit(3); }
 expectThrow('quad-few', () => efx.graphics.drawQuad(tex, 0));
 expectThrow('quad-nontexture', () => efx.graphics.drawQuad({}, 0, 0));
-expectThrow('quad-size-zero', () => efx.graphics.drawQuad(tex, 0, 0, { size: [0, 10] }));
+// a finite size component <= 0 is a tolerated no-op (health bars at 0)
+try { efx.graphics.drawQuad(tex, 0, 0, { size: [0, 10] }); }
+catch (e) { efx.log('FAIL no-throw quad-size-zero'); efx.quit(3); }
 expectThrow('quad-size-short', () => efx.graphics.drawQuad(tex, 0, 0, { size: [10] }));
 expectThrow('quad-size-type', () => efx.graphics.drawQuad(tex, 0, 0, { size: 'big' }));
 expectThrow('quad-size-nan', () => efx.graphics.drawQuad(tex, 0, 0, { size: [NaN, 1] }));
