@@ -183,7 +183,7 @@ An idempotent unsubscribe function.
 
 > `readonly` **delta**: [`Vec2`](../type-aliases/Vec2.md)
 
-Cursor movement `[dx, dy]` for the current frame, in surface pixels.
+Cursor movement `[dx, dy]` for the current frame, in frame pixels.
 
 ***
 
@@ -191,7 +191,9 @@ Cursor movement `[dx, dy]` for the current frame, in surface pixels.
 
 > `readonly` **position**: [`Vec2`](../type-aliases/Vec2.md)
 
-Cursor position `[x, y]` in surface pixels.
+Cursor position `[x, y]` in frame pixels — the active 2D frame's space
+(surface pixels when no frame was ever set), the same space `drawQuad`
+uses. Deltas use the same scale; `wheel` is unscaled.
 
 ***
 
@@ -207,7 +209,7 @@ Wheel delta `[dx, dy]` for the current frame.
 
 > `readonly` **x**: `number`
 
-Cursor x in surface pixels.
+Cursor x in frame pixels (surface pixels when no 2D frame was set).
 
 ***
 
@@ -215,4 +217,4 @@ Cursor x in surface pixels.
 
 > `readonly` **y**: `number`
 
-Cursor y in surface pixels.
+Cursor y in frame pixels (surface pixels when no 2D frame was set).

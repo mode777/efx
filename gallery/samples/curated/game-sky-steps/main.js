@@ -110,7 +110,11 @@ for (const p of PLATFORMS) {
 const start = PLATFORMS[0];
 let hero = null;
 function spawnHero(p) {
-    if (hero) { hero.destroy(); }
+    if (hero) {
+        // teleport the existing character instead of recreating it
+        hero.setPosition(p);
+        return;
+    }
     hero = efx.physics.createCharacter(0.4, 1.8, {
         position: p,
         floorMaxAngle: 55,
@@ -130,14 +134,12 @@ let dragging = false;
 let lastMouse = [0, 0];
 let sinceFloor = 99;
 let sinceJump = 99;
-let clock = 0;
 let elapsed = 0;
 let starsTaken = 0;
 let respawn = [start.x, start.top + 1, 0];
 let restartEdge = false;
 let heading = 0;
 
-function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
 function resetRun() {
     for (const s of STARS) { s.taken = false; }
@@ -151,8 +153,8 @@ function resetRun() {
 }
 
 function placeHero(p) {
-    // a character's position is read-only: recreate it at the target
-    spawnHero(p);
+    // teleport (clears velocity) and drop any script-side momentum
+    hero.setPosition(p);
     vel = [0, 0, 0];
 }
 
@@ -181,7 +183,7 @@ efx.mouse.onMove(function (e) {
     if (attract) { wake(); }
     if (dragging) {
         camYaw -= (e.x - lastMouse[0]) * 0.006;
-        camPitch = clamp(camPitch + (e.y - lastMouse[1]) * 0.004, 0.12, 1.05);
+        camPitch = efx.math.clamp(camPitch + (e.y - lastMouse[1]) * 0.004, 0.12, 1.05);
         lastMouse = [e.x, e.y];
     }
 });
@@ -220,8 +222,8 @@ function stepHero(dt) {
     const wishZ = fwd[2] * iz + right[2] * ix;
     const targetX = wishX * MOVE_SPEED;
     const targetZ = wishZ * MOVE_SPEED;
-    vel[0] += clamp(targetX - vel[0], -ACCEL * dt, ACCEL * dt);
-    vel[2] += clamp(targetZ - vel[2], -ACCEL * dt, ACCEL * dt);
+    vel[0] += efx.math.clamp(targetX - vel[0], -ACCEL * dt, ACCEL * dt);
+    vel[2] += efx.math.clamp(targetZ - vel[2], -ACCEL * dt, ACCEL * dt);
 
     if (pad() && pad().isPressed('south')) { sinceJump = 0; }
     sinceJump += dt;
@@ -288,8 +290,8 @@ function attractInput(dt) {
     }
     const targetX = dx * MOVE_SPEED;
     const targetZ = dz * MOVE_SPEED;
-    vel[0] += clamp(targetX - vel[0], -ACCEL * dt, ACCEL * dt);
-    vel[2] += clamp(targetZ - vel[2], -ACCEL * dt, ACCEL * dt);
+    vel[0] += efx.math.clamp(targetX - vel[0], -ACCEL * dt, ACCEL * dt);
+    vel[2] += efx.math.clamp(targetZ - vel[2], -ACCEL * dt, ACCEL * dt);
     if (hero.onFloor && target && best < 5) { vel[1] = JUMP_V; }
     vel[1] -= GRAVITY * dt;
     const move = hero.moveAndSlide([vel[0] * dt, vel[1] * dt, vel[2] * dt]);
@@ -307,7 +309,7 @@ function respawnIfFallen() {
 // ---- update --------------------------------------------------------------
 function update(dt) {
     if (dt > 0.05) { dt = 0.05; }
-    clock += dt;
+    clock = efx.time.now;
 
     if (attract) {
         attractInput(dt);

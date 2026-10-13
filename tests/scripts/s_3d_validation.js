@@ -59,7 +59,7 @@ expectThrow('dm-bag-nonobject', TE, () => efx.graphics.drawMesh(mesh, 5));
 expectThrow('dm-mesh-in-bag', TE, () => efx.graphics.drawMesh(mesh, { mesh }));
 expectThrow('dm-transform-short', RE, () => efx.graphics.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3] }));
 expectThrow('dm-transform-type', TE, () => efx.graphics.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 'x'] }));
-expectThrow('dm-color-short', RE, () => efx.graphics.drawMesh(mesh, { color: [1, 0, 1] }));
+expectThrow('dm-color-short', RE, () => efx.graphics.drawMesh(mesh, { color: [1, 0, 1, 0.5, 0.5] }));
 expectThrow('dm-unknown', TE, () => efx.graphics.drawMesh(mesh, { frobnicate: 1 }));
 
 // valid draws record headless (uploads queue until a GPU surface exists)

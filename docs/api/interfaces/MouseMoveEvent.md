@@ -14,7 +14,7 @@ Payload of a mouse move event.
 
 > **dx**: `number`
 
-Horizontal movement since the previous frame, in surface pixels.
+Horizontal movement since the previous frame, in frame pixels.
 
 ***
 
@@ -22,7 +22,7 @@ Horizontal movement since the previous frame, in surface pixels.
 
 > **dy**: `number`
 
-Vertical movement since the previous frame, in surface pixels.
+Vertical movement since the previous frame, in frame pixels.
 
 ***
 
@@ -30,7 +30,7 @@ Vertical movement since the previous frame, in surface pixels.
 
 > **x**: `number`
 
-Cursor x in surface pixels.
+Cursor x in frame pixels (surface pixels when no 2D frame was set).
 
 ***
 
@@ -38,4 +38,4 @@ Cursor x in surface pixels.
 
 > **y**: `number`
 
-Cursor y in surface pixels.
+Cursor y in frame pixels (surface pixels when no 2D frame was set).

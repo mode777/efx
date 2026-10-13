@@ -78,13 +78,11 @@ const sting = efx.audio.loadAudioData('sting.wav');
 let music = null;
 let musicVolume = 0.5;
 let muted = false;
-let audioReady = false;
-
-function unlockAudio() {
-    if (audioReady) { return; }
-    audioReady = true;
-    try { efx.audio.resume(); } catch (e) { /* no audio device */ }
-    music = efx.audio.playAudio(musicStream, { loop: true, volume: muted ? 0 : musicVolume });
+// The engine unlocks audio on the first key/click; start music on first wake.
+function startMusic() {
+    if (!music) {
+        music = efx.audio.playAudio(musicStream, { loop: true, volume: muted ? 0 : musicVolume });
+    }
 }
 function applyVolume() {
     if (music) { music.volume = muted ? 0 : musicVolume; }
@@ -105,8 +103,7 @@ let restartEdge = false;
 let deathX = 0;
 let deathY = 0;
 
-function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
-function gapHeight() { return clamp(GATE_GAP_MAX - score * 3.2, GATE_GAP_MIN, GATE_GAP_MAX); }
+function gapHeight() { return efx.math.clamp(GATE_GAP_MAX - score * 3.2, GATE_GAP_MIN, GATE_GAP_MAX); }
 
 function spawnGate(x) {
     const gh = gapHeight();
@@ -128,7 +125,7 @@ function startRun() {
 
 function wake() {
     if (state !== 'attract') { return; }
-    unlockAudio();
+    startMusic();
     startRun();
 }
 
@@ -137,9 +134,7 @@ function die(x, y) {
     deathY = y;
     burst.set({ position: [x, y] });
     burst.emit(46);
-    if (audioReady) {
-        efx.audio.playAudio(sting, { volume: 0.9, pitch: 1 });
-    }
+    efx.audio.playAudio(sting, { volume: 0.9, pitch: 1 });
     if (state === 'run') {
         best = Math.max(best, score);
     }
@@ -161,10 +156,10 @@ efx.keyboard.onDown(function (e) {
         muted = !muted;
         applyVolume();
     } else if (e.key === '[') {
-        musicVolume = clamp(musicVolume - 0.1, 0, 1);
+        musicVolume = efx.math.clamp(musicVolume - 0.1, 0, 1);
         applyVolume();
     } else if (e.key === ']') {
-        musicVolume = clamp(musicVolume + 0.1, 0, 1);
+        musicVolume = efx.math.clamp(musicVolume + 0.1, 0, 1);
         applyVolume();
     }
 });
@@ -201,7 +196,7 @@ function overlaps(a, bx, by, bw, bh) {
 
 function stepAvatar(dt, thrust) {
     vy += (thrust ? -THRUST : GRAVITY) * dt;
-    vy = clamp(vy, -VY_MAX, VY_MAX);
+    vy = efx.math.clamp(vy, -VY_MAX, VY_MAX);
     avatarY += vy * dt;
     if (avatarY < AVATAR_H / 2) { avatarY = AVATAR_H / 2; vy = Math.max(0, vy); }
     if (avatarY > FRAME_H - AVATAR_H / 2) { avatarY = FRAME_H - AVATAR_H / 2; vy = Math.min(0, vy); }

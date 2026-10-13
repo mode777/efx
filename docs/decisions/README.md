@@ -71,6 +71,7 @@ directory holds only what stays true after a change is archived.
 | [0057](0057-desktop-in-place-game-swap.md) | Accepted | A dropped root swaps the desktop game in place: a stable player session, a frame-start swap, and a render reset/pipeline rebind that keep the window and sg context alive (supersedes ADR 0056's desktop relaunch) |
 | [0058](0058-unlit-material-and-geometry-skybox.md) | Accepted | A `Material.unlit` flag (one shader branch, wire 18→19) and a per-draw `DrawMeshOptions.depthWrite` (mesh pipeline matrix 3×2→3×2×2) plus `inverted` cube/sphere primitives enable geometry skyboxes drawn camera-locked and first; cubemaps/environment mapping deferred, blob shadows compose existing plane billboards |
 | [0059](0059-procedural-noise-fastnoise-lite.md) | Accepted | Script noise is a stateless `efx.noise` surface over the vendored FastNoise Lite C99 port: raw per-type ranges (cellular centered), one bulk fill + point-query natives, prelude-only ImageData helper, and pinned exact-bit + golden determinism receipts |
+| [0060](0060-native-math-frame-space-input-audio-unlock.md) | Accepted | Hot-path `mat4.transform` is native-backed (plain-data contract unchanged), mouse input reports frame pixels (scale-only, identity fallback), and audio autoplay unlock is engine-managed on first input (no script resume verb) |
 
 ## Adding a decision
 

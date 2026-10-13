@@ -63,6 +63,10 @@ behavior.
     `[JS]` function MUST be built only on
     the public `[C]` API and standard ES6 — never on private bindings or host
     facilities.
+  A hot-path helper MAY be native-backed through the standard marshal-only
+  wire while its option validation stays in the shared prelude
+  (`efx.math.mat4.transform`, ADR 0060); its script-visible contract — plain
+  JS data in and out — is unchanged.
   The layer is an implementation concern: the generated reference is
   end-user facing and does not tag entries by layer.
 - **Shared argument handling (ADR 0049).** A `[C]` function MAY validate and
@@ -373,8 +377,11 @@ are native-backed classes.
 - **No device.** With no audio device (headless CI) the player runs silently:
   `playAudio` still returns a handle, but it reports not playing and produces no
   sound, and nothing crashes. On web, audio stays locked until a user gesture;
-  the first input unlocks it and pending playbacks begin, with
-  `efx.audio.resume()` as the explicit path.
+  the engine unlocks it itself on the first key-down or mouse-down (driven from
+  the input path, inside the real gesture) and pending playbacks begin. There
+  is no script-facing unlock entry point — a call from an update hook is never
+  inside a gesture, so it could only fail. Browsers do not count gamepad input
+  as a gesture, so a gamepad-only web session waits for one key/click.
 - **Errors.** A non-string path, an invalid source, or unknown option throws
   `TypeError`; an unreadable or undecodable resource throws `Error`; a negative
   `volume`/master gain or non-positive `pitch` throws `RangeError`.

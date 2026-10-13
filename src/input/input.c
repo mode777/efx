@@ -108,6 +108,7 @@ static struct {
     float accum_wx, accum_wy;   /* wheel arriving between frames */
     int w, h;          /* surface size */
     float dpi_scale;
+    float frame_w, frame_h;     /* active 2D frame (0 = never set) */
 } P = {.dpi_scale = 1.0f};
 
 static efx_input_event EVENTS[EFX_INPUT_QUEUE_MAX];
@@ -189,11 +190,34 @@ void efx_input_clear_events(void) {
 
 /* --------------------------------------------------------- lifecycle */
 
+/* web autoplay unlock (audio capability): the first key-down or mouse-down
+ * is a real user gesture. The input core stays audio-free (module walls,
+ * ADR 0003): the platform registers a gesture callback at init and this
+ * fires it once. No callback (tests, headless) → no-op. */
+static int gesture_unlocked;
+static efx_input_gesture_fn gesture_fn;
+static void *gesture_ud;
+
+void efx_input_set_gesture_callback(efx_input_gesture_fn fn, void *ud) {
+    gesture_fn = fn;
+    gesture_ud = ud;
+}
+
+static void gesture_unlock(void) {
+    if (!gesture_unlocked) {
+        gesture_unlocked = 1;
+        if (gesture_fn) {
+            gesture_fn(gesture_ud);
+        }
+    }
+}
+
 void efx_input_reset(void) {
     memset(&K, 0, sizeof(K));
     memset(&B, 0, sizeof(B));
     memset(&P, 0, sizeof(P));
     P.dpi_scale = 1.0f;
+    gesture_unlocked = 0;
     event_count = 0;
     efx_input_gamepad_reset();
 }
@@ -252,6 +276,7 @@ static void set_level(unsigned char *down, unsigned char *pressed,
 }
 
 void efx_input_key_down(int key, int repeat, unsigned mods) {
+    gesture_unlock();
     if (!key_in_range(key)) {
         return;
     }
@@ -288,6 +313,7 @@ static void mouse_button(int type, int button, float x, float y,
 }
 
 void efx_input_mouse_down(int button, float x, float y, unsigned mods) {
+    gesture_unlock();
     mouse_button(EFX_INPUT_MOUSE_DOWN, button, x, y, mods);
 }
 
@@ -385,6 +411,60 @@ void efx_input_window_size(int *out_w, int *out_h, float *out_dpi_scale) {
     }
     if (out_dpi_scale) {
         *out_dpi_scale = P.dpi_scale;
+    }
+}
+
+/* ------------------------------------- 2D frame-space pointer mapping */
+
+void efx_input_set_frame(float w, float h) {
+    P.frame_w = w > 0 ? w : 0.0f;
+    P.frame_h = h > 0 ? h : 0.0f;
+}
+
+void efx_input_frame_extent(float *out_w, float *out_h) {
+    if (out_w) {
+        *out_w = P.frame_w;
+    }
+    if (out_h) {
+        *out_h = P.frame_h;
+    }
+}
+
+/* scale-only surface→frame factors; identity when no frame was ever set
+ * (or the surface is not known yet) */
+void efx_input_frame_scale(float *out_sx, float *out_sy) {
+    float sx = 1.0f, sy = 1.0f;
+    if (P.frame_w > 0 && P.frame_h > 0 && P.w > 0 && P.h > 0) {
+        sx = P.frame_w / (float)P.w;
+        sy = P.frame_h / (float)P.h;
+    }
+    if (out_sx) {
+        *out_sx = sx;
+    }
+    if (out_sy) {
+        *out_sy = sy;
+    }
+}
+
+void efx_input_pointer_frame(float *out_x, float *out_y) {
+    float sx, sy;
+    efx_input_frame_scale(&sx, &sy);
+    if (out_x) {
+        *out_x = P.x * sx;
+    }
+    if (out_y) {
+        *out_y = P.y * sy;
+    }
+}
+
+void efx_input_delta_frame(float *out_dx, float *out_dy) {
+    float sx, sy;
+    efx_input_frame_scale(&sx, &sy);
+    if (out_dx) {
+        *out_dx = P.frame_dx * sx;
+    }
+    if (out_dy) {
+        *out_dy = P.frame_dy * sy;
     }
 }
 

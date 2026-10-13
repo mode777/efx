@@ -194,6 +194,30 @@ int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len,
 /* read a flat array (JS array or typed array) of exactly n floats;
    returns 0 ok, -1 wrong type (TypeError thrown), -2 wrong length or
    non-finite/out-of-range element (RangeError thrown) */
+/* Color value acceptance (script-api-ergonomics): a 3-component [r, g, b]
+ * array is accepted wherever a Color is expected, treated as fully opaque;
+ * the 4-component form is unchanged. Uniform at the validation layer so
+ * every color-typed argument gains it at once. */
+int efx_api_read_color(JSContext *ctx, JSValueConst v, float out[4]) {
+    if (JS_IsArray(v)) {
+        JSValue lenv = JS_GetPropertyStr(ctx, v, "length");
+        int32_t len = -1;
+        JS_ToInt32(ctx, &len, lenv);
+        JS_FreeValue(ctx, lenv);
+        if (len == 3) {
+            if (efx_api_get_float_array(ctx, v, out, 3) != 0) {
+                return -1;
+            }
+            out[3] = 1.0f;
+            return 0;
+        }
+    }
+    if (efx_api_get_float_array(ctx, v, out, 4) != 0) {
+        return -1;
+    }
+    return 0;
+}
+
 int efx_api_get_float_array(JSContext *ctx, JSValueConst v, float *out, int n) {
     uint8_t *bytes = NULL;
     size_t blen = 0;
@@ -1121,7 +1145,7 @@ static int efx_api_read_channel_color(JSContext *ctx, JSValueConst channel,
         JS_ThrowTypeError(ctx, "%s channel requires color", name);
         return -1;
     }
-    int rc = efx_api_get_float_array(ctx, cv, out, 4);
+    int rc = efx_api_read_color(ctx, cv, out);
     JS_FreeValue(ctx, cv);
     return rc == 0 ? 0 : -1;
 }

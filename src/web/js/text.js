@@ -27,9 +27,9 @@
             var lo = __efxTextLayout(opts);
             var color = [1, 1, 1, 1], oc = [0, 0, 0, 1], sc = [0, 0, 0, 1];
             if (__efxIsObject(opts)) {
-                if (opts.color !== undefined) { color = __efxFloatArray(opts.color, 4); }
-                if (opts.outlineColor !== undefined) { oc = __efxFloatArray(opts.outlineColor, 4); }
-                if (opts.shadowColor !== undefined) { sc = __efxFloatArray(opts.shadowColor, 4); }
+                if (opts.color !== undefined) { color = __efxColor(opts.color); }
+                if (opts.outlineColor !== undefined) { oc = __efxColor(opts.outlineColor); }
+                if (opts.shadowColor !== undefined) { sc = __efxColor(opts.shadowColor); }
             }
             var tptr = __efxAllocCStr(text);
             var optr = bridge['_malloc'](12);

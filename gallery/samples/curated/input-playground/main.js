@@ -58,22 +58,6 @@ function spawn(x, y, vx, vy, size, life, c) {
 }
 
 // ---- input state ----
-let winW = FRAME_W;
-let winH = FRAME_H;
-function readWindow() {
-    const s = efx.window.size;
-    if (s[0] > 0) {
-        winW = s[0];
-    }
-    if (s[1] > 0) {
-        winH = s[1];
-    }
-}
-// mouse.surface px -> 640x480 frame px (the documented hit-test rule)
-function toFrame(x, y) {
-    return [x * (FRAME_W / winW), y * (FRAME_H / winH)];
-}
-
 let pointerX = FRAME_W * 0.5;
 let pointerY = FRAME_H * 0.5;
 let havePointer = false;
@@ -106,9 +90,9 @@ function clearParts() {
 
 // ---- event API: mouse drives discrete strokes/bursts ----
 efx.mouse.onMove(function (e) {
-    const f = toFrame(e.x, e.y);
-    pointerX = f[0];
-    pointerY = f[1];
+    // events arrive in frame pixels, the space this demo draws in
+    pointerX = e.x;
+    pointerY = e.y;
     havePointer = true;
     wake();
     // paint along the segment the pointer swept this event
@@ -128,9 +112,8 @@ efx.mouse.onMove(function (e) {
 });
 
 efx.mouse.onDown(function (e) {
-    const f = toFrame(e.x, e.y);
-    pointerX = f[0];
-    pointerY = f[1];
+    pointerX = e.x;
+    pointerY = e.y;
     havePointer = true;
     lastX = pointerX;
     lastY = pointerY;
@@ -173,7 +156,6 @@ function update(dt) {
         dt = 0.05;
     }
     t += dt;
-    readWindow();
 
     if (attract) {
         hint += dt;

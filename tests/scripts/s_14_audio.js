@@ -36,6 +36,7 @@ m.stop();
 m.destroy();
 stream.destroy();
 
+if (efx.audio.resume !== undefined) throw new Error('audio.resume must be removed (engine-managed unlock)');
 if (typeof efx.audio.volume !== 'number') throw new Error('master getter');
 efx.audio.volume = 0.5;
 if (Math.abs(efx.audio.volume - 0.5) > 1e-6) throw new Error('master setter');

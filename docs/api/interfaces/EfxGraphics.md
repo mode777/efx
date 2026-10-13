@@ -6,11 +6,6 @@
 
 # Interface: EfxGraphics
 
-The graphics surface: 2D and 3D drawing, camera and light state, post
-processing, and the graphics resource factories. Reached as
-`efx.graphics`; names, signatures, semantics, and error behavior are
-unchanged by the move from the `efx` root.
-
 ## Methods
 
 ### beginRenderTarget()
@@ -861,6 +856,13 @@ Grid subdivisions per side (positive integer, default 1).
 
 Edge length (default 1, must be > 0).
 
+###### uvs?
+
+`number` \| \[`number`, `number`\]
+
+UV span: a positive number tiles both axes (default 1), or `[u, v]`
+tiles each axis independently.
+
 #### Returns
 
 [`EfxMeshData`](EfxMeshData.md)
@@ -910,6 +912,37 @@ Longitude/latitude subdivisions (positive integer, default 16).
 [`EfxMeshData`](EfxMeshData.md)
 
 The new CPU MeshData.
+
+***
+
+### screenRay()
+
+> **screenRay**(`x`, `y`): [`ScreenRay`](ScreenRay.md)
+
+Cast a world-space ray through a frame-space screen point under the
+current 3D camera. `x, y` use the same space mouse input reports (the
+active 2D frame; the rendering surface when no frame was set), so
+`screenRay(...efx.mouse.position)` picks what the cursor is over.
+
+#### Parameters
+
+##### x
+
+`number`
+
+Screen x in frame pixels.
+
+##### y
+
+`number`
+
+Screen y in frame pixels.
+
+#### Returns
+
+[`ScreenRay`](ScreenRay.md)
+
+The ray `{ origin, direction }` (eye position, unit direction); throws `Error` before any `setCamera3D`.
 
 ***
 

@@ -71,6 +71,8 @@ int efx_physics_character_set_position(efx_physics_world *w,
     int s = efx_world_char_slot(w, id);
     if (s < 0) return 0;
     w->chars[s].position = p;
+    /* teleport: place, don't preserve motion */
+    w->chars[s].velocity = efx_v3(0, 0, 0);
     return 1;
 }
 

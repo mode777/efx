@@ -60,6 +60,12 @@ void efx_input_begin_frame(void);
 void efx_input_end_frame(void);
 void efx_input_reset(void);
 
+/* first-gesture hook (web autoplay unlock): the platform registers the
+ * audio resume entry here at init; the input core fires it once on the
+ * first key-down or mouse-down. NULL callback (tests, headless) is fine. */
+typedef void (*efx_input_gesture_fn)(void *ud);
+void efx_input_set_gesture_callback(efx_input_gesture_fn fn, void *ud);
+
 /* arrival: level state updates immediately, event is queued (platform path
  * and the injection seam share these) */
 void efx_input_key_down(int key, int repeat, unsigned mods);
@@ -83,6 +89,17 @@ void efx_input_pointer(float *out_x, float *out_y);
 void efx_input_delta(float *out_dx, float *out_dy);
 void efx_input_wheel_delta(float *out_dx, float *out_dy);
 void efx_input_window_size(int *out_w, int *out_h, float *out_dpi_scale);
+
+/* 2D frame-space pointer mapping (script-api-ergonomics): the frame driver
+ * publishes the current 2D camera frame each frame (0 = no frame ever set);
+ * the mapped queries below read pointer coordinates through a scale-only
+ * surface→frame transform, so scripts see frame pixels — the same space
+ * quad drawing uses. Wheel deltas are never scaled. */
+void efx_input_set_frame(float w, float h);
+void efx_input_frame_extent(float *out_w, float *out_h);
+void efx_input_pointer_frame(float *out_x, float *out_y);
+void efx_input_delta_frame(float *out_dx, float *out_dy);
+void efx_input_frame_scale(float *out_sx, float *out_sy);
 
 /* engine-owned name lookup (single source for both bindings); -1/NULL when
  * the name/id is not in the documented set */

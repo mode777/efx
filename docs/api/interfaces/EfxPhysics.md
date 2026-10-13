@@ -6,25 +6,6 @@
 
 # Interface: EfxPhysics
 
-The single physics world. The script owns stepping: call `step(dt)` each
-frame and the engine never advances the world on its own.
-
-## Example
-
-```js
-efx.physics.gravity = [0, -9.81, 0];
-const ground = efx.physics.createBody(
-  { type: 'box', size: [40, 1, 40] }, { position: [0, -0.5, 0] });
-const crate = efx.physics.createBody(
-  { type: 'box', size: [1, 1, 1] }, { dynamic: true, mass: 2, position: [0, 3, 0] });
-const hero = efx.physics.createCharacter(0.4, 1.8);
-
-efx.registerUpdateHook((dt) => {
-  efx.physics.step(dt);
-  hero.moveAndSlide([1.5 * dt, -9.81 * dt, 0]);
-});
-```
-
 ## Methods
 
 ### clear()
@@ -258,6 +239,38 @@ Report-only volume that never resolves (default `false`).
 [`EfxBody`](EfxBody.md)
 
 The new static body handle.
+
+***
+
+### debugDraw()
+
+> **debugDraw**(`opts?`): `void`
+
+Record an unlit translucent hull for every live collider into the display
+list (call from a render hook). Boxes, spheres, and capsules draw their
+shape; static triangle-mesh colliders draw their world AABB.
+
+#### Parameters
+
+##### opts?
+
+Optional tint and alpha.
+
+###### alpha?
+
+`number`
+
+Hull alpha in `[0, 1]` (default translucent).
+
+###### color?
+
+[`Color`](../type-aliases/Color.md)
+
+Hull tint (default a debug green); a 3-component color is opaque.
+
+#### Returns
+
+`void`
 
 ***
 

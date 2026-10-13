@@ -2,6 +2,7 @@
 
 #include "runtime/runtime.h"
 #include "runtime/runtime_internal.h"
+#include "runtime/clock.h"
 #include "api/api.h"
 #include "input/input.h"
 #include "input/gamepad.h"
@@ -206,10 +207,18 @@ static const JSCFunctionListEntry GRAPHICS_FUNCS[] = {
     /* measure is a Font prototype method (ADR 0055) */
     JS_CFUNC_DEF("drawBillboard", 2, efx_js_drawBillboard),
     JS_CFUNC_DEF("drawSprites", 3, efx_js_drawSprites),
-    /* createParticleSystem is installed by the shared prelude (ADR 0049) */
+    JS_CFUNC_DEF("screenRay", 2, efx_js_screenRay),
     JS_CFUNC_DEF("drawParticles", 1, efx_js_drawParticles),
+    /* createParticleSystem is installed by the shared prelude (ADR 0049) */
     JS_CGETSET_DEF("whiteTexture", efx_js_whiteTexture, NULL),
 };
+
+/* efx.time sub-namespace: the script clock (runtime/clock.c). `now` is a
+ * frame-start snapshot; one value per frame across all hook types. */
+static JSValue efx_js_time_now(JSContext *ctx, JSValueConst this_val) {
+    (void)this_val;
+    return JS_NewFloat64(ctx, efx_clock_now());
+}
 
 /* context + host state setup */
 static efx_runtime *runtime_alloc(char *const *args, int arg_count) {
@@ -277,6 +286,13 @@ static int install_efx_api(efx_runtime *rt) {
         JS_FreeValue(rt->ctx, glob);
         return -1;
     }
+    JSValue time = JS_NewObject(rt->ctx);
+    static const JSCFunctionListEntry time_funcs[] = {
+        JS_CGETSET_DEF("now", efx_js_time_now, NULL),
+    };
+    JS_SetPropertyFunctionList(rt->ctx, time, time_funcs,
+                               (int)(sizeof(time_funcs) / sizeof(time_funcs[0])));
+    JS_SetPropertyStr(rt->ctx, efx, "time", time);
     JS_SetPropertyStr(rt->ctx, glob, "efx", efx);
     JS_FreeValue(rt->ctx, glob);
     return 0;
@@ -367,6 +383,10 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JS_SetPropertyStr(rt->ctx, natives, "noise3", n);
     n = JS_NewCFunction(rt->ctx, efx_js_noise_fill2_wire, "noiseFill2", 10);
     JS_SetPropertyStr(rt->ctx, natives, "noiseFill2", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_mat4_transform_wire, "transform", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "transform", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_physics_debug_draw_wire, "debugDraw", 4);
+    JS_SetPropertyStr(rt->ctx, natives, "debugDraw", n);
     return natives;
 }
 
@@ -720,19 +740,24 @@ static JSValue make_input_event(JSContext *ctx, const efx_input_event *ev) {
     case EFX_INPUT_MOUSE_DOWN:
     case EFX_INPUT_MOUSE_UP: {
         const char *name = efx_input_button_name(ev->button);
+        float sx, sy;
+        efx_input_frame_scale(&sx, &sy);
         JS_SetPropertyStr(ctx, obj, "button",
                           JS_NewString(ctx, name ? name : ""));
-        JS_SetPropertyStr(ctx, obj, "x", JS_NewFloat64(ctx, ev->x));
-        JS_SetPropertyStr(ctx, obj, "y", JS_NewFloat64(ctx, ev->y));
+        JS_SetPropertyStr(ctx, obj, "x", JS_NewFloat64(ctx, ev->x * sx));
+        JS_SetPropertyStr(ctx, obj, "y", JS_NewFloat64(ctx, ev->y * sy));
         JS_SetPropertyStr(ctx, obj, "mods", make_mods_array(ctx, ev->mods));
         break;
     }
-    case EFX_INPUT_MOUSE_MOVE:
-        JS_SetPropertyStr(ctx, obj, "x", JS_NewFloat64(ctx, ev->x));
-        JS_SetPropertyStr(ctx, obj, "y", JS_NewFloat64(ctx, ev->y));
-        JS_SetPropertyStr(ctx, obj, "dx", JS_NewFloat64(ctx, ev->dx));
-        JS_SetPropertyStr(ctx, obj, "dy", JS_NewFloat64(ctx, ev->dy));
+    case EFX_INPUT_MOUSE_MOVE: {
+        float sx, sy;
+        efx_input_frame_scale(&sx, &sy);
+        JS_SetPropertyStr(ctx, obj, "x", JS_NewFloat64(ctx, ev->x * sx));
+        JS_SetPropertyStr(ctx, obj, "y", JS_NewFloat64(ctx, ev->y * sy));
+        JS_SetPropertyStr(ctx, obj, "dx", JS_NewFloat64(ctx, ev->dx * sx));
+        JS_SetPropertyStr(ctx, obj, "dy", JS_NewFloat64(ctx, ev->dy * sy));
         break;
+    }
     case EFX_INPUT_WHEEL:
         JS_SetPropertyStr(ctx, obj, "dx", JS_NewFloat64(ctx, ev->dx));
         JS_SetPropertyStr(ctx, obj, "dy", JS_NewFloat64(ctx, ev->dy));

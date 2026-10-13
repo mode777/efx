@@ -99,10 +99,8 @@
 
     api.audio = {
         /* loadAudioData/loadAudioStream/playAudio are installed by the
-         * shared prelude (ADR 0049) */
-        resume: function () {
-            bridge['_efx_audio_request_resume']();
-        },
+         * shared prelude (ADR 0049). Autoplay unlock is engine-managed on
+         * first input; no script-facing resume entry point. */
     };
     Object.defineProperty(api.audio, 'volume', {
         get: function () {
@@ -534,6 +532,21 @@
         },
         /* efx.noise wires (ADR 0059): validated scalars in, raw value or
          * filled buffer out — same wire layouts as the desktop binding */
+        debugDraw: function (r, g, b, a) {
+            var rc = bridge['_efx_bridge_physics_debug_draw'](r, g, b, a);
+            if (rc !== 0) {
+                throw new Error('out of memory');
+            }
+        },
+        transform: function (px, py, pz, yaw, pitch, roll, sx, sy, sz) {
+            var ptr = Module['_efx_bridge_mat4_transform'](
+                px, py, pz, yaw, pitch, roll, sx, sy, sz);
+            var out = new Array(16);
+            for (var i = 0; i < 16; i++) {
+                out[i] = HEAPF64[(ptr >> 3) + i];
+            }
+            return out;
+        },
         noise2: function (seed, type, frequency, octaves, lacunarity, gain,
                           warp, x, y) {
             return bridge['_efx_bridge_noise2'](seed, type, frequency,

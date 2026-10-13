@@ -289,7 +289,7 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 post_mix post_scale_nearest post_scale_linear
                 post_order_a post_order_b post_user_rt load_png gltf_import
                 skin_import skin_pose mipmaps text_basic text_effects
-                particles noise)
+                particles noise quad_degenerate)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

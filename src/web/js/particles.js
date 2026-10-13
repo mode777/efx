@@ -24,7 +24,7 @@
                                 __efxCheckKnown(opts, known, 'drawQuad', false, true);
                 var cv = opts['color'];
                 if (cv !== undefined) {
-                    color = __efxFloatArray(cv, 4);
+                    color = __efxColor(cv);
                 }
                 var rv = opts['rotation'];
                 if (rv !== undefined) {
@@ -40,9 +40,7 @@
                 var zv = opts['size'];
                 if (zv !== undefined) {
                     size = __efxFloatArray(zv, 2);
-                    if (size[0] <= 0 || size[1] <= 0) {
-                        throw new RangeError('size entries must be > 0');
-                    }
+                    /* a finite component <= 0 is a degenerate draw (no-op) */
                     hasSize = true;
                 }
                 var ov = opts['origin'];
@@ -57,6 +55,9 @@
                 }
             }
             var blend = __efxBlend(opts !== undefined ? opts['blend'] : undefined);
+            if (hasSize && (size[0] <= 0 || size[1] <= 0)) {
+                return; /* degenerate size records nothing */
+            }
             var fw, fh;
             if (hasSize) {
                 fw = size[0];
@@ -102,12 +103,10 @@
                     size = [sd, sd];
                 }
             }
-            if (size[0] <= 0 || size[1] <= 0) {
-                throw new RangeError('size entries must be > 0');
-            }
+            var degenerate = (size[0] <= 0 || size[1] <= 0);
             var color = [1, 1, 1, 1];
             if (opts['color'] !== undefined) {
-                color = __efxFloatArray(opts['color'], 4);
+                color = __efxColor(opts['color']);
             }
             var rotation = 0;
             if (opts['rotation'] !== undefined) {
@@ -134,6 +133,9 @@
                 hasSrc = 1;
             }
             var blend = __efxBlend(opts['blend']);
+            if (degenerate) {
+                return; /* degenerate size records nothing */
+            }
             var pPtr = mallocCopyF32(p);
             var nPtr = mallocCopyF32(normal);
             var rc = bridge['_efx_bridge_draw_billboard'](tex.handle, pPtr,

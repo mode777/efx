@@ -66,6 +66,14 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_step(double dt) {
     efx_physics_step(web_physics(), (float)dt);
 }
 
+/* debugDraw wire (shared prelude, ADR 0049): the prelude validated color and
+ * alpha; this records the debug hulls for the bridge world. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_physics_debug_draw(double r, double g,
+                                                       double b, double a) {
+    float color[4] = {(float)r, (float)g, (float)b, (float)a};
+    return efx_physics_debug_draw_recorder(web_physics(), color);
+}
+
 EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_clear(void) {
     if (W.physics) efx_physics_clear(W.physics);
 }
@@ -138,6 +146,18 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_body_set_velocity(
     double h, double x, double y, double z) {
     efx_physics_body_set_velocity(web_physics(), (efx_phys_body)h,
                                   efx_v3((float)x, (float)y, (float)z));
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_body_set_position(
+    double h, double x, double y, double z) {
+    efx_physics_body_set_position(web_physics(), (efx_phys_body)h,
+                                  efx_v3((float)x, (float)y, (float)z));
+}
+
+EMSCRIPTEN_KEEPALIVE void efx_bridge_physics_character_set_position(
+    double h, double x, double y, double z) {
+    efx_physics_character_set_position(web_physics(), (efx_phys_character)h,
+                                       efx_v3((float)x, (float)y, (float)z));
 }
 
 EMSCRIPTEN_KEEPALIVE int efx_bridge_physics_body_apply_impulse(

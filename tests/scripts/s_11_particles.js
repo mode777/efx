@@ -49,7 +49,7 @@ if (kind(() => {
 // billboards/sprites validate before recording (no surface needed to throw)
 if (kind(() => efx.graphics.drawBillboard(undefined, [0, 0, 0], { size: [1, 1] })) !== 'TypeError') throw new Error('billboard texture');
 if (kind(() => efx.graphics.drawBillboard(tex, [0, 0])) !== 'TypeError') throw new Error('billboard pos');
-if (kind(() => efx.graphics.drawBillboard(tex, [0, 0, 0], { size: [0, 1] })) !== 'RangeError') throw new Error('billboard size');
+if (kind(() => efx.graphics.drawBillboard(tex, [0, 0, 0], { size: [1] })) !== 'RangeError') throw new Error('billboard size');
 if (kind(() => efx.graphics.drawSprites(tex, 'nope')) !== 'TypeError') throw new Error('sprites array');
 if (kind(() => efx.graphics.drawSprites(tex, [{ size: [1, 1] }])) !== 'TypeError') throw new Error('sprite x/y');
 

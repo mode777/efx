@@ -8,6 +8,7 @@
 #include "input/input.h"
 #include "input/gamepad.h"
 #include "physics/physics.h"
+#include "api/api_physics_debug.h"
 #include "physics/broadphase.h"
 #include "render/render.h"
 #include "render/text.h"
@@ -182,8 +183,8 @@ extern JSClassID character_class_id;
 
 /* prototype function lists and hooks defined outside api.c (referenced by
  * CLASS_SPECS) */
-extern const JSCFunctionListEntry body_proto_funcs[7];
-extern const JSCFunctionListEntry character_proto_funcs[5];
+extern const JSCFunctionListEntry body_proto_funcs[8];
+extern const JSCFunctionListEntry character_proto_funcs[6];
 extern const JSCFunctionListEntry particlesystem_proto_funcs[7];
 extern const JSCFunctionListEntry audio_proto_funcs[9];
 extern void efx_api_collider_release(void *p);
@@ -209,6 +210,7 @@ extern int efx_api_read_blend(JSContext *ctx, JSValueConst v, int *out);
 extern int efx_api_read_elements(JSContext *ctx, JSValueConst v, int32_t len, efx_elem_policy policy, const char *msg_numbers, const char *msg_finite, const char *msg_int, void (*sink)(void *, int32_t, double), void *ud);
 extern int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out);
 extern int efx_api_read_number_array(JSContext *ctx, JSValueConst v, float **out, int *out_len, const char *what);
+extern int efx_api_read_color(JSContext *ctx, JSValueConst v, float out[4]);
 extern int efx_api_read_source_rect(JSContext *ctx, uint64_t tex, JSValueConst srcv, float src[4], int *has_src);
 extern int efx_api_read_vec3(JSContext *ctx, JSValueConst v, float out[3], const char *what);
 extern JSValue efx_api_register_hook(JSContext *ctx, JSValueConst fn, int which);

@@ -44,6 +44,26 @@ Desired displacement for this call, in world units.
 
 The move result: position, floor/wall/ceiling flags, and collisions.
 
+***
+
+### setPosition()
+
+> **setPosition**(`p`): `void`
+
+Teleport the character: place it at `p` immediately, clearing velocity.
+
+#### Parameters
+
+##### p
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+Target world position `[x, y, z]`.
+
+#### Returns
+
+`void`
+
 ## Properties
 
 ### onFloor

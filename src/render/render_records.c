@@ -36,6 +36,7 @@ static const efx_material DEFAULT_MATERIAL = {
 static void apply_default_state(void) {
     R.camera = DEFAULT_CAMERA2D;
     R.camera3d = DEFAULT_CAMERA3D;
+    R.camera3d_set = 0;
     memset(&R.lights, 0, sizeof(R.lights)); /* every light disabled */
     R.clear_color[0] = 0.0f;
     R.clear_color[1] = 0.0f;
@@ -74,6 +75,7 @@ void efx_render_set_camera3d(const efx_camera3d *cam) {
     ensure_state();
     if (cam) {
         R.camera3d = *cam;
+        R.camera3d_set = 1;
     }
 }
 
@@ -93,6 +95,88 @@ void efx_render_camera3d(float out_pos[3], float out_target[3], float *out_fov,
     if (out_fov) *out_fov = R.camera3d.fov;
     if (out_near) *out_near = R.camera3d.near_z;
     if (out_far) *out_far = R.camera3d.far_z;
+}
+
+/* current 2D frame extent (the most recent setCamera2D frame; 0 = default) —
+ * the frame driver publishes it to the input module each frame */
+void efx_render_frame_extent(float *out_w, float *out_h) {
+    ensure_state();
+    if (out_w) {
+        *out_w = R.camera.frame_w;
+    }
+    if (out_h) {
+        *out_h = R.camera.frame_h;
+    }
+}
+
+/* the active rendering surface extent (viewport) */
+void efx_render_viewport_size(int *out_w, int *out_h) {
+    ensure_state();
+    if (out_w) {
+        *out_w = R.viewport_w;
+    }
+    if (out_h) {
+        *out_h = R.viewport_h;
+    }
+}
+
+/* whether a 3D camera was ever set (screenRay's state guard) */
+int efx_render_camera3d_active(void) {
+    ensure_state();
+    return R.camera3d_set;
+}
+
+/* world-space ray through a screen point under the current 3D camera
+ * (screenRay, script-api-ergonomics). `sx, sy` are frame pixels within
+ * `extent_w × extent_h` (top-left origin, y down). rc 0 ok; -1 no 3D camera;
+ * -2 degenerate camera or extent. */
+int efx_render_screen_ray(double sx, double sy, double extent_w,
+                          double extent_h, float out_origin[3],
+                          float out_dir[3]) {
+    if (!R.camera3d_set) {
+        return -1;
+    }
+    if (!(extent_w > 0) || !(extent_h > 0)) {
+        return -2;
+    }
+    /* camera basis: forward/target, world-up right/up (matches setCamera3D) */
+    const double px = R.camera3d.pos[0], py = R.camera3d.pos[1],
+                 pz = R.camera3d.pos[2];
+    double f[3] = {R.camera3d.target[0] - px, R.camera3d.target[1] - py,
+                   R.camera3d.target[2] - pz};
+    double fl = sqrt(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
+    if (!(fl > 0)) {
+        return -2;
+    }
+    f[0] /= fl; f[1] /= fl; f[2] /= fl;
+    /* right = normalize(fwd × worldUp) — the screen-right basis vector */
+    double r[3] = {-f[2], 0, f[0]};
+    double rl = sqrt(r[0] * r[0] + r[2] * r[2]);
+    if (!(rl > 0)) {
+        return -2; /* forward is parallel to world up */
+    }
+    r[0] /= rl; r[2] /= rl;
+    /* up = right × fwd */
+    double u[3] = {r[1] * f[2] - r[2] * f[1],
+                   r[2] * f[0] - r[0] * f[2],
+                   r[0] * f[1] - r[1] * f[0]};
+    /* NDC within the frame extent (frame pixels, y down) */
+    const double nx = (sx / extent_w) * 2.0 - 1.0;
+    const double ny = 1.0 - (sy / extent_h) * 2.0;
+    const double aspect = extent_w / extent_h;
+    const double t = tan(R.camera3d.fov * (3.141592653589793 / 180.0) / 2.0);
+    double d[3] = {f[0] + r[0] * nx * t * aspect + u[0] * ny * t,
+                   f[1] + r[1] * nx * t * aspect + u[1] * ny * t,
+                   f[2] + r[2] * nx * t * aspect + u[2] * ny * t};
+    double dl = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    if (!(dl > 0)) {
+        return -2;
+    }
+    out_origin[0] = (float)px; out_origin[1] = (float)py;
+    out_origin[2] = (float)pz;
+    out_dir[0] = (float)(d[0] / dl); out_dir[1] = (float)(d[1] / dl);
+    out_dir[2] = (float)(d[2] / dl);
+    return 0;
 }
 
 void efx_render_set_clear_color(const float rgba[4]) {

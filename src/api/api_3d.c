@@ -1,4 +1,5 @@
 #include "api/api_internal.h"
+#include "math/efx_math.h"
 
 
 /* indices: non-negative integers in uint32 range; non-integer → RangeError
@@ -274,11 +275,15 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
             if (rc != 0) {
                 return JS_EXCEPTION;
             }
-            if (len != 4) {
+            /* color value acceptance: 3 components = opaque */
+            if (len != 4 && len != 3) {
                 free(buf);
-                return efx_api_range_error(ctx, "color must hold 4 numbers");
+                return efx_api_range_error(ctx, "color must hold 3 or 4 numbers");
             }
-            memcpy(color, buf, sizeof(color));
+            memcpy(color, buf, (size_t)len * sizeof(float));
+            if (len == 3) {
+                color[3] = 1.0f;
+            }
             free(buf);
         }
 
@@ -502,6 +507,78 @@ JSValue efx_js_set_camera3d_wire(JSContext *ctx, JSValueConst this_val,
     cam.far_z = (float)d[8];
     efx_render_set_camera3d(&cam);
     return JS_UNDEFINED;
+}
+
+
+/* efx.graphics.screenRay(x, y): world-space ray through a frame-space screen
+ * point under the current 3D camera. Returns { origin, direction }; pure
+ * query over live camera state, records nothing. */
+JSValue efx_js_screenRay(JSContext *ctx, JSValueConst this_val, int argc,
+                         JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 2) {
+        return efx_api_type_error(ctx, "screenRay requires (x, y)");
+    }
+    double x, y;
+    if (JS_ToFloat64(ctx, &x, argv[0]) < 0 || JS_ToFloat64(ctx, &y, argv[1]) < 0) {
+        return efx_api_type_error(ctx, "x and y must be numbers");
+    }
+    if (!isfinite(x) || !isfinite(y)) {
+        return efx_api_range_error(ctx, "x and y must be finite");
+    }
+    /* the point is in the same space mouse input reports: the active 2D
+     * frame, falling back to the rendering surface (viewport) */
+    float fw = 0, fh = 0;
+    efx_input_frame_extent(&fw, &fh);
+    if (!(fw > 0) || !(fh > 0)) {
+        int sw = 0, sh = 0;
+        efx_render_viewport_size(&sw, &sh);
+        fw = (float)sw;
+        fh = (float)sh;
+    }
+    float origin[3], dir[3];
+    int rc = efx_render_screen_ray(x, y, fw, fh, origin, dir);
+    if (rc == -1) {
+        return efx_api_plain_error(ctx, "screenRay requires a 3D camera");
+    }
+    if (rc != 0) {
+        return efx_api_plain_error(ctx, "screenRay: degenerate 3D camera");
+    }
+    JSValue obj = JS_NewObject(ctx);
+    JSValue o = JS_NewArray(ctx);
+    JSValue d = JS_NewArray(ctx);
+    for (int i = 0; i < 3; i++) {
+        JS_SetPropertyUint32(ctx, o, (uint32_t)i, JS_NewFloat64(ctx, origin[i]));
+        JS_SetPropertyUint32(ctx, d, (uint32_t)i, JS_NewFloat64(ctx, dir[i]));
+    }
+    JS_SetPropertyStr(ctx, obj, "origin", o);
+    JS_SetPropertyStr(ctx, obj, "direction", d);
+    return obj;
+}
+
+/* mat4.transform wire (shared prelude, ADR 0049): the prelude wrapper
+ * validated the inputs; the composition lives in the shared math TU so the
+ * desktop and web results are identical. Angles in degrees; returns a fresh
+ * flat 16-number column-major array. */
+JSValue efx_js_mat4_transform_wire(JSContext *ctx, JSValueConst this_val,
+                                   int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 9) {
+        return efx_api_type_error(ctx, "transform wire native requires 9 arguments");
+    }
+    double d[9];
+    for (int i = 0; i < 9; i++) {
+        if (JS_ToFloat64(ctx, &d[i], argv[i]) < 0) {
+            return JS_EXCEPTION;
+        }
+    }
+    double vals[16];
+    efx_math_trs(vals, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8]);
+    JSValue m = JS_NewArray(ctx);
+    for (int i = 0; i < 16; i++) {
+        JS_SetPropertyUint32(ctx, m, (uint32_t)i, JS_NewFloat64(ctx, vals[i]));
+    }
+    return m;
 }
 
 

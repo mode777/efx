@@ -1,5 +1,5 @@
 2d.clearColor-wrongtype: TypeError: expected an array
-2d.clearColor-short: RangeError: wrong array length
+2d.clearColor-short: none: 
 2d.camera-noargs: TypeError: setCamera2D requires an options object
 2d.camera-zoom: RangeError: zoom must be > 0
 2d.camera-frame2: RangeError: frame must be positive
@@ -12,7 +12,7 @@
 2d.imagedata-size: RangeError: width and height must be positive
 2d.quad-few: TypeError: drawQuad requires (texture, x, y, opts?)
 2d.quad-nontexture: TypeError: expected a Texture or RenderTarget
-2d.quad-size-zero: RangeError: size entries must be > 0
+2d.quad-size-zero: none: 
 2d.quad-size-short: RangeError: wrong array length
 2d.quad-size-type: TypeError: expected an array
 2d.quad-size-nan: RangeError: array elements must be finite numbers
@@ -59,7 +59,7 @@
 3d.drawmesh-mesh-in-bag: TypeError: unknown drawMesh option 'mesh'
 3d.drawmesh-transform-short: RangeError: transform must hold 16 numbers
 3d.drawmesh-transform-type: TypeError: array elements must be numbers
-3d.drawmesh-color-short: RangeError: color must hold 4 numbers
+3d.drawmesh-color-short: none: 
 3d.drawmesh-unknown: TypeError: unknown drawMesh option 'frobnicate'
 3d.createMesh-nonmeshdata: TypeError: expected a MeshData
 3d.drawmesh-destroyed: TypeError: using a destroyed resource
@@ -79,7 +79,7 @@
 4a.md-mat-length: RangeError: materials must have one entry per surface
 4a.md-mat-not-array: TypeError: materials must be an array
 4a.md-mat-bad-entry: TypeError: material must be an object
-4a.mat-short-color: RangeError: wrong array length
+4a.mat-short-color: none: 
 4a.mat-no-color: TypeError: diffuse channel requires color
 4a.mat-unknown: TypeError: unknown material option 'albedo'
 4a.smsm-nonmesh: TypeError: expected a Mesh
@@ -179,7 +179,7 @@
 11.ps-destroyed-emit: TypeError: using a destroyed resource
 11.billboard-no-texture: TypeError: drawBillboard requires a texture
 11.billboard-pos: TypeError: drawBillboard pos must be [x,y,z]
-11.billboard-size: RangeError: size entries must be > 0
+11.billboard-size: none: 
 11.billboard-blend-unknown: TypeError: unknown blend mode
 11.sprites-array: TypeError: sprites must be an array
 11.sprite-xy: TypeError: sprite x and y must be finite numbers
@@ -213,4 +213,22 @@ coercion.phys-number-string: TypeError: friction must be a finite number
 14.playaudio-bad-source: TypeError: playAudio requires an AudioData or AudioStream
 14.playaudio-null: TypeError: playAudio requires an AudioData or AudioStream
 14.volume-negative: RangeError: volume must be a non-negative number
+60.transform-noargs: TypeError: transform requires a position
+60.transform-bad-pos: TypeError: pos must be an array
+60.transform-short-pos: RangeError: pos must hold 3 numbers
+60.transform-nan-angle: TypeError: yawDeg must be a finite number
+60.transform-zero-scale: RangeError: scale must be > 0
+60.transform-bad-scale-vec: RangeError: scale entries must be > 0
+60.plane-uvs-zero: RangeError: uvs must be > 0
+60.plane-uvs-type: TypeError: uvs must be a finite number
+60.screenray-no-camera: Error: screenRay requires a 3D camera
+60.screenray-type: RangeError: x and y must be finite
+60.debugdraw-unknown: TypeError: unknown debugDraw option 'bogus'
+60.debugdraw-alpha-range: RangeError: alpha must be in 0..1
+60.debugdraw-alpha-type: TypeError: alpha must be a finite number
+60.debugdraw-nonobject: TypeError: debugDraw options must be an object
+60.setposition-type: TypeError: expected an array
+60.setposition-short: RangeError: wrong array length
+60.quad-color-2: RangeError: wrong array length
+60.clearcolor-2: RangeError: wrong array length
 s-error-catalog-ok

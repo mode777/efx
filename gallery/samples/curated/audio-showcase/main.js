@@ -2,8 +2,8 @@
 // streamed background track (faded in through a plain handle write) plus
 // fully-decoded effects fired with pan/pitch from the click position. Space
 // pauses/resumes the track, M mutes, and [ / ] change the target volume. On the
-// web the audio context unlocks on your first click or key press
-// (efx.audio.resume is called for you). Everything is mixed by the engine — no
+// web the engine unlocks the audio context on your first click or key press.
+// Everything is mixed by the engine — no
 // channels here.
 
 efx.graphics.setClearColor([0.03, 0.035, 0.06, 1]);
@@ -42,38 +42,10 @@ const PAD_GAP = 30;
 const PAD_Y = 250;
 const PAD_X0 = (FW - (PAD_W * 3 + PAD_GAP * 2)) / 2;
 
-let winW = FW;
-let winH = FH;
-function readWindow() {
-    const s = efx.window.size;
-    if (s[0] > 0) {
-        winW = s[0];
-    }
-    if (s[1] > 0) {
-        winH = s[1];
-    }
-}
-function toFrame(x, y) {
-    return [x * (FW / winW), y * (FH / winH)];
-}
-
-let unlocked = false;
 let pulses = [0, 0, 0];
 let t = 0;
 
-function unlock() {
-    if (!unlocked) {
-        unlocked = true;
-        try {
-            efx.audio.resume();
-        } catch (e) {
-            // no audio context yet; the next interaction retries
-        }
-    }
-}
-
 function playPad(i, pan, pitch) {
-    unlock();
     // No device / all voices busy => null; the demo simply shows no pulse.
     const s = efx.audio.playAudio(PAD_DATA[i], {
         volume: 0.9,
@@ -86,8 +58,7 @@ function playPad(i, pan, pitch) {
 }
 
 efx.mouse.onDown(function (e) {
-    unlock();
-    const f = toFrame(e.x, e.y);
+    const f = [e.x, e.y];
     for (let i = 0; i < 3; i++) {
         const x = PAD_X0 + i * (PAD_W + PAD_GAP);
         if (f[0] >= x && f[0] <= x + PAD_W && f[1] >= PAD_Y && f[1] <= PAD_Y + PAD_H) {
@@ -101,7 +72,6 @@ efx.mouse.onDown(function (e) {
 });
 
 function update(dt) {
-    readWindow();
     t += dt;
     // A fade is just writing the handle's volume every frame.
     const want = muted ? 0 : targetVol;
@@ -122,7 +92,6 @@ function update(dt) {
         playPad(2, 0, 1.0);
     }
     if (efx.keyboard.isPressed('space')) {
-        unlock();
         if (music.playing) {
             music.pause();
         } else {
@@ -146,14 +115,7 @@ function render() {
                  fontSmall, 24, 52, { color: [0.7, 0.75, 0.85, 1] });
 
     const playing = music.playing;
-    let status;
-    if (playing) {
-        status = 'playing';
-    } else if (!unlocked) {
-        status = 'click to unlock';
-    } else {
-        status = 'paused';
-    }
+    const status = playing ? 'playing' : 'paused';
     efx.graphics.drawText('Music  ' + status + '   vol ' + Math.round(music.volume * 100) + '%' +
                  (muted ? '  (muted)' : ''),
                  font, 24, 92,

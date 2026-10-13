@@ -1,5 +1,43 @@
                 /* setCamera3D is installed by the shared prelude (ADR 0049) */
                 /* createMeshData is installed by the shared prelude (ADR 0049) */
+        screenRay: function (x, y) {
+            if (arguments.length < 2) {
+                throw new TypeError('screenRay requires (x, y)');
+            }
+            /* same coercion + messages as the desktop binding */
+            x = Number(x);
+            y = Number(y);
+            if (!isFinite(x) || !isFinite(y)) {
+                throw new RangeError('x and y must be finite');
+            }
+            /* the point is in the space mouse input reports: the active 2D
+               frame, falling back to the surface when no frame was set
+               (batched input state: [..., w, h, dpi, frameW, frameH]) */
+            var buf = __efxScratch();
+            bridge['_efx_bridge_input_state'](buf);
+            var fw = HEAPF64[(buf >> 3) + 9];
+            var fh = HEAPF64[(buf >> 3) + 10];
+            if (!(fw > 0) || !(fh > 0)) {
+                fw = HEAPF64[(buf >> 3) + 6];
+                fh = HEAPF64[(buf >> 3) + 7];
+            }
+            var obuf = bridge['_malloc'](6 * 8);
+            var rc = bridge['_efx_bridge_screen_ray'](x, y, fw, fh, obuf);
+            if (rc !== 0) {
+                bridge['_free'](obuf);
+                throw new Error(rc === -1
+                    ? 'screenRay requires a 3D camera'
+                    : 'screenRay: degenerate 3D camera');
+            }
+            var base = obuf >> 3;
+            var out = {
+                origin: [HEAPF64[base], HEAPF64[base + 1], HEAPF64[base + 2]],
+                direction: [HEAPF64[base + 3], HEAPF64[base + 4],
+                            HEAPF64[base + 5]],
+            };
+            bridge['_free'](obuf);
+            return out;
+        },
         createMesh: function (meshData) {
             if (arguments.length < 1) {
                 throw new TypeError('createMesh requires a MeshData');
@@ -33,8 +71,16 @@
                 var cv = opts['color'];
                 if (cv !== undefined) {
                     color = __efxFloat32Array(cv, 'color');
-                    if (color.length !== 4) {
-                        throw new RangeError('color must hold 4 numbers');
+                    /* color value acceptance: 3 components = opaque */
+                    if (color.length === 3) {
+                        var c4 = new Float32Array(4);
+                        c4[0] = color[0];
+                        c4[1] = color[1];
+                        c4[2] = color[2];
+                        c4[3] = 1;
+                        color = c4;
+                    } else if (color.length !== 4) {
+                        throw new RangeError('color must hold 3 or 4 numbers');
                     }
                 }
                 var sv = opts['skinned'];

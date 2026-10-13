@@ -170,11 +170,15 @@ function buildHole(index) {
     for (const r of (h.ramps || [])) { addRamp(r); }
     // cup sensor
     cupSensor = efx.physics.createBody({ type: 'sphere', radius: CUP_R }, { sensor: true, position: [h.cup[0], BALL_R, h.cup[1]] });
-    // (re)create the ball at the tee (a dynamic body's position is read-only)
-    if (ball) { ball.destroy(); }
-    ball = efx.physics.createBody({ type: 'sphere', radius: BALL_R }, {
-        dynamic: true, mass: 1, friction: 0.35, restitution: 0.32, position: [h.tee[0], BALL_R, h.tee[1]],
-    });
+    // teleport the ball to the tee (or create it on the first hole)
+    const tee = [h.tee[0], BALL_R, h.tee[1]];
+    if (ball) {
+        ball.setPosition(tee);
+    } else {
+        ball = efx.physics.createBody({ type: 'sphere', radius: BALL_R }, {
+            dynamic: true, mass: 1, friction: 0.35, restitution: 0.32, position: tee,
+        });
+    }
 }
 
 // ---- state ---------------------------------------------------------------
@@ -193,10 +197,8 @@ let aimDir = [0, -1];
 let pointer = [FRAME_W / 2, FRAME_H * 0.4];
 let havePointer = false;
 let camPos = [0, 8, 10];
-let clock = 0;
 let restartEdge = false;
 
-function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
 function startHole(index) {
     hole = index;
@@ -221,7 +223,7 @@ function wake() {
 }
 
 function fire(power) {
-    const p = clamp(power, 0.06, 1);
+    const p = efx.math.clamp(power, 0.06, 1);
     ball.applyImpulse([aimDir[0] * p * IMPULSE_MAX, 0, aimDir[1] * p * IMPULSE_MAX]);
     strokes++;
     state = 'roll';
@@ -251,10 +253,8 @@ efx.mouse.onDown(function () {
     else if (state === 'scorecard') { startRound(); }
 });
 efx.mouse.onMove(function (e) {
-    const s = efx.window.size;
-    const fw = s[0] > 0 ? s[0] : FRAME_W;
-    const fh = s[1] > 0 ? s[1] : FRAME_H;
-    pointer = [e.x * (FRAME_W / fw), e.y * (FRAME_H / fh)];
+    // events arrive in frame pixels, the space this game draws in
+    pointer = [e.x, e.y];
     havePointer = true;
     if (state === 'attract') { wake(); }
 });
@@ -362,7 +362,7 @@ function stepSim(dt) {
 // ---- update --------------------------------------------------------------
 function update(dt) {
     if (dt > 0.05) { dt = 0.05; }
-    clock += dt;
+    clock = efx.time.now;
 
     if (attract) {
         // self-play: line the ball up at the cup with an error term

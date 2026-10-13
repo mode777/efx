@@ -34,6 +34,11 @@
                     throw new TypeError('applyForce requires a dynamic body');
                 }
             },
+            setPosition: function (p) {
+                var a = __efxFloatArray(p, 3);
+                bridge['_efx_bridge_physics_body_set_position'](
+                    this.__handle, a[0], a[1], a[2]);
+            },
         },
         getters: {
             position: {
@@ -104,6 +109,11 @@
             physCharacters['delete'](this.__handle);
         },
         methods: {
+            setPosition: function (p) {
+                var a = __efxFloatArray(p, 3);
+                bridge['_efx_bridge_physics_character_set_position'](
+                    this.__handle, a[0], a[1], a[2]);
+            },
             moveAndSlide: function (motion) {
                 var m = __efxFloatArray(motion, 3);
                 var ptr = bridge['_malloc'](10 * 8);

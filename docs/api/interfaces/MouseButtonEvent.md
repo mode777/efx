@@ -30,7 +30,7 @@ Modifier keys held at the moment of the event.
 
 > **x**: `number`
 
-Cursor x in surface (framebuffer) pixels, top-left origin.
+Cursor x in frame pixels (surface pixels when no 2D frame was set).
 
 ***
 
@@ -38,4 +38,4 @@ Cursor x in surface (framebuffer) pixels, top-left origin.
 
 > **y**: `number`
 
-Cursor y in surface (framebuffer) pixels, top-left origin, y down.
+Cursor y in frame pixels (surface pixels when no 2D frame was set).

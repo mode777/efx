@@ -79,7 +79,6 @@ The `efx` global and the sub-namespaces it offers.
 | ------ | ------ |
 | [EfxFont](interfaces/EfxFont.md) | A baked glyph atlas plus layout metrics (opaque native-backed class). |
 | [EfxFontData](interfaces/EfxFontData.md) | A parsed TrueType/OpenType font, CPU only (opaque native-backed class). |
-| [EfxGraphics](interfaces/EfxGraphics.md) | The graphics surface: 2D and 3D drawing, camera and light state, post processing, and the graphics resource factories. Reached as `efx.graphics`; names, signatures, semantics, and error behavior are unchanged by the move from the `efx` root. |
 | [EfxImageData](interfaces/EfxImageData.md) | Raw CPU pixels plus size and format (opaque native-backed class). |
 | [EfxMesh](interfaces/EfxMesh.md) | A GPU mesh uploaded from MeshData (opaque native-backed class). |
 | [EfxMeshData](interfaces/EfxMeshData.md) | CPU mesh data holding 1..16 surfaces (opaque native-backed class). |
@@ -119,7 +118,6 @@ The single physics world: bodies, a character controller, and queries.
 | ------ | ------ |
 | [EfxBody](interfaces/EfxBody.md) | A native-backed collider in the single physics world. The world holds it until `destroy()` or `physics.clear()`: dropping the last script reference does not remove it from the simulation. |
 | [EfxCharacter](interfaces/EfxCharacter.md) | A native-backed kinematic capsule character controller. The world holds it until `destroy()` or `physics.clear()`: dropping the last script reference does not remove it from the simulation. |
-| [EfxPhysics](interfaces/EfxPhysics.md) | The single physics world. The script owns stepping: call `step(dt)` each frame and the engine never advances the world on its own. |
 
 ## Audio
 
@@ -223,7 +221,16 @@ Records returned by queries and layout operations.
 | [PhysicsMoveResult](interfaces/PhysicsMoveResult.md) | The result of `Character.moveAndSlide`. |
 | [PhysicsRayHit](interfaces/PhysicsRayHit.md) | One raycast hit. |
 | [PhysicsShapeHit](interfaces/PhysicsShapeHit.md) | One shape-cast hit. |
+| [ScreenRay](interfaces/ScreenRay.md) | A world-space picking ray returned by `graphics.screenRay`. |
 | [TextBounds](interfaces/TextBounds.md) | Laid-out text bounds returned by `drawText` / `Font.measure`. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [Efx](interfaces/Efx.md) | - |
+| [EfxGraphics](interfaces/EfxGraphics.md) | - |
+| [EfxPhysics](interfaces/EfxPhysics.md) | - |
 
 ## Noise
 
@@ -232,3 +239,9 @@ Deterministic procedural noise: point queries, bulk fills, and textures.
 | Interface | Description |
 | ------ | ------ |
 | [EfxNoise](interfaces/EfxNoise.md) | Deterministic procedural noise. Pure functions of a seed, coordinates, and options: no generator objects, no state, and bit-identical values on every target platform. Values pass through raw per type — approximately `[-1, 1]` for `'opensimplex2'`, `'opensimplex2s'`, `'perlin'`, `'valuecubic'`, and `'value'`; `'cellular'` is the nearest-feature distance in the engine's centered convention (approximately `[-1, 0.5]`). |
+
+## Runtime
+
+| Interface | Description |
+| ------ | ------ |
+| [EfxTime](interfaces/EfxTime.md) | The engine-owned script clock. |

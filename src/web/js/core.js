@@ -157,6 +157,17 @@ function __efxFloatArray(v, n) {
     throw new TypeError('expected an array');
 }
 
+/* Color value acceptance (script-api-ergonomics): 3-component [r, g, b]
+   arrays are accepted wherever a Color is expected, treated as opaque.
+   Mirrors the shared prelude's __efxColor for the host-glue call sites. */
+function __efxColor(v) {
+    if (Array.isArray(v) && v.length === 3) {
+        var c = __efxFloatArray(v, 3);
+        return [c[0], c[1], c[2], 1];
+    }
+    return __efxFloatArray(v, 4);
+}
+
 function __efxIsObject(v) {
     return v !== null && (typeof v === 'object' || typeof v === 'function');
 }
@@ -258,7 +269,7 @@ function __efxGamepadView(slot) {
 function __efxScratch() {
     var st = __efxState();
     if (!st.scratch) {
-        st.scratch = Module['_malloc'](80);
+        st.scratch = Module['_malloc'](128);
     }
     return st.scratch;
 }
@@ -907,7 +918,7 @@ function __efxEnsureApi() {
             if (ch.color === undefined) {
                 throw new TypeError(chan[ci] + ' channel requires color');
             }
-            var c = __efxFloatArray(ch.color, 4);
+            var c = __efxColor(ch.color);
             out[ci * 4] = c[0];
             out[ci * 4 + 1] = c[1];
             out[ci * 4 + 2] = c[2];
@@ -1066,7 +1077,7 @@ function __efxEnsureApi() {
             hasOrigin: 0,
         };
         if (e['color'] !== undefined) {
-            out.color = __efxFloatArray(e['color'], 4);
+            out.color = __efxColor(e['color']);
         }
         if (e['rotation'] !== undefined) {
             out.rotation = __efxFinite(e['rotation'], 'rotation must be a finite number');

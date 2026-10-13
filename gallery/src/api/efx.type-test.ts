@@ -207,12 +207,28 @@ require(42);
 // @ts-expect-error — the module facilities are not part of the efx namespace
 efx.require('./lib/math.js');
 
-// Numeric tuples are fixed-length: colors are exactly RGBA and transforms are
-// exactly 16 numbers, so arity mistakes are caught at compile time.
-// @ts-expect-error — a color is exactly four components
+// Numeric tuples are fixed-length: colors are 3 or 4 components (RGB is
+// opaque) and transforms are exactly 16 numbers, so arity mistakes are caught
+// at compile time.
 efx.graphics.setClearColor([0, 0, 0]);
+efx.graphics.setClearColor([0, 0, 0, 1]);
+// @ts-expect-error — a color holds 3 or 4 components
+efx.graphics.setClearColor([0, 0]);
 // @ts-expect-error — a transform is a fixed-length 16-number matrix
 efx.graphics.drawMesh(cube, { transform: [1, 0, 0] });
+
+// script-api-ergonomics surface: clock, one-call model matrix, scalar helpers,
+// screen picking, plane tiling, collider teleport + debug view.
+const nowSec: number = efx.time.now;
+const model: Mat4 = efx.math.mat4.transform([1, 2, 3], 90, 0, 0, 2);
+const model2: Mat4 = efx.math.mat4.transform([0, 0, 0], 45);
+const clamped: number = efx.math.clamp(5, 0, 3);
+const mixed: number = efx.math.lerp(0, 10, 0.5);
+const ray: ScreenRay = efx.graphics.screenRay(...efx.mouse.position);
+const tiledPlane: EfxMeshData = efx.graphics.makePlane({ uvs: [4, 4] });
+// @ts-expect-error — transform requires a position
+efx.math.mat4.transform();
+nowSec; model; model2; clamped; mixed; ray; tiledPlane;
 
 // ADR 0051 — math/io/color sub-namespaces and the args property. The moved
 // names are gone from the root, so the old call shapes fail to compile.
@@ -244,6 +260,13 @@ const crate = efx.physics.createBody({ type: 'sphere', radius: 0.5 }, { dynamic:
 const hero = efx.physics.createCharacter(0.4, 1.8, { position: [-5, 1, 0] });
 const hit = efx.physics.raycast([0, 1, 0], [1, 0, 0], 6, { mask: 1 });
 const hits = efx.physics.raycast([0, 1, 0], [1, 0, 0], 6, { all: true });
+efx.physics.debugDraw({ color: [1, 0, 0], alpha: 0.4 });
+crate.setPosition([1, 2, 3]);
+hero.setPosition([0, 0, 0]);
+// @ts-expect-error — debugDraw alpha is a number
+efx.physics.debugDraw({ alpha: 'half' });
+// @ts-expect-error — setPosition requires a position vector
+crate.setPosition();
 ground; crate; hero; hit; hits;
 // @ts-expect-error — the shape is positional, not a bag field
 efx.physics.createBody({ shape: { type: 'sphere', radius: 1 } });
