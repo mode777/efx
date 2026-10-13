@@ -918,7 +918,7 @@ function __efxEnsureApi() {
             if (ch.color === undefined) {
                 throw new TypeError(chan[ci] + ' channel requires color');
             }
-            var c = __efxFloatArray(ch.color, 4);
+            var c = __efxColor(ch.color);
             out[ci * 4] = c[0];
             out[ci * 4 + 1] = c[1];
             out[ci * 4 + 2] = c[2];
@@ -1077,7 +1077,7 @@ function __efxEnsureApi() {
             hasOrigin: 0,
         };
         if (e['color'] !== undefined) {
-            out.color = __efxFloatArray(e['color'], 4);
+            out.color = __efxColor(e['color']);
         }
         if (e['rotation'] !== undefined) {
             out.rotation = __efxFinite(e['rotation'], 'rotation must be a finite number');

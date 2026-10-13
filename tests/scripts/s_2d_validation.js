@@ -10,7 +10,7 @@ function expectThrow(name, fn) {
     }
 }
 expectThrow('clearColor-wrongtype', () => efx.graphics.setClearColor('red'));
-expectThrow('clearColor-short', () => efx.graphics.setClearColor([1, 2, 3]));
+expectThrow('clearColor-short', () => efx.graphics.setClearColor([1, 2]));
 expectThrow('camera-noargs', () => efx.graphics.setCamera2D());
 expectThrow('camera-zoom', () => efx.graphics.setCamera2D({ x: 0, y: 0, zoom: 0 }));
 expectThrow('camera-frame', () => efx.graphics.setCamera2D({ frame: [0, 0] }));

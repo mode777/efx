@@ -42,7 +42,7 @@ expectThrow('md-mat-bad-entry', TE, () => efx.graphics.createMeshData([{ positio
 
 // material channel validation
 expectThrow('mat-map-f4b', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1], map: 1 } }]));
-expectThrow('mat-short-color', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1] } }]));
+expectThrow('mat-short-color', RE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1] } }]));
 expectThrow('mat-no-color', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: {} }]));
 expectThrow('mat-unknown', TE, () => efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], [{ diffuse: { color: [1, 1, 1, 1] }, albedo: 1 }]));
 
