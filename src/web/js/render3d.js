@@ -71,8 +71,16 @@
                 var cv = opts['color'];
                 if (cv !== undefined) {
                     color = __efxFloat32Array(cv, 'color');
-                    if (color.length !== 4) {
-                        throw new RangeError('color must hold 4 numbers');
+                    /* color value acceptance: 3 components = opaque */
+                    if (color.length === 3) {
+                        var c4 = new Float32Array(4);
+                        c4[0] = color[0];
+                        c4[1] = color[1];
+                        c4[2] = color[2];
+                        c4[3] = 1;
+                        color = c4;
+                    } else if (color.length !== 4) {
+                        throw new RangeError('color must hold 3 or 4 numbers');
                     }
                 }
                 var sv = opts['skinned'];
