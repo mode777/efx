@@ -21,10 +21,14 @@ supply or read the camera to orient a billboard.
 `texture` SHALL be required and MUST be a
 live Texture or RenderTarget — passing nothing, a value that is neither, or a
 destroyed resource SHALL throw `TypeError` and record nothing. The trailing
-`opts` bag is optional and SHALL accept: `size`, either a finite number `> 0`
+`opts` bag is optional and SHALL accept: `size`, either a finite number
 (a uniform world-unit size) or a `[width, height]`
-array of finite numbers `> 0`; it names the quad's world dimensions (default
-`1`). `color` SHALL be a tint `[r, g, b, a]` (default opaque white).
+array of finite numbers; it names the quad's world dimensions (default
+`1`). A `size` value that is finite but ≤ 0 (or a component of the array
+form that is) SHALL be a **degenerate draw**: the call SHALL record nothing,
+SHALL NOT throw, and SHALL leave all render state untouched — the same
+tolerance `drawQuad` applies to zero-size quads. `color` SHALL be a tint
+`[r, g, b, a]` (default opaque white).
 `sourceRect` (`{ x, y, w, h }`) SHALL select an atlas region (default the full
 texture); a zero extent or a region outside the texture bounds SHALL throw
 `RangeError` and record nothing. `rotation` SHALL be a finite number of
@@ -34,8 +38,9 @@ be `'view'` (default) or `'y'`. `normal` is meaningful only for
 `true`). `blend` SHALL be a blend mode string (`'alpha'` | `'additive'` |
 `'subtractive'`) that overrides the frame's blend render state for this draw;
 when omitted the frame state at record time applies. Unknown fields and
-wrongly-typed values SHALL throw `TypeError`; non-finite or `<= 0` size values
-SHALL throw `RangeError`; an invalid `blend` SHALL throw `TypeError`; a throw
+wrongly-typed values SHALL throw `TypeError`; a non-finite array size entry
+SHALL throw `RangeError` and a non-finite scalar size SHALL throw `TypeError`
+(the pre-existing rule); an invalid `blend` SHALL throw `TypeError`; a throw
 records nothing.
 
 #### Scenario: View-facing billboard follows the camera
@@ -81,10 +86,17 @@ records nothing.
 #### Scenario: Invalid input throws and records nothing
 
 - **WHEN** `drawBillboard` is called with no texture, a non-sample value, a
-  destroyed Texture/RenderTarget, `size: 0`, `size: [1]`, `facing: 'diagonal'`,
+  destroyed Texture/RenderTarget, `size: [1]`, `facing: 'diagonal'`,
   `depthTest: 1`, `blend: 'multiply'`, or an unknown option field
 - **THEN** the call throws (`TypeError` or `RangeError` as appropriate) and
   records no billboard
+
+#### Scenario: Degenerate size records nothing
+
+- **WHEN** `drawBillboard` is called with `size: 0`, `size: -2`, or
+  `size: [1, 0]`, between two valid draws
+- **THEN** no error is thrown, no billboard is recorded for those calls, and
+  the frame is identical to one where the calls were absent
 
 ### Requirement: Billboard depth and blend behavior
 

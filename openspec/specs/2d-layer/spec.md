@@ -57,11 +57,15 @@ RenderTarget (F5a) — passing nothing, a value that is neither, or a
 destroyed Texture or RenderTarget SHALL throw `TypeError`.
 
 The quad's size SHALL be determined in frame pixels by the first match of:
-`opts.size` — a `[width, height]` array of finite numbers, both required and
-> 0; else the drawn texture region's extent when `opts.sourceRect` is given;
-else the texture's pixel size (for a RenderTarget, its `width`/`height`). A
-`size` entry that is non-numeric, infinite, or ≤ 0 SHALL throw (`TypeError` /
-`RangeError` respectively) and record nothing. A `sourceRect` of zero extent
+`opts.size` — a `[width, height]` array of finite numbers, both required;
+else the drawn texture region's extent when `opts.sourceRect` is given;
+else the texture's pixel size (for a RenderTarget, its `width`/`height`).
+A `size` entry that is non-numeric or infinite SHALL throw (`TypeError` /
+`RangeError` respectively) and record nothing. A `size` entry that is
+finite but ≤ 0 SHALL be a **degenerate draw**: the call SHALL record
+nothing, SHALL NOT throw, and SHALL leave all render state (blend mode,
+camera, clear color) untouched — callers can draw health bars and meters
+that shrink to zero without guarding. A `sourceRect` of zero extent
 in either dimension SHALL throw `RangeError` and record nothing. `opts.scale`
 SHALL apply after the size is determined: size is pre-scale frame pixels and
 scale multiplies the drawn extents.
@@ -124,8 +128,12 @@ three mode strings SHALL throw `TypeError` and record nothing.
 - **THEN** both render pixel-identically with their top-left corner at `(x, y)`
 
 #### Scenario: Invalid size or origin values throw
-- **WHEN** `drawQuad` is called with `size: [0, 10]`, `size: [10]`, `size: 'big'`, or `origin: [NaN, 0]`
+- **WHEN** `drawQuad` is called with `size: [10]`, `size: 'big'`, or `origin: [NaN, 0]`
 - **THEN** the call throws (`RangeError` for out-of-range numbers, `TypeError` for wrong types) and records nothing
+
+#### Scenario: Degenerate size records nothing
+- **WHEN** `drawQuad` is called with `size: [0, 10]`, `size: [12, 0]`, or `size: [-4, 10]`, between two valid draws
+- **THEN** no error is thrown, no quad is recorded for those calls, and the frame is identical to one where the calls were absent
 
 #### Scenario: Missing or destroyed texture throws
 - **WHEN** `drawQuad` is called with no texture, a value that is neither a Texture nor a RenderTarget, a destroyed Texture, or a destroyed RenderTarget

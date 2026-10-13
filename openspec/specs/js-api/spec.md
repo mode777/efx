@@ -70,7 +70,7 @@ error behavior: `beginRenderTarget`, `createFont`, `createImageData`,
 `createTexture`, `drawBillboard`, `drawMesh`, `drawParticles`, `drawQuad`,
 `drawSprites`, `drawText`, `endRenderTarget`, `loadFontData`, `loadImage`,
 `loadMeshData`, `makeCapsule`, `makeCube`, `makePlane`, `makeSphere`,
-`setBlendMode`, `setCamera2D`, `setCamera3D`, `setClearColor`,
+`screenRay`, `setBlendMode`, `setCamera2D`, `setCamera3D`, `setClearColor`,
 `setDirectionalLight`, `setLight`, `setPostEffects`, and `setRenderScale` —
 plus the engine-owned read-only `whiteTexture` Texture property. The
 operations on a native-backed class instance SHALL be methods on that class,
@@ -81,8 +81,9 @@ root: the move is a hard cut with no deprecated root aliases and no
 compatibility shims. The `efx` root SHALL keep only the runtime/lifecycle
 members (`log`, `quit`, the `args` property, `registerUpdateHook`,
 `registerRenderHook`) and the domain sub-namespaces (`math`, `io`, `color`,
-`keyboard`, `mouse`, `window`, `physics`, `gamepad`, `audio`); `whiteTexture`,
-`loadText`, and the math helpers are no longer root members. The sub-namespace
+`keyboard`, `mouse`, `window`, `physics`, `gamepad`, `audio`, `time`);
+`whiteTexture`, `loadText`, and the math helpers are no longer root members.
+The sub-namespace
 SHALL exist on every runtime binding (quickjs desktop and the Emscripten web
 bridge) with identical membership, and every entry SHALL behave identically
 across them. The generated reference (`docs/api/` from
@@ -713,16 +714,21 @@ fixed-limits table are unchanged.
 - `onDown(fn)`, `onUp(fn)`, `onMove(fn)`, `onWheel(fn)` — register a callback
   and return an unsubscribe function.
 - Read-only properties `position` → `[x, y]`, `x`, `y`, `delta` → `[dx, dy]`,
-  and `wheel` → `[dx, dy]`, reported in surface pixels.
+  and `wheel` → `[dx, dy]`; position and deltas are reported in **frame
+  pixels** (the active 2D frame's coordinate space, identity when no frame
+  was ever set — the same space quad drawing uses), while `wheel` remains
+  unscaled scroll ticks.
 
 `efx.window` SHALL provide read-only properties `size` → `[width, height]`,
-`width`, `height`, and `dpiScale`.
+`width`, `height`, and `dpiScale`, reported in surface pixels.
 
 Event callbacks SHALL receive a single plain JS object — never a host or DOM
 event — holding only engine-provided primitives: `{ key, repeat, mods }` for
 keyboard down, `{ key, mods }` for keyboard up, `{ char }` for character
 input, `{ button, x, y, mods }` for mouse down/up, `{ x, y, dx, dy }` for
-mouse move, and `{ dx, dy }` for wheel. Key names and mouse button names SHALL
+mouse move, and `{ dx, dy }` for wheel; mouse event coordinates and deltas
+use the same frame-pixel space as the read-only properties. Key names and
+mouse button names SHALL
 be engine-owned string constants from a documented set. Registration SHALL
 require a function and SHALL throw `TypeError` otherwise; each registration
 SHALL return an unsubscribe function with the same idempotent semantics as the
@@ -748,7 +754,9 @@ in the gallery type document, both updated in the same change.
 
 #### Scenario: Mouse position is a read-only property
 - **WHEN** a script reads `efx.mouse.position` or `efx.mouse.x`
-- **THEN** it receives the current pointer position in surface pixels, and assigning to the property has no effect
+- **THEN** it receives the current pointer position in frame pixels (surface
+  pixels when no 2D frame was ever set), and assigning to the property has no
+  effect
 
 #### Scenario: No resources added
 - **WHEN** the API reference's resource classes and fixed limits are read after this change
@@ -884,14 +892,18 @@ and web bindings. The sub-namespace SHALL provide:
   classes; the required collider shape / capsule dimensions are positional and
   the trailing bag carries only optional configuration;
 - `raycast`, `overlap`, and `shapeCast` — spatial queries, defined by the
-  `physics-queries` capability.
+  `physics-queries` capability;
+- `debugDraw(opts?)` — render-phase debug visualization of every live
+  collider, defined by the `collision-physics` capability.
 
 `Body` and `Character` SHALL be classified as native-backed classes under the
 resource-classification requirement. `Body` SHALL expose `position`,
 `velocity`, `contacts`, and a `transform` (a flat 16-number column-major
-translation matrix, directly usable by `drawMesh`), `applyImpulse`, and
-`applyForce`; `Character` SHALL expose `position`, `velocity`, `onFloor`, and
-`moveAndSlide`. Shapes SHALL be plain JS option objects (sphere, box, capsule,
+translation matrix, directly usable by `drawMesh`), `applyImpulse`,
+`applyForce`, and `setPosition(p)` (teleport, defined by the
+`collision-physics` capability); `Character` SHALL expose `position`,
+`velocity`, `onFloor`, `moveAndSlide`, and `setPosition(p)` with the same
+teleport semantics. Shapes SHALL be plain JS option objects (sphere, box, capsule,
 mesh) accepted positionally by bodies and by queries. Validation SHALL follow
 the engine's convention: unknown fields, unknown shape/body kinds, and wrong
 types throw `TypeError`; out-of-range numeric values throw `RangeError`. The
@@ -1023,10 +1035,10 @@ signatures, semantics, and error behavior across the desktop and web bindings.
   return an `Audio` handle; `opts` MAY include `volume`, `pan`, `pitch`, and
   `loop` as initial values only.
 - `volume` — a read-write master output gain scaling all playback.
-- `resume()` — unlock/resume audio after a user gesture on web; a no-op on
-  desktop.
 
-An `AudioData` SHALL be a native-backed class holding decoded PCM with an
+There SHALL be no namespace-level `resume()` or unlock member: web autoplay
+unlock is engine-managed on first input (see the `audio` capability). An
+`AudioData` SHALL be a native-backed class holding decoded PCM with an
 explicit `destroy()` and a GC-finalizer backstop, and no query properties. An
 `AudioStream` SHALL be a native-backed class holding a compressed resource and
 an incremental decoder with an explicit `destroy()` and no query properties;
@@ -1103,12 +1115,18 @@ values keep their documented error class.
   divergences
 
 ### Requirement: Math namespace API
-The script API SHALL expose the pure-JS math helpers as the sub-namespace
-`efx.math` of the single `efx` object: `efx.math.mat4`, `efx.math.vec3`, and
-`efx.math.quat`, with no new free globals. Their member sets and behavior
-SHALL be unchanged from the former root helpers (`efx.mat4` / `efx.vec3` /
-`efx.quat`): pure functions that never mutate their arguments and return plain
-JS data. The names `mat4`, `vec3`, and `quat` SHALL NOT also exist as members
+The script API SHALL expose the math helpers as the sub-namespace
+`efx.math` of the single `efx` object: `efx.math.mat4`, `efx.math.vec3`,
+`efx.math.quat`, and the scalar helpers `clamp` and `lerp`, with no new free
+globals. The pre-existing members SHALL behave identically to the former
+root helpers (`efx.mat4` / `efx.vec3` / `efx.quat`): pure functions that
+never mutate their arguments and return plain
+JS data. `clamp(v, lo, hi)` and `lerp(a, b, t)` are `[JS]`-implemented
+scalar helpers; `mat4.transform(pos, yawDeg?, pitchDeg?, rollDeg?, scale?)`
+is native-backed through the standard marshal-only wire with prelude
+validation (ADR 0049) and returns the same plain JS data as its
+`[JS]` siblings, byte-identically on both runtimes. The names `mat4`, `vec3`,
+and `quat` SHALL NOT also exist as members
 of the `efx` root: the move is a hard cut with no deprecated root aliases and
 no compatibility shims. `efx.math` SHALL exist with identical membership and
 behavior on every runtime binding (quickjs desktop and the Emscripten web
@@ -1313,3 +1331,34 @@ on that instance.
   player, including invalid calls
 - **THEN** both runtimes return identical results and throw the same error
   class with the byte-identical message
+
+### Requirement: Color value acceptance
+Wherever the script API types a value as a `Color` — draw-call tints, material
+channel colors, light colors, clear colors, and the like — the engine SHALL
+accept both a 4-component `[r, g, b, a]` array and a 3-component `[r, g, b]`
+array; the 3-component form SHALL be treated as fully opaque (alpha `1`).
+This tolerance SHALL apply uniformly at the validation layer (shared wire
+validators per ADR 0049), so every color-typed argument across the API gains
+it at once; all other invalid color values (wrong types, wrong lengths,
+non-finite components) keep their existing error classes and messages.
+The gallery type document SHALL widen the `Color` type accordingly, and the
+generated reference SHALL document the accepted forms.
+
+#### Scenario: Three-component tint is accepted
+
+- **WHEN** a script draws `drawQuad(tex, x, y, { color: [1, 0.5, 0] })`
+- **THEN** the quad renders with that tint at full opacity, identically to
+  passing `[1, 0.5, 0, 1]`
+
+#### Scenario: Tolerance is uniform across the API
+
+- **WHEN** a 3-component color is passed to a draw-call tint, a material
+  channel color, a light color, and the clear color
+- **THEN** every call accepts it as opaque, with no per-call exceptions
+
+#### Scenario: Invalid colors keep their errors
+
+- **WHEN** a script passes `[1, 0]` (wrong length), `'red'`, or a `NaN`
+  component as a color, on both runtimes
+- **THEN** the calls throw their existing error classes with identical
+  messages on both runtimes
