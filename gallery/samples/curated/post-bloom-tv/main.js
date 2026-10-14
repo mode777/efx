@@ -13,7 +13,7 @@ efx.graphics.setPostEffects([
 ]);
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 function render() {
     efx.graphics.drawQuad(tex, 0, 0, { size: [640, 480] });
     efx.graphics.drawQuad(efx.graphics.whiteTexture, 120, 110, { size: [200, 80], color: efx.color.white });

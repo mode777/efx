@@ -301,5 +301,5 @@ efx.registerUpdateHook(function (dt) {
     if (dt > 0.05) {
         dt = 0.05;
     }
-    t += dt;
+    t = efx.time.now;
 });

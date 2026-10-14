@@ -13,7 +13,7 @@ cube.setSurfaceMaterial(0, {
 });
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 function render() {
     const spin = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 40, [0, 1, 0]);
     const tilt = efx.math.mat4.rotate(spin, 18, [1, 0, 0]);

@@ -18,7 +18,7 @@ function rnd() {
     return rngState / 0x7fffffff;
 }
 function rand(a, b) {
-    return a + (b - a) * rnd();
+    return efx.math.lerp(a, b, rnd());
 }
 
 const PALETTE = [
@@ -155,7 +155,7 @@ function update(dt) {
     if (dt > 0.05) {
         dt = 0.05;
     }
-    t += dt;
+    t = efx.time.now;
 
     if (attract) {
         hint += dt;

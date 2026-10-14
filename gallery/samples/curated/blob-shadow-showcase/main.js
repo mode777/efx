@@ -1,27 +1,12 @@
 // A blob shadow under a moving character, drawn as a ground-plane billboard
 // (facing:'plane') with alpha blending and a small lift off the floor. The
-// radial shadow texture is generated at runtime with createImageData, so the
-// sample ships no asset. Orbit the camera: the shadow stays flat on the
-// ground and follows the character.
+// radial shadow texture is the shared pre-built image (radial.png), tinted
+// dark at draw time. Orbit the camera: the shadow stays flat on the ground
+// and follows the character.
 efx.graphics.setClearColor([0.05, 0.06, 0.1, 1]);
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1.0, -0.3], color: [0.95, 0.95, 1.0, 1] });
 
-// procedural radial falloff: opaque-ish dark centre fading to transparent
-const S = 64;
-const px = new Uint8Array(S * S * 4);
-for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-        const i = (y * S + x) * 4;
-        const dx = (x + 0.5) / S - 0.5;
-        const dy = (y + 0.5) / S - 0.5;
-        const d = Math.min(1, Math.sqrt(dx * dx + dy * dy) * 2);
-        px[i] = 0;
-        px[i + 1] = 0;
-        px[i + 2] = 0;
-        px[i + 3] = Math.round((1 - d) * (1 - d) * 200);
-    }
-}
-const shadowTex = efx.graphics.createTexture(efx.graphics.createImageData(S, S, px));
+const shadowTex = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 
 const ground = efx.graphics.createMesh(efx.graphics.makePlane({ size: 20 }));
 ground.setSurfaceMaterial(0, { diffuse: { color: [0.5, 0.52, 0.44, 1] } });
@@ -33,7 +18,7 @@ hero.setSurfaceMaterial(0, {
 });
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 
 function render() {
     const a = t * 0.8;
@@ -52,7 +37,7 @@ function render() {
     efx.graphics.drawBillboard(shadowTex, [hx, 0.02, hz], {
         facing: 'plane',
         normal: [0, 1, 0],
-        size: 1.6,
+        size: 0.8,
         color: [0, 0, 0, 1],
         blend: 'alpha',
     });

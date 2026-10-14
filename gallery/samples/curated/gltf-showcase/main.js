@@ -11,7 +11,7 @@ efx.graphics.setDirectionalLight({ dir: [-0.4, -0.8, -0.5], color: [0.22, 0.24, 
 const avocado = efx.graphics.createMesh(efx.graphics.loadMeshData('Avocado.gltf'));
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 
 function render() {
     const spin = efx.math.mat4.rotate(efx.math.mat4.identity(), t * 30, [0, 1, 0]);

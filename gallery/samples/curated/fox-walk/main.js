@@ -15,7 +15,7 @@ const model = efx.math.mat4.scale(efx.math.mat4.rotate(efx.math.mat4.identity(),
                              [100, 100, 100]);
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 
 function render() {
     fox.pose({ clip: 'AnimalArmature|Walk', time: t });

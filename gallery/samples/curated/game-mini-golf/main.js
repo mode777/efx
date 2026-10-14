@@ -32,33 +32,13 @@ const bigFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 4
     outline: { width: 2 },
 });
 
-// ---- procedural textures -------------------------------------------------
-function noiseTexture(size, base, spread) {
-    const px = [];
-    let s = 0x1234;
-    for (let i = 0; i < size * size; i++) {
-        s = (s * 1103515245 + 12345) & 0x7fffffff;
-        const n = (s / 0x7fffffff - 0.5) * spread;
-        const g = Math.max(0, Math.min(1, base[1] + n));
-        px.push(Math.round(base[0] * 255 * (0.85 + n)), Math.round(g * 255), Math.round(base[2] * 255 * (0.85 + n)), 255);
-    }
-    return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px), { wrap: 'repeat' });
-}
-function radialTexture(size, r, g, b) {
-    const px = [];
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = (x + 0.5) / size * 2 - 1;
-            const dy = (y + 0.5) / size * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            px.push(r, g, b, a);
-        }
-    }
-    return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px));
-}
-const grass = noiseTexture(64, [0.20, 0.55, 0.28], 0.18);
-const shadowTex = radialTexture(48, 255, 255, 255);
+// ---- textures ------------------------------------------------------------
+// grass is engine-generated noise (tinted green by the material below); the
+// blob shadow is the shared pre-built radial image, tinted dark at draw time.
+const grass = efx.graphics.createTexture(
+    efx.noise.imageData(64, 64, { seed: 0x1234, type: 'value', frequency: 0.15, octaves: 2 }),
+    { wrap: 'repeat' });
+const shadowTex = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 
 // ---- meshes --------------------------------------------------------------
 const cube = efx.graphics.createMesh(efx.graphics.makeCube());
@@ -67,7 +47,7 @@ const groundMesh = efx.graphics.createMesh(efx.graphics.makePlane({ size: 40 }))
 
 groundMesh.setSurfaceMaterial(0, {
     ambient: { color: [0.18, 0.22, 0.18, 1] },
-    diffuse: { color: [1, 1, 1, 1], map: grass },
+    diffuse: { color: [0.36, 0.72, 0.4, 1], map: grass },
     specular: { color: [0.1, 0.12, 0.1, 1], shininess: 8 },
 });
 cube.setSurfaceMaterial(0, {
@@ -118,15 +98,11 @@ function destroyHole() {
     if (cupSensor) { cupSensor.destroy(); cupSensor = null; }
 }
 
-function trs(pos, scale) {
-    const t = efx.math.mat4.translate(efx.math.mat4.identity(), pos);
-    return efx.math.mat4.scale(t, scale);
-}
 
 function addBox(x, z, w, d, color) {
     const body = efx.physics.createBody({ type: 'box', size: [w, WALL_H, d] }, { position: [x, WALL_H / 2, z], friction: 0.5 });
     holeBodies.push(body);
-    holeRender.push({ mesh: cube, transform: trs([x, WALL_H / 2, z], [w, WALL_H, d]), color: color || [0.45, 0.5, 0.62, 1] });
+    holeRender.push({ mesh: cube, transform: efx.math.mat4.transform([x, WALL_H / 2, z], 0, 0, 0, [w, WALL_H, d]), color: color || [0.45, 0.5, 0.62, 1] });
 }
 
 function addRamp(r) {
@@ -196,7 +172,6 @@ let chargeT = 0;
 let aimDir = [0, -1];
 let pointer = [FRAME_W / 2, FRAME_H * 0.4];
 let havePointer = false;
-let camPos = [0, 8, 10];
 let restartEdge = false;
 
 
@@ -259,38 +234,19 @@ efx.mouse.onMove(function (e) {
     if (state === 'attract') { wake(); }
 });
 
-// ---- aiming --------------------------------------------------------------
-function cameraBasis() {
+// ---- camera + aiming -----------------------------------------------------
+// The camera follows the ball; set it in update (before picking) and again in
+// render so the engine's screenRay sees the frame the player is looking at.
+function applyCamera() {
     const b = ball.position;
-    const c = [b[0] + CAM_OFFSET[0], b[1] + CAM_OFFSET[1], b[2] + CAM_OFFSET[2]];
-    const target = [b[0], b[1] + 0.2, b[2]];
-    const f = [target[0] - c[0], target[1] - c[1], target[2] - c[2]];
-    const fl = Math.hypot(f[0], f[1], f[2]) || 1;
-    const fwd = [f[0] / fl, f[1] / fl, f[2] / fl];
-    const right = [fwd[2], 0, -fwd[0]];
-    const rl = Math.hypot(right[0], right[2]) || 1;
-    const r = [right[0] / rl, 0, right[2] / rl];
-    const up = [
-        r[1] * fwd[2] - r[2] * fwd[1],
-        r[2] * fwd[0] - r[0] * fwd[2],
-        r[0] * fwd[1] - r[1] * fwd[0],
-    ];
-    return { c, fwd, r, up };
+    const pos = [b[0] + CAM_OFFSET[0], b[1] + CAM_OFFSET[1], b[2] + CAM_OFFSET[2]];
+    efx.graphics.setCamera3D(pos, [b[0], b[1] + 0.2, b[2]], CAM_FOV);
 }
 
 function cursorRay() {
-    const { c, fwd, r, up } = cameraBasis();
-    const nx = (pointer[0] / FRAME_W) * 2 - 1;
-    const ny = 1 - (pointer[1] / FRAME_H) * 2;
-    const aspect = FRAME_W / FRAME_H;
-    const t = Math.tan((CAM_FOV * Math.PI / 180) / 2);
-    const d = [
-        fwd[0] + r[0] * nx * t * aspect + up[0] * ny * t,
-        fwd[1] + r[1] * nx * t * aspect + up[1] * ny * t,
-        fwd[2] + r[2] * nx * t * aspect + up[2] * ny * t,
-    ];
-    const dl = Math.hypot(d[0], d[1], d[2]) || 1;
-    return { c, d: [d[0] / dl, d[1] / dl, d[2] / dl] };
+    // the engine's picking ray through the cursor (frame pixels)
+    const ray = efx.graphics.screenRay(pointer[0], pointer[1]);
+    return { c: ray.origin, d: ray.direction };
 }
 
 function groundHit() {
@@ -363,6 +319,7 @@ function stepSim(dt) {
 function update(dt) {
     if (dt > 0.05) { dt = 0.05; }
     clock = efx.time.now;
+    applyCamera();
 
     if (attract) {
         // self-play: line the ball up at the cup with an error term
@@ -420,8 +377,7 @@ function chargePower() {
 // ---- render --------------------------------------------------------------
 function draw3d() {
     const b = ball.position;
-    camPos = [b[0] + CAM_OFFSET[0], b[1] + CAM_OFFSET[1], b[2] + CAM_OFFSET[2]];
-    efx.graphics.setCamera3D(camPos, [b[0], b[1] + 0.2, b[2]], CAM_FOV);
+    applyCamera();
     efx.graphics.setDirectionalLight({ dir: [-0.4, -1, -0.3], color: [0.55, 0.6, 0.7, 1] });
     efx.graphics.setLight(0, { pos: [b[0], 6, b[2] + 3], color: [1, 0.95, 0.8, 1], range: 40 });
 
@@ -436,7 +392,7 @@ function draw3d() {
     efx.graphics.drawBillboard(shadowTex, [h.cup[0], 0.02, h.cup[1]], {
         size: 1.5, facing: 'plane', normal: [0, 1, 0], color: [0.02, 0.02, 0.03, 0.95], blend: 'alpha',
     });
-    efx.graphics.drawMesh(cube, { transform: trs([h.cup[0], 0.7, h.cup[1]], [0.05, 1.4, 0.05]), color: [0.9, 0.9, 0.95, 1] });
+    efx.graphics.drawMesh(cube, { transform: efx.math.mat4.transform([h.cup[0], 0.7, h.cup[1]], 0, 0, 0, [0.05, 1.4, 0.05]), color: [0.9, 0.9, 0.95, 1] });
 
     // ball shadow
     efx.graphics.drawBillboard(shadowTex, [b[0], 0.02, b[2]], {
@@ -455,7 +411,7 @@ function draw3d() {
         efx.graphics.drawMesh(cube, { transform: m, color: [0.4, 1, 0.6, 1] });
     }
 
-    efx.graphics.drawMesh(ballMesh, { transform: trs(b, [1, 1, 1]), color: [1, 1, 1, 1] });
+    efx.graphics.drawMesh(ballMesh, { transform: efx.math.mat4.transform(b, 0, 0, 0, [1, 1, 1]), color: [1, 1, 1, 1] });
 }
 
 function render() {
