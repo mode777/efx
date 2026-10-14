@@ -1,28 +1,8 @@
 // F11 particle showcase: an additive fire, an alpha smoke plume, and a
 // y-axis-billboard ember burst (burst + continuous emission), plus a 2D
-// drawSprites row. All public API, procedural textures, no asset pack.
+// drawSprites row. All public API; the sprite is the shared radial image.
 
-function radial(size, r, g, b) {
-    const px = new Uint8Array(size * size * 4);
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = ((x + 0.5) / size) * 2 - 1;
-            const dy = ((y + 0.5) / size) * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            const i = (y * size + x) * 4;
-            px[i] = r;
-            px[i + 1] = g;
-            px[i + 2] = b;
-            px[i + 3] = a;
-        }
-    }
-    return px;
-}
-
-const spark = efx.graphics.createTexture(
-    efx.graphics.createImageData(32, 32, radial(32, 255, 255, 255)),
-);
+const spark = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 
 efx.graphics.setClearColor([0.02, 0.02, 0.05, 1]);
 efx.graphics.setCamera3D([0, 2.2, 7], [0, 1.2, 0], 60);
@@ -38,7 +18,7 @@ efx.graphics.setCamera2D({ frame: [640, 480] });
 let t = 0;
 let burst = 0;
 efx.registerUpdateHook((dt) => {
-    t += dt;
+    t = efx.time.now;
     const a = t * 0.4;
     efx.graphics.setCamera3D([Math.cos(a) * 7, 2.2, Math.sin(a) * 7], [0, 1.2, 0], 60);
     burst -= dt;

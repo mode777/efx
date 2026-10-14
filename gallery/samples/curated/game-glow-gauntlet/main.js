@@ -40,21 +40,9 @@ const bigFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 4
     outline: { width: 2 },
 });
 
-// ---- procedural textures -------------------------------------------------
-function radial(size, cr, cg, cb) {
-    const px = [];
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = (x + 0.5) / size * 2 - 1;
-            const dy = (y + 0.5) / size * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            px.push(cr, cg, cb, a);
-        }
-    }
-    return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px));
-}
-const glowTex = radial(48, 255, 255, 255);
+// ---- textures ------------------------------------------------------------
+// shared radial glow texture (white, alpha falloff), tinted at draw
+const glowTex = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 
 const burst = efx.graphics.createParticleSystem(glowTex, 300, [0.3, 0.8], {
     space: 'screen',
@@ -240,7 +228,7 @@ function nextGate() {
 // ---- update --------------------------------------------------------------
 function update(dt) {
     if (dt > 0.05) { dt = 0.05; }
-    clock += dt;
+    clock = efx.time.now;
 
     if (state === 'attract') {
         const g = nextGate();

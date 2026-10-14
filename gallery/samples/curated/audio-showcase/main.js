@@ -72,7 +72,7 @@ efx.mouse.onDown(function (e) {
 });
 
 function update(dt) {
-    t += dt;
+    t = efx.time.now;
     // A fade is just writing the handle's volume every frame.
     const want = muted ? 0 : targetVol;
     const cur = music.volume;

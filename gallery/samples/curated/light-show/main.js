@@ -18,7 +18,7 @@ const colors = [
 ];
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 function render() {
     for (let i = 0; i < 4; i++) {
         const a = t * 0.9 + i * (Math.PI / 2);

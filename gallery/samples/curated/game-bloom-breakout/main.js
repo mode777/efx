@@ -76,21 +76,7 @@ const bigFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 4
 });
 
 // ---- particle system (screen-space; burst on brick death) ----------------
-function shardTexture() {
-    const size = 16;
-    const px = [];
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = (x + 0.5) / size * 2 - 1;
-            const dy = (y + 0.5) / size * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            px.push(255, 255, 255, a);
-        }
-    }
-    return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px));
-}
-const shard = shardTexture();
+const shard = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 const burst = efx.graphics.createParticleSystem(shard, 400, [0.25, 0.7], {
     space: 'screen',
     facing: 'view',

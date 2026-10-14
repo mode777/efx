@@ -26,7 +26,7 @@ const moons = scene.orbits.map((entry, i) => {
 
 let t = 0;
 efx.registerUpdateHook((dt) => {
-    t += dt;
+    t = efx.time.now;
 });
 
 efx.registerRenderHook(() => {

@@ -35,21 +35,9 @@ const bigFont = efx.graphics.createFont(efx.graphics.loadFontData('font.ttf'), 4
     outline: { width: 2 },
 });
 
-// ---- procedural textures -------------------------------------------------
-function radialTexture(size) {
-    const px = [];
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = (x + 0.5) / size * 2 - 1;
-            const dy = (y + 0.5) / size * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            px.push(255, 255, 255, a);
-        }
-    }
-    return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px));
-}
-const shadowTex = radialTexture(48);
+// ---- textures ------------------------------------------------------------
+// shared radial shadow texture (white, alpha falloff), tinted at draw
+const shadowTex = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 
 // ---- sky + meshes --------------------------------------------------------
 const skyTex = efx.graphics.createTexture(efx.graphics.loadImage('sky.jpg'), { wrap: 'clamp' });
@@ -342,12 +330,10 @@ function update(dt) {
 // ---- render --------------------------------------------------------------
 function foxTransform() {
     const p = hero.position;
-    const base = efx.math.mat4.scale(
-        efx.math.mat4.rotate(efx.math.mat4.identity(), -90, [1, 0, 0]),
-        [FOX_SCALE, FOX_SCALE, FOX_SCALE]);
-    const orient = efx.math.mat4.rotate(efx.math.mat4.identity(), heading * 180 / Math.PI, [0, 1, 0]);
-    const t = efx.math.mat4.translate(efx.math.mat4.identity(), [p[0], p[1] + FOX_Y_OFFSET, p[2]]);
-    return efx.math.mat4.multiply(t, efx.math.mat4.multiply(orient, base));
+    // T(pos) · Ry(heading) · Rx(-90) · S(scale) — one call
+    return efx.math.mat4.transform(
+        [p[0], p[1] + FOX_Y_OFFSET, p[2]],
+        heading * 180 / Math.PI, -90, 0, FOX_SCALE);
 }
 
 function poseFox() {
@@ -387,9 +373,7 @@ function draw3d() {
             color: pl.start ? [0.4, 0.7, 0.5, 1] : (pl.finish ? [0.85, 0.7, 0.3, 1] : [0.55, 0.6, 0.78, 1]),
         });
         efx.graphics.drawMesh(cube, {
-            transform: efx.math.mat4.translate(
-                efx.math.mat4.scale(efx.math.mat4.identity(), [pl.w, 0.05, pl.d]),
-                [pl.x, pl.top + 0.02, 0]),
+            transform: efx.math.mat4.transform([pl.x, pl.top + 0.02, 0], 0, 0, 0, [pl.w, 0.05, pl.d]),
             color: [0.7, 0.8, 0.95, 1],
         });
     }
@@ -403,18 +387,14 @@ function draw3d() {
     }
     for (const c of CHECKPOINTS) {
         efx.graphics.drawMesh(cube, {
-            transform: efx.math.mat4.translate(
-                efx.math.mat4.scale(efx.math.mat4.identity(), [0.2, 2.4, 0.2]),
-                [c.x, c.y + 1.2, c.z]),
+            transform: efx.math.mat4.transform([c.x, c.y + 1.2, c.z], 0, 0, 0, [0.2, 2.4, 0.2]),
             color: [0.3, 0.9, 0.5, 1],
         });
     }
     if (FINISH) {
         const locked = starsTaken < STARS.length;
         efx.graphics.drawMesh(cube, {
-            transform: efx.math.mat4.translate(
-                efx.math.mat4.scale(efx.math.mat4.identity(), [0.3, 4, 0.3]),
-                [FINISH.x, FINISH.y + 2, FINISH.z]),
+            transform: efx.math.mat4.transform([FINISH.x, FINISH.y + 2, FINISH.z], 0, 0, 0, [0.3, 4, 0.3]),
             color: locked ? [0.9, 0.4, 0.4, 1] : [0.4, 1, 0.5, 1],
         });
     }

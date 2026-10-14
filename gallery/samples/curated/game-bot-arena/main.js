@@ -64,22 +64,10 @@ function gridTexture(size) {
     }
     return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px), { wrap: 'repeat' });
 }
-function radialTexture(size) {
-    const px = [];
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = (x + 0.5) / size * 2 - 1;
-            const dy = (y + 0.5) / size * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            px.push(255, 255, 255, a);
-        }
-    }
-    return efx.graphics.createTexture(efx.graphics.createImageData(size, size, px));
-}
 const grid = gridTexture(64);
-const glowTex = radialTexture(48);
-const shadowTex = radialTexture(48);
+// shared radial glow/shadow texture (white, alpha falloff), tinted at draw
+const glowTex = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
+const shadowTex = glowTex;
 
 // ---- meshes --------------------------------------------------------------
 const cube = efx.graphics.createMesh(efx.graphics.makeCube());
@@ -382,18 +370,16 @@ efx.mouse.onMove(function (e) {
 function pad() { return efx.gamepad.count > 0 ? efx.gamepad.get(0) : null; }
 
 // ---- aiming --------------------------------------------------------------
-function cameraBasis() {
+function followCam() {
     const pp = player.position;
-    const c = [pp[0] + CAM_OFF[0], pp[1] + CAM_OFF[1], pp[2] + CAM_OFF[2]];
-    const target = [pp[0], pp[1], pp[2]];
-    const f = [target[0] - c[0], target[1] - c[1], target[2] - c[2]];
-    const fl = Math.hypot(f[0], f[1], f[2]) || 1;
-    const fwd = [f[0] / fl, f[1] / fl, f[2] / fl];
-    const right = [fwd[2], 0, -fwd[0]];
-    const rl = Math.hypot(right[0], right[2]) || 1;
-    const r = [right[0] / rl, 0, right[2] / rl];
-    const up = [r[1] * fwd[2] - r[2] * fwd[1], r[2] * fwd[0] - r[0] * fwd[2], r[0] * fwd[1] - r[1] * fwd[0]];
-    return { c, fwd, r, up };
+    return {
+        pos: [pp[0] + CAM_OFF[0], pp[1] + CAM_OFF[1], pp[2] + CAM_OFF[2]],
+        target: [pp[0], 0.5, pp[2]],
+    };
+}
+function applyCamera() {
+    const fc = followCam();
+    efx.graphics.setCamera3D(fc.pos, fc.target, CAM_FOV, { near: 0.1, far: 200 });
 }
 function updateAim() {
     const p = pad();
@@ -405,18 +391,9 @@ function updateAim() {
         return;
     }
     if (!havePointer) { return; }
-    const { c, fwd, r, up } = cameraBasis();
-    const nx = (pointer[0] / FRAME_W) * 2 - 1;
-    const ny = 1 - (pointer[1] / FRAME_H) * 2;
-    const aspect = FRAME_W / FRAME_H;
-    const t = Math.tan((CAM_FOV * Math.PI / 180) / 2);
-    const d = [
-        fwd[0] + r[0] * nx * t * aspect + up[0] * ny * t,
-        fwd[1] + r[1] * nx * t * aspect + up[1] * ny * t,
-        fwd[2] + r[2] * nx * t * aspect + up[2] * ny * t,
-    ];
-    const dl = Math.hypot(d[0], d[1], d[2]) || 1;
-    const dir = [d[0] / dl, d[1] / dl, d[2] / dl];
+    const ray = efx.graphics.screenRay(pointer[0], pointer[1]);
+    const c = ray.origin;
+    const dir = ray.direction;
     const hit = efx.physics.raycast(c, dir, 80);
     let hx;
     let hz;
@@ -510,6 +487,7 @@ function update(dt) {
         shakeY = (Math.random() * 2 - 1) * shake;
     } else { shakeX = 0; shakeY = 0; }
 
+    applyCamera();
     updateAim();
 
     if (attract) {
@@ -565,36 +543,33 @@ function firePlayer() {
 }
 
 // ---- render --------------------------------------------------------------
-function trs(pos, scale) {
-    const t = efx.math.mat4.translate(efx.math.mat4.identity(), pos);
-    return efx.math.mat4.scale(t, scale);
-}
 function draw3d() {
     const pp = player.position;
-    const camPos = [pp[0] + CAM_OFF[0] + shakeX * 0.02, CAM_OFF[1], pp[2] + CAM_OFF[2] + shakeY * 0.02];
-    efx.graphics.setCamera3D(camPos, [pp[0], 0.5, pp[2]], CAM_FOV, { near: 0.1, far: 200 });
+    const fc = followCam();
+    const camPos = [fc.pos[0] + shakeX * 0.02, fc.pos[1], fc.pos[2] + shakeY * 0.02];
+    efx.graphics.setCamera3D(camPos, fc.target, CAM_FOV, { near: 0.1, far: 200 });
     efx.graphics.setDirectionalLight({ dir: [-0.3, -1, -0.2], color: [0.35, 0.4, 0.55, 1] });
 
     efx.graphics.drawMesh(floorMesh, { transform: efx.math.mat4.identity(), color: [1, 1, 1, 1] });
     for (const w of walls) {
-        efx.graphics.drawMesh(cube, { transform: trs([w.x, 1, w.z], [w.w, 2, w.d]), color: [0.25, 0.3, 0.45, 1] });
+        efx.graphics.drawMesh(cube, { transform: efx.math.mat4.transform([w.x, 1, w.z], 0, 0, 0, [w.w, 2, w.d]), color: [0.25, 0.3, 0.45, 1] });
     }
     for (const p of PILLARS) {
-        efx.graphics.drawMesh(cube, { transform: trs([p.x, 1, p.z], [p.w, 2, p.d]), color: [0.3, 0.35, 0.5, 1] });
+        efx.graphics.drawMesh(cube, { transform: efx.math.mat4.transform([p.x, 1, p.z], 0, 0, 0, [p.w, 2, p.d]), color: [0.3, 0.35, 0.5, 1] });
     }
 
     for (const e of enemies) {
         const p = e.body.position;
         const base = e.kind === 'chaser' ? COL_CHASER : COL_SHOOTER;
         const c = e.flash > 0 ? [1, 1, 1, 1] : base;
-        efx.graphics.drawMesh(sphere, { transform: trs([p[0], ENEMY_R, p[2]], [ENEMY_R, ENEMY_R, ENEMY_R]), color: c });
+        efx.graphics.drawMesh(sphere, { transform: efx.math.mat4.transform([p[0], ENEMY_R, p[2]], 0, 0, 0, [ENEMY_R, ENEMY_R, ENEMY_R]), color: c });
         efx.graphics.drawBillboard(shadowTex, [p[0], 0.02, p[2]], {
             size: ENEMY_R * 2.2, facing: 'plane', normal: [0, 1, 0], color: [0, 0, 0, 0.45], blend: 'alpha',
         });
     }
 
     // player
-    efx.graphics.drawMesh(capsule, { transform: trs([pp[0], PLAYER_H / 2, pp[2]], [1, 1, 1]), color: [1, 1, 1, 1] });
+    efx.graphics.drawMesh(capsule, { transform: efx.math.mat4.transform([pp[0], PLAYER_H / 2, pp[2]], 0, 0, 0, [1, 1, 1]), color: [1, 1, 1, 1] });
     efx.graphics.drawBillboard(shadowTex, [pp[0], 0.02, pp[2]], {
         size: PLAYER_R * 2.6, facing: 'plane', normal: [0, 1, 0], color: [0, 0, 0, 0.5], blend: 'alpha',
     });

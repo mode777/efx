@@ -34,7 +34,7 @@ cube.setSurfaceMaterial(0, {
 });
 
 let t = 0;
-function update(dt) { t += dt; }
+function update(dt) { t = efx.time.now; }
 
 function render() {
     efx.graphics.drawMesh(ground);

@@ -41,6 +41,11 @@ const heroVel = [4, 0, 0];
 let triggered = false;
 let sawWall = false;
 let time = 0;
+let debug = false;
+
+efx.keyboard.onDown(function (e) {
+    if (e.key === 'd') { debug = !debug; }
+});
 
 function update(dt) {
     time += dt;
@@ -89,36 +94,32 @@ capsule.setSurfaceMaterial(0, {
     specular: { color: efx.color.white, shininess: 32 },
 });
 
-function trs(pos, scale) {
-    const t = efx.math.mat4.translate(efx.math.mat4.identity(), pos);
-    return efx.math.mat4.scale(t, scale);
-}
 function drawBody(mesh, body, scale, color) {
-    efx.graphics.drawMesh(mesh, { transform: trs(body.position, scale), color: color });
+    efx.graphics.drawMesh(mesh, { transform: efx.math.mat4.transform(body.position, 0, 0, 0, scale), color: color });
 }
 
 function render() {
     efx.graphics.drawMesh(cube, {
-        transform: trs([0, -0.5, 0], [40, 1, 40]),
+        transform: efx.math.mat4.transform([0, -0.5, 0], 0, 0, 0, [40, 1, 40]),
         color: [0.16, 0.18, 0.2, 1],
     });
     efx.graphics.drawMesh(cube, {
-        transform: trs([0, 1.5, -3], [40, 3, 0.5]),
+        transform: efx.math.mat4.transform([0, 1.5, -3], 0, 0, 0, [40, 3, 0.5]),
         color: [0.24, 0.26, 0.32, 1],
     });
     efx.graphics.drawMesh(cube, {
-        transform: trs([7, 1.5, 0], [0.5, 3, 8]),
+        transform: efx.math.mat4.transform([7, 1.5, 0], 0, 0, 0, [0.5, 3, 8]),
         color: [0.24, 0.26, 0.32, 1],
     });
     efx.graphics.drawMesh(cube, {
-        transform: trs([3, 0.15, 2.2], [2, 0.3, 3]),
+        transform: efx.math.mat4.transform([3, 0.15, 2.2], 0, 0, 0, [2, 0.3, 3]),
         color: [0.3, 0.34, 0.4, 1],
     });
     efx.graphics.drawMesh(rampMesh, { transform: efx.math.mat4.identity(),
                              color: [0.55, 0.6, 0.68, 1] });
 
     efx.graphics.drawMesh(cube, {
-        transform: trs(sensorPos, [2, 2, 2]),
+        transform: efx.math.mat4.transform(sensorPos, 0, 0, 0, [2, 2, 2]),
         color: triggered ? [0.2, 0.9, 0.4, 0.35] : [0.9, 0.8, 0.2, 0.25],
     });
 
@@ -131,4 +132,10 @@ function render() {
 
     // the character is a capsule matching its collision volume exactly
     drawBody(capsule, hero, [1, 1, 1], [0.95, 0.9, 0.3, 1]);
+
+    // press 'd' to overlay every collider (boxes, sphere, capsule, and the
+    // static mesh's world AABB) as engine-drawn debug hulls
+    if (debug) {
+        efx.physics.debugDraw({ color: [0.2, 1, 0.3], alpha: 0.4 });
+    }
 }

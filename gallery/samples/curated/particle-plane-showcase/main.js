@@ -2,27 +2,8 @@
 // particles (normal +Y). The camera orbits, but the quads stay world-aligned
 // because they are not billboards.
 
-function radial(size) {
-    const px = new Uint8Array(size * size * 4);
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const dx = ((x + 0.5) / size) * 2 - 1;
-            const dy = ((y + 0.5) / size) * 2 - 1;
-            const d = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const a = Math.round((1 - d) * (1 - d) * 255);
-            const i = (y * size + x) * 4;
-            px[i] = 255;
-            px[i + 1] = 255;
-            px[i + 2] = 255;
-            px[i + 3] = a;
-        }
-    }
-    return px;
-}
-
-const tex = efx.graphics.createTexture(
-    efx.graphics.createImageData(32, 32, radial(32)),
-);
+// the water sprite is the shared radial image (white, alpha falloff)
+const tex = efx.graphics.createTexture(efx.graphics.loadImage('radial.png'));
 
 efx.graphics.setClearColor([0.01, 0.03, 0.06, 1]);
 efx.graphics.setCamera3D([0, 3, 8], [0, 0, 0], 60);
@@ -34,7 +15,7 @@ const spray = efx.graphics.createParticleSystem(tex, 120, [0.6, 1.4], { emission
 
 let t = 0;
 efx.registerUpdateHook((dt) => {
-    t += dt;
+    t = efx.time.now;
     const a = t * 0.5;
     efx.graphics.setCamera3D([Math.cos(a) * 8, 2.8, Math.sin(a) * 8], [0, 0.2, 0], 60);
 });
