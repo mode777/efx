@@ -27,6 +27,6 @@
 
 ## 5. Spec, docs, and verification
 
-- [ ] 5.1 Confirm `openspec/changes/curated-sample-modernization/specs/web-gallery/spec.md` matches the implementation (asset names, requirement wording); run `npx openspec validate "curated-sample-modernization" --type change --strict`
-- [ ] 5.2 Verify every edited sample with `node --check` and the catalog-runner load smoke, then `npm --prefix gallery run build` and the gallery smoke run (`node tools/run_gallery_smoke.mjs` via the server suite) with no console/page errors from any sample
-- [ ] 5.3 Verify on the SSH server (`python3 tools/verify_remote.py gallery curated-sample-modernization`), then dispatch the gate (`gh workflow run ci.yml --ref curated-sample-modernization`) and iterate Linux → Windows → macOS → emscripten to green
+- [x] 5.1 Confirm `openspec/changes/curated-sample-modernization/specs/web-gallery/spec.md` matches the implementation (asset names, requirement wording); run `npx openspec validate "curated-sample-modernization" --type change --strict`
+- [x] 5.2 Verify every edited sample with `node --check` and the catalog-runner load smoke, then `npm --prefix gallery run build` and the gallery smoke run (`node tools/run_gallery_smoke.mjs` via the server suite) with no console/page errors from any sample
+- [x] 5.3 Verify on the SSH server (`python3 tools/verify_remote.py gallery curated-sample-modernization`), then dispatch the gate (`gh workflow run ci.yml --ref curated-sample-modernization`) and iterate Linux → Windows → macOS → emscripten to green
