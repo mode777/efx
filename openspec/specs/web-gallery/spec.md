@@ -205,10 +205,12 @@ particle showcase(s) SHALL demonstrate:
 - lifetime-interpolated size and/or color, and at least one showcase MAY use
   atlas frames (`quads`).
 
-A showcase SHALL prefer procedurally generated textures built with
-`createImageData` so it needs no third-party assets, or otherwise ship a CC0
-asset pack under the existing sample asset-pack contract. Each particle
-showcase SHALL be covered by the gallery smoke run.
+A showcase SHALL use the shared radial glow texture asset (see the Shared
+radial glow texture asset requirement) for its radial sprite textures rather
+than building the falloff in script, and MAY generate any other texture with
+`createImageData`; it SHALL ship no third-party assets beyond the curated
+sample asset-pack contract. Each particle showcase SHALL be covered by the
+gallery smoke run.
 
 #### Scenario: Showcase demonstrates the render modes
 
@@ -227,9 +229,9 @@ showcase SHALL be covered by the gallery smoke run.
 
 - **WHEN** a particle showcase's source is run by the `efx` player against the
   same resource-root contract
-- **THEN** it runs using only the public API and standard ES6, with textures
-  either generated with `createImageData` or loaded from its mounted asset
-  pack
+- **THEN** it runs using only the public API and standard ES6, with its radial
+  texture loaded from its mounted asset pack and any other texture generated
+  with `createImageData`
 
 #### Scenario: Showcase is exercised by the smoke
 
@@ -332,8 +334,9 @@ provenance and downscale recipe recorded in `gallery/samples/curated/CREDITS.md`
 The blob-shadow showcase SHALL draw a radial shadow as a `facing: 'plane'`
 billboard placed a small distance above a ground plane, with a dark color and
 alpha blending, following a moving character mesh under an orbiting 3D camera,
-and SHALL prefer a procedurally generated shadow texture built with
-`createImageData` so it needs no third-party asset.
+and SHALL use the shared radial glow texture asset (see the Shared radial glow
+texture asset requirement) as its shadow texture, shipped under the curated
+sample asset-pack contract.
 
 Each showcase SHALL be runnable by the player under the same resource-root
 contract as any other sample, and each SHALL be covered by the gallery smoke
@@ -363,8 +366,7 @@ run.
 - **WHEN** either showcase's source is run by the `efx` player against the
   same resource-root contract
 - **THEN** it runs using only the public API and standard ES6, with the blob
-  shadow texture generated via `createImageData` and the sky image loaded from
-  its mounted asset pack
+  shadow texture and the sky image loaded from its mounted asset pack
 
 #### Scenario: Showcases are exercised by the smoke
 
@@ -590,15 +592,15 @@ cup SHALL advance to the next hole, and completing the ninth hole SHALL show
 a scorecard comparing strokes to par that restarts on player input. Each
 hole's perimeter SHALL contain the ball so it cannot leave the course. The
 sample SHALL render under a 3D camera that follows the ball, with a
-procedurally generated course texture and a blob shadow under the ball. The
-sample SHALL self-play (script-driven aim and strokes) from launch until the
-first player input.
+procedurally generated course texture (via `efx.noise`) and a blob shadow
+drawn with the shared radial glow texture asset. The sample SHALL self-play
+(script-driven aim and strokes) from launch until the first player input.
 
-The sample's only shipped asset SHALL be the standard CC0 font under the
-existing curated sample asset-pack contract, with provenance recorded in
-`gallery/samples/curated/CREDITS.md`. The sample SHALL be runnable by the
-player under the same resource-root contract as any other sample, and SHALL
-be covered by the gallery smoke run.
+The sample's shipped assets SHALL be the standard CC0 font and the shared
+radial glow image under the existing curated sample asset-pack contract, with
+provenance recorded in `gallery/samples/curated/CREDITS.md`. The sample SHALL
+be runnable by the player under the same resource-root contract as any other
+sample, and SHALL be covered by the gallery smoke run.
 
 #### Scenario: Catalog contains the game sample
 
@@ -630,8 +632,8 @@ be covered by the gallery smoke run.
 
 - **WHEN** any hole is played
 - **THEN** its geometry and grass texture are generated procedurally, its
-  walls contain the ball within the course, and the only loaded asset is the
-  shipped font
+  walls contain the ball within the course, and the only loaded assets are the
+  shipped font and radial glow image
 
 #### Scenario: Self-play, portability, and smoke
 
@@ -737,17 +739,17 @@ bursts with hit flashes and screen shake. Sound effects SHALL fire through
 the one-shot effect bank and a looping music track SHALL stream through the
 playback bank with mute and volume controls; on the web, audio SHALL unlock
 on the first input. The arena, its walls and cover, and all actors SHALL be
-procedural primitives with procedurally generated textures. The sample SHALL
-self-play (script-driven twin-stick input) from launch until the first
-player input.
+procedural primitives; glow and particle decals SHALL use the shared radial
+glow texture asset. The sample SHALL self-play (script-driven twin-stick
+input) from launch until the first player input.
 
-The sample's shipped assets (font and a synthesized SFX/music pack) SHALL
-follow the existing curated sample asset-pack contract with provenance
-recorded in `gallery/samples/curated/CREDITS.md`; effect WAVs SHALL be
-synthesized deterministically by a committed generator script with a drift
-check. The sample SHALL be runnable by the player under the same
-resource-root contract as any other sample, and SHALL be covered by the
-gallery smoke run.
+The sample's shipped assets (font, the shared radial glow image, and a
+synthesized SFX/music pack) SHALL follow the existing curated sample
+asset-pack contract with provenance recorded in
+`gallery/samples/curated/CREDITS.md`; effect WAVs SHALL be synthesized
+deterministically by a committed generator script with a drift check. The
+sample SHALL be runnable by the player under the same resource-root contract
+as any other sample, and SHALL be covered by the gallery smoke run.
 
 #### Scenario: Catalog contains the game sample
 
@@ -793,7 +795,39 @@ gallery smoke run.
 - **WHEN** the sample's directory and credits are read, its source is run by
   the `efx` player against its resource-root directory, or the gallery smoke
   run executes
-- **THEN** it ships the standard CC0 font plus deterministically generated
-  effect WAVs and a credited music loop with provenance rows in
-  `gallery/samples/curated/CREDITS.md`; it runs using only the public API and
-  standard ES6; and the smoke fails on any console or page error from it
+- **THEN** it ships the standard CC0 font plus the shared radial glow image
+  and deterministically generated effect WAVs and a credited music loop with
+  provenance rows in `gallery/samples/curated/CREDITS.md`; it runs using only
+  the public API and standard ES6; and the smoke fails on any console or page
+  error from it
+
+### Requirement: Shared radial glow texture asset
+
+Curated samples that need a radial glow or shadow texture SHALL load one
+canonical pre-built image instead of building the falloff in script: a CC0
+`radial.png` — white RGB with an alpha falloff over a normalized disc —
+generated deterministically by a committed script under `gallery/scripts/`,
+shipped at each consuming sample's resource root, loaded with `loadImage` +
+`createTexture`, and tinted at draw time. Every consuming sample's directory
+SHALL contain the file, and `gallery/samples/curated/CREDITS.md` SHALL record
+it for that sample with its generator and license. No curated sample SHALL
+hand-roll a radial-falloff pixel loop.
+
+#### Scenario: Sample loads the shared radial image
+
+- **WHEN** a curated sample that draws a radial glow or shadow is run by the
+  player against its resource-root directory
+- **THEN** it loads `radial.png` from its root and draws with it, with no
+  script-side falloff loop
+
+#### Scenario: Asset is recorded with provenance
+
+- **WHEN** `gallery/samples/curated/CREDITS.md` is read
+- **THEN** every sample directory that ships `radial.png` has a row naming the
+  file, its in-repo generator script, and its CC0 license
+
+#### Scenario: Generated bytes are reproducible
+
+- **WHEN** the committed generator script is run
+- **THEN** it regenerates the shipped `radial.png` byte-for-byte (a drift
+  check), so the asset's provenance is reproducible from the repository
