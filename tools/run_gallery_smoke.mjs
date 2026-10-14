@@ -161,9 +161,20 @@ try {
     check(editorKind !== null, `editor surface present (${editorKind ?? 'none'})`);
     await clickRun();
     const editedFrame = await waitBoot();
-    const editApplied = editedFrame
-        ? await editedFrame.evaluate(() => globalThis.__edited_marker === 7).catch(() => false)
-        : false;
+    let editApplied = false;
+    if (editedFrame) {
+        // The runner may mount the selected sample's asset pack before it
+        // evaluates the edited source, so poll for the marker rather than
+        // sampling once right after boot.
+        const deadline = Date.now() + 8000;
+        while (Date.now() < deadline) {
+            editApplied = await editedFrame
+                .evaluate(() => globalThis.__edited_marker === 7)
+                .catch(() => false);
+            if (editApplied) break;
+            await new Promise((r) => setTimeout(r, 100));
+        }
+    }
     check(editApplied, 'edited source runs after Run');
 
     // Compositor screenshot of the runner box should not be a single flat fill.
