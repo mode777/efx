@@ -74,6 +74,19 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_imagedata_destroy(int id) {
     s->pixels = NULL;
 }
 
+/* image-heightfield: expose a live image slot to the 3D bridge (0 = not
+ * alive); the pixels stay bridge-owned and are only read */
+int web_image_view(int id, int *w, int *h, const uint8_t **pixels) {
+    img_slot *s = img_get(id);
+    if (!s || !s->alive || !s->pixels) {
+        return 0;
+    }
+    *w = s->w;
+    *h = s->h;
+    *pixels = s->pixels;
+    return 1;
+}
+
 EMSCRIPTEN_KEEPALIVE double efx_bridge_texture_create(int id, int wrap,
                                                       int filter,
                                                       int mipmaps,

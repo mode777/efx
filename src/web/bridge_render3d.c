@@ -1,4 +1,5 @@
 #include "bridge_internal.h"
+#include "render/render_heightfield.h"
 
 /* ------------------------------------------------- F3 (3D core) */
 
@@ -199,6 +200,56 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_meshdata_destroy(int id) {
     }
     s->alive = 0;
     wmd_release(s);
+}
+
+/* image-heightfield: build a MeshData slot from an image's luminance (same
+ * slot table as createMeshData, so createMesh/surfaceCount/destroy are
+ * unchanged). Returns the 1-based slot id, or -EFX_HF_ERR_* (the JS layer
+ * maps the codes to the canonical messages, matching the desktop wire). */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_make_heightfield(int img_id, int rx, int ry,
+                                                     int rw, int rh, int step,
+                                                     double height,
+                                                     double size) {
+    int w, h;
+    const uint8_t *pixels = NULL;
+    if (!web_image_view(img_id, &w, &h, &pixels)) {
+        return -EFX_HF_ERR_RANGE;
+    }
+    efx_image img;
+    img.width = w;
+    img.height = h;
+    img.pixels = (uint8_t *)pixels;
+    efx_heightfield_opts opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.region_x = rx;
+    opts.region_y = ry;
+    opts.region_w = rw;
+    opts.region_h = rh;
+    opts.step = step;
+    opts.height = (float)height;
+    opts.size = (float)size;
+    int err = 0;
+    efx_meshdata *md = efx_heightfield_build(&img, &opts, &err);
+    if (!md) {
+        return -err;
+    }
+    if (WMD.count >= WMD.cap) {
+        int cap = WMD.cap ? WMD.cap * 2 : 16;
+        wmd_slot *grown = realloc(WMD.slots, (size_t)cap * sizeof(wmd_slot));
+        if (!grown) {
+            efx_meshdata_destroy(md);
+            return -EFX_HF_ERR_NOMEM;
+        }
+        WMD.slots = grown;
+        WMD.cap = cap;
+    }
+    wmd_slot *s = &WMD.slots[WMD.count];
+    memset(s, 0, sizeof(*s));
+    s->md = md;
+    s->alive = 1;
+    s->surface_count = md->surface_count;
+    WMD.count++;
+    return WMD.count;
 }
 
 /* F6b: import a glTF mesh straight into a MeshData slot (same slot table as

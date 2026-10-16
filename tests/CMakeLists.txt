@@ -231,6 +231,7 @@ efx_register_unit_cases(efx_input_tests ${U}/input_tests.c)
 efx_register_unit_cases(efx_physics_tests ${CMAKE_CURRENT_SOURCE_DIR}/physics/main.c)
 efx_register_unit_cases(efx_audio_tests ${U}/audio_tests.c)
 efx_register_unit_cases(efx_noise_tests ${U}/noise_tests.c)
+efx_register_unit_cases(efx_heightfield_tests ${U}/heightfield_tests.c)
 efx_register_unit_cases(efx_render_tests ${U}/render_tests.c)
 # desktop-only: resource/text read the filesystem; api needs quickjs (ADR 0022)
 if(NOT EMSCRIPTEN)
@@ -289,7 +290,7 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 post_mix post_scale_nearest post_scale_linear
                 post_order_a post_order_b post_user_rt load_png gltf_import
                 skin_import skin_pose mipmaps text_basic text_effects
-                particles noise quad_degenerate texture_update)
+                particles noise quad_degenerate texture_update heightfield)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

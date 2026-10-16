@@ -150,6 +150,24 @@ C('3d.md-elem-nan', function () {
     efx.graphics.createMeshData([{ positions: [NaN, 0, 0, 1, 0, 0, 0, 1, 0] }]);
 });
 
+/* image heightfield (image-heightfield): shared prelude bag validation +
+ * the wire-side degenerate-after-clamp check */
+C('3d.hf-none', function () { efx.graphics.makeHeightfield(); });
+C('3d.hf-nonimage', function () { efx.graphics.makeHeightfield(42); });
+C('3d.hf-destroyed-image', function () { efx.graphics.makeHeightfield(deadImg); });
+C('3d.hf-unknown-opt', function () { efx.graphics.makeHeightfield(img, { frobnicate: 1 }); });
+C('3d.hf-region-short', function () { efx.graphics.makeHeightfield(img, { region: [0, 0, 4] }); });
+C('3d.hf-region-frac', function () { efx.graphics.makeHeightfield(img, { region: [0.5, 0, 4, 4] }); });
+C('3d.hf-region-negative', function () { efx.graphics.makeHeightfield(img, { region: [-1, 0, 4, 4] }); });
+C('3d.hf-region-empty', function () { efx.graphics.makeHeightfield(img, { region: [0, 0, 0, 4] }); });
+C('3d.hf-step-zero', function () { efx.graphics.makeHeightfield(img, { step: 0 }); });
+C('3d.hf-step-frac', function () { efx.graphics.makeHeightfield(img, { step: 1.5 }); });
+C('3d.hf-size-zero', function () { efx.graphics.makeHeightfield(img, { size: 0 }); });
+C('3d.hf-height-inf', function () { efx.graphics.makeHeightfield(img, { height: Infinity }); });
+C('3d.hf-material-type', function () { efx.graphics.makeHeightfield(img, { material: 42 }); });
+C('3d.hf-region-oob', function () { efx.graphics.makeHeightfield(img, { region: [8, 0, 4, 4] }); });
+C('3d.hf-region-one-col', function () { efx.graphics.makeHeightfield(img, { region: [0, 0, 1, 4] }); });
+
 var md = efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }]);
 var mesh = efx.graphics.createMesh(md);
 

@@ -1,5 +1,6 @@
 #include "api/api_internal.h"
 #include "math/efx_math.h"
+#include "render/render_heightfield.h"
 
 
 /* indices: non-negative integers in uint32 range; non-integer → RangeError
@@ -176,6 +177,89 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
                                 maps + (size_t)i * 5);
             efx_meshdata_set_material(md, i, &m, 1);
         }
+    }
+    efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
+    if (!wrap) {
+        efx_meshdata_destroy(md);
+        return efx_api_generic_error(ctx, "out of memory");
+    }
+    wrap->md = md;
+    wrap->alive = 1;
+    JSValue obj = JS_NewObjectClass(ctx, meshdata_class_id);
+    JS_SetOpaque(obj, wrap);
+    return obj;
+}
+
+
+/* image-heightfield wire: (image, rx, ry, rw, rh, step, height, size,
+ * blocks Float32Array|null, maps Float64Array|null, matHas) -> MeshData.
+ * The option bag was validated once in the shared prelude (ADR 0049); this
+ * native clamps the region (degenerate-after-clamp is a RangeError here,
+ * where the clamp happens), builds the MeshData and binds the material. */
+JSValue efx_js_make_heightfield_wire(JSContext *ctx, JSValueConst this_val,
+                                     int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 11) {
+        return efx_api_type_error(ctx, "heightfield wire native requires 11 arguments");
+    }
+    efxjs_imagedata *d = efx_api_get_live_imagedata(ctx, argv[0]);
+    if (!d) {
+        return JS_EXCEPTION;
+    }
+    int32_t rx, ry, rw, rh, step;
+    double height, size;
+    if (JS_ToInt32(ctx, &rx, argv[1]) < 0 || JS_ToInt32(ctx, &ry, argv[2]) < 0 ||
+        JS_ToInt32(ctx, &rw, argv[3]) < 0 || JS_ToInt32(ctx, &rh, argv[4]) < 0 ||
+        JS_ToInt32(ctx, &step, argv[5]) < 0 ||
+        JS_ToFloat64(ctx, &height, argv[6]) < 0 ||
+        JS_ToFloat64(ctx, &size, argv[7]) < 0) {
+        return JS_EXCEPTION;
+    }
+    size_t nb = 0, nm = 0;
+    float *blocks = wire_f32(ctx, argv[8], &nb);
+    JSValue ab = JS_GetTypedArrayBuffer(ctx, argv[9], NULL, NULL, NULL);
+    double *maps = NULL;
+    if (!JS_IsException(ab)) {
+        size_t blen = 0;
+        uint8_t *bytes = JS_GetArrayBuffer(ctx, &blen, ab);
+        JS_FreeValue(ctx, ab);
+        if (bytes && blen % sizeof(double) == 0) {
+            maps = (double *)bytes;
+        }
+    } else {
+        JS_FreeValue(ctx, JS_GetException(ctx));
+        maps = NULL;
+    }
+    int32_t mat_has = 0;
+    if (JS_ToInt32(ctx, &mat_has, argv[10]) < 0) {
+        return JS_EXCEPTION;
+    }
+
+    efx_image img;
+    img.width = d->w;
+    img.height = d->h;
+    img.pixels = d->pixels;
+    efx_heightfield_opts opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.region_x = rx;
+    opts.region_y = ry;
+    opts.region_w = rw;
+    opts.region_h = rh;
+    opts.step = step;
+    opts.height = (float)height;
+    opts.size = (float)size;
+    int err = 0;
+    efx_meshdata *md = efx_heightfield_build(&img, &opts, &err);
+    if (!md) {
+        if (err == EFX_HF_ERR_NOMEM) {
+            return efx_api_generic_error(ctx, "out of memory");
+        }
+        return efx_api_range_error(ctx, "heightfield region is degenerate");
+    }
+    if (mat_has && blocks && maps && nb >= 19u && nm >= 5u) {
+        efx_material m;
+        wire_mat_from_block(&m, blocks, maps);
+        efx_meshdata_set_material(md, 0, &m, 1);
     }
     efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
     if (!wrap) {

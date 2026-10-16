@@ -461,6 +461,61 @@ static int meshdata_cap_js(void) {
     return 0;
 }
 
+/* image heightfield (image-heightfield): wire build, draw, material
+ * binding, region/step, and the full error taxonomy (bag validation in the
+ * prelude; degenerate-after-clamp in the wire where the clamp happens) */
+static int heightfield_js(void) {
+    const char *code =
+        "const W = 8, H = 8;"
+        "const px = new Uint8Array(W * H * 4);"
+        "for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {"
+        "  const o = (y * W + x) * 4, v = x * 32;"
+        "  px[o] = v; px[o + 1] = v; px[o + 2] = v; px[o + 3] = 255;"
+        "}"
+        "const img = efx.graphics.createImageData(W, H, px);"
+        "const md = efx.graphics.makeHeightfield(img);"
+        "if (md.surfaceCount !== 1) throw new Error('surfaceCount');"
+        "const mesh = efx.graphics.createMesh(md);"
+        "efx.graphics.setCamera3D([0, 2, 5], [0, 0, 0], 60);"
+        "efx.graphics.drawMesh(mesh);"
+        "mesh.destroy();"
+        /* material binding + region/step variant (2x2 samples) */
+        "const md2 = efx.graphics.makeHeightfield(img, {"
+        "  region: [2, 2, 4, 4], step: 2, height: 3, size: 8,"
+        "  material: { diffuse: { color: [1, 0.5, 0.25, 1] } } });"
+        "if (md2.surfaceCount !== 1) throw new Error('region surfaceCount');"
+        "const mesh2 = efx.graphics.createMesh(md2);"
+        "efx.graphics.drawMesh(mesh2);"
+        "mesh2.destroy();"
+        T_HELPER
+        /* the image argument */
+        "t(() => efx.graphics.makeHeightfield(), TypeError);"
+        "t(() => efx.graphics.makeHeightfield(42), TypeError);"
+        "t(() => efx.graphics.makeHeightfield({}), TypeError);"
+        "const dead = efx.graphics.createImageData(4, 4, new Uint8Array(64));"
+        "dead.destroy();"
+        "t(() => efx.graphics.makeHeightfield(dead), TypeError);"
+        /* the option bag */
+        "t(() => efx.graphics.makeHeightfield(img, 'x'), TypeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { frobnicate: 1 }), TypeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { region: [0, 0, 4] }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { region: [0.5, 0, 4, 4] }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { region: [-1, 0, 4, 4] }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { region: [0, 0, 0, 4] }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { step: 0 }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { step: 1.5 }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { size: 0 }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { height: Infinity }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { material: 42 }), TypeError);"
+        /* degenerate after clamping: checked in the wire */
+        "t(() => efx.graphics.makeHeightfield(img, { region: [8, 0, 4, 4] }), RangeError);"
+        "t(() => efx.graphics.makeHeightfield(img, { region: [0, 0, 1, 4] }), RangeError);"
+        "img.destroy();";
+    REQUIRE(!ok_js(code), "heightfield js");
+    end_js();
+    return 0;
+}
+
 /* createMesh + drawMesh: upload, whole-mesh record, validation */
 static int mesh_js(void) {
     const char *code =
@@ -1954,7 +2009,8 @@ static int graphics_ns_js(void) {
         "  'createRenderTarget', 'createTexture', 'drawBillboard', 'drawMesh',"
         "  'drawParticles', 'drawQuad', 'drawSprites', 'drawText',"
         "  'endRenderTarget', 'loadFontData', 'loadImage', 'loadMeshData',"
-        "  'makeCapsule', 'makeCube', 'makePlane', 'makeSphere',"
+        "  'makeCapsule', 'makeCube', 'makeHeightfield', 'makePlane',"
+        "  'makeSphere',"
         "  'screenRay',"
         "  'setBlendMode', 'setCamera2D', 'setCamera3D',"
         "  'setClearColor', 'setDirectionalLight', 'setLight',"
@@ -2340,6 +2396,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(hooks_registration),
     EFX_CASE(meshdata_js),
     EFX_CASE(meshdata_cap_js),
+    EFX_CASE(heightfield_js),
     EFX_CASE(mesh_js),
     EFX_CASE(camera3d_js),
     EFX_CASE(f4a_js),

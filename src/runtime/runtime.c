@@ -366,6 +366,9 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JS_SetPropertyStr(rt->ctx, natives, "loadMeshData", n);
     n = JS_NewCFunction(rt->ctx, efx_js_create_meshdata_wire, "createMeshData", 12);
     JS_SetPropertyStr(rt->ctx, natives, "createMeshData", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_make_heightfield_wire,
+                        "makeHeightfieldWire", 11);
+    JS_SetPropertyStr(rt->ctx, natives, "makeHeightfieldWire", n);
     n = JS_NewCFunction(rt->ctx, efx_js_audio_load_data_wire,
                         "loadAudioData", 1);
     JS_SetPropertyStr(rt->ctx, natives, "loadAudioData", n);

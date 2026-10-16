@@ -29,6 +29,7 @@ JSValue efx_js_mat4_transform_wire(JSContext *ctx, JSValueConst this_val, int ar
 JSValue efx_js_screenRay(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_physics_debug_draw_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_make_heightfield_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_createMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 

@@ -86,6 +86,13 @@ if(NOT MSVC)
     set_source_files_properties(src/noise/efx_noise.c PROPERTIES
         COMPILE_OPTIONS "-ffp-contract=off")
 endif()
+# image-heightfield determinism: same receipt as ADR 0059 above — the
+# heightfield builder's luminance/normal math must stay bit-identical across
+# targets (unit receipts + the heightfield golden scene).
+if(NOT MSVC)
+    set_source_files_properties(src/render/render_heightfield.c PROPERTIES
+        COMPILE_OPTIONS "-ffp-contract=off")
+endif()
 
 # Per-module source lists, each spelled out once: efx_core (below) and the
 # headless test executables (bottom of this file) are composed from them.
@@ -95,6 +102,7 @@ set(EFX_RENDER_CORE_SOURCES
     src/render/render_target.c
     src/render/render_post.c
     src/render/render_mesh.c
+    src/render/render_heightfield.c
     src/render/render_particles.c
     src/render/skin.c
 )
@@ -499,6 +507,14 @@ efx_add_test_exe(efx_physics_tests
 efx_add_test_exe(efx_noise_tests
     SOURCES ${EFX_NOISE_SOURCES} tests/unit/noise_tests.c
     LIBS efx_fastnoise
+)
+
+# headless heightfield-builder tests (image-heightfield): pure-C geometry
+# over decoded RGBA8 pixels; flat-field normals and the determinism case pin
+# exact bit values as the cross-target receipt (the heightfield golden scene
+# re-proves it end-to-end)
+efx_add_test_exe(efx_heightfield_tests
+    SOURCES ${EFX_RENDER_CORE_SOURCES} tests/unit/heightfield_tests.c
 )
 
 # headless audio-core tests (F14): pure-C mixer/decoder/voice bank with no
