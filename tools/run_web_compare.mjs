@@ -62,7 +62,9 @@ const CASES = [
     { name: '14_audio', root: 'tests/fixtures/audio' },
     { name: 'error_catalog', script: 'tests/scripts/s_error_catalog.js', args: [],
       assets: ['tests/scripts/skin.gltf', 'tests/scripts/skin.bin',
-               'tests/scripts/gltf_probe.glb', 'tests/scripts/gltf_corrupt.gltf'] },
+               'tests/scripts/gltf_probe.glb', 'tests/scripts/gltf_corrupt.gltf',
+               'tests/scripts/resource_probe.png',
+               'tests/scripts/video_probe.mpg', 'tests/scripts/video_silent.mpg'] },
 ];
 
 function run(cmd, args) {

@@ -4,10 +4,12 @@
 // end-to-end: MPEG-1 decode -> dynamic-texture upload -> sampling by an
 // ordinary draw.
 //
-// The frame is drawn at its native 64x64 size (tiled), so every draw is a
-// 1:1 texel-to-pixel fetch: sampling is exact and therefore identical on
-// every renderer. (A magnified draw would reintroduce linear-filtering
-// precision differences between llvmpipe and WARP on testsrc2's 1px bars.)
+// The fixture is deliberately smooth (a blurred, low-frequency clip): video
+// textures sample with linear filtering, and a half-texel sampling convention
+// difference between renderers (llvmpipe / WARP / Metal) is invisible on
+// smooth content but would change nearly every pixel of a high-frequency
+// pattern like testsrc2. Smooth content keeps the golden a renderer-agnostic
+// proof of the pipeline rather than a filtering-precision test.
 efx.graphics.setClearColor([0.02, 0.03, 0.06, 1]);
 efx.graphics.setCamera2D({ frame: [640, 480] });
 
@@ -17,14 +19,5 @@ vid.play();
 function update() {}
 
 function render() {
-    const s = vid.width; // 64
-    const cols = 6, rows = 4;
-    const x0 = (640 - cols * s) / 2;
-    const y0 = (480 - rows * s) / 2;
-    for (let ty = 0; ty < rows; ty++) {
-        for (let tx = 0; tx < cols; tx++) {
-            efx.graphics.drawQuad(vid.texture, x0 + tx * s, y0 + ty * s,
-                                  { size: [s, s] });
-        }
-    }
+    efx.graphics.drawQuad(vid.texture, 128, 48, { size: [384, 384] });
 }
