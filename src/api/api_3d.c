@@ -225,6 +225,7 @@ JSValue efx_js_make_heightfield_wire(JSContext *ctx, JSValueConst this_val,
         JS_FreeValue(ctx, ab);
         if (bytes && blen % sizeof(double) == 0) {
             maps = (double *)bytes;
+            nm = blen / sizeof(double);
         }
     } else {
         JS_FreeValue(ctx, JS_GetException(ctx));
