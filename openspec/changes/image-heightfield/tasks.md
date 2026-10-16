@@ -27,6 +27,7 @@
 
 - [x] 6.1 Add a committed tiny grayscale heightmap PNG and a golden scene (load → `makeHeightfield` → lit directional draw, full-image default plus one `region`+`step` variant) to the ADR 0020 harness; verify the Linux golden test passes on an ON build dir (`ctest -R golden`)
 - [x] 6.2 Capture/regenerate goldens on the verification server per `docs/verification-server.md` and confirm the Emscripten golden job agrees pixel-wise
+- [x] 6.3 Ship the scene's committed `assets.zip` (the gallery convention for golden scenes with resource files: the loose `heightmap.png` is the native dir-root golden's asset, the pack is what the gallery mounts) and verify the `Heightfield` catalog sample boots with no console errors
 
 ## 7. Docs + ADR
 
