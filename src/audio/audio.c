@@ -47,6 +47,11 @@ typedef struct efx_voice {
     float carry_r;
     float *src_buf;
     float *dst_buf;
+    /* attached pull-voice (video-playback): decoder lives outside the audio
+     * core; dec == NULL when pull is set */
+    efx_audio_pull_fn pull;
+    void *pull_ud;
+    uint32_t pull_rate;
 } efx_voice;
 
 static struct {
@@ -393,6 +398,62 @@ int efx_audio_play_data(const efx_audio_data *d, float volume, float pan,
     return slot;
 }
 
+int efx_audio_play_pull(efx_audio_pull_fn fn, void *ud, uint32_t rate,
+                        float volume) {
+    ensure_init();
+    if (!fn || rate == 0) {
+        return -1;
+    }
+    int cap = g.rate > 0 ? g.rate : EFX_AUDIO_DEFAULT_RATE;
+    if (cap < 1024) {
+        cap = 1024;
+    }
+    float *ring = calloc((size_t)cap * 2, sizeof(float));
+    float *src = malloc((size_t)EFX_STREAM_SRC_CHUNK * 2 * sizeof(float));
+    float *dst = malloc((size_t)(EFX_STREAM_SRC_CHUNK * 2 + 8) * 2 *
+                        sizeof(float));
+    if (!ring || !src || !dst) {
+        free(ring);
+        free(src);
+        free(dst);
+        return -1;
+    }
+    int slot = voice_alloc(1);
+    if (slot < 0) {
+        free(ring);
+        free(src);
+        free(dst);
+        return -1;
+    }
+    efx_voice *v = &g.voices[slot];
+    v->active = 1;
+    v->is_stream = 1;
+    v->data = NULL;
+    v->stream = NULL;
+    v->loop = 0;
+    v->paused = 0;
+    v->ended = 0;
+    v->volume = clampf(volume, 0.0f, 16.0f);
+    v->pan = 0.0f;
+    v->pitch = 1.0f;
+    v->dec = NULL;
+    v->pull = fn;
+    v->pull_ud = ud;
+    v->pull_rate = rate;
+    v->ring = ring;
+    v->ring_cap = cap;
+    v->ring_head = 0;
+    v->ring_count = 0;
+    v->src_buf = src;
+    v->dst_buf = dst;
+    v->spos = 0.0;
+    v->have_carry = 0;
+    v->carry_l = 0.0f;
+    v->carry_r = 0.0f;
+    v->start_seq = g.seq++;
+    return slot;
+}
+
 int efx_audio_play_stream(const efx_audio_stream *s, float volume, float pan,
                           float pitch, int loop) {
     ensure_init();
@@ -548,18 +609,29 @@ static int ring_pop(efx_voice *v, float *l, float *r) {
     return 1;
 }
 
+/* source-rate interleaved read through the voice's decoder or pull fn */
+static uint64_t voice_read(efx_voice *v, float *out, uint64_t frames) {
+    if (v->pull) {
+        return v->pull(v->pull_ud, out, frames);
+    }
+    return efx_decoder_read_stereo(v->dec, out, frames);
+}
+
+static uint32_t voice_rate(const efx_voice *v) {
+    return v->pull ? v->pull_rate : efx_decoder_rate(v->dec);
+}
+
 static void stream_fill(efx_voice *v) {
-    double step = ((double)efx_decoder_rate(v->dec) / (double)g.rate) *
+    double step = ((double)voice_rate(v) / (double)g.rate) *
                   (double)v->pitch;
     if (step <= 0.0) {
         step = 1.0;
     }
     int dst_max = (int)((double)EFX_STREAM_SRC_CHUNK / step) + 8;
     while (ring_free(v) >= dst_max && !v->ended) {
-        uint64_t got = efx_decoder_read_stereo(v->dec, v->src_buf,
-                                               EFX_STREAM_SRC_CHUNK);
+        uint64_t got = voice_read(v, v->src_buf, EFX_STREAM_SRC_CHUNK);
         if (got == 0) {
-            if (v->loop) {
+            if (v->loop && !v->pull) {
                 efx_decoder_rewind(v->dec);
                 v->spos = 0.0;
                 v->have_carry = 0;

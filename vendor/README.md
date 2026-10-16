@@ -16,6 +16,7 @@ replacing the snapshot and editing the table below.
 | `minigamepad/` | ColleagueRiley/minigamepad | main @ `a7f8fde128a3732053dd17ce9ced440ed9926125` (2026-06-13) | https://github.com/ColleagueRiley/minigamepad (`minigamepad.h` + `LICENSE`; Zlib, in-header notice mislabels it "libpng license") |
 | `dr_libs/` | mackron/dr_libs | master @ `dfe8377631000664666519fdb83da193fd8037f4` (2026-08-31) | https://github.com/mackron/dr_libs (`dr_wav.h`, `dr_mp3.h` + `LICENSE`; choice of public domain (Unlicense) **or** MIT-0) |
 | `fastnoise-lite/` | Auburn/FastNoiseLite | master @ `785f37a9ad76e283586a379675085f2063ae03f7` (2026-10-11) | https://github.com/Auburn/FastNoiseLite (only `C/FastNoiseLite.h`, the official C99 port, + `LICENSE`; MIT) |
+| `pl_mpeg/` | phoboslab/pl_mpeg | master @ `c871f2be022ece7ef4f64230b4fb8e1fb9eb6023` (2026-10-16) | https://github.com/phoboslab/pl_mpeg (`pl_mpeg.h` single header; MIT via SPDX header notice only — no separate LICENSE file upstream) |
 | — (tool, not vendored) | floooh/sokol-tools-bin | master @ `11d0cf678105d614d675e6d9bd2aaf3eeff12f8c` (2026-08-29) | https://github.com/floooh/sokol-tools-bin (`bin/linux/sokol-shdc`) — generation-time tool for `shaders/quad.h`; never linked into the player |
 
 Notes:
@@ -135,3 +136,17 @@ Notes:
   miniz/cgltf/stb TUs); the engine includes only the declarations through
   the stateless wrapper `src/noise/efx_noise.h`. Evaluation record:
   `openspec/changes/noise-api/design.md` (D1).
+- pl_mpeg is vendored for the video-playback change (ADR 0063): a
+  single-header C99 MPEG-1 video + MPEG audio layer 2 decoder with its own
+  MPEG-PS container parser and no external deps, licensed MIT via its SPDX
+  header notice. Chosen over FFmpeg (LGPL static-link obligations + multi-MB
+  bloat), platform hardware decode (divergent APIs, no unified Linux
+  surface), libvpx VP8/WebM (real build integration + an EBML parser +
+  Vorbis/Opus audio deps), dav1d/AV1 (meson+nasm build, decode-heavy in
+  wasm, overkill for the PS2-era aesthetic), and MJPEG-in-AVI (zero decode
+  deps but ~10x file sizes and no in-band audio). MPEG-1 patents have
+  expired. The implementation TU lives in `src/video/plmpeg_impl.c`
+  (warnings relaxed exactly like the miniz/cgltf/dr_libs TUs); the engine
+  includes only the declarations through the wrapper
+  `src/video/efx_video.h` / `src/video/video.c`. Evaluation record:
+  `openspec/changes/video-playback/design.md` (D1).

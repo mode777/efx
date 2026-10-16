@@ -245,3 +245,10 @@ Deterministic procedural noise: point queries, bulk fills, and textures.
 | Interface | Description |
 | ------ | ------ |
 | [EfxTime](interfaces/EfxTime.md) | The engine-owned script clock. |
+
+## Video
+
+| Interface | Description |
+| ------ | ------ |
+| [EfxVideo](interfaces/EfxVideo.md) | A playing MPEG-1 video (opaque native-backed class). |
+| [EfxVideoNamespace](interfaces/EfxVideoNamespace.md) | The `efx.video` sub-namespace: MPEG-1 video playback. |

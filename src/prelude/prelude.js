@@ -2177,6 +2177,46 @@ function __efxPreludeInstall(efx, natives) {
             }
             return r;
         };
+        if (natives.openVideo) {
+            /* the video sub-namespace (video-playback): created by the
+             * bindings; the prelude installs its loader onto the same
+             * object in place (ADR 0050 organization rule) */
+            if (!efx.video) {
+                efx.video = {};
+            }
+            efx.video.openVideo = function (path, opts) {
+                if (arguments.length < 1 || typeof path !== 'string') {
+                    throw new TypeError('openVideo requires a path string');
+                }
+                var loop = 0, muted = 0;
+                if (opts !== undefined && opts !== null) {
+                    if (!__efxIsObject(opts)) {
+                        throw new TypeError('openVideo options must be an object');
+                    }
+                    __efxCheckKnown(opts, { loop: 1, muted: 1 }, 'openVideo');
+                    if (opts['loop'] !== undefined) {
+                        if (typeof opts['loop'] !== 'boolean') {
+                            throw new TypeError('loop must be a boolean');
+                        }
+                        loop = opts['loop'] ? 1 : 0;
+                    }
+                    if (opts['muted'] !== undefined) {
+                        if (typeof opts['muted'] !== 'boolean') {
+                            throw new TypeError('muted must be a boolean');
+                        }
+                        muted = opts['muted'] ? 1 : 0;
+                    }
+                }
+                var r = natives.openVideo(path, loop, muted);
+                if (typeof r === 'number') {
+                    if (r === -100) {
+                        throw new Error('not a parseable MPEG-1 video: ' + path);
+                    }
+                    throw new Error(__efxResourceMsgs[-r] || 'resource error');
+                }
+                return r;
+            };
+        }
         g.loadMeshData = function (path, opts) {
             if (arguments.length < 1 || typeof path !== 'string') {
                 throw new TypeError('loadMeshData requires a path string');

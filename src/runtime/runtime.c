@@ -286,6 +286,12 @@ static int install_efx_api(efx_runtime *rt) {
         JS_FreeValue(rt->ctx, glob);
         return -1;
     }
+    if (efx_api_register_video(rt->ctx, efx) < 0) {
+        fprintf(stderr, "player: video api init failed\n");
+        JS_FreeValue(rt->ctx, efx);
+        JS_FreeValue(rt->ctx, glob);
+        return -1;
+    }
     JSValue time = JS_NewObject(rt->ctx);
     static const JSCFunctionListEntry time_funcs[] = {
         JS_CGETSET_DEF("now", efx_js_time_now, NULL),
@@ -357,6 +363,8 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JS_SetPropertyStr(rt->ctx, natives, "createImageData", n);
     n = JS_NewCFunction(rt->ctx, efx_js_create_texture_wire, "createTexture", 5);
     JS_SetPropertyStr(rt->ctx, natives, "createTexture", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_open_video_wire, "openVideo", 3);
+    JS_SetPropertyStr(rt->ctx, natives, "openVideo", n);
     n = JS_NewCFunction(rt->ctx, efx_js_create_render_target_wire,
                         "createRenderTarget", 2);
     JS_SetPropertyStr(rt->ctx, natives, "createRenderTarget", n);
@@ -488,6 +496,7 @@ void efx_runtime_destroy(efx_runtime *rt) {
         efx_hooks_free_all(rt->ctx, efx_host_hook_list(&rt->host, which));
     }
     efx_api_physics_release(rt->ctx);
+    efx_api_videos_release(&rt->host);
     JS_FreeValue(rt->ctx, rt->host.quit_sentinel);
     JS_FreeValue(rt->ctx, rt->module_runtime);
     JS_FreeValue(rt->ctx, rt->module_run_entry);
@@ -639,6 +648,11 @@ void efx_runtime_pick_hooks(efx_runtime *rt, int *has_update, int *has_render) {
 }
 
 int efx_runtime_call_hook(efx_runtime *rt, int update_not_render, double dt) {
+    /* video-playback: engine-owned videos advance before script hooks so
+       scripts observe fresh state (mirrored by the web bridge's tick) */
+    if (update_not_render) {
+        efx_api_videos_tick(&rt->host, dt);
+    }
     struct efx_hook_list *list =
         update_not_render ? &rt->host.update_hooks : &rt->host.render_hooks;
     for (int i = 0; i < list->count; i++) {

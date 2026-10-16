@@ -116,6 +116,23 @@ C('2d.texture-update-ok', function () { dynTex.update(img); });
 dynTex.destroy();
 C('2d.texture-update-destroyed', function () { dynTex.update(img); });
 
+/* ------------------------------------------------------- video playback */
+
+C('video.open-path-type', function () { efx.video.openVideo(5); });
+C('video.open-missing', function () { efx.video.openVideo('no_such.mpg'); });
+C('video.open-nonmpeg', function () { efx.video.openVideo('resource_probe.png'); });
+C('video.open-unknown-opt', function () { efx.video.openVideo('video_probe.mpg', { frob: 1 }); });
+C('video.open-loop-type', function () { efx.video.openVideo('video_probe.mpg', { loop: 1 }); });
+C('video.open-muted-type', function () { efx.video.openVideo('video_probe.mpg', { muted: 1 }); });
+
+var vid = efx.video.openVideo('video_probe.mpg');
+C('video.texture-destroy', function () { vid.texture.destroy(); });
+vid.destroy();
+C('video.play-destroyed', function () { vid.play(); });
+C('video.pause-destroyed', function () { vid.pause(); });
+C('video.time-destroyed', function () { return vid.currentTime; });
+C('video.texture-destroyed', function () { return vid.texture; });
+
 /* -------------------------------------------------------------- 3D core */
 
 C('3d.cam-noargs', function () { efx.graphics.setCamera3D(); });

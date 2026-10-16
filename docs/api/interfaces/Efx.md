@@ -197,6 +197,14 @@ Engine-owned script clock.
 
 ***
 
+### video
+
+> `readonly` **video**: [`EfxVideoNamespace`](EfxVideoNamespace.md)
+
+MPEG-1 video playback.
+
+***
+
 ### window
 
 > **window**: [`EfxWindow`](EfxWindow.md)

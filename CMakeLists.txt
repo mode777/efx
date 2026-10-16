@@ -76,6 +76,13 @@ efx_add_vendor_library(efx_drlibs
 efx_add_vendor_library(efx_fastnoise
     SOURCES src/noise/fastnoise_impl.c
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/fastnoise-lite)
+
+# video-playback (ADR 0062): pl_mpeg — MPEG-1 video + MP2 audio decoder, its
+# implementation compiled in a dedicated relaxed-warnings TU behind the
+# wrapper in src/video/video.c.
+efx_add_vendor_library(efx_plmpeg
+    SOURCES src/video/plmpeg_impl.c
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/pl_mpeg)
 # ADR 0059 determinism: FMA contraction changes FNL's dot-product rounding
 # (Apple arm64 contracts by default and drifts the pinned values by 1 ulp;
 # x86-64, MSVC /fp:precise, and wasm do not contract). The noise engine must
@@ -130,6 +137,9 @@ set(EFX_AUDIO_SOURCES
 set(EFX_NOISE_SOURCES
     src/noise/efx_noise.c
 )
+set(EFX_VIDEO_SOURCES
+    src/video/video.c
+)
 set(EFX_RESOURCE_SOURCES
     src/resource/image.c
     src/resource/resource.c
@@ -151,6 +161,7 @@ set(EFX_API_SOURCES
     src/api/api_physics.c
     src/api/api_audio.c
     src/api/api_noise.c
+    src/api/api_video.c
     src/runtime/runtime.c
 )
 
@@ -171,7 +182,8 @@ if(EMSCRIPTEN)
         src/web/bridge_input.c
         src/web/bridge_audio.c
         src/web/bridge_physics.c
-        src/web/bridge_noise.c)
+        src/web/bridge_noise.c
+        src/web/bridge_video.c)
 endif()
 add_library(efx_core STATIC
     ${EFX_RENDER_CORE_SOURCES}
@@ -180,6 +192,7 @@ add_library(efx_core STATIC
     ${EFX_PHYSICS_SOURCES}
     ${EFX_AUDIO_SOURCES}
     ${EFX_NOISE_SOURCES}
+    ${EFX_VIDEO_SOURCES}
     ${EFX_RESOURCE_SOURCES}
 )
 if(NOT EMSCRIPTEN)
@@ -190,7 +203,8 @@ endif()
 target_sources(efx_core PRIVATE src/runtime/clock.c src/api/api_physics_debug.c)
 target_include_directories(efx_core PUBLIC src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb)
-target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf efx_drlibs efx_fastnoise)
+target_link_libraries(efx_core PUBLIC efx_miniz efx_cgltf efx_drlibs efx_fastnoise
+    efx_plmpeg)
 if(NOT EMSCRIPTEN)
     target_link_libraries(efx_core PUBLIC qjs)
 endif()
@@ -280,6 +294,7 @@ if(EMSCRIPTEN)
         src/web/js/input.js
         src/web/js/physics.js
         src/web/js/noise.js
+        src/web/js/video.js
         src/web/js/audio.js
         src/web/js/boot.js)
     set(EFX_WEB_POST_JS "")
@@ -538,6 +553,25 @@ efx_add_test_exe(efx_audio_tests
     MSVC_DEFS _CRT_SECURE_NO_WARNINGS
 )
 
+# headless video-core tests (video-playback, ADR 0062): pure-C decode/state
+# machine over the embedded MPEG-1 fixtures (portable like the audio suite)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/video/procedural.mpg EFX_VIDEO_MPG_HEX HEX)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/video/silent.mpg EFX_VIDEO_SILENT_HEX HEX)
+string(LENGTH "${EFX_VIDEO_MPG_HEX}" EFX_VIDEO_MPG_HEXLEN)
+math(EXPR EFX_VIDEO_MPG_SIZE "${EFX_VIDEO_MPG_HEXLEN} / 2")
+string(LENGTH "${EFX_VIDEO_SILENT_HEX}" EFX_VIDEO_SILENT_HEXLEN)
+math(EXPR EFX_VIDEO_SILENT_SIZE "${EFX_VIDEO_SILENT_HEXLEN} / 2")
+string(REGEX REPLACE "(..)" "0x\\1," EFX_VIDEO_MPG_BYTES "${EFX_VIDEO_MPG_HEX}")
+string(REGEX REPLACE "(..)" "0x\\1," EFX_VIDEO_SILENT_BYTES "${EFX_VIDEO_SILENT_HEX}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/efx_video_fixtures.h
+"#ifndef EFX_VIDEO_FIXTURES_H\n#define EFX_VIDEO_FIXTURES_H\nstatic const unsigned char EFX_TEST_MPG[] = {${EFX_VIDEO_MPG_BYTES}};\nstatic const unsigned int EFX_TEST_MPG_SIZE = ${EFX_VIDEO_MPG_SIZE};\nstatic const unsigned char EFX_TEST_MPG_SILENT[] = {${EFX_VIDEO_SILENT_BYTES}};\nstatic const unsigned int EFX_TEST_MPG_SILENT_SIZE = ${EFX_VIDEO_SILENT_SIZE};\n#endif\n")
+
+efx_add_test_exe(efx_video_tests
+    SOURCES ${EFX_VIDEO_SOURCES} tests/unit/video_tests.c
+    INCLUDES ${CMAKE_CURRENT_BINARY_DIR}
+    LIBS efx_plmpeg
+)
+
 # headless resource provider tests (F6a directory backend + path safety);
 # desktop-only: they read the filesystem
 efx_add_test_exe(efx_resource_tests
@@ -573,14 +607,16 @@ efx_add_test_exe(efx_api_tests
             ${EFX_INPUT_SOURCES}
             ${EFX_PHYSICS_SOURCES}
             ${EFX_NOISE_SOURCES}
+            ${EFX_VIDEO_SOURCES}
             ${EFX_RESOURCE_SOURCES}
             tests/unit/api_tests.c
     INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/vendor/stb
-    LIBS qjs efx_miniz efx_cgltf efx_drlibs efx_fastnoise efx_math
+    LIBS qjs efx_miniz efx_cgltf efx_drlibs efx_fastnoise efx_plmpeg efx_math
     DEFS EFX_RES_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/resource"
          EFX_MOD_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules"
          EFX_MOD_ERROR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/modules_error"
          EFX_AUDIO_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/audio"
+         EFX_VIDEO_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/video"
     MSVC_DEFS _CRT_SECURE_NO_WARNINGS
     POSIX_DEFS _POSIX_C_SOURCE=200809L
     DESKTOP_ONLY

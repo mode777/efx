@@ -48,6 +48,8 @@ struct efx_host_state {
      * used for contact/hit identity) */
     void *physics_world;
     void *physics_colliders[2];
+    /* video-playback: linked list of live video wrappers (api_video.c) */
+    void *videos;
 };
 
 /* stable selector for the host callback lists (update/render + F9 input);

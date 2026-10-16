@@ -359,6 +359,7 @@ JSClassID fontdata_class_id;
 JSClassID font_class_id;
 
 JSClassID particlesystem_class_id;
+JSClassID video_class_id;
 
 JSClassID audiodata_class_id;
 
@@ -867,6 +868,8 @@ JSValue efx_js_live_sample(JSContext *ctx, JSValueConst this_val, int argc,
 static const efx_class_spec CLASS_SPECS[] = {
     { &texture_class_id, "Texture", texture_proto_funcs,
       EFX_ARRAY_COUNT(texture_proto_funcs), texture_destroy, texture_release },
+    { &video_class_id, "Video", video_proto_funcs,
+      EFX_ARRAY_COUNT(video_proto_funcs), video_destroy, video_release },
     { &imagedata_class_id, "ImageData", imagedata_proto_funcs,
       EFX_ARRAY_COUNT(imagedata_proto_funcs), imagedata_destroy,
       imagedata_release },
@@ -962,10 +965,15 @@ efxjs_rendertarget *efx_api_get_live_render_target(JSContext *ctx,
 
 
 static efxjs_texture *get_live_texture(JSContext *ctx, JSValueConst v) {
-    return live_opaque(ctx, v, texture_class_id, "expected a Texture",
-                       "using a destroyed resource", texture_alive);
+    efxjs_texture *t = live_opaque(ctx, v, texture_class_id, "expected a Texture",
+                                   "using a destroyed resource", texture_alive);
+    /* a video-owned texture dies with its video (owner is a borrowed link) */
+    if (t && t->owner && !t->owner->alive) {
+        efx_api_type_error(ctx, "using a destroyed resource");
+        return NULL;
+    }
+    return t;
 }
-
 
 static efxjs_font *get_live_font(JSContext *ctx, JSValueConst v) {
     return live_opaque(ctx, v, font_class_id, "expected a Font",
@@ -979,7 +987,7 @@ static efxjs_font *get_live_font(JSContext *ctx, JSValueConst v) {
 int efx_api_get_live_sample(JSContext *ctx, JSValueConst v, uint64_t *out_handle) {
     efxjs_texture *t = JS_GetOpaque(v, texture_class_id);
     if (t) {
-        if (!t->alive) {
+        if (!t->alive || (t->owner && !t->owner->alive)) {
             efx_api_type_error(ctx, "using a destroyed resource");
             return -1;
         }

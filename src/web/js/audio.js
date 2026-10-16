@@ -273,6 +273,19 @@
             }
             return new EfxImageData(id);
         },
+        openVideo: function (path, loop, muted) {
+            var p = __efxAllocCStr(path);
+            var r = bridge['_efx_bridge_open_video'](p, loop ? 1 : 0,
+                                                     muted ? 1 : 0);
+            bridge['_free'](p);
+            if (typeof r === 'number' && r < 0) {
+                return r; /* prelude maps the error code */
+            }
+            if (!r) {
+                return -101;
+            }
+            return new EfxVideo(r);
+        },
         loadMeshData: function (path, hasMesh, isName, index, name) {
             var pathPtr = __efxAllocCStr(path);
             var namePtr = name !== null && name !== undefined
