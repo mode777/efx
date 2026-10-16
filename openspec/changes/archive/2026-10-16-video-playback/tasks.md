@@ -48,7 +48,7 @@
 - [x] 4.3 Web: `src/web/bridge_video.c` + `src/web/js/video.js` (class +
       namespace fragment), bridge registration. Verify: web build; browser
       harness smoke test.
-- [ ] 4.4 Types + docs: `gallery/src/api/efx.d.ts`, type-test coverage,
+- [x] 4.4 Types + docs: `gallery/src/api/efx.d.ts`, type-test coverage,
       regenerate `docs/api/`; `npm --prefix gallery run check` and
       `docs:check` green.
 
