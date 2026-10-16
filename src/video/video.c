@@ -44,6 +44,16 @@ struct efx_video {
     uint64_t ring_count;  /* frames buffered */
 };
 
+/* pl_mpeg's RGBA conversion writes only the colour channels (its
+ * PLM_PUT_PIXEL never touches alpha), so the engine — which blends video
+ * like any textured quad — must force every pixel opaque. */
+static void rgba_set_opaque(efx_video *v) {
+    size_t n = (size_t)v->width * (size_t)v->height;
+    for (size_t i = 0; i < n; i++) {
+        v->rgba[i * 4 + 3] = 255;
+    }
+}
+
 /* decode the next video frame into the scratch buffer; 0 at stream end */
 static int decode_one_video(efx_video *v) {
     plm_frame_t *f = plm_decode_video(v->plm);
@@ -51,6 +61,7 @@ static int decode_one_video(efx_video *v) {
         return 0;
     }
     plm_frame_to_rgba(f, v->rgba, (int)v->width * 4);
+    rgba_set_opaque(v);
     v->frame_valid = 1;
     v->next_frame += 1.0 / v->fps;
     return 1;
@@ -127,6 +138,7 @@ int efx_video_open(const uint8_t *bytes, size_t size, efx_video **out) {
         return EFX_VIDEO_ERR_NOMEM;
     }
     plm_frame_to_rgba(f, v->rgba, v->width * 4);
+    rgba_set_opaque(v);
     v->frame_valid = 1;
     v->next_frame = 1.0 / v->fps;
 

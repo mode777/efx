@@ -64,6 +64,16 @@ static int open_metadata(void) {
     if (!any_nonzero(efx_video_frame_rgba(v), FIX_W * FIX_H * 4)) {
         return fail("first frame decoded");
     }
+    /* every frame is opaque (pl_mpeg's RGBA conversion leaves alpha unwritten;
+     * the wrapper forces 255 so video blends like any textured quad) */
+    {
+        const uint8_t *px = efx_video_frame_rgba(v);
+        for (int i = 0; i < FIX_W * FIX_H; i++) {
+            if (px[i * 4 + 3] != 255) {
+                return fail("frame alpha not opaque");
+            }
+        }
+    }
     efx_video_destroy(v);
 
     /* silent fixture */
