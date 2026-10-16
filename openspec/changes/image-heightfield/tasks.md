@@ -11,7 +11,7 @@
 
 ## 3. Prelude — validation wrapper
 
-- [ ] 3.1 Add `__efxMakeHeightfield` to `src/prelude/prelude.js`: required-positional `EfxImageData` check, option-bag validation per the family rules (region tuple, positive-integer step, finite height, positive size, unknown fields, material via the shared material-binding path), then the `natives.makeHeightfieldWire` call; install as `efx.graphics.makeHeightfield`; regenerate `src/prelude/prelude.h` via `tools/gen_prelude.py` and verify `gen_prelude.py --check` passes
+- [x] 3.1 Add `__efxMakeHeightfield` to `src/prelude/prelude.js`: required-positional `EfxImageData` check, option-bag validation per the family rules (region tuple, positive-integer step, finite height, positive size, unknown fields, material via the shared material-binding path), then the `natives.makeHeightfieldWire` call; install as `efx.graphics.makeHeightfield`; regenerate `src/prelude/prelude.h` via `tools/gen_prelude.py` and verify `gen_prelude.py --check` passes
 - [x] 3.2 Verify canonical error text (non-image/destroyed image, `region: [0.5,0,4,4]`, `step: 0`, `size: 0`, `height: Infinity`, unknown key, non-material) in a headless `--script` test on the desktop runtime
 
 ## 4. Web bridge
