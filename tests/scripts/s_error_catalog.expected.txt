@@ -31,6 +31,13 @@
 2d.texture-wrap-type: TypeError: unknown wrap mode
 2d.texture-filter-type: TypeError: unknown filter
 2d.texture-mipmaps-type: TypeError: mipmaps must be a boolean
+2d.texture-dynamic-mipmaps: TypeError: dynamic textures do not support mipmaps
+2d.texture-dynamic-type: TypeError: dynamic must be a boolean
+2d.texture-update-nonimage: TypeError: expected an ImageData
+2d.texture-update-size: TypeError: update ImageData size must match the texture
+2d.texture-update-plain: TypeError: update requires a texture created with dynamic: true
+2d.texture-update-ok: none: 
+2d.texture-update-destroyed: TypeError: using a destroyed resource
 3d.cam-noargs: TypeError: setCamera3D requires pos and target
 3d.cam-no-pos: TypeError: setCamera3D requires pos and target
 3d.cam-fov-type: TypeError: fov must be a number
@@ -52,6 +59,21 @@
 3d.md-mat-blend-unknown: TypeError: unknown blend mode
 3d.md-elem-type: TypeError: array elements must be numbers
 3d.md-elem-nan: RangeError: array elements must be finite numbers
+3d.hf-none: TypeError: makeHeightfield requires an ImageData
+3d.hf-nonimage: TypeError: expected an ImageData
+3d.hf-destroyed-image: TypeError: using a destroyed resource
+3d.hf-unknown-opt: TypeError: unknown makeHeightfield option 'frobnicate'
+3d.hf-region-short: RangeError: region must hold 4 numbers
+3d.hf-region-frac: RangeError: region entries must be non-negative integers
+3d.hf-region-negative: RangeError: region entries must be non-negative integers
+3d.hf-region-empty: RangeError: region width/height must be positive integers
+3d.hf-step-zero: RangeError: step must be a positive integer
+3d.hf-step-frac: RangeError: step must be a positive integer
+3d.hf-size-zero: RangeError: size must be > 0
+3d.hf-height-inf: RangeError: height must be finite
+3d.hf-material-type: TypeError: material must be an object
+3d.hf-region-oob: RangeError: heightfield region is degenerate
+3d.hf-region-one-col: RangeError: heightfield region is degenerate
 3d.drawmesh-none: TypeError: drawMesh requires a mesh
 3d.drawmesh-nonmesh: TypeError: expected a Mesh
 3d.drawmesh-null: TypeError: expected a Mesh

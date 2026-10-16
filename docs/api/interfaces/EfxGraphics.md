@@ -270,6 +270,15 @@ Source pixels.
 
 Optional wrap, filter, and mipmap settings.
 
+###### dynamic?
+
+`boolean`
+
+Create the texture for streaming pixel updates via
+`EfxTexture.update` (default `false`). Dynamic textures are
+single-level: combining `dynamic: true` with `mipmaps: true` throws
+`TypeError`.
+
 ###### filter?
 
 `"nearest"` \| `"linear"`
@@ -817,6 +826,79 @@ Material bound to the primitive's single surface; `null` = engine default.
 `number`
 
 Edge length (default 1, must be > 0).
+
+#### Returns
+
+[`EfxMeshData`](EfxMeshData.md)
+
+The new CPU MeshData.
+
+***
+
+### makeHeightfield()
+
+> **makeHeightfield**(`image`, `opts?`): [`EfxMeshData`](EfxMeshData.md)
+
+Build single-surface heightfield MeshData from an image's per-pixel
+luminance: a grid in the XZ plane facing `+Y`, centered on the origin,
+where Rec. 709 luminance (0..1, alpha ignored) becomes vertex height.
+uv maps the full image, so the loaded image textures the field with no
+rewrapping; normals follow the sampled surface. Builds can be large —
+one vertex per sampled pixel — so `step` decimates big heightmaps.
+
+#### Parameters
+
+##### image
+
+[`EfxImageData`](EfxImageData.md)
+
+Source pixels (from `loadImage`, `createImageData`, or
+               `noise.imageData`).
+
+##### opts?
+
+Optional region, decimation step, height scale, world
+              size, and bound material.
+
+###### height?
+
+`number`
+
+World-space height scale (default 1): vertex y is the pixel's Rec. 709
+luminance times this. Luminance 0 maps to y = 0, luminance 1 to
+y = `height`. Must be finite; may be negative to invert.
+
+###### material?
+
+[`Material`](Material.md) \| `null`
+
+Material bound to the primitive's single surface; `null` = engine default.
+
+###### region?
+
+\[`number`, `number`, `number`, `number`\]
+
+Source sub-rect `[x, y, w, h]` in pixels (non-negative integers,
+`w`/`h` positive; default: the whole image). Clamped to the image
+bounds; a region that is degenerate after clamping throws
+`RangeError`.
+
+###### size?
+
+`number`
+
+World-space x extent (default: the region's pixel width, i.e. one
+world unit per pixel). The z extent follows the region's aspect ratio
+so texels stay square. Must be > 0.
+
+###### step?
+
+`number`
+
+Decimation stride: sample every `step`-th pixel in x and y
+(positive integer, default 1). The grid is
+`floor((regionW - 1) / step) + 1` columns (rows analogously); fewer
+than 2 columns or rows throws `RangeError`.
 
 #### Returns
 

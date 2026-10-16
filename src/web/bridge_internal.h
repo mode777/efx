@@ -58,5 +58,7 @@ void web_open_root(void);
 
 /* bridge entry points called across fragments (defined elsewhere, external) */
 int efx_bridge_imagedata_commit(int w, int h, uint8_t *pixels);
+/* image-heightfield: view a live ImageData slot's pixels (0 = not alive) */
+int web_image_view(int id, int *w, int *h, const uint8_t **pixels);
 
 #endif

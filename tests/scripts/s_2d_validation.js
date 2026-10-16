@@ -45,9 +45,27 @@ expectThrow('quad-src-zero', () => efx.graphics.drawQuad(tex, 0, 0, { sourceRect
 expectThrow('quad-src-oob', () => efx.graphics.drawQuad(tex, 0, 0, { sourceRect: { x: 0, y: 0, w: 9, h: 2 } }));
 expectThrow('quad-unknown-opt', () => efx.graphics.drawQuad(tex, 0, 0, { colour: [1, 1, 1, 1] }));
 expectThrow('quad-blend-unknown', () => efx.graphics.drawQuad(tex, 0, 0, { blend: 'multiply' }));
+// dynamic textures: create option validation and update() (headless CPU-only:
+// update validates and succeeds without an upload, ADR 0052)
+expectThrow('create-dynamic-type', () => efx.graphics.createTexture(img, { dynamic: 5 }));
+expectThrow('create-dynamic-mipmaps', () => efx.graphics.createTexture(img, { dynamic: true, mipmaps: true }));
+const dynImg = efx.graphics.createImageData(4, 4, new Uint8Array(4 * 4 * 4));
+const dyn = efx.graphics.createTexture(dynImg, { dynamic: true });
+try { dyn.update(efx.graphics.createImageData(4, 4, new Uint8Array(4 * 4 * 4))); }
+catch (e) { efx.log('FAIL no-throw dynamic-update'); efx.quit(3); }
+try { dyn.update(dynImg); }
+catch (e) { efx.log('FAIL no-throw dynamic-update-reuse'); efx.quit(3); }
+expectThrow('dyn-update-nonimage', () => dyn.update(5));
+expectThrow('dyn-update-size', () => dyn.update(efx.graphics.createImageData(2, 2, new Uint8Array(16))));
+expectThrow('dyn-update-plain', () => tex.update(dynImg));
+try { efx.graphics.drawQuad(dyn, 0, 0, { size: [4, 4] }); }
+catch (e) { efx.log('FAIL no-throw quad-dynamic-texture: ' + e); efx.quit(3); }
 tex.destroy();
 expectThrow('quad-destroyed-texture', () => efx.graphics.drawQuad(tex, 0, 0));
 expectThrow('getter-destroyed-texture', () => tex.width);
 expectThrow('getter-destroyed-texture-h', () => tex.height);
+expectThrow('update-destroyed-texture', () => tex.update(dynImg));
+dyn.destroy();
+expectThrow('update-destroyed-dynamic', () => dyn.update(dynImg));
 efx.log('2d-validation-ok');
 efx.quit(0);

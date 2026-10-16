@@ -546,6 +546,30 @@ function __efxEnsureApi() {
         destroy: function () {
             bridge['_efx_bridge_texture_destroy'](this.__handle);
         },
+        methods: {
+            /* dynamic textures only; hot draw-adjacent path — validation
+               mirrors the desktop native (ADR 0049). Non-raw method: the
+               factory wraps it with the liveness guard. */
+            update: function (imageData) {
+                if (!(imageData instanceof EfxImageData)) {
+                    throw new TypeError('expected an ImageData');
+                }
+                var rc = bridge['_efx_bridge_texture_update'](
+                    this.__handle, imageData.__id);
+                if (rc === 0) {
+                    return;
+                }
+                if (rc === 3) {
+                    throw new TypeError(
+                        'update ImageData size must match the texture');
+                }
+                if (rc === 4) {
+                    throw new TypeError('using a destroyed resource');
+                }
+                throw new TypeError(
+                    'update requires a texture created with dynamic: true');
+            },
+        },
         getters: {
             width: {
                 get: function () {

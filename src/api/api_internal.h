@@ -47,6 +47,7 @@ typedef struct {
     uint64_t handle;
     int alive;
     int permanent; /* engine-owned (white texture) */
+    int dynamic;   /* streaming-update opt-in (create-time flag) */
 } efxjs_texture;
 
 typedef struct {

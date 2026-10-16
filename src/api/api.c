@@ -662,9 +662,43 @@ static JSValue efx_js_texture_getHeight(JSContext *ctx, JSValueConst this_val) {
 }
 
 
+/* texture.update(imageData) — hot-path native validation per ADR 0049:
+ * liveness, ImageData type, dynamic opt-in, exact size (all TypeError) */
+static JSValue efx_js_texture_update(JSContext *ctx, JSValueConst this_val,
+                                     int argc, JSValueConst *argv) {
+    efxjs_texture *t = get_live_texture(ctx, this_val);
+    if (!t) {
+        return JS_EXCEPTION;
+    }
+    if (argc < 1) {
+        return efx_api_type_error(ctx, "update requires an ImageData");
+    }
+    efxjs_imagedata *d = efx_api_get_live_imagedata(ctx, argv[0]);
+    if (!d) {
+        return JS_EXCEPTION;
+    }
+    if (!t->dynamic) {
+        return efx_api_type_error(ctx,
+                                  "update requires a texture created with dynamic: true");
+    }
+    int w = 0, h = 0;
+    efx_render_texture_size(t->handle, &w, &h);
+    if (d->w != w || d->h != h) {
+        return efx_api_type_error(ctx,
+                                  "update ImageData size must match the texture");
+    }
+    int rc = efx_render_texture_update(t->handle, d->pixels);
+    if (rc != EFX_RENDER_OK) {
+        return efx_api_generic_error(ctx, "texture update failed");
+    }
+    return JS_UNDEFINED;
+}
+
+
 static const JSCFunctionListEntry texture_proto_funcs[] = {
     JS_CGETSET_DEF("width", efx_js_texture_getWidth, NULL),
     JS_CGETSET_DEF("height", efx_js_texture_getHeight, NULL),
+    JS_CFUNC_DEF("update", 1, efx_js_texture_update),
 };
 
 

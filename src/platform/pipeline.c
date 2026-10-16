@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
     sg_image img;
     sg_view view;
+    int w, h;         /* streaming updates size the mip-0 upload */
     int wrap, filter; /* F6b per-texture sampler state */
     int mipmaps;      /* F6e: image carries a generated mip chain */
 } pipe_tex;
@@ -192,7 +193,8 @@ static void build_mip_chain(int w, int h, int levels, const uint8_t *rgba,
 }
 
 static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba,
-                                 int wrap, int filter, int mipmaps) {
+                                 int wrap, int filter, int mipmaps,
+                                 int dynamic) {
     (void)ud;
     pipe_tex *t = calloc(1, sizeof(pipe_tex));
     if (!t) {
@@ -228,6 +230,7 @@ static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba,
         .height = h,
         .num_mipmaps = levels,
         .pixel_format = SG_PIXELFORMAT_RGBA8,
+        .usage = {.dynamic_update = dynamic ? true : false},
         .data = data,
     });
     for (int l = 1; l < levels; l++) {
@@ -236,10 +239,25 @@ static void *pipe_create_texture(void *ud, int w, int h, const uint8_t *rgba,
     t->view = sg_make_view(&(sg_view_desc){
         .texture.image = t->img,
     });
+    t->w = w;
+    t->h = h;
     t->wrap = wrap;
     t->filter = filter;
     t->mipmaps = levels > 1 ? 1 : 0;
     return t;
+}
+
+/* dynamic textures: replace the full mip-0 contents (single level by design) */
+static void pipe_update_texture(void *ud, void *native, const uint8_t *rgba) {
+    (void)ud;
+    pipe_tex *t = (pipe_tex *)native;
+    if (!t || !rgba) {
+        return;
+    }
+    sg_update_image(t->img, &(sg_image_data){
+                                .mip_levels[0] = {.ptr = rgba,
+                                                  .size = (size_t)t->w * t->h * 4},
+                            });
 }
 
 static void pipe_destroy_texture(void *ud, void *native) {
@@ -432,7 +450,7 @@ static pipe_vertex *emit_quad(pipe_vertex *v, const efx_quad_record *r,
 /* the render sink this module installs; shared by install and the in-place
  * swap rebind (ADR 0057) */
 static const efx_render_sink PIPE_SINK = {
-    NULL, pipe_create_texture, pipe_destroy_texture,
+    NULL, pipe_create_texture, pipe_destroy_texture, pipe_update_texture,
     pipe_create_mesh, pipe_destroy_mesh, NULL,
     pipe_create_render_target, pipe_destroy_render_target,
 };

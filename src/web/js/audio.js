@@ -246,9 +246,9 @@
                 throw e;
             }
         },
-        createTexture: function (image, wrap, filter, mipmaps) {
+        createTexture: function (image, wrap, filter, mipmaps, dynamic) {
             var handle = bridge['_efx_bridge_texture_create'](
-                image.__id, wrap, filter, mipmaps);
+                image.__id, wrap, filter, mipmaps, dynamic ? 1 : 0);
             if (!handle) {
                 throw new Error('texture upload failed (no GPU context?)');
             }
@@ -347,6 +347,30 @@
                 bridge['_efx_bridge_meshdata_destroy'](id);
                 throw e;
             }
+        },
+        makeHeightfieldWire: function (image, rx, ry, rw, rh, step,
+                                       height, size, blocks, maps, matHas) {
+            var id = bridge['_efx_bridge_make_heightfield'](
+                image.__id, rx, ry, rw, rh, step, height, size);
+            /* negative codes mirror the desktop wire's error taxonomy */
+            if (id === -2) {
+                throw new Error('out of memory');
+            }
+            if (id < 0) {
+                throw new RangeError('heightfield region is degenerate');
+            }
+            if (matHas) {
+                var mptr = mallocCopyF32(blocks);
+                var mapsptr = mallocCopyF64(maps);
+                try {
+                    bridge['_efx_bridge_meshdata_set_material'](
+                        id, 0, mptr, mapsptr, 1);
+                } finally {
+                    bridge['_free'](mptr);
+                    bridge['_free'](mapsptr);
+                }
+            }
+            return new EfxMeshData(id);
         },
         createBody: function (dynamic, sensor, t, r, hx, hy, hz, height,
                               px, py, pz, mass, friction, restitution,

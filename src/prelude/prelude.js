@@ -406,6 +406,87 @@ function __efxMakeCapsule(opts) {
     }], __efxPrimMaterial(opts));
 }
 
+/* heightfield from image luminance (image-heightfield): the grid geometry is
+   built natively from the decoded RGBA8 pixels (no bulk pixel readback), so
+   unlike the prims above this one delegates to a wire native. The option bag
+   is validated once here (ADR 0049); the wire clamps the region and throws
+   the degenerate-after-clamp RangeError where the clamp happens. */
+function __efxMakeHeightfield(image, opts, natives) {
+    natives.checkImageData(image);
+    var region = null, step = 1, height = 1, size = 0;
+    var material = undefined;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('makeHeightfield options must be an object');
+        }
+        __efxCheckKnown(opts,
+            ['region', 'step', 'height', 'size', 'material'],
+            'makeHeightfield');
+        if (opts['region'] !== undefined) {
+            var rv = __efxFloat32Array(opts['region'], 'region');
+            if (rv.length !== 4) {
+                throw new RangeError('region must hold 4 numbers');
+            }
+            for (var rc = 0; rc < 4; rc++) {
+                var comp = rv[rc];
+                if (!isFinite(comp) || comp !== Math.floor(comp) ||
+                    comp < 0 || comp > 65535) {
+                    throw new RangeError(
+                        'region entries must be non-negative integers');
+                }
+            }
+            if (rv[2] < 1 || rv[3] < 1) {
+                throw new RangeError(
+                    'region width/height must be positive integers');
+            }
+            region = rv;
+        }
+        if (opts['step'] !== undefined) {
+            var sv = Number(opts['step']);
+            if (!isFinite(sv) || sv <= 0 || sv !== Math.floor(sv)) {
+                throw new RangeError('step must be a positive integer');
+            }
+            step = sv;
+        }
+        if (opts['height'] !== undefined) {
+            var hv = Number(opts['height']);
+            if (!isFinite(hv)) {
+                throw new RangeError('height must be finite');
+            }
+            height = hv;
+        }
+        if (opts['size'] !== undefined) {
+            var zv = Number(opts['size']);
+            if (!isFinite(zv) || zv <= 0) {
+                throw new RangeError('size must be > 0');
+            }
+            size = zv;
+        }
+        material = opts['material'];
+    }
+    var rx = 0, ry = 0, rw, rh;
+    if (region !== null) {
+        rx = region[0];
+        ry = region[1];
+        rw = region[2];
+        rh = region[3];
+    } else {
+        rw = image.width;
+        rh = image.height;
+    }
+    var blocks = null, maps = null, matHas = 0;
+    if (material !== undefined && material !== null) {
+        var mf = __efxMaterialWire(material, natives.liveSample);
+        blocks = new Float32Array(19);
+        maps = new Float64Array(5);
+        blocks.set(mf.blocks);
+        maps.set(mf.maps);
+        matHas = 1;
+    }
+    return natives.makeHeightfieldWire(image, rx, ry, rw, rh, step,
+                                       height, size, blocks, maps, matHas);
+}
+
 /* ------------------------------------------ F10 CommonJS module runtime
  *
  * A small, synchronous, provider-backed CommonJS implementation shared by both
@@ -1422,14 +1503,14 @@ function __efxImageDataOpts(width, height, pixels, opts) {
     return { w: w, h: h, bytes: bytes };
 }
 
-/* createTexture options -> [wrap, filter, mipmaps] */
+/* createTexture options -> [wrap, filter, mipmaps, dynamic] */
 function __efxTextureOpts(opts) {
-    var wrap = 0, filter = 1, mipmaps = 0;
+    var wrap = 0, filter = 1, mipmaps = 0, dynamic = 0;
     if (opts !== undefined && opts !== null) {
         if (!__efxIsObject(opts)) {
             throw new TypeError('createTexture options must be an object');
         }
-        __efxCheckKnown(opts, { wrap: 1, filter: 1, mipmaps: 1 },
+        __efxCheckKnown(opts, { wrap: 1, filter: 1, mipmaps: 1, dynamic: 1 },
                         'createTexture');
         if (opts['wrap'] !== undefined) {
             if (opts['wrap'] === 'repeat') {
@@ -1457,8 +1538,17 @@ function __efxTextureOpts(opts) {
             }
             mipmaps = opts['mipmaps'] ? 1 : 0;
         }
+        if (opts['dynamic'] !== undefined) {
+            if (typeof opts['dynamic'] !== 'boolean') {
+                throw new TypeError('dynamic must be a boolean');
+            }
+            dynamic = opts['dynamic'] ? 1 : 0;
+        }
+        if (mipmaps && dynamic) {
+            throw new TypeError('dynamic textures do not support mipmaps');
+        }
     }
-    return [wrap, filter, mipmaps];
+    return [wrap, filter, mipmaps, dynamic];
 }
 
 /* createRenderTarget(width, height) -> [width, height] */
@@ -1895,6 +1985,14 @@ function __efxPreludeInstall(efx, natives) {
     g.makePlane = __efxMakePlane;
     g.makeSphere = __efxMakeSphere;
     g.makeCapsule = __efxMakeCapsule;
+    if (natives && natives.makeHeightfieldWire) {
+        g.makeHeightfield = function (image, opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('makeHeightfield requires an ImageData');
+            }
+            return __efxMakeHeightfield(image, opts, natives);
+        };
+    }
     if (natives && natives.setPointLight) {
         g.setLight = function (slot, opts) {
             if (arguments.length < 2) {
@@ -2059,7 +2157,7 @@ function __efxPreludeInstall(efx, natives) {
             }
             natives.checkImageData(imageData);
             var t = __efxTextureOpts(opts);
-            return natives.createTexture(imageData, t[0], t[1], t[2]);
+            return natives.createTexture(imageData, t[0], t[1], t[2], t[3]);
         };
     }
     if (natives && natives.createRenderTarget) {

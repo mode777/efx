@@ -547,6 +547,20 @@ interface EfxTexture {
   readonly width: number;
   /** Texture height in pixels. Throws `TypeError` when destroyed. */
   readonly height: number;
+  /**
+   * Replace the full texture contents with same-size pixel data. Only
+   * textures created with `{ dynamic: true }` support updates; every member
+   * throws `TypeError` on a destroyed texture or a size mismatch.
+   *
+   * @example
+   * ```js
+   * const tex = efx.graphics.createTexture(img, { dynamic: true });
+   * function update() {
+   *     tex.update(efx.graphics.createImageData(tex.width, tex.height, nextFramePixels()));
+   * }
+   * ```
+   */
+  update(imageData: EfxImageData): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
@@ -853,6 +867,13 @@ interface TextureOptions {
   filter?: 'linear' | 'nearest';
   /** Build and use a full mip chain (default `false`). */
   mipmaps?: boolean;
+  /**
+   * Create the texture for streaming pixel updates via
+   * `EfxTexture.update` (default `false`). Dynamic textures are
+   * single-level: combining `dynamic: true` with `mipmaps: true` throws
+   * `TypeError`.
+   */
+  dynamic?: boolean;
 }
 
 /**
@@ -1103,6 +1124,50 @@ interface MakeCapsuleOptions {
   height?: number;
   /** Longitude/latitude subdivisions (positive integer, default 16). */
   segments?: number;
+  /** Material bound to the primitive's single surface; `null` = engine default. */
+  material?: Material | null;
+}
+
+/**
+ * Options for `makeHeightfield`.
+ *
+ * @example
+ * ```js
+ * // terrain from a heightmap: sample every 2nd pixel, 40 units wide
+ * const terrain = efx.graphics.createMesh(
+ *   efx.graphics.makeHeightfield(efx.graphics.loadImage('heights.png'),
+ *                                { step: 2, size: 40, height: 6 }));
+ * ```
+ * @hidden
+ * @inline
+ */
+interface MakeHeightfieldOptions {
+  /**
+   * Source sub-rect `[x, y, w, h]` in pixels (non-negative integers,
+   * `w`/`h` positive; default: the whole image). Clamped to the image
+   * bounds; a region that is degenerate after clamping throws
+   * `RangeError`.
+   */
+  region?: [number, number, number, number];
+  /**
+   * Decimation stride: sample every `step`-th pixel in x and y
+   * (positive integer, default 1). The grid is
+   * `floor((regionW - 1) / step) + 1` columns (rows analogously); fewer
+   * than 2 columns or rows throws `RangeError`.
+   */
+  step?: number;
+  /**
+   * World-space height scale (default 1): vertex y is the pixel's Rec. 709
+   * luminance times this. Luminance 0 maps to y = 0, luminance 1 to
+   * y = `height`. Must be finite; may be negative to invert.
+   */
+  height?: number;
+  /**
+   * World-space x extent (default: the region's pixel width, i.e. one
+   * world unit per pixel). The z extent follows the region's aspect ratio
+   * so texels stay square. Must be > 0.
+   */
+  size?: number;
   /** Material bound to the primitive's single surface; `null` = engine default. */
   material?: Material | null;
 }
@@ -2352,6 +2417,22 @@ interface EfxGraphics {
    * @returns The new CPU MeshData.
    */
   makeCapsule(opts?: MakeCapsuleOptions): EfxMeshData;
+  /**
+   * Build single-surface heightfield MeshData from an image's per-pixel
+   * luminance: a grid in the XZ plane facing `+Y`, centered on the origin,
+   * where Rec. 709 luminance (0..1, alpha ignored) becomes vertex height.
+   * uv maps the full image, so the loaded image textures the field with no
+   * rewrapping; normals follow the sampled surface. Builds can be large —
+   * one vertex per sampled pixel — so `step` decimates big heightmaps.
+   *
+   * @param image - Source pixels (from `loadImage`, `createImageData`, or
+   *                `noise.imageData`).
+   * @param opts - Optional region, decimation step, height scale, world
+   *               size, and bound material.
+   * @returns The new CPU MeshData.
+   */
+  makeHeightfield(image: EfxImageData,
+                  opts?: MakeHeightfieldOptions): EfxMeshData;
   /**
    * Cast a world-space ray through a frame-space screen point under the
    * current 3D camera. `x, y` use the same space mouse input reports (the

@@ -39,6 +39,26 @@ efx.graphics.drawMesh(cube, { depthWrite: 1 });
 // @ts-expect-error — inverted is a boolean
 efx.graphics.makeCube({ inverted: 1 });
 
+// Heightfields build MeshData from image luminance; the image is a required
+// positional argument, options are the bag.
+const heightImg: EfxImageData = efx.graphics.createImageData(
+  4, 4, new Uint8Array(4 * 4 * 4));
+const field: EfxMeshData = efx.graphics.makeHeightfield(heightImg);
+const cropped: EfxMeshData = efx.graphics.makeHeightfield(heightImg, {
+  region: [1, 1, 2, 2],
+  step: 1,
+  height: 5,
+  size: 20,
+  material: mat,
+});
+cropped.destroy();
+// @ts-expect-error — the image is required
+efx.graphics.makeHeightfield();
+// @ts-expect-error — region is a 4-number tuple
+efx.graphics.makeHeightfield(heightImg, { region: [0, 0, 2] });
+// @ts-expect-error — unknown options throw
+efx.graphics.makeHeightfield(heightImg, { frobnicate: 1 });
+
 // The surface list is positional and the materials array is an optional second argument.
 const batch: EfxMeshData = efx.graphics.createMeshData(
   [{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], indices: [0, 1, 2] }],
@@ -70,6 +90,16 @@ efx.graphics.createTexture(
   efx.graphics.createImageData(1, 1, [0, 0, 0, 0]),
   { wrap: 'clamp', filter: 'nearest', mipmaps: true },
 ).destroy();
+
+// dynamic textures — streaming updates (dynamic-textures)
+const dynImg: EfxImageData = efx.graphics.createImageData(2, 2, new Uint8Array(16));
+const dyn: EfxTexture = efx.graphics.createTexture(dynImg, { dynamic: true });
+dyn.update(dynImg);
+dyn.destroy();
+// @ts-expect-error — dynamic is a boolean
+efx.graphics.createTexture(dynImg, { dynamic: 1 });
+// @ts-expect-error — update takes an ImageData
+dyn.update([0, 0, 0, 0]);
 
 // The type document must reject a mistyped member and a malformed options bag.
 // @ts-expect-error — unknown member

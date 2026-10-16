@@ -233,9 +233,9 @@ static int probe_root(void) {
 /* ---------------------------------------------------------- F6b glTF import */
 
 static void *gltf_mock_create(void *ud, int w, int h, const uint8_t *rgba,
-                              int wrap, int filter, int mipmaps) {
+                              int wrap, int filter, int mipmaps, int dynamic) {
     (void)ud; (void)w; (void)h; (void)rgba; (void)wrap; (void)filter;
-    (void)mipmaps;
+    (void)mipmaps; (void)dynamic;
     return malloc(8);
 }
 
@@ -244,8 +244,13 @@ static void gltf_mock_destroy(void *ud, void *native) {
     free(native);
 }
 
+static void gltf_mock_update(void *ud, void *native, const uint8_t *rgba) {
+    (void)ud; (void)native; (void)rgba;
+}
+
 static const efx_render_sink gltf_sink = {
-    NULL, gltf_mock_create, gltf_mock_destroy, NULL, NULL, NULL, NULL, NULL,
+    NULL, gltf_mock_create, gltf_mock_destroy, gltf_mock_update, NULL, NULL,
+    NULL, NULL, NULL,
 };
 
 static efx_resource *gltf_root(int *err) {
