@@ -26,7 +26,7 @@
 ## 6. Golden scene
 
 - [x] 6.1 Add a committed tiny grayscale heightmap PNG and a golden scene (load → `makeHeightfield` → lit directional draw, full-image default plus one `region`+`step` variant) to the ADR 0020 harness; verify the Linux golden test passes on an ON build dir (`ctest -R golden`)
-- [ ] 6.2 Capture/regenerate goldens on the verification server per `docs/verification-server.md` and confirm the Emscripten golden job agrees pixel-wise
+- [x] 6.2 Capture/regenerate goldens on the verification server per `docs/verification-server.md` and confirm the Emscripten golden job agrees pixel-wise
 
 ## 7. Docs + ADR
 
@@ -35,5 +35,5 @@
 
 ## 8. Full verification gate
 
-- [ ] 8.1 Commit and push the branch, run `python3 tools/verify_remote.py all <branch>` and iterate until green (Linux golden-bearing jobs first, per AGENTS.md)
+- [x] 8.1 Commit and push the branch, run `python3 tools/verify_remote.py all <branch>` and iterate until green (Linux golden-bearing jobs first, per AGENTS.md)
 - [ ] 8.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS until green
