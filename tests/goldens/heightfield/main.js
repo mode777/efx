@@ -27,8 +27,8 @@ const crop = efx.graphics.createMesh(efx.graphics.makeHeightfield(img, {
 efx.graphics.setClearColor([0.07, 0.07, 0.12, 1]);
 efx.graphics.setCamera3D([10, 9, 12], [-1, 1, 0], 55);
 efx.graphics.setDirectionalLight({ dir: [-0.45, -1, -0.3], color: [0.95, 0.92, 0.85, 1] });
-const fieldXf = efx.math.mat4.translate(efx.math.mat4.identity(), -4.5, 0, 0);
-const cropXf = efx.math.mat4.translate(efx.math.mat4.identity(), 5, 0, 0);
+const fieldXf = efx.math.mat4.translate(efx.math.mat4.identity(), [-4.5, 0, 0]);
+const cropXf = efx.math.mat4.translate(efx.math.mat4.identity(), [5, 0, 0]);
 function update() {}
 function render() {
     efx.graphics.drawMesh(field, { transform: fieldXf });
