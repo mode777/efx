@@ -4,6 +4,7 @@
 #include "quickjs.h"
 #include "physics/physics.h"
 #include "api/api_physics_debug.h"
+#include "runtime/runtime_internal.h"
 
 JSValue efx_js_log(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_quit(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
@@ -109,6 +110,22 @@ int efx_api_register_audio(JSContext *ctx, JSValueConst efx);
 /* efx.noise (ADR 0059): attach the efx.noise sub-namespace; members are
  * installed by the shared prelude */
 int efx_api_register_noise(JSContext *ctx, JSValueConst efx);
+
+/* video-playback (ADR 0063): attach the efx.video sub-namespace; openVideo
+ * is installed by the shared prelude */
+int efx_api_register_video(JSContext *ctx, JSValueConst efx);
+
+/* advance every live video by dt (engine-frame tick, before script update
+ * hooks); uploads produced frames to the videos' textures */
+void efx_api_videos_tick(struct efx_host_state *h, double dt);
+
+/* release every live video (voice, texture, decoder) — game-swap path */
+void efx_api_videos_release(struct efx_host_state *h);
+
+/* video-playback prelude native: (path, loop, muted) -> Video | error code */
+JSValue efx_js_open_video_wire(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv);
+
 
 /* efx.noise prelude natives (ADR 0049/0059): validated scalars in, raw
  * value or filled buffer out */

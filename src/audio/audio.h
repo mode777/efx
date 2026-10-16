@@ -81,6 +81,16 @@ int efx_audio_play_data(const efx_audio_data *d, float volume, float pan,
 int efx_audio_play_stream(const efx_audio_stream *s, float volume, float pan,
                           float pitch, int loop);
 
+/* Attached pull-voice (video-playback): PCM comes from a caller-owned
+ * decoder through `fn(ud, out, frames)` -> interleaved stereo float32 at the
+ * source `rate`, returning the number of frames read (0 = end). Counts as a
+ * streaming voice (cap + steal policy apply; -1 when none can be had). The
+ * audio layer never rewinds a pull-voice — looping/restart is the
+ * producer's business. */
+typedef uint64_t (*efx_audio_pull_fn)(void *ud, float *out, uint64_t frames);
+int efx_audio_play_pull(efx_audio_pull_fn fn, void *ud, uint32_t rate,
+                        float volume);
+
 void efx_audio_stop_voice(int voice);
 void efx_audio_set_voice_volume(int voice, float v);
 void efx_audio_set_voice_pan(int voice, float p);

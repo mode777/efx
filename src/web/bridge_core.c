@@ -92,14 +92,19 @@ static int web_frame(void *ud, double dt) {
     efx_clock_begin_frame(dt);
     if (W.quit_requested || W.in_error) {
         stop = 1;
-    } else if (efx_web_call_hook_js(1, dt) != 0) {
-        stop = 1;
-    } else if (W.quit_requested || W.in_error) {
-        stop = 1;
     } else {
-        /* F11: advance engine-owned particle systems after the update hooks
-           and before the render hooks (auto-update, ADR 0039) */
-        efx_render_particles_step((float)(dt > 0.0 ? dt : 0.0));
+        /* video-playback: engine-owned videos advance before the update
+           hooks so scripts observe fresh state (desktop parity) */
+        efx_bridge_video_tick(dt > 0.0 ? dt : 0.0);
+        if (efx_web_call_hook_js(1, dt) != 0) {
+            stop = 1;
+        } else if (W.quit_requested || W.in_error) {
+            stop = 1;
+        } else {
+            /* F11: advance engine-owned particle systems after the update
+               hooks and before the render hooks (auto-update, ADR 0039) */
+            efx_render_particles_step((float)(dt > 0.0 ? dt : 0.0));
+        }
     }
     if (!stop && !(W.quit_requested || W.in_error) &&
         efx_web_call_hook_js(0, dt) != 0) {

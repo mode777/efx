@@ -12,6 +12,7 @@
 #include "physics/broadphase.h"
 #include "render/render.h"
 #include "render/text.h"
+#include "video/efx_video.h"
 #include "resource/gltf.h"
 #include "resource/image.h"
 #include "resource/resource.h"
@@ -48,7 +49,19 @@ typedef struct {
     int alive;
     int permanent; /* engine-owned (white texture) */
     int dynamic;   /* streaming-update opt-in (create-time flag) */
+    struct efxjs_video *owner; /* video-owned texture (borrowed pointer) */
 } efxjs_texture;
+
+typedef struct efxjs_video {
+    efx_video *v;        /* core decoder, owned */
+    uint8_t *bytes;      /* resource buffer, owned (decoder reads in place) */
+    uint64_t texture;    /* engine-created dynamic texture, owned */
+    int voice;           /* audio pull-voice, -1 = none */
+    int muted;
+    int alive;
+    struct efxjs_video *next; /* host-state registry (borrowed links) */
+    struct efx_host_state *host;
+} efxjs_video;
 
 typedef struct {
     uint8_t *pixels;
@@ -176,6 +189,7 @@ extern JSClassID rendertarget_class_id;
 extern JSClassID fontdata_class_id;
 extern JSClassID font_class_id;
 extern JSClassID particlesystem_class_id;
+extern JSClassID video_class_id;
 extern JSClassID audiodata_class_id;
 extern JSClassID audiostream_class_id;
 extern JSClassID audio_class_id;
@@ -188,7 +202,11 @@ extern const JSCFunctionListEntry body_proto_funcs[8];
 extern const JSCFunctionListEntry character_proto_funcs[6];
 extern const JSCFunctionListEntry particlesystem_proto_funcs[7];
 extern const JSCFunctionListEntry audio_proto_funcs[9];
+extern const JSCFunctionListEntry video_proto_funcs[10];
 extern void efx_api_collider_release(void *p);
+/* video-playback class hooks (defined in api_video.c, CLASS_SPECS row) */
+JSValue video_destroy(JSContext *ctx, void *p);
+void video_release(void *p);
 
 /* shared helpers (defined in api.c) */
 extern int efx_api_check_known_fields(JSContext *ctx, JSValueConst obj, const char **known, int nknown, const char *where);

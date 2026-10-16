@@ -166,7 +166,7 @@ add_web_test(web_root_eval_throw ${WEBF}/root_eval_throw EXPECT nonzero EXPECT_E
 add_web_test(web_6b_gltf ${F}/web/gltf_probe EXPECT 0 EXPECT_OUT "s-6b-gltf-ok")
 add_web_test(web_pose ${WEBF}/skin_probe EXPECT 0 EXPECT_OUT "s-7-skin-pose-ok")
 add_web_test(web_14_audio ${F}/audio EXPECT 0 EXPECT_OUT "s-14-audio-ok")
-add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin ${S}/gltf_probe.glb ${S}/gltf_corrupt.gltf)
+add_web_test(web_error_catalog ${S}/s_error_catalog.js EXPECT 0 EXPECT_OUT_FILE ${S}/s_error_catalog.expected.txt ASSETS ${S}/skin.gltf ${S}/skin.bin ${S}/gltf_probe.glb ${S}/gltf_corrupt.gltf ${S}/resource_probe.png ${S}/video_probe.mpg ${S}/video_silent.mpg)
 add_web_test(web_repl_unavailable "" EXPECT nonzero EXPECT_ERR "repl mode is unavailable" ARGS --repl)
 endif()
 
@@ -230,6 +230,7 @@ efx_register_unit_cases(efx_math_tests ${U}/math_tests.c)
 efx_register_unit_cases(efx_input_tests ${U}/input_tests.c)
 efx_register_unit_cases(efx_physics_tests ${CMAKE_CURRENT_SOURCE_DIR}/physics/main.c)
 efx_register_unit_cases(efx_audio_tests ${U}/audio_tests.c)
+efx_register_unit_cases(efx_video_tests ${U}/video_tests.c)
 efx_register_unit_cases(efx_noise_tests ${U}/noise_tests.c)
 efx_register_unit_cases(efx_heightfield_tests ${U}/heightfield_tests.c)
 efx_register_unit_cases(efx_render_tests ${U}/render_tests.c)
@@ -290,7 +291,8 @@ if(EFX_BUILD_GOLDEN_TESTS AND NOT EMSCRIPTEN AND NOT EFX_HEADLESS)
                 post_mix post_scale_nearest post_scale_linear
                 post_order_a post_order_b post_user_rt load_png gltf_import
                 skin_import skin_pose mipmaps text_basic text_effects
-                particles noise quad_degenerate texture_update heightfield)
+                particles noise quad_degenerate texture_update video_frame
+                heightfield)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/goldens/${SCENE}/golden.png)
             add_test(NAME golden_${SCENE}
                 COMMAND ${CMAKE_COMMAND}

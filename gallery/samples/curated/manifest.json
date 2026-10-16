@@ -136,5 +136,11 @@
     "title": "Bot Arena",
     "category": "Games",
     "description": "Rung 6, the capstone of the game gallery series: a wave-based twin-stick arena composing 3D, lighting, bloom, particles, physics (character controller, dynamic bots with knockback, raycast line-of-sight), text, keyboard/mouse/gamepad input, and audio. The fixed 4-light budget is spent on muzzle flashes and explosions. It self-plays until the first input."
+  },
+  {
+    "dir": "video-showcase",
+    "title": "Video Showcase",
+    "category": "Showcase",
+    "description": "MPEG-1 video playback: the engine decodes the clip and uploads each frame to video.texture, an ordinary dynamic texture drawn with drawQuad. Audio is engine-managed (it plays through the mixer and mutes with vid.muted). Space pauses/resumes, M mutes, L toggles looping. Clip: \"Big Buck Bunny\" excerpt (c) Blender Foundation, CC-BY 3.0."
   }
 ]

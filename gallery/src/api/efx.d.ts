@@ -2772,6 +2772,92 @@ interface Efx {
 
   /** Deterministic procedural noise. */
   readonly noise: EfxNoise;
+
+  // Video playback (MPEG-1)
+
+  /** MPEG-1 video playback. */
+  readonly video: EfxVideoNamespace;
+}
+
+// ---------------------------------------------------------------------------
+// Video playback
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for `video.openVideo`; these set initial values only.
+ *
+ * @hidden
+ * @inline
+ */
+interface VideoOptions {
+  /** Loop at the end instead of stopping (default `false`). */
+  loop?: boolean;
+  /** Start with audio muted (default `false`). */
+  muted?: boolean;
+}
+
+/**
+ * A playing MPEG-1 video (opaque native-backed class).
+ *
+ * Decoding and audio are engine-owned: the engine advances the video once
+ * per frame while it plays and uploads each decoded frame to `texture`. The
+ * video's audio plays through the engine mixer unless `muted`; scripts never
+ * manage a voice or channel.
+ *
+ * @example
+ * ```js
+ * const vid = efx.video.openVideo('intro.mpg', { loop: true });
+ * vid.play();
+ * function render() { efx.graphics.drawQuad(vid.texture, 0, 0, { size: [640, 480] }); }
+ * ```
+ *
+ * @group Video
+ */
+interface EfxVideo {
+  /** Start (or resume) playback; after `ended`, restarts from the beginning. */
+  play(): void;
+  /** Hold the current time until `play()` is called again. */
+  pause(): void;
+  /** Current playback time in seconds. Throws `TypeError` when destroyed. */
+  readonly currentTime: number;
+  /** Total duration in seconds. Throws `TypeError` when destroyed. */
+  readonly duration: number;
+  /** Frame width in pixels. Throws `TypeError` when destroyed. */
+  readonly width: number;
+  /** Frame height in pixels. Throws `TypeError` when destroyed. */
+  readonly height: number;
+  /** `true` once a non-looping video has reached its end. */
+  readonly ended: boolean;
+  /** Whether the video loops at the end (read-write). */
+  loop: boolean;
+  /** Whether audio is muted (read-write); does not affect decoding. */
+  muted: boolean;
+  /**
+   * The video's current frame as an engine-owned dynamic Texture, usable in
+   * any draw or map slot. Scripts cannot `destroy()` it — it is released
+   * with the video.
+   */
+  readonly texture: EfxTexture;
+  /** Release the decoder, texture, and audio deterministically and idempotently. */
+  destroy(): void;
+}
+
+/**
+ * The `efx.video` sub-namespace: MPEG-1 video playback.
+ *
+ * @group Video
+ */
+interface EfxVideoNamespace {
+  /**
+   * Open an MPEG-1 resource from the resource root.
+   *
+   * @param path - Resource path to a `.mpg` MPEG-1 program stream.
+   * @param opts - Optional initial `loop`/`muted` flags.
+   * @returns A paused Video at time 0.
+   * @throws `Error` when the resource is missing or is not parseable MPEG-1;
+   *   `TypeError` for a bad path or options.
+   */
+  openVideo(path: string, opts?: VideoOptions): EfxVideo;
 }
 
 // ---------------------------------------------------------------------------

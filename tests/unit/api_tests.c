@@ -2073,7 +2073,7 @@ static int graphics_ns_js(void) {
         "var root = ['log', 'quit', 'args', 'registerUpdateHook',"
         "  'registerRenderHook', 'math', 'io', 'color', 'keyboard', 'mouse',"
         "  'window', 'physics', 'gamepad', 'audio', 'graphics', 'noise',"
-        "  'time'];"
+        "  'video', 'time'];"
         "for (i = 0; i < root.length; i++) {"
         "  if (!(root[i] in efx)) throw new Error('root missing ' + root[i]);"
         "}"
@@ -2088,10 +2088,98 @@ static int graphics_ns_js(void) {
     return rc == 0 ? 0 : fail("namespace shape");
 }
 
-/* ---------------------------------------------- efx.noise (ADR 0059) */
+/* ---------------------------------------------- video-playback (ADR 0063) */
 
-static int noise_js(void) {
-    /* namespace membership (ADR 0050 rule): a member of efx, no free
+#ifndef EFX_VIDEO_FIXTURES
+#define EFX_VIDEO_FIXTURES "tests/fixtures/video"
+#endif
+
+static int video_eval(const char *code) {
+    if (efx_runtime_eval_string(g_rt, "test", code) != 0) {
+        fprintf(stderr, "video snippet raised: %.120s\n", code);
+        return 1;
+    }
+    return 0;
+}
+
+static int video_js(void) {
+    efx_render_install_sink(&g_sink);
+    efx_render_reset_state();
+    efx_render_set_viewport(1024, 600);
+    efx_render_begin_frame();
+    g_rt = efx_runtime_new(NULL, 0);
+    if (!g_rt) return fail("runtime");
+    int err = EFX_RESOURCE_OK;
+    efx_resource *res = efx_resource_open(EFX_VIDEO_FIXTURES, &err);
+    REQUIRE(res, "open video fixtures");
+    efx_runtime_set_resource(g_rt, res);
+    REQUIRE(!video_eval(
+        "if (typeof efx.video.openVideo !== 'function') throw new Error('namespace');"
+        "var vid = efx.video.openVideo('procedural.mpg', { loop: false });"
+        "if (vid.width !== 64 || vid.height !== 64) throw new Error('dims');"
+        "if (vid.currentTime !== 0 || vid.ended || vid.loop) throw new Error('initial');"
+        "var tex = vid.texture;"
+        "if (tex.width !== 64 || tex.height !== 64) throw new Error('texture size');"
+        "var threw = 0; try { tex.destroy(); } catch (e) {"
+        "  threw = (e instanceof TypeError) ? 1 : 2; }"
+        "if (threw !== 1) throw new Error('texture destroy not refused');"
+        "vid.play();"), "open + play");
+    /* engine tick: 25 fps source, one 0.04 s tick = one frame per tick */
+    for (int i = 0; i < 5; i++) {
+        REQUIRE(efx_runtime_call_hook(g_rt, 1, 0.04) == EFX_HOOK_OK,
+                "video tick");
+    }
+    REQUIRE(!video_eval(
+        "if (Math.abs(vid.currentTime - 0.2) > 1e-6)"
+        "  throw new Error('time ' + vid.currentTime);"
+        "if (vid.ended) throw new Error('ended early');"), "after ticks");
+    /* audio attached through the engine mixer (stream-voice slot taken) */
+    REQUIRE(efx_audio_stream_voice_count() == 1, "pull voice not attached");
+    /* play out to the end: non-looping ends and stops advancing */
+    for (int i = 0; i < 25; i++) {
+        REQUIRE(efx_runtime_call_hook(g_rt, 1, 0.04) == EFX_HOOK_OK,
+                "playout tick");
+    }
+    REQUIRE(!video_eval(
+        "if (!vid.ended) throw new Error('not ended');"
+        "if (vid.currentTime !== vid.duration) throw new Error('end clamp');"
+        "vid.play();" /* restart after ending */
+        "if (vid.ended || vid.currentTime !== 0) throw new Error('restart');"),
+        "end + restart");
+    /* silent fixture: plays without attaching a voice */
+    REQUIRE(!video_eval(
+        "var s = efx.video.openVideo('silent.mpg', { loop: true });"
+        "s.play();"), "silent open");
+    for (int i = 0; i < 3; i++) {
+        REQUIRE(efx_runtime_call_hook(g_rt, 1, 0.04) == EFX_HOOK_OK,
+                "silent tick");
+    }
+    REQUIRE(efx_audio_stream_voice_count() == 1, "silent attached a voice");
+    /* destroy: voice released, members refuse */
+    REQUIRE(!video_eval(
+        "vid.destroy();"
+        "var e1 = 0; try { vid.play(); } catch (e) {"
+        "  e1 = (e instanceof TypeError) ? 1 : 2; }"
+        "if (e1 !== 1) throw new Error('destroyed play not TypeError');"
+        "var e2 = 0; try { vid.texture; } catch (e) {"
+        "  e2 = (e instanceof TypeError) ? 1 : 2; }"
+        "if (e2 !== 1) throw new Error('destroyed texture not TypeError');"
+        "s.destroy();"), "destroy");
+    REQUIRE(efx_audio_stream_voice_count() == 0, "voices not released");
+    REQUIRE(!video_eval(
+        "var e = 0; try { efx.video.openVideo('procedural.png', {}); }"
+        "catch (x) { e = (x instanceof Error && /MPEG-1/.test(x.message)) ? 1 : 2; }"
+        "if (e !== 1) throw new Error('nonmpeg not rejected (' + e + ')');"),
+        "non-mpeg rejection");
+    efx_runtime_destroy(g_rt);
+    g_rt = NULL;
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_render_install_sink(NULL);
+    return 0;
+}
+
+static int noise_js(void) {    /* namespace membership (ADR 0050 rule): a member of efx, no free
      * globals, prelude-installed members present */
     REQUIRE(!ok_js(
         "if (typeof efx.noise !== 'object') throw new Error('namespace');"
@@ -2421,6 +2509,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(physics_js),
     EFX_CASE(audio_js),
     EFX_CASE(noise_js),
+    EFX_CASE(video_js),
     EFX_CASE(noise_errors_js),
     EFX_CASE(noise_imagedata_js),
     EFX_CASE(destroy_no_pending_exception),

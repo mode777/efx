@@ -29,7 +29,12 @@
 #include "resource/resource.h"
 #include "render/text.h"
 #include "math/efx_math.h"
+#include "video/efx_video.h"
 #include "web/web.h"
+
+/* video-playback: the engine-frame tick (bridge_core.c web_frame calls it
+ * before the update hooks, mirroring the desktop runtime path) */
+void efx_bridge_video_tick(double dt);
 
 #define EFX_WEB_ROOT_MAX 512
 

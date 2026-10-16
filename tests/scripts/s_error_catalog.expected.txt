@@ -38,6 +38,17 @@
 2d.texture-update-plain: TypeError: update requires a texture created with dynamic: true
 2d.texture-update-ok: none: 
 2d.texture-update-destroyed: TypeError: using a destroyed resource
+video.open-path-type: TypeError: openVideo requires a path string
+video.open-missing: Error: resource not found
+video.open-nonmpeg: Error: not a parseable MPEG-1 video: resource_probe.png
+video.open-unknown-opt: TypeError: unknown openVideo option 'frob'
+video.open-loop-type: TypeError: loop must be a boolean
+video.open-muted-type: TypeError: muted must be a boolean
+video.texture-destroy: TypeError: cannot destroy an engine-owned texture
+video.play-destroyed: TypeError: using a destroyed resource
+video.pause-destroyed: TypeError: using a destroyed resource
+video.time-destroyed: TypeError: using a destroyed resource
+video.texture-destroyed: TypeError: using a destroyed resource
 3d.cam-noargs: TypeError: setCamera3D requires pos and target
 3d.cam-no-pos: TypeError: setCamera3D requires pos and target
 3d.cam-fov-type: TypeError: fov must be a number

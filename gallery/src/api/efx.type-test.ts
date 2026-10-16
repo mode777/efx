@@ -321,3 +321,23 @@ efx.noise.fill2({ buf: new Float32Array(4) }, 2, 2);
 efx.noise.noise2(0, 0, { type: 'worley' });
 // @ts-expect-error — domain is a [lo, hi] tuple
 efx.noise.imageData(4, 4, { domain: 3 });
+
+// video-playback — MPEG-1 Video surface
+const vid: EfxVideo = efx.video.openVideo('intro.mpg', { loop: true, muted: false });
+vid.play();
+vid.pause();
+const vt: EfxTexture = vid.texture;
+const vtime: number = vid.currentTime;
+const vdur: number = vid.duration;
+const vended: boolean = vid.ended;
+vid.loop = false;
+vid.muted = true;
+vt; vtime; vdur; vended;
+efx.graphics.drawQuad(vid.texture, 0, 0, { size: [vid.width, vid.height] });
+vid.destroy();
+// @ts-expect-error — openVideo requires a path string
+efx.video.openVideo(5);
+// @ts-expect-error — loop is a boolean
+efx.video.openVideo('intro.mpg', { loop: 1 });
+// @ts-expect-error — unknown video option
+efx.video.openVideo('intro.mpg', { volume: 0.5 });
