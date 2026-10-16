@@ -548,8 +548,9 @@ function __efxEnsureApi() {
         },
         methods: {
             /* dynamic textures only; hot draw-adjacent path — validation
-               mirrors the desktop native (ADR 0049) */
-            update: { fn: function (imageData) {
+               mirrors the desktop native (ADR 0049). Non-raw method: the
+               factory wraps it with the liveness guard. */
+            update: function (imageData) {
                 if (!(imageData instanceof EfxImageData)) {
                     throw new TypeError('expected an ImageData');
                 }
@@ -567,7 +568,7 @@ function __efxEnsureApi() {
                 }
                 throw new TypeError(
                     'update requires a texture created with dynamic: true');
-            } },
+            },
         },
         getters: {
             width: {
