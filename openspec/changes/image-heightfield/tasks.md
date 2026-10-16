@@ -36,4 +36,4 @@
 ## 8. Full verification gate
 
 - [x] 8.1 Commit and push the branch, run `python3 tools/verify_remote.py all <branch>` and iterate until green (Linux golden-bearing jobs first, per AGENTS.md)
-- [ ] 8.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS until green
+- [x] 8.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS until green
