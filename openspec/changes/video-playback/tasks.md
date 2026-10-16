@@ -2,10 +2,10 @@
 
 ## 1. Vendor + build
 
-- [ ] 1.1 Vendor pl_mpeg into `vendor/pl_mpeg/` (single header + LICENSE,
+- [x] 1.1 Vendor pl_mpeg into `vendor/pl_mpeg/` (single header + LICENSE,
       pinned version recorded), add the `vendor/README.md` pin row.
       Verify: row matches table style; pinned files present.
-- [ ] 1.2 Wire `src/video/` into CMake on all four toolchains (impl TU with
+- [x] 1.2 Wire `src/video/` into CMake on all four toolchains (impl TU with
       relaxed warnings, `efx_video.h` declarations-only elsewhere), plus the
       new `src/web/js/video.js` fragment in the `CMakeLists.txt` concat
       order. Verify: configure + build desktop headless and Emscripten.
@@ -45,7 +45,7 @@
       (GC finalizer + `destroy()`, ADR 0011/0012), `texture` property,
       playback members with native validation. Verify: headless `--script`
       smoke test opens/plays/pauses/destroys; error cases throw `TypeError`.
-- [ ] 4.3 Web: `src/web/bridge_video.c` + `src/web/js/video.js` (class +
+- [x] 4.3 Web: `src/web/bridge_video.c` + `src/web/js/video.js` (class +
       namespace fragment), bridge registration. Verify: web build; browser
       harness smoke test.
 - [ ] 4.4 Types + docs: `gallery/src/api/efx.d.ts`, type-test coverage,
@@ -57,23 +57,23 @@
 - [x] 5.1 Error-catalog cases: non-MPEG-1 open, bad options, use-after-
       destroy members, destroy of the video-owned texture. Verify: headless
       suite passes.
-- [ ] 5.2 Golden scene `tests/goldens/video_frame/`: open fixture, play,
+- [x] 5.2 Golden scene `tests/goldens/video_frame/`: open fixture, play,
       pin a deterministic frame, draw full-frame. Verify: Linux llvmpipe
       job first, then `tools/verify_remote.py all <branch>` before the gate
       (ADR 0020).
-- [ ] 5.3 Record Emscripten player wasm size before/after in this change.
+- [x] 5.3 Record Emscripten player wasm size before/after in this change.
       Verify: growth within the estimated ~0.1 MB band; investigate if not.
 
 ## 6. Showcase + ADR
 
-- [ ] 6.1 Gallery sample `gallery/samples/curated/video-showcase/` (ADR 0044
+- [x] 6.1 Gallery sample `gallery/samples/curated/video-showcase/` (ADR 0044
       layout): BBB MPEG-1 excerpt (small, with audio), attribution in sample
       README + page header; regenerate the catalog
       (`gallery/scripts/gen-catalog.mjs`). Verify: gallery build + catalog
       updated.
-- [ ] 6.2 Write `docs/decisions/0063-*.md` (MPEG-1/pl_mpeg choice, implicit
+- [x] 6.2 Write `docs/decisions/0063-*.md` (MPEG-1/pl_mpeg choice, implicit
       audio, engine-clock master) and index it in
       `docs/decisions/README.md`.
-- [ ] 6.3 Full local gate: unit tests + ctest (golden excluded locally),
+- [x] 6.3 Full local gate: unit tests + ctest (golden excluded locally),
       gallery build; then remote verification and four-target gate per
       AGENTS.md lifecycle. Verify: all green.
