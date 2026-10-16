@@ -120,25 +120,27 @@ JSValue efx_js_create_image_data_wire(JSContext *ctx, JSValueConst this_val,
 }
 
 
-/* (imageData, wrap, filter, mipmaps) */
+/* (imageData, wrap, filter, mipmaps, dynamic) */
 JSValue efx_js_create_texture_wire(JSContext *ctx, JSValueConst this_val,
                                    int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 4) {
-        return efx_api_type_error(ctx, "texture wire native requires (image, wrap, filter, mipmaps)");
+    if (argc < 5) {
+        return efx_api_type_error(ctx, "texture wire native requires (image, wrap, filter, mipmaps, dynamic)");
     }
     efxjs_imagedata *d = efx_api_get_live_imagedata(ctx, argv[0]);
     if (!d) {
         return JS_EXCEPTION;
     }
     int wrap = EFX_TEX_WRAP_REPEAT, filter = EFX_FILTER_LINEAR, mipmaps = 0;
+    int dynamic = 0;
     if (JS_ToInt32(ctx, &wrap, argv[1]) < 0 ||
         JS_ToInt32(ctx, &filter, argv[2]) < 0 ||
-        JS_ToInt32(ctx, &mipmaps, argv[3]) < 0) {
+        JS_ToInt32(ctx, &mipmaps, argv[3]) < 0 ||
+        JS_ToInt32(ctx, &dynamic, argv[4]) < 0) {
         return JS_EXCEPTION;
     }
     uint64_t handle = efx_render_texture_create(d->w, d->h, d->pixels, wrap,
-                                                filter, mipmaps);
+                                                filter, mipmaps, dynamic);
     if (!handle) {
         return efx_api_generic_error(ctx, "texture upload failed (no GPU context?)");
     }
@@ -148,6 +150,7 @@ JSValue efx_js_create_texture_wire(JSContext *ctx, JSValueConst this_val,
     }
     t->handle = handle;
     t->alive = 1;
+    t->dynamic = dynamic ? 1 : 0;
     JSValue obj = JS_NewObjectClass(ctx, texture_class_id);
     JS_SetOpaque(obj, t);
     return obj;

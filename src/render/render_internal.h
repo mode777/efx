@@ -33,6 +33,7 @@ typedef struct {
     int w, h;
     int wrap, filter; /* F6b sampler (immutable creation state) */
     int mipmaps;      /* F6e: build + use a mip chain (immutable) */
+    int dynamic;      /* streaming-update opt-in (immutable) */
     void *native;
 } tex_slot;
 

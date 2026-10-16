@@ -1422,14 +1422,14 @@ function __efxImageDataOpts(width, height, pixels, opts) {
     return { w: w, h: h, bytes: bytes };
 }
 
-/* createTexture options -> [wrap, filter, mipmaps] */
+/* createTexture options -> [wrap, filter, mipmaps, dynamic] */
 function __efxTextureOpts(opts) {
-    var wrap = 0, filter = 1, mipmaps = 0;
+    var wrap = 0, filter = 1, mipmaps = 0, dynamic = 0;
     if (opts !== undefined && opts !== null) {
         if (!__efxIsObject(opts)) {
             throw new TypeError('createTexture options must be an object');
         }
-        __efxCheckKnown(opts, { wrap: 1, filter: 1, mipmaps: 1 },
+        __efxCheckKnown(opts, { wrap: 1, filter: 1, mipmaps: 1, dynamic: 1 },
                         'createTexture');
         if (opts['wrap'] !== undefined) {
             if (opts['wrap'] === 'repeat') {
@@ -1457,8 +1457,17 @@ function __efxTextureOpts(opts) {
             }
             mipmaps = opts['mipmaps'] ? 1 : 0;
         }
+        if (opts['dynamic'] !== undefined) {
+            if (typeof opts['dynamic'] !== 'boolean') {
+                throw new TypeError('dynamic must be a boolean');
+            }
+            dynamic = opts['dynamic'] ? 1 : 0;
+        }
+        if (mipmaps && dynamic) {
+            throw new TypeError('dynamic textures do not support mipmaps');
+        }
     }
-    return [wrap, filter, mipmaps];
+    return [wrap, filter, mipmaps, dynamic];
 }
 
 /* createRenderTarget(width, height) -> [width, height] */
@@ -2059,7 +2068,7 @@ function __efxPreludeInstall(efx, natives) {
             }
             natives.checkImageData(imageData);
             var t = __efxTextureOpts(opts);
-            return natives.createTexture(imageData, t[0], t[1], t[2]);
+            return natives.createTexture(imageData, t[0], t[1], t[2], t[3]);
         };
     }
     if (natives && natives.createRenderTarget) {

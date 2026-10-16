@@ -20,6 +20,35 @@ Release the native storage deterministically and idempotently.
 
 `void`
 
+***
+
+### update()
+
+> **update**(`imageData`): `void`
+
+Replace the full texture contents with same-size pixel data. Only
+textures created with `{ dynamic: true }` support updates; every member
+throws `TypeError` on a destroyed texture or a size mismatch.
+
+#### Parameters
+
+##### imageData
+
+[`EfxImageData`](EfxImageData.md)
+
+#### Returns
+
+`void`
+
+#### Example
+
+```js
+const tex = efx.graphics.createTexture(img, { dynamic: true });
+function update() {
+    tex.update(efx.graphics.createImageData(tex.width, tex.height, nextFramePixels()));
+}
+```
+
 ## Properties
 
 ### height

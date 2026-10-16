@@ -6,7 +6,7 @@
  * each caller (the queued path always appends; the live path scans for a free
  * slot), so observable handle sequencing is unchanged. */
 static void tex_slot_init(tex_slot *s, int w, int h, int wrap, int filter,
-                          int mipmaps, void *native) {
+                          int mipmaps, int dynamic, void *native) {
     s->used = 1;
     s->alive = 1;
     s->permanent = 0;
@@ -17,11 +17,12 @@ static void tex_slot_init(tex_slot *s, int w, int h, int wrap, int filter,
     s->wrap = wrap;
     s->filter = filter;
     s->mipmaps = mipmaps;
+    s->dynamic = dynamic;
     s->native = native;
 }
 
 uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba, int wrap,
-                                   int filter, int mipmaps) {
+                                   int filter, int mipmaps, int dynamic) {
     if (wrap < EFX_TEX_WRAP_REPEAT || wrap > EFX_TEX_WRAP_MIRROR) {
         wrap = EFX_TEX_WRAP_REPEAT;
     }
@@ -29,13 +30,17 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba, int wrap,
         filter = EFX_FILTER_LINEAR;
     }
     mipmaps = mipmaps ? 1 : 0;
+    dynamic = dynamic ? 1 : 0;
+    if (mipmaps && dynamic) {
+        return 0; /* streaming textures are single-level by design */
+    }
     /* with a sink, upload now; without one, create a CPU-only slot: size
        queries and recorded draws work, nothing is uploaded or rendered
        (ADR 0052) */
     void *native = NULL;
     if (R.sink && R.sink->create_texture) {
         native = R.sink->create_texture(R.sink->ud, w, h, rgba, wrap, filter,
-                                        mipmaps);
+                                        mipmaps, dynamic);
         if (!native) {
             return 0;
         }
@@ -62,9 +67,24 @@ uint64_t efx_render_texture_create(int w, int h, const uint8_t *rgba, int wrap,
         s->gen = 0;
     }
     s->gen++;
-    tex_slot_init(s, w, h, wrap, filter, mipmaps, native);
+    tex_slot_init(s, w, h, wrap, filter, mipmaps, dynamic, native);
     uint32_t idx = (uint32_t)(s - R.slots) + 1;
     return ((uint64_t)s->gen << 32) | (uint64_t)idx;
+}
+
+int efx_render_texture_update(uint64_t h, const uint8_t *rgba) {
+    tex_slot *s = slot_get(h);
+    if (!s || !s->alive) {
+        return EFX_RENDER_ERR_HANDLE;
+    }
+    if (!s->dynamic || !rgba) {
+        return EFX_RENDER_ERR_ARG;
+    }
+    /* no native in a CPU-only run (ADR 0052): validated, nothing to upload */
+    if (s->native && R.sink && R.sink->update_texture) {
+        R.sink->update_texture(R.sink->ud, s->native, rgba);
+    }
+    return EFX_RENDER_OK;
 }
 
 /* schedule the native release of a texture slot at frame end (records may
@@ -215,6 +235,11 @@ void efx_render_texture_sampler(uint64_t handle, int *out_wrap,
     if (out_mipmaps) *out_mipmaps = s ? s->mipmaps : -1;
 }
 
+int efx_render_texture_dynamic(uint64_t h) {
+    tex_slot *s = slot_get(h);
+    return s ? (s->dynamic ? 1 : 0) : -1;
+}
+
 void *efx_render_texture_native(uint64_t h) {
     tex_slot *s = slot_get(h);
     return s ? s->native : NULL;
@@ -226,7 +251,7 @@ uint64_t efx_render_white_texture(void) {
     }
     static const uint8_t white[4] = {255, 255, 255, 255};
     uint64_t h = efx_render_texture_create(1, 1, white, EFX_TEX_WRAP_REPEAT,
-                                           EFX_FILTER_LINEAR, 0);
+                                           EFX_FILTER_LINEAR, 0, 0);
     if (h) {
         tex_slot *s = slot_get(h);
         s->permanent = 1;

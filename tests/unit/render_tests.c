@@ -11,7 +11,7 @@
 
 /* mock sink --------------------------------------------------------- */
 
-static int g_tex_created, g_tex_destroyed;
+static int g_tex_created, g_tex_destroyed, g_tex_updated;
 static int g_mesh_created, g_mesh_destroyed;
 static int g_rt_created, g_rt_destroyed;
 static int g_last_mesh_surf_count;
@@ -20,9 +20,9 @@ static int g_last_mesh_index_total;
 static int g_last_mesh_skinned_total;
 
 static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
-                         int wrap, int filter, int mipmaps) {
+                         int wrap, int filter, int mipmaps, int dynamic) {
     (void)ud; (void)w; (void)h; (void)rgba; (void)wrap; (void)filter;
-    (void)mipmaps;
+    (void)mipmaps; (void)dynamic;
     g_tex_created++;
     return malloc(8);
 }
@@ -31,6 +31,11 @@ static void mock_destroy(void *ud, void *native) {
     (void)ud;
     g_tex_destroyed++;
     free(native);
+}
+
+static void mock_update(void *ud, void *native, const uint8_t *rgba) {
+    (void)ud; (void)native; (void)rgba;
+    g_tex_updated++;
 }
 
 static void *mock_create_mesh(void *ud, const efx_mesh_gpu_surface *surfs,
@@ -72,12 +77,13 @@ static void mock_destroy_rt(void *ud, void *native) {
 
 static void install_mock_sink(void) {
     static const efx_render_sink sink = {
-        NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
-        NULL, mock_create_rt, mock_destroy_rt,
+        NULL, mock_create, mock_destroy, mock_update, mock_create_mesh,
+        mock_destroy_mesh, NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
     g_tex_created = 0;
     g_tex_destroyed = 0;
+    g_tex_updated = 0;
     g_mesh_created = 0;
     g_mesh_destroyed = 0;
     g_rt_created = 0;
@@ -233,8 +239,8 @@ static int blend_snapshot(void) {
 
 static int record_budget(void) {
     static const efx_render_sink sink = {
-        NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
-        NULL, mock_create_rt, mock_destroy_rt,
+        NULL, mock_create, mock_destroy, mock_update, mock_create_mesh,
+        mock_destroy_mesh, NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
     int pushed = 0;
@@ -258,7 +264,7 @@ static int record_budget(void) {
 static int texture_lifecycle(void) {
     install_mock_sink();
     uint8_t px[4] = {255, 0, 0, 255};
-    uint64_t t1 = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t t1 = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!t1 || !efx_render_texture_alive(t1)) return fail("texture create");
     int w = 0, h = 0;
     efx_render_texture_size(t1, &w, &h);
@@ -275,7 +281,7 @@ static int texture_lifecycle(void) {
         return fail("dead handle destroy");
     /* stale handle (generation bump) */
     uint64_t stale = t1;
-    uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!t2 || t2 == stale) return fail("handle reuse");
     if (efx_render_texture_alive(stale)) return fail("stale handle alive");
     if (efx_render_texture_destroy(stale) == EFX_RENDER_OK)
@@ -304,7 +310,7 @@ static int render_reset(void) {
     install_mock_sink();
     uint8_t px[4] = {255, 0, 0, 255};
     uint64_t t1 = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
-                                            EFX_FILTER_LINEAR, 0);
+                                            EFX_FILTER_LINEAR, 0, 0);
     if (!t1 || !efx_render_texture_alive(t1)) return fail("create");
     float nondefault[4] = {0.2f, 0.3f, 0.4f, 1.0f};
     efx_render_set_clear_color(nondefault);
@@ -314,7 +320,7 @@ static int render_reset(void) {
     if (efx_render_texture_alive(t1)) return fail("stale texture alive");
     /* sink preserved: a new texture reaches the mock */
     uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
-                                            EFX_FILTER_LINEAR, 0);
+                                            EFX_FILTER_LINEAR, 0, 0);
     if (!t2) return fail("post-reset create");
     if (g_tex_created != 2) return fail("sink not preserved across reset");
     /* defaults re-applied */
@@ -332,7 +338,7 @@ static int render_reset(void) {
 static int texture_sinkless(void) {
     uint8_t px[4] = {1, 2, 3, 4};
     uint64_t t1 = efx_render_texture_create(2, 3, px, EFX_TEX_WRAP_REPEAT,
-                                            EFX_FILTER_LINEAR, 0);
+                                            EFX_FILTER_LINEAR, 0, 0);
     if (!t1 || !efx_render_texture_alive(t1)) return fail("sinkless create");
     int w = 0, h = 0;
     efx_render_texture_size(t1, &w, &h);
@@ -343,7 +349,7 @@ static int texture_sinkless(void) {
         return fail("sinkless destroy");
     if (efx_render_texture_alive(t1)) return fail("sinkless alive after destroy");
     uint64_t t2 = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
-                                            EFX_FILTER_LINEAR, 0);
+                                            EFX_FILTER_LINEAR, 0, 0);
     if (!t2) return fail("sinkless recreate");
     efx_render_shutdown();
     return 0;
@@ -354,11 +360,11 @@ static int texture_sinkless(void) {
 static int texture_mipmaps(void) {    install_mock_sink();
     uint8_t px[16] = {0};
     uint64_t plain = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
-                                               EFX_FILTER_LINEAR, 0);
+                                               EFX_FILTER_LINEAR, 0, 0);
     uint64_t mip = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
-                                             EFX_FILTER_LINEAR, 1);
+                                             EFX_FILTER_LINEAR, 1, 0);
     uint64_t normalized = efx_render_texture_create(
-        2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 7);
+        2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 7, 0);
     if (!plain || !mip || !normalized) return fail("texture create");
     int w = 0, f = 0, m = -1;
     efx_render_texture_sampler(plain, &w, &f, &m);
@@ -375,10 +381,122 @@ static int texture_mipmaps(void) {    install_mock_sink();
     return 0;
 }
 
+/* dynamic textures: create-time opt-in, full-contents update, error surface */
+static int texture_dynamic_update(void) {
+    install_mock_sink();
+    uint8_t px[4] = {1, 2, 3, 4};
+    uint64_t dyn = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
+                                             EFX_FILTER_LINEAR, 0, 1);
+    if (!dyn || efx_render_texture_dynamic(dyn) != 1)
+        return fail("dynamic create/query");
+    if (g_tex_created != 1) return fail("dynamic create did not reach sink");
+    if (efx_render_texture_update(dyn, px) != EFX_RENDER_OK)
+        return fail("dynamic update");
+    if (g_tex_updated != 1) return fail("update did not reach sink");
+    if (efx_render_texture_update(dyn, NULL) != EFX_RENDER_ERR_ARG)
+        return fail("NULL pixels");
+    /* non-dynamic textures reject updates; the flag normalizes */
+    uint64_t plain = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
+                                               EFX_FILTER_LINEAR, 0, 0);
+    if (!plain || efx_render_texture_dynamic(plain) != 0)
+        return fail("plain dynamic flag");
+    if (efx_render_texture_update(plain, px) != EFX_RENDER_ERR_ARG)
+        return fail("non-dynamic update accepted");
+    /* dynamic and mipmaps are mutually exclusive */
+    if (efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT,
+                                  EFX_FILTER_LINEAR, 1, 1) != 0)
+        return fail("dynamic + mipmaps accepted");
+    /* bad handles */
+    if (efx_render_texture_update(0, px) != EFX_RENDER_ERR_HANDLE)
+        return fail("null handle");
+    if (efx_render_texture_update(0xDEADBEEF, px) != EFX_RENDER_ERR_HANDLE)
+        return fail("garbage handle");
+    /* destroyed textures are dead */
+    if (efx_render_texture_destroy(dyn) != EFX_RENDER_OK) return fail("destroy");
+    if (efx_render_texture_update(dyn, px) != EFX_RENDER_ERR_HANDLE)
+        return fail("update after destroy");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_render_install_sink(NULL);
+    return 0;
+}
+
+/* dynamic updates in a CPU-only run validate and succeed with no upload
+ * (ADR 0052 seam, the video-precondition case) */
+static int texture_dynamic_sinkless(void) {
+    efx_render_install_sink(NULL);
+    g_tex_updated = 0; /* counter persists across cases */
+    uint8_t px[4] = {5, 6, 7, 8};
+    uint64_t t = efx_render_texture_create(2, 3, px, EFX_TEX_WRAP_REPEAT,
+                                           EFX_FILTER_LINEAR, 0, 1);
+    if (!t || efx_render_texture_native(t) != NULL)
+        return fail("sinkless dynamic create");
+    if (efx_render_texture_dynamic(t) != 1) return fail("sinkless dynamic flag");
+    if (efx_render_texture_update(t, px) != EFX_RENDER_OK)
+        return fail("sinkless update");
+    if (g_tex_updated != 0) return fail("sinkless update reached sink");
+    efx_render_shutdown();
+    return 0;
+}
+
+/* updating a retained (bind_refs > 0, release_pending) texture touches only
+ * bytes — slot state, retention, and deferred release are untouched (ADR 0027
+ * + live binding semantics) */
+static int texture_dynamic_retained(void) {
+    static const uint8_t px[4] = {255, 255, 255, 255};
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t idx[3] = {0, 1, 2};
+
+    install_mock_sink();
+    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT,
+                                             EFX_FILTER_LINEAR, 0, 1);
+    if (!tex) return fail("create");
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9; s.positions = pos;
+    s.indices_len = 3; s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("fixture");
+    efx_material m;
+    efx_material_default(&m);
+    m.diffuse_map = tex;
+    efx_meshdata_set_material(md, 0, &m, 1);
+    uint64_t h = efx_render_mesh_create(md);
+    if (!h) return fail("mesh create");
+    efx_meshdata_destroy(md);
+
+    /* update while retained (bind_refs > 0, alive): only bytes change, slot
+     * state and retention are untouched */
+    if (efx_render_texture_update(tex, px) != EFX_RENDER_OK)
+        return fail("update while retained");
+    if (g_tex_updated != 1) return fail("retained update did not reach sink");
+
+    /* destroy while bound: release pending, native retained, core dead */
+    if (efx_render_texture_destroy(tex) != EFX_RENDER_OK)
+        return fail("destroy while bound");
+    if (efx_render_texture_native(tex) == NULL) return fail("native released");
+    if (g_tex_destroyed != 0) return fail("release not deferred");
+    if (efx_render_texture_update(tex, px) != EFX_RENDER_ERR_HANDLE)
+        return fail("update after destroy");
+
+    efx_material plain;
+    efx_material_default(&plain);
+    if (efx_render_mesh_set_material(h, 0, &plain, 1) != EFX_RENDER_OK)
+        return fail("rebind");
+    efx_render_mesh_destroy(h);
+    efx_render_end_frame();
+    if (g_tex_destroyed != 1) return fail("deferred release after unbind");
+    if (efx_render_texture_update(tex, px) != EFX_RENDER_ERR_HANDLE)
+        return fail("update after release");
+    efx_render_shutdown();
+    return 0;
+}
+
 static int record_fields(void) {
     install_mock_sink();
     uint8_t px[4] = {0, 0, 255, 255};
-    uint64_t tex = efx_render_texture_create(64, 32, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(64, 32, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     float color[4] = {1, 0.5, 0.25, 0.125};
     float src[4] = {8, 4, 16, 8};
     efx_render_quad(1, 2, 30, 40, tex, color, 45, 2, src, 1, 15, 20, EFX_BLEND_INHERIT);
@@ -408,8 +526,8 @@ static int record_fields(void) {
 static int batching(void) {
     install_mock_sink();
     uint8_t px[4] = {255, 255, 255, 255};
-    uint64_t t1 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
-    uint64_t t2 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t t1 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
+    uint64_t t2 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     /* sequence: A A B A  -> three runs (t1x2, t2, t1) */
     efx_render_quad(0, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_quad(5, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
@@ -610,7 +728,7 @@ static int mesh_sinkless(void) {
        CPU geometry; a later sink install does not upload it (ADR 0052) */
     g_tex_created = g_mesh_created = 0;
     uint8_t px[4] = {255, 0, 0, 255};
-    uint64_t t = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t t = efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     (void)t;
     if (g_tex_created != 0) return fail("texture created without sink");
     efx_meshdata *md = make_two_surface_mesh();
@@ -620,8 +738,8 @@ static int mesh_sinkless(void) {
     if (!m) return fail("sinkless mesh create");
     if (g_mesh_created != 0) return fail("mesh created without sink");
     static const efx_render_sink sink = {
-        NULL, mock_create, mock_destroy, mock_create_mesh, mock_destroy_mesh,
-        NULL, mock_create_rt, mock_destroy_rt,
+        NULL, mock_create, mock_destroy, mock_update, mock_create_mesh,
+        mock_destroy_mesh, NULL, mock_create_rt, mock_destroy_rt,
     };
     efx_render_install_sink(&sink);
     if (g_mesh_created != 0) return fail("mesh uploaded after late sink");
@@ -706,7 +824,7 @@ static int blend_overrides(void) {
     install_mock_sink();
     uint8_t px[4] = {255, 255, 255, 255};
     uint64_t tex = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT,
-                                             EFX_FILTER_LINEAR, 0);
+                                             EFX_FILTER_LINEAR, 0, 0);
     /* frame reset: a mode set before begin_frame is wiped to alpha */
     efx_render_set_blend(EFX_BLEND_ADDITIVE);
     efx_render_begin_frame();
@@ -789,7 +907,7 @@ static int mesh_record_order(void) {    install_mock_sink();
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
     uint8_t px[4] = {255, 255, 255, 255};
-    uint64_t t = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t t = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     /* quads A A, mesh, quad B: quad runs must not span the mesh record */
     efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
@@ -1125,7 +1243,7 @@ static int material_maps(void) {
         return fail("default has no maps");
 
     install_mock_sink();
-    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!tex) return fail("texture create");
     m.diffuse_map = tex;
     m.alpha_mask = tex;
@@ -1166,7 +1284,7 @@ static int map_retention(void) {
     uint32_t idx[3] = {0, 1, 2};
 
     install_mock_sink();
-    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(1, 1, px, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!tex) return fail("texture create");
     if (efx_render_texture_ref_count(tex) != 0) return fail("fresh ref count");
 
@@ -1332,7 +1450,7 @@ static int render_target_lifecycle(void) {
 static int target_deferred_release(void) {
     install_mock_sink();
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!rt || !tex) return fail("fixtures");
     /* binding an RT as a material map retains it (F4b rule extended) */
     efx_meshdata *md = make_two_surface_mesh();
@@ -1366,7 +1484,7 @@ static int segmentation(void) {
     install_mock_sink();
     efx_render_set_viewport(640, 480);
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!rt || !tex) return fail("fixtures");
     /* screen quad, target segment, screen quad again */
     efx_render_quad(0, 0, 8, 8, tex, NULL, 0, 1, NULL, 0, 4, 4, EFX_BLEND_INHERIT);
@@ -1447,7 +1565,7 @@ static int target_redirection(void) {
 static int feedback_guard(void) {
     install_mock_sink();
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!rt || !tex) return fail("fixtures");
     efx_meshdata *md = make_two_surface_mesh();
     uint64_t mesh = efx_render_mesh_create(md);
@@ -1676,7 +1794,7 @@ static int post_user_target_raw(void) {
     install_mock_sink();
     efx_render_set_viewport(640, 480);
     uint64_t rt = efx_render_target_create(64, 64);
-    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0);
+    uint64_t tex = efx_render_texture_create(4, 4, NULL, EFX_TEX_WRAP_REPEAT, EFX_FILTER_LINEAR, 0, 0);
     if (!rt || !tex) return fail("fixtures");
     efx_post_entry e;
     memset(&e, 0, sizeof(e));
@@ -2108,7 +2226,7 @@ static uint64_t make_test_texture(void) {
     static const uint8_t px[16] = {255, 0, 0, 255, 0, 255, 0, 255,
                                    0, 0, 255, 255, 255, 255, 255, 255};
     return efx_render_texture_create(2, 2, px, EFX_TEX_WRAP_CLAMP,
-                                     EFX_FILTER_NEAREST, 0);
+                                     EFX_FILTER_NEAREST, 0, 0);
 }
 
 static void base_config(efx_particle_config *c, uint64_t tex) {
@@ -2337,6 +2455,9 @@ static const efx_test_case cases[] = {
     EFX_CASE(render_reset),
     EFX_CASE(texture_sinkless),
     EFX_CASE(texture_mipmaps),
+    EFX_CASE(texture_dynamic_update),
+    EFX_CASE(texture_dynamic_sinkless),
+    EFX_CASE(texture_dynamic_retained),
     EFX_CASE(record_fields),
     EFX_CASE(batching),
     EFX_CASE(meshdata_validation),

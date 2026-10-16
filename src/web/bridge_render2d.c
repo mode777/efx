@@ -76,13 +76,32 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_imagedata_destroy(int id) {
 
 EMSCRIPTEN_KEEPALIVE double efx_bridge_texture_create(int id, int wrap,
                                                       int filter,
-                                                      int mipmaps) {
+                                                      int mipmaps,
+                                                      int dynamic) {
     img_slot *s = img_get(id);
     if (!s || !s->alive) {
         return 0;
     }
     return (double)efx_render_texture_create(s->w, s->h, s->pixels, wrap,
-                                             filter, mipmaps);
+                                             filter, mipmaps, dynamic);
+}
+
+EMSCRIPTEN_KEEPALIVE int efx_bridge_texture_update(double handle, int id) {
+    if (efx_render_texture_dynamic((uint64_t)handle) != 1) {
+        return 1; /* unknown, destroyed, or not a dynamic texture */
+    }
+    img_slot *s = img_get(id);
+    if (!s || !s->alive) {
+        return 4; /* not a live ImageData (JS checks the type first) */
+    }
+    int w = 0, h = 0;
+    efx_render_texture_size((uint64_t)handle, &w, &h);
+    if (s->w != w || s->h != h) {
+        return 3; /* size mismatch */
+    }
+    return efx_render_texture_update((uint64_t)handle, s->pixels) == EFX_RENDER_OK
+               ? 0
+               : 1;
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_texture_destroy(double handle) {

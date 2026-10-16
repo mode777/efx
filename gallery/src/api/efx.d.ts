@@ -547,6 +547,20 @@ interface EfxTexture {
   readonly width: number;
   /** Texture height in pixels. Throws `TypeError` when destroyed. */
   readonly height: number;
+  /**
+   * Replace the full texture contents with same-size pixel data. Only
+   * textures created with `{ dynamic: true }` support updates; every member
+   * throws `TypeError` on a destroyed texture or a size mismatch.
+   *
+   * @example
+   * ```js
+   * const tex = efx.graphics.createTexture(img, { dynamic: true });
+   * function update() {
+   *     tex.update(efx.graphics.createImageData(tex.width, tex.height, nextFramePixels()));
+   * }
+   * ```
+   */
+  update(imageData: EfxImageData): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
 }
@@ -853,6 +867,13 @@ interface TextureOptions {
   filter?: 'linear' | 'nearest';
   /** Build and use a full mip chain (default `false`). */
   mipmaps?: boolean;
+  /**
+   * Create the texture for streaming pixel updates via
+   * `EfxTexture.update` (default `false`). Dynamic textures are
+   * single-level: combining `dynamic: true` with `mipmaps: true` throws
+   * `TypeError`.
+   */
+  dynamic?: boolean;
 }
 
 /**

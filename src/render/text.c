@@ -498,7 +498,7 @@ static int build_atlas(efx_text_font *f, bake_item *items, int nitems,
     free(rects);
 
     f->texture = efx_render_texture_create(atlas_size, atlas_size, atlas,
-                                           EFX_TEX_WRAP_CLAMP, filter, 0);
+                                           EFX_TEX_WRAP_CLAMP, filter, 0, 0);
     free(atlas);
     if (!f->texture) {
         if (err) *err = EFX_TEXT_ERR_NOMEM;

@@ -37,8 +37,8 @@ static int g_seq_mipmaps[GLTF_SEQ_MAX];
 static int g_seq_n;
 
 static void *mock_create(void *ud, int w, int h, const uint8_t *rgba,
-                         int wrap, int filter, int mipmaps) {
-    (void)ud; (void)rgba;
+                         int wrap, int filter, int mipmaps, int dynamic) {
+    (void)ud; (void)rgba; (void)dynamic;
     if (g_seq_n < GLTF_SEQ_MAX) {
         g_seq_wrap[g_seq_n] = wrap;
         g_seq_filter[g_seq_n] = filter;
@@ -53,8 +53,12 @@ static void mock_destroy(void *ud, void *native) {
     free(native);
 }
 
+static void mock_update(void *ud, void *native, const uint8_t *rgba) {
+    (void)ud; (void)native; (void)rgba;
+}
+
 static const efx_render_sink g_sink = {
-    NULL, mock_create, mock_destroy, NULL, NULL, NULL, NULL, NULL,
+    NULL, mock_create, mock_destroy, mock_update, NULL, NULL, NULL, NULL, NULL,
 };
 
 static efx_runtime *g_rt;

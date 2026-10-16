@@ -246,9 +246,9 @@
                 throw e;
             }
         },
-        createTexture: function (image, wrap, filter, mipmaps) {
+        createTexture: function (image, wrap, filter, mipmaps, dynamic) {
             var handle = bridge['_efx_bridge_texture_create'](
-                image.__id, wrap, filter, mipmaps);
+                image.__id, wrap, filter, mipmaps, dynamic ? 1 : 0);
             if (!handle) {
                 throw new Error('texture upload failed (no GPU context?)');
             }

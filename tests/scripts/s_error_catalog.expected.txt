@@ -31,6 +31,13 @@
 2d.texture-wrap-type: TypeError: unknown wrap mode
 2d.texture-filter-type: TypeError: unknown filter
 2d.texture-mipmaps-type: TypeError: mipmaps must be a boolean
+2d.texture-dynamic-mipmaps: TypeError: dynamic textures do not support mipmaps
+2d.texture-dynamic-type: TypeError: dynamic must be a boolean
+2d.texture-update-nonimage: TypeError: expected an ImageData
+2d.texture-update-size: TypeError: update ImageData size must match the texture
+2d.texture-update-plain: TypeError: update requires a texture created with dynamic: true
+2d.texture-update-ok: none: 
+2d.texture-update-destroyed: TypeError: using a destroyed resource
 3d.cam-noargs: TypeError: setCamera3D requires pos and target
 3d.cam-no-pos: TypeError: setCamera3D requires pos and target
 3d.cam-fov-type: TypeError: fov must be a number

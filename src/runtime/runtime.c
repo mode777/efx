@@ -355,7 +355,7 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     n = JS_NewCFunction(rt->ctx, efx_js_create_image_data_wire,
                         "createImageData", 3);
     JS_SetPropertyStr(rt->ctx, natives, "createImageData", n);
-    n = JS_NewCFunction(rt->ctx, efx_js_create_texture_wire, "createTexture", 4);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_texture_wire, "createTexture", 5);
     JS_SetPropertyStr(rt->ctx, natives, "createTexture", n);
     n = JS_NewCFunction(rt->ctx, efx_js_create_render_target_wire,
                         "createRenderTarget", 2);

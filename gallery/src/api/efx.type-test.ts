@@ -71,6 +71,16 @@ efx.graphics.createTexture(
   { wrap: 'clamp', filter: 'nearest', mipmaps: true },
 ).destroy();
 
+// dynamic textures — streaming updates (dynamic-textures)
+const dynImg: EfxImageData = efx.graphics.createImageData(2, 2, new Uint8Array(16));
+const dyn: EfxTexture = efx.graphics.createTexture(dynImg, { dynamic: true });
+dyn.update(dynImg);
+dyn.destroy();
+// @ts-expect-error — dynamic is a boolean
+efx.graphics.createTexture(dynImg, { dynamic: 1 });
+// @ts-expect-error — update takes an ImageData
+dyn.update([0, 0, 0, 0]);
+
 // The type document must reject a mistyped member and a malformed options bag.
 // @ts-expect-error — unknown member
 efx.notARealFunction();

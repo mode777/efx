@@ -270,6 +270,15 @@ Source pixels.
 
 Optional wrap, filter, and mipmap settings.
 
+###### dynamic?
+
+`boolean`
+
+Create the texture for streaming pixel updates via
+`EfxTexture.update` (default `false`). Dynamic textures are
+single-level: combining `dynamic: true` with `mipmaps: true` throws
+`TypeError`.
+
 ###### filter?
 
 `"nearest"` \| `"linear"`
