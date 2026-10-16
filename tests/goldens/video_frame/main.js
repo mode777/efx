@@ -4,13 +4,17 @@
 // end-to-end: MPEG-1 decode -> dynamic-texture upload -> sampling by an
 // ordinary draw.
 //
-// The fixture is a spatially-uniform clip (one solid colour per frame, hue
-// rotating): video textures sample with linear filtering, and a half-texel
-// sampling convention difference between renderers (llvmpipe / WARP / Metal)
-// shifts every pixel by the local gradient. A solid frame has zero spatial
-// gradient, so the decoded colour — and the whole decode -> upload -> draw
-// pipeline — is identical on every renderer; the core unit suite covers
-// spatial decode fidelity and the playback state machine.
+// The fixture is a constant-colour clip (every frame the same solid colour).
+// Two cross-renderer hazards make textured video goldens fragile, and a
+// constant frame sidesteps both: (1) video textures sample with linear
+// filtering, so a half-texel sampling convention difference between renderers
+// shifts every pixel by the local gradient — a solid frame has zero gradient;
+// (2) the engine advances the playhead by the display frame duration, which
+// differs per runner, so the decoded frame index is not portable — a constant
+// clip makes every frame identical. The golden therefore proves decode ->
+// dynamic-texture upload -> sampling by an ordinary draw on every target; the
+// core unit suite and the api tests cover spatial decode fidelity, playback
+// advancement, looping, and the end/restart state machine.
 efx.graphics.setClearColor([0.02, 0.03, 0.06, 1]);
 efx.graphics.setCamera2D({ frame: [640, 480] });
 
