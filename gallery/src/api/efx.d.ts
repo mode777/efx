@@ -1008,10 +1008,25 @@ interface Material {
    * Bypass the lighting equation (default `false`). When `true`, the shaded
    * color is the `diffuse` channel color × its `diffuse` map × the albedo, with
    * no light contribution; `ambient`, `specular`, `emissive`, and all lights are
-   * ignored. `alphaMask` and `blend` still apply. Use for skies, UI, and other
-   * surfaces that should show their texture exactly as authored.
+   * ignored. `alphaMask`, `alphaMode`, and `blend` still apply. Use for skies,
+   * UI, and other surfaces that should show their texture exactly as authored.
    */
   unlit?: boolean;
+  /**
+   * Transparency mode selecting the render path (default `'opaque'`).
+   *
+   * - `'opaque'`: the full rendering path — depth-tested, depth-writing,
+   *   drawn in record order. Fully opaque: fragment alpha is forced to `1`
+   *   regardless of vertex, tint, or channel alpha.
+   * - `'mask'`: the alpha-scissor path — same full path with depth writing;
+   *   fragments sampling `alphaMask` alpha below `0.5` are discarded.
+   * - `'blend'`: the transparent pass — drawn after every opaque/mask
+   *   surface of the pass, sorted back-to-front by draw origin, depth-tested
+   *   but never depth-writing. Fragment alpha is the product of the
+   *   `diffuse` channel alpha × vertex-color alpha × tint alpha; a bound
+   *   `alphaMask` does not discard in this mode.
+   */
+  alphaMode?: "opaque" | "mask" | "blend" | null;
 }
 
 /**

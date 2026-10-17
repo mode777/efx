@@ -172,6 +172,8 @@ typedef struct efx_mesh_record {
     efx_light_set lights;  /* value snapshot at record time (ADR 0026) */
     uint8_t blend;         /* frame-state fallback for surfaces without one */
     uint8_t surface_blend[EFX_MESH_MAX_SURFACES]; /* per-surface resolved */
+    uint8_t surface_alpha[EFX_MESH_MAX_SURFACES]; /* per-surface resolved
+                                     alpha mode (EFX_ALPHA_*, record time) */
     uint8_t skinned;       /* F7: draw the posed buffer instead of bind pose */
     uint8_t depth_write;   /* 1 = depth write on (default), 0 = test only */
 } efx_mesh_record;
