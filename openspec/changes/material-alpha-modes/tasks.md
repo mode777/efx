@@ -19,12 +19,12 @@
 
 ## 4. glTF import
 
-- [ ] 4.1 Map glTF `alphaMode` OPAQUE/absent→opaque, MASK→mask (as today), BLEND→blend in `src/resource/gltf.c`, carrying `baseColorFactor.a` into diffuse alpha for BLEND (clamped) and noting the 0.5 cutoff approximation; verify an imported BLEND-material glTF asset composites in the transparent pass with a small fixture asset
+- [x] 4.1 Map glTF `alphaMode` OPAQUE/absent→opaque, MASK→mask (as today), BLEND→blend in `src/resource/gltf.c`, carrying `baseColorFactor.a` into diffuse alpha for BLEND (clamped) and noting the 0.5 cutoff approximation; verify an imported BLEND-material glTF asset composites in the transparent pass with a small fixture asset
 
 ## 5. API surface and docs
 
 - [ ] 5.1 Add `alphaMode?: 'opaque' | 'mask' | 'blend' | null` to `Material` in `gallery/src/api/efx.d.ts` with doc comments matching the spec semantics; verify `npm --prefix gallery run check` passes (type-test included)
-- [ ] 5.2 Regenerate `docs/api/` via `npm --prefix gallery run docs:markdown` and confirm `docs:check` passes; verify `docs/js-api.md` needs no guideline change (no new design rule)
+- [x] 5.2 Regenerate `docs/api/` via `npm --prefix gallery run docs:markdown` and confirm `docs:check` passes; verify `docs/js-api.md` needs no guideline change (no new design rule)
 
 ## 6. Goldens and verification
 
