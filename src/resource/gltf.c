@@ -434,6 +434,18 @@ static int material_from_gltf(gltf_ctx *c, const cgltf_material *gm,
     }
     out->shininess = shin;
 
+    /* alpha modes (material-alpha-modes): glTF OPAQUE (and absent) map to
+       the engine default, MASK to the alpha-scissor path, BLEND to the
+       transparent pass. The base color alpha lands in the diffuse channel
+       alpha (clamped), which blend mode honors; opaque/mask ignore it. The
+       fixed 0.5 mask threshold approximates any glTF alphaCutoff. */
+    if (gm->alpha_mode == cgltf_alpha_mode_mask) {
+        out->alpha_mode = EFX_ALPHA_MASK;
+    } else if (gm->alpha_mode == cgltf_alpha_mode_blend) {
+        out->alpha_mode = EFX_ALPHA_BLEND;
+    }
+    out->diffuse[3] = base[3] < 0.0f ? 0.0f : (base[3] > 1.0f ? 1.0f : base[3]);
+
     if (base_tex && base_tex->texture) {
         uint64_t h = ctx_texture(c, base_tex->texture);
         if (!h) {

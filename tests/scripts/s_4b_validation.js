@@ -38,6 +38,16 @@ mesh.setSurfaceMaterial(0, null);
 // alphaMask alone is valid; null map is treated as absent
 mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: null }, alphaMask: tex });
 
+// alphaMode: all three modes bind, null/absent defaults to opaque, and a
+// present non-mode value throws (material-alpha-modes)
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] }, alphaMode: 'blend' });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] }, alphaMode: 'mask' });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] }, alphaMode: 'opaque' });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] }, alphaMode: null });
+mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] } });
+expectThrow('alphaMode-string', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] }, alphaMode: 'multiply' }));
+expectThrow('alphaMode-number', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1] }, alphaMode: 1 }));
+
 // non-Texture / destroyed-Texture maps and unknown fields throw
 expectThrow('map-number', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: 1 } }));
 expectThrow('map-object', TE, () => mesh.setSurfaceMaterial(0, { diffuse: { color: [1, 1, 1, 1], map: {} } }));

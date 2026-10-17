@@ -23,10 +23,18 @@ const mat: Material = { diffuse: { color: [0.8, 0.3, 0.2, 1] } };
 const matBlend: Material = { blend: 'additive' };
 const matInherit: Material = { blend: null };
 const matUnlit: Material = { unlit: true, diffuse: { color: [1, 1, 1, 1] } };
-efx.graphics.makeCube({ size: 1, material: mat });
+const matAlphaModes: Material[] = [
+  { alphaMode: 'opaque' },
+  { alphaMode: 'mask', alphaMask: null },
+  { alphaMode: 'blend', diffuse: { color: [1, 1, 1, 0.5] } },
+  { alphaMode: null },
+];
+efx.graphics.makeCube({ size: 1, material: matAlphaModes[2] });
 efx.graphics.makeSphere({ material: null });
 // @ts-expect-error — unlit is a boolean flag
 const matUnlitBad: Material = { unlit: 1 };
+// @ts-expect-error — alphaMode is a mode string, not a boolean
+const matAlphaBad: Material = { alphaMode: true };
 
 // Inverted primitives (sky domes) and depthWrite:false (sky drawn first).
 const skyCube: EfxMeshData = efx.graphics.makeCube({ size: 20, inverted: true });

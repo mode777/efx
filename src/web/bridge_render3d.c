@@ -366,6 +366,7 @@ static void bridge_mat_from_wire(efx_material *m, const float *f,
     m->shininess = f[16];
     m->blend = (int)f[17];
     m->unlit = (int)f[18];
+    m->alpha_mode = (int)f[19];
     if (maps) {
         m->ambient_map = (uint64_t)maps[0];
         m->diffuse_map = (uint64_t)maps[1];

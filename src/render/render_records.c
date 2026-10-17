@@ -31,7 +31,8 @@ static const efx_material DEFAULT_MATERIAL = {
     .emissive = {0.0f, 0.0f, 0.0f, 1.0f},
     .shininess = 32.0f,
     .blend = EFX_BLEND_INHERIT,
-    .unlit = 0};
+    .unlit = 0,
+    .alpha_mode = EFX_ALPHA_OPAQUE};
 
 static void apply_default_state(void) {
     R.camera = DEFAULT_CAMERA2D;
@@ -438,6 +439,10 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
             int has = efx_render_mesh_surface_material(mesh, i, &mat);
             int b = (has && mat.blend >= 0) ? mat.blend : R.blend;
             mr->surface_blend[i] = (uint8_t)b;
+            /* material-alpha-modes: the transparent-pass route is snapshotted
+               like the blend, so a later rebind cannot change the record */
+            mr->surface_alpha[i] =
+                (uint8_t)(has ? mat.alpha_mode : EFX_ALPHA_OPAQUE);
         }
     }
     mr->skinned = skinned ? 1 : 0;

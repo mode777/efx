@@ -1238,6 +1238,30 @@ int efx_api_read_blend(JSContext *ctx, JSValueConst v, int *out) {
     return 0;
 }
 
+/* material alpha mode: 'opaque' | 'mask' | 'blend' (null/absent = opaque) */
+int efx_api_read_alpha_mode(JSContext *ctx, JSValueConst v, int *out) {
+    const char *s = JS_ToCString(ctx, v);
+    if (!s) {
+        efx_api_type_error(ctx, "alphaMode must be a mode string");
+        return -1;
+    }
+    int mode = EFX_ALPHA_OPAQUE;
+    if (strcmp(s, "opaque") == 0) {
+        mode = EFX_ALPHA_OPAQUE;
+    } else if (strcmp(s, "mask") == 0) {
+        mode = EFX_ALPHA_MASK;
+    } else if (strcmp(s, "blend") == 0) {
+        mode = EFX_ALPHA_BLEND;
+    } else {
+        JS_FreeCString(ctx, s);
+        efx_api_type_error(ctx, "unknown alpha mode");
+        return -1;
+    }
+    JS_FreeCString(ctx, s);
+    *out = mode;
+    return 0;
+}
+
 
 /* parse a material object into the engine snapshot (F4a/F4b spec: channel
  * defaults, specular.shininess, per-channel maps, alphaMask, unknown-field
@@ -1249,8 +1273,8 @@ int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
     }
     efx_material_default(out);
     static const char *known[] = {"ambient", "diffuse", "specular", "emissive",
-                                  "alphaMask", "blend", "unlit"};
-    if (efx_api_check_known_fields(ctx, v, known, 7, "material") != 0) {
+                                  "alphaMask", "blend", "unlit", "alphaMode"};
+    if (efx_api_check_known_fields(ctx, v, known, 8, "material") != 0) {
         return -1;
     }
     static const char *chan_keys[] = {"ambient", "diffuse", "specular", "emissive"};
@@ -1342,6 +1366,14 @@ int efx_api_read_material(JSContext *ctx, JSValueConst v, efx_material *out) {
         out->unlit = JS_ToBool(ctx, uv) ? 1 : 0;
     }
     JS_FreeValue(ctx, uv);
+    JSValue av = JS_GetPropertyStr(ctx, v, "alphaMode");
+    if (!JS_IsUndefined(av) && !JS_IsNull(av)) {
+        if (efx_api_read_alpha_mode(ctx, av, &out->alpha_mode) != 0) {
+            JS_FreeValue(ctx, av);
+            return -1;
+        }
+    }
+    JS_FreeValue(ctx, av);
     return 0;
 }
 

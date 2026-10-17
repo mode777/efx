@@ -72,6 +72,17 @@ typedef struct {
     pipe_mesh_surface *surfaces;
 } pipe_mesh;
 
+/* transparent-pass entry (material-alpha-modes): one blend-mode surface
+ * deferred out of the main sweep, replayed after it, sorted back-to-front
+ * by the record origin's view-space z (ties by record order, then surface,
+ * so the sort is total and deterministic) */
+typedef struct pipe_trans_entry {
+    int rec;     /* index into the frame's record array */
+    int surface; /* surface index within the record's mesh */
+    float z;     /* view-space z of the transform translation */
+    int flip;    /* per-record winding flip (GL-family RT passes) */
+} pipe_trans_entry;
+
 typedef struct {
     sg_shader quad_shd;
     sg_pipeline quad_pip[3];
@@ -112,6 +123,10 @@ typedef struct {
     float pv_aspect;
     int pv_flip;
     float pv[16];
+    /* per-frame transparent side list; flushed (sorted + replayed) at every
+       pass-segment boundary and at the end of the frame */
+    pipe_trans_entry *trans;
+    int trans_n, trans_cap;
 } pipe_state;
 
 static pipe_state P;
@@ -725,10 +740,14 @@ static sg_sampler sampler_for_handle(uint64_t h) {
     return t ? tex_sampler(t->wrap, t->filter, t->mipmaps) : P.smp;
 }
 
-static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) {
+/* per-record uniform preparation shared by the opaque sweep and the
+ * transparent replay; returns the live mesh (NULL = destroyed/gone) */
+static pipe_mesh *mesh_record_setup(const efx_mesh_record *mr, float aspect,
+                                    int flip, vs_params_t *vs,
+                                    fs_params_t *fs, sg_view *white_view) {
     pipe_mesh *m = (pipe_mesh *)efx_render_mesh_native(mr->mesh);
     if (!m) {
-        return;
+        return NULL;
     }
     float mvp[16];
     efx_math_mul(mvp, view_projection(&mr->camera, aspect, flip), mr->transform);
@@ -744,47 +763,210 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         }
     }
 
-    vs_params_t vs;
-    memcpy(vs.mvp, mvp, sizeof(mvp));
-    memcpy(vs.model, mr->transform, sizeof(vs.model));
-    efx_math_normal_matrix(vs.normal_mat, mr->transform);
+    memset(vs, 0, sizeof(*vs));
+    memcpy(vs->mvp, mvp, sizeof(mvp));
+    memcpy(vs->model, mr->transform, sizeof(vs->model));
+    efx_math_normal_matrix(vs->normal_mat, mr->transform);
 
-    fs_params_t fs;
-    memset(&fs, 0, sizeof(fs));
-    fs.tint[0] = mr->color[0];
-    fs.tint[1] = mr->color[1];
-    fs.tint[2] = mr->color[2];
-    fs.tint[3] = mr->color[3];
-    fs.camera_pos[0] = mr->camera.pos[0];
-    fs.camera_pos[1] = mr->camera.pos[1];
-    fs.camera_pos[2] = mr->camera.pos[2];
+    memset(fs, 0, sizeof(*fs));
+    fs->tint[0] = mr->color[0];
+    fs->tint[1] = mr->color[1];
+    fs->tint[2] = mr->color[2];
+    fs->tint[3] = mr->color[3];
+    fs->camera_pos[0] = mr->camera.pos[0];
+    fs->camera_pos[1] = mr->camera.pos[1];
+    fs->camera_pos[2] = mr->camera.pos[2];
     for (int i = 0; i < EFX_MAX_POINT_LIGHTS; i++) {
         const efx_point_light *p = &mr->lights.points[i];
         if (!p->enabled) {
             continue;
         }
-        fs.point_pos[i][0] = p->pos[0];
-        fs.point_pos[i][1] = p->pos[1];
-        fs.point_pos[i][2] = p->pos[2];
-        fs.point_pos[i][3] = p->range;
-        fs.point_color[i][0] = p->color[0];
-        fs.point_color[i][1] = p->color[1];
-        fs.point_color[i][2] = p->color[2];
-        fs.point_color[i][3] = 1.0f;
+        fs->point_pos[i][0] = p->pos[0];
+        fs->point_pos[i][1] = p->pos[1];
+        fs->point_pos[i][2] = p->pos[2];
+        fs->point_pos[i][3] = p->range;
+        fs->point_color[i][0] = p->color[0];
+        fs->point_color[i][1] = p->color[1];
+        fs->point_color[i][2] = p->color[2];
+        fs->point_color[i][3] = 1.0f;
     }
     if (mr->lights.directional.enabled) {
-        fs.dir_dir[0] = mr->lights.directional.dir[0];
-        fs.dir_dir[1] = mr->lights.directional.dir[1];
-        fs.dir_dir[2] = mr->lights.directional.dir[2];
-        fs.dir_dir[3] = 1.0f;
-        fs.dir_color[0] = mr->lights.directional.color[0];
-        fs.dir_color[1] = mr->lights.directional.color[1];
-        fs.dir_color[2] = mr->lights.directional.color[2];
+        fs->dir_dir[0] = mr->lights.directional.dir[0];
+        fs->dir_dir[1] = mr->lights.directional.dir[1];
+        fs->dir_dir[2] = mr->lights.directional.dir[2];
+        fs->dir_dir[3] = 1.0f;
+        fs->dir_color[0] = mr->lights.directional.color[0];
+        fs->dir_color[1] = mr->lights.directional.color[1];
+        fs->dir_color[2] = mr->lights.directional.color[2];
     }
 
     uint64_t white = efx_render_white_texture(); /* absent-map fallback (D3) */
     pipe_tex *white_tex = (pipe_tex *)efx_render_texture_native(white);
-    sg_view white_view = white_tex ? white_tex->view : P.white_view;
+    *white_view = white_tex ? white_tex->view : P.white_view;
+    return m;
+}
+
+/* draw one mesh surface; `depth_write` selects the pipeline row (0 = test
+   only — the transparent replay forces this regardless of the record's
+   option) and `*cur_key` carries the applied-pipeline cache across the
+   surfaces of one record */
+static void mesh_record_surface(const efx_mesh_record *mr, pipe_mesh *m, int i,
+                                vs_params_t *vs, fs_params_t *fs,
+                                sg_view white_view, int flip, int depth_write,
+                                int *cur_key) {
+    pipe_mesh_surface *s = &m->surfaces[i];
+    /* D4: per-surface blend resolved at record time; switch the
+       pipeline only when the blend or depth-write variant changes and
+       re-apply the vs uniforms the pipeline change invalidates
+       (documented order: pipeline -> bindings -> uniforms -> draw) */
+    int blend = mr->surface_blend[i];
+    int key = blend * 2 + depth_write;
+    if (key != *cur_key) {
+        sg_apply_pipeline(flip ? P.mesh_pip_cw[blend][depth_write]
+                               : P.mesh_pip[blend][depth_write]);
+        sg_apply_uniforms(UB_vs_params,
+                          &(sg_range){.ptr = vs, .size = sizeof(*vs)});
+        *cur_key = key;
+    }
+    efx_material mat;
+    efx_render_mesh_surface_material(mr->mesh, i, &mat);
+    memcpy(fs->ambient, mat.ambient, sizeof(fs->ambient));
+    memcpy(fs->diffuse, mat.diffuse, sizeof(fs->diffuse));
+    memcpy(fs->specular, mat.specular, sizeof(fs->specular));
+    memcpy(fs->emissive, mat.emissive, sizeof(fs->emissive));
+    fs->mat_params[0] = mat.shininess;
+    fs->mat_params[1] = mat.unlit ? 1.0f : 0.0f;
+    fs->mat_params[2] = (float)mat.alpha_mode;
+
+    /* F4b D3: bind all five maps; absent ones fall back to the engine
+       white texture (color maps sample (1,1,1,1); the mask samples
+       alpha 1, so it never discards). One shared sampler for all. */
+    uint64_t maps[5] = {mat.ambient_map, mat.diffuse_map, mat.specular_map,
+                        mat.emissive_map, mat.alpha_mask};
+    sg_bindings bnd = {0};
+    if (mr->skinned && s->has_posed) {
+        /* F7: push the CPU-posed vertices once per pose revision, then
+           draw the posed buffer instead of the bind-pose buffer */
+        uint32_t rev = efx_render_mesh_pose_revision(mr->mesh);
+        if (rev != s->posed_rev) {
+            const float *p = efx_render_mesh_posed(mr->mesh, i);
+            if (p) {
+                sg_update_buffer(s->posed_vbuf, &(sg_range){
+                    .ptr = p,
+                    .size = (size_t)s->vertex_count *
+                            sizeof(pipe_mesh_vertex)});
+                s->posed_rev = rev;
+            }
+        }
+        bnd.vertex_buffers[0] = s->posed_vbuf;
+    } else {
+        bnd.vertex_buffers[0] = s->vbuf;
+    }
+    bnd.index_buffer = s->ibuf;
+    for (int k = 0; k < 5; k++) {
+        sg_view map_view = view_for_handle(maps[k]);
+        bnd.views[k] = map_view.id != SG_INVALID_ID ? map_view : white_view;
+        bnd.samplers[k] = sampler_for_handle(maps[k]);
+    }
+    sg_apply_bindings(&bnd);
+    /* documented order: pipeline -> bindings -> uniforms -> draw */
+    sg_apply_uniforms(UB_fs_params,
+                      &(sg_range){.ptr = fs, .size = sizeof(*fs)});
+    sg_draw(0, s->index_count, 1);
+}
+
+/* view-space z of the record origin: the sort key for the transparent
+ * pass. Pre-projection, so the D3D11/Metal depth fold (monotonic) cannot
+ * reorder it; ascending z = far first for a GL-convention camera. */
+static float trans_sort_z(const efx_mesh_record *mr) {
+    float view[16];
+    float up[3] = {0, 1, 0};
+    efx_math_look_at(view, mr->camera.pos, mr->camera.target, up);
+    const float *t = mr->transform;
+    return view[2] * t[12] + view[6] * t[13] + view[10] * t[14] + view[14];
+}
+
+static int trans_cmp(const void *a, const void *b) {
+    const pipe_trans_entry *x = (const pipe_trans_entry *)a;
+    const pipe_trans_entry *y = (const pipe_trans_entry *)b;
+    if (x->z < y->z) {
+        return -1;
+    }
+    if (x->z > y->z) {
+        return 1;
+    }
+    if (x->rec != y->rec) {
+        return x->rec < y->rec ? -1 : 1;
+    }
+    return x->surface < y->surface ? -1 : (x->surface > y->surface ? 1 : 0);
+}
+
+/* sort the deferred blend surfaces back-to-front and replay them; the
+   [blend][0] pipeline row is forced (test-only, never writes depth) */
+static void flush_transparent(const efx_record *records, float aspect) {
+    if (P.trans_n == 0) {
+        return;
+    }
+    qsort(P.trans, (size_t)P.trans_n, sizeof(pipe_trans_entry), trans_cmp);
+    vs_params_t vs;
+    fs_params_t fs;
+    sg_view white_view;
+    int cur_rec = -1;
+    int cur_key = -1;
+    int flip = 0;
+    pipe_mesh *m = NULL;
+    const efx_mesh_record *mr = NULL;
+    for (int e = 0; e < P.trans_n; e++) {
+        const pipe_trans_entry *t = &P.trans[e];
+        if (t->rec != cur_rec) {
+            cur_rec = t->rec;
+            flip = t->flip;
+            mr = &records[t->rec].u.mesh;
+            m = mesh_record_setup(mr, aspect, flip, &vs, &fs, &white_view);
+            cur_key = -1;
+            if (!m) {
+                continue;
+            }
+        }
+        if (!m) {
+            continue;
+        }
+        mesh_record_surface(mr, m, t->surface, &vs, &fs, white_view, flip, 0,
+                            &cur_key);
+    }
+    P.trans_n = 0;
+}
+
+/* defer one blend-mode surface to the transparent side list */
+static void trans_push(int rec_index, int surface, const efx_mesh_record *mr,
+                       int flip) {
+    if (P.trans_n >= P.trans_cap) {
+        int next = P.trans_cap > 0 ? P.trans_cap * 2 : 64;
+        pipe_trans_entry *grown =
+            (pipe_trans_entry *)realloc(P.trans, (size_t)next *
+                                                     sizeof(pipe_trans_entry));
+        if (!grown) {
+            return; /* OOM: the surface is dropped this frame, as on budget */
+        }
+        P.trans = grown;
+        P.trans_cap = next;
+    }
+    pipe_trans_entry *t = &P.trans[P.trans_n++];
+    t->rec = rec_index;
+    t->surface = surface;
+    t->z = trans_sort_z(mr);
+    t->flip = flip;
+}
+
+static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip,
+                             int rec_index) {
+    vs_params_t vs;
+    fs_params_t fs;
+    sg_view white_view;
+    pipe_mesh *m = mesh_record_setup(mr, aspect, flip, &vs, &fs, &white_view);
+    if (!m) {
+        return;
+    }
     int cur_key = -1;
     int depth_write = mr->depth_write ? 1 : 0;
     for (int i = 0; i < m->surface_count; i++) {
@@ -792,63 +974,15 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         if (!s->index_count) {
             continue;
         }
-        /* D4: per-surface blend resolved at record time; switch the
-           pipeline only when the blend or depth-write variant changes and
-           re-apply the vs uniforms the pipeline change invalidates
-           (documented order: pipeline -> bindings -> uniforms -> draw) */
-        int blend = mr->surface_blend[i];
-        int key = blend * 2 + depth_write;
-        if (key != cur_key) {
-            sg_apply_pipeline(flip ? P.mesh_pip_cw[blend][depth_write]
-                                   : P.mesh_pip[blend][depth_write]);
-            sg_apply_uniforms(UB_vs_params,
-                              &(sg_range){.ptr = &vs, .size = sizeof(vs)});
-            cur_key = key;
+        /* material-alpha-modes: blend surfaces defer to the pass's sorted
+           transparent sub-pass (route snapshotted at record time); the
+           record index keys the deferred entry for the replay */
+        if (mr->surface_alpha[i] == EFX_ALPHA_BLEND) {
+            trans_push(rec_index, i, mr, flip);
+            continue;
         }
-        efx_material mat;
-        efx_render_mesh_surface_material(mr->mesh, i, &mat);
-        memcpy(fs.ambient, mat.ambient, sizeof(fs.ambient));
-        memcpy(fs.diffuse, mat.diffuse, sizeof(fs.diffuse));
-        memcpy(fs.specular, mat.specular, sizeof(fs.specular));
-        memcpy(fs.emissive, mat.emissive, sizeof(fs.emissive));
-        fs.mat_params[0] = mat.shininess;
-        fs.mat_params[1] = mat.unlit ? 1.0f : 0.0f;
-
-        /* F4b D3: bind all five maps; absent ones fall back to the engine
-           white texture (color maps sample (1,1,1,1); the mask samples
-           alpha 1, so it never discards). One shared sampler for all. */
-        uint64_t maps[5] = {mat.ambient_map, mat.diffuse_map, mat.specular_map,
-                            mat.emissive_map, mat.alpha_mask};
-        sg_bindings bnd = {0};
-        if (mr->skinned && s->has_posed) {
-            /* F7: push the CPU-posed vertices once per pose revision, then
-               draw the posed buffer instead of the bind-pose buffer */
-            uint32_t rev = efx_render_mesh_pose_revision(mr->mesh);
-            if (rev != s->posed_rev) {
-                const float *p = efx_render_mesh_posed(mr->mesh, i);
-                if (p) {
-                    sg_update_buffer(s->posed_vbuf, &(sg_range){
-                        .ptr = p,
-                        .size = (size_t)s->vertex_count *
-                                sizeof(pipe_mesh_vertex)});
-                    s->posed_rev = rev;
-                }
-            }
-            bnd.vertex_buffers[0] = s->posed_vbuf;
-        } else {
-            bnd.vertex_buffers[0] = s->vbuf;
-        }
-        bnd.index_buffer = s->ibuf;
-        for (int k = 0; k < 5; k++) {
-            sg_view map_view = view_for_handle(maps[k]);
-            bnd.views[k] = map_view.id != SG_INVALID_ID ? map_view : white_view;
-            bnd.samplers[k] = sampler_for_handle(maps[k]);
-        }
-        sg_apply_bindings(&bnd);
-        /* documented order: pipeline -> bindings -> uniforms -> draw */
-        sg_apply_uniforms(UB_fs_params,
-                          &(sg_range){.ptr = &fs, .size = sizeof(fs)});
-        sg_draw(0, s->index_count, 1);
+        mesh_record_surface(mr, m, i, &vs, &fs, white_view, flip, depth_write,
+                            &cur_key);
     }
 }
 
@@ -1490,15 +1624,24 @@ static void play_records(const efx_record *records, int count,
     post_begin_pass(default_surface, frame_clear);
     int run_i = 0;
     int brun_i = 0;
+    P.trans_n = 0;
     for (int i = 0; i < count; i++) {
         const efx_record *r = &records[i];
         if (r->type == EFX_RECORD_BEGIN_TARGET) {
+            /* a pass boundary ends the segment: composite its deferred
+               blend surfaces before closing the pass */
+            flush_transparent(records, (cur_w > 0 && cur_h > 0)
+                                           ? (float)cur_w / (float)cur_h
+                                           : 4.0f / 3.0f);
             switch_to_target(r->u.begin_target.target, r->u.begin_target.clear,
                              &cur_w, &cur_h, default_surface, use_post,
                              scene_w, scene_h, vw, vh);
             continue;
         }
         if (r->type == EFX_RECORD_END_TARGET) {
+            flush_transparent(records, (cur_w > 0 && cur_h > 0)
+                                           ? (float)cur_w / (float)cur_h
+                                           : 4.0f / 3.0f);
             switch_to_default(frame_clear, &cur_w, &cur_h, default_surface,
                               use_post, scene_w, scene_h, vw, vh);
             continue;
@@ -1515,7 +1658,7 @@ static void play_records(const efx_record *records, int count,
             }
         } else if (r->type == EFX_RECORD_MESH) {
             play_mesh_record(&r->u.mesh, aspect,
-                             P.rt_flip && (use_post || r->target != 0));
+                             P.rt_flip && (use_post || r->target != 0), i);
         } else if (r->type == EFX_RECORD_BILLBOARD) {
             if (brun_i < brun_count && bruns[brun_i].start == i) {
                 /* playback-quick-wins D4: quad_pip is today the identical
@@ -1540,6 +1683,10 @@ static void play_records(const efx_record *records, int count,
                           tex, boff[i], bcnt[i]);
         }
     }
+    /* end of the final segment: composite any deferred blend surfaces */
+    flush_transparent(records, (cur_w > 0 && cur_h > 0)
+                                   ? (float)cur_w / (float)cur_h
+                                   : 4.0f / 3.0f);
     sg_end_pass();
     if (use_post) {
         run_post_chain(default_surface, scene_w, scene_h);

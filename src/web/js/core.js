@@ -907,18 +907,18 @@ function __efxEnsureApi() {
 
     /* Parse a Phong material object into the F4a float wire layout
        [ambient(4), diffuse(4), specular(4), emissive(4), shininess, blend,
-       unlit] plus the F4b map-handle vector [ambient, diffuse, specular,
-       emissive, alphaMask] (doubles; 0 = absent). Desktop parity: unknown
-       fields throw; a map/alphaMask must be a live Texture or RenderTarget
-       (F5a). */
+       unlit, alphaMode] plus the F4b map-handle vector [ambient, diffuse,
+       specular, emissive, alphaMask] (doubles; 0 = absent). Desktop parity:
+       unknown fields throw; a map/alphaMask must be a live Texture or
+       RenderTarget (F5a). */
     function __efxMaterial(v) {
         if (!__efxIsObject(v)) {
             throw new TypeError('material must be an object');
         }
         var known = { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
-                      alphaMask: 1, blend: 1, unlit: 1 };
+                      alphaMask: 1, blend: 1, unlit: 1, alphaMode: 1 };
                 __efxCheckKnown(v, known, 'material');
-        var out = new Float32Array(19);
+        var out = new Float32Array(20);
         out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;   /* ambient */
         out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;   /* diffuse */
         out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1; /* specular */
@@ -926,6 +926,7 @@ function __efxEnsureApi() {
         out[16] = 32;                                     /* shininess */
         out[17] = -1;                                     /* blend: inherit */
         out[18] = 0;                                      /* unlit: false */
+        out[19] = 0;                                      /* alphaMode: opaque */
         var maps = new Float64Array(5);                   /* all absent (0) */
         var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
         for (var ci = 0; ci < 4; ci++) {
@@ -971,6 +972,9 @@ function __efxEnsureApi() {
                 throw new TypeError('unlit must be a boolean');
             }
             out[18] = v.unlit ? 1 : 0;
+        }
+        if (v.alphaMode !== undefined && v.alphaMode !== null) {
+            out[19] = __efxAlphaMode(v.alphaMode);
         }
         return { blocks: out, maps: maps };
     }
@@ -1080,6 +1084,22 @@ function __efxEnsureApi() {
             return 2;
         }
         throw new TypeError('unknown blend mode');
+    }
+
+    /* alpha mode string -> EFX_ALPHA_*; 0 (opaque) when undefined. A present
+       non-mode value throws the canonical desktop text (cross-runtime
+       parity). */
+    function __efxAlphaMode(v) {
+        if (v === 'opaque') {
+            return 0;
+        }
+        if (v === 'mask') {
+            return 1;
+        }
+        if (v === 'blend') {
+            return 2;
+        }
+        throw new TypeError('unknown alpha mode');
     }
 
     function __efxSprite(tex, e) {
