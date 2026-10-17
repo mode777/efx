@@ -55,11 +55,13 @@
             }
             var m = liveMesh(mesh);
             var transform = null, color = null, skinned = 0, depthWrite = 1;
+            var cull = 1;
             if (arguments.length >= 2 && opts !== undefined) {
                 if (!__efxIsObject(opts)) {
                     throw new TypeError('drawMesh options must be an object');
                 }
-                var known = { transform: 1, color: 1, skinned: 1, depthWrite: 1 };
+                var known = { transform: 1, color: 1, skinned: 1, depthWrite: 1,
+                              cull: 1 };
                                 __efxCheckKnown(opts, known, 'drawMesh');
                 var tv = opts['transform'];
                 if (tv !== undefined) {
@@ -97,6 +99,13 @@
                     }
                     depthWrite = dw ? 1 : 0;
                 }
+                var cu = opts['cull'];
+                if (cu !== undefined) {
+                    if (typeof cu !== 'boolean') {
+                        throw new TypeError('cull must be a boolean');
+                    }
+                    cull = cu ? 1 : 0;
+                }
             }
             var tPtr = 0, cPtr = 0;
             if (transform !== null || color !== null) {
@@ -111,7 +120,7 @@
                 }
             }
             var rc = bridge['_efx_bridge_draw_mesh'](m.__handle, tPtr, cPtr, skinned,
-                                                    depthWrite);
+                                                     depthWrite, cull);
             __efxRc(rc, 'drawMesh', {
                 1: true,
                 2: [TypeError, 'expected a live Mesh'],

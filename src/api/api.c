@@ -750,6 +750,41 @@ static JSValue efx_js_mesh_getSurfaceCount(JSContext *ctx,
 }
 
 
+/* read-only query property bounds (Mesh): the carried MeshData box as fresh
+ * plain data { min, max, center, radius } */
+static JSValue efx_js_mesh_getBounds(JSContext *ctx, JSValueConst this_val) {
+    efxjs_mesh *m = efx_api_get_live_mesh(ctx, this_val);
+    if (!m) {
+        return JS_EXCEPTION;
+    }
+    float bmin[3], bmax[3];
+    if (!efx_render_mesh_bounds(m->handle, bmin, bmax)) {
+        return JS_EXCEPTION;
+    }
+    JSValue obj = JS_NewObject(ctx);
+    JSValue mn = JS_NewArray(ctx);
+    JSValue mx = JS_NewArray(ctx);
+    JSValue ctr = JS_NewArray(ctx);
+    float radius = 0.0f;
+    for (int i = 0; i < 3; i++) {
+        JS_SetPropertyUint32(ctx, mn, (uint32_t)i, JS_NewFloat64(ctx, bmin[i]));
+        JS_SetPropertyUint32(ctx, mx, (uint32_t)i, JS_NewFloat64(ctx, bmax[i]));
+        JS_SetPropertyUint32(ctx, ctr, (uint32_t)i,
+                             JS_NewFloat64(ctx, (bmin[i] + bmax[i]) * 0.5f));
+        float d = bmax[i] - bmin[i];
+        if (d > 0.0f) {
+            radius += d * d;
+        }
+    }
+    radius = (radius > 0.0f) ? sqrtf(radius) * 0.5f : 0.0f;
+    JS_SetPropertyStr(ctx, obj, "min", mn);
+    JS_SetPropertyStr(ctx, obj, "max", mx);
+    JS_SetPropertyStr(ctx, obj, "center", ctr);
+    JS_SetPropertyStr(ctx, obj, "radius", JS_NewFloat64(ctx, radius));
+    return obj;
+}
+
+
 static const JSCFunctionListEntry meshdata_proto_funcs[] = {
     JS_CGETSET_DEF("surfaceCount", efx_js_meshdata_getSurfaceCount, NULL),
 };
@@ -757,6 +792,7 @@ static const JSCFunctionListEntry meshdata_proto_funcs[] = {
 
 static const JSCFunctionListEntry mesh_proto_funcs[] = {
     JS_CGETSET_DEF("surfaceCount", efx_js_mesh_getSurfaceCount, NULL),
+    JS_CGETSET_DEF("bounds", efx_js_mesh_getBounds, NULL),
     JS_CFUNC_DEF("pose", 1, efx_js_poseMesh),
     JS_CFUNC_DEF("setSurfaceMaterial", 2, efx_js_setMeshSurfaceMaterial),
 };

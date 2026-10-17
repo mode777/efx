@@ -304,7 +304,9 @@ int efx_physics_debug_draw_recorder(efx_physics_world *w, const float color[4]) 
         const efx_vec3 *p = &cols[i].position;
         const float transform[16] = {1, 0, 0, 0, 0, 1, 0, 0,
                                      0, 0, 1, 0, p->x, p->y, p->z, 1};
-        efx_render_mesh(s->mesh, transform, color, 0, 0);
+        /* debug overlays always record: culling is a drawMesh policy, and
+           an inspection tool must not depend on the camera */
+        efx_render_mesh(s->mesh, transform, color, 0, 0, 0);
     }
     free(cols);
     return 0;

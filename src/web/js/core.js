@@ -639,6 +639,33 @@ function __efxEnsureApi() {
                     return bridge['_efx_bridge_mesh_surface_count'](this.__handle);
                 },
             },
+            bounds: {
+                get: function () {
+                    var buf = bridge['_malloc'](6 * 4);
+                    var rc = bridge['_efx_bridge_mesh_bounds'](this.__handle, buf);
+                    if (!rc) {
+                        bridge['_free'](buf);
+                        throw new TypeError('expected a Mesh');
+                    }
+                    var base = buf >> 2;
+                    var out = {
+                        min: [HEAPF32[base], HEAPF32[base + 1], HEAPF32[base + 2]],
+                        max: [HEAPF32[base + 3], HEAPF32[base + 4],
+                              HEAPF32[base + 5]],
+                    };
+                    bridge['_free'](buf);
+                    out.center = [(out.min[0] + out.max[0]) * 0.5,
+                                  (out.min[1] + out.max[1]) * 0.5,
+                                  (out.min[2] + out.max[2]) * 0.5];
+                    var dx = out.max[0] - out.min[0];
+                    var dy = out.max[1] - out.min[1];
+                    var dz = out.max[2] - out.min[2];
+                    var d2 = (dx > 0 ? dx * dx : 0) + (dy > 0 ? dy * dy : 0) +
+                             (dz > 0 ? dz * dz : 0);
+                    out.radius = d2 > 0 ? Math.sqrt(d2) * 0.5 : 0;
+                    return out;
+                },
+            },
         },
         methods: {
             pose: function (pose) {

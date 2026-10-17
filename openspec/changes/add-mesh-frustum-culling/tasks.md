@@ -2,20 +2,20 @@
 
 ## 1. Mesh bounds: ingest and storage (C core)
 
-- [ ] 1.1 Compute min/max bounds in `efx_meshdata_create` (scan all surface `positions`), add the `bounds` override input to its `src`/create path (verbatim box), and mirror the identical computation in the glTF ingest path (`src/resource/gltf.c`); verify with a `tests/unit/resource_tests.c` case asserting the box for known positions (create + override + a glTF fixture)
-- [ ] 1.2 Store bounds on the mesh slot so `createMesh` carries them from the MeshData; implement the `Mesh.bounds` native query (`min`/`max`/`center`/`radius` derived on read, fresh arrays, destroyed → `TypeError`); verify via a `tests/unit/api_tests.c` case (create → read → destroy → read throws)
-- [ ] 1.3 Add cross-linking comments pairing the C ingest scan with the web `createMeshData` computation (material-wire-block style), verified by reading both sites in the diff
+- [x] 1.1 Compute min/max bounds in `efx_meshdata_create` (scan all surface `positions`), add the `bounds` override input to its `src`/create path (verbatim box), and mirror the identical computation in the glTF ingest path (`src/resource/gltf.c`); verify with a `tests/unit/resource_tests.c` case asserting the box for known positions (create + override + a glTF fixture)
+- [x] 1.2 Store bounds on the mesh slot so `createMesh` carries them from the MeshData; implement the `Mesh.bounds` native query (`min`/`max`/`center`/`radius` derived on read, fresh arrays, destroyed → `TypeError`); verify via a `tests/unit/api_tests.c` case (create → read → destroy → read throws)
+- [x] 1.3 Add cross-linking comments pairing the C ingest scan with the web `createMeshData` computation (material-wire-block style), verified by reading both sites in the diff
 
 ## 2. Frustum cull test (C core)
 
-- [ ] 2.1 Add the shared plane/box helpers: view basis from `efx_camera3d` (same construction as `screenRay`), 6-plane extraction (fov, active-surface aspect, near/far), 8-corner transform → world AABB, p-vertex per-plane test with early-out; verify with `tests/unit/render_tests.c` cases (box clearly inside → keep, fully behind one plane → cull, straddling → keep) including a degenerate-camera and an inverted-box case (both keep)
-- [ ] 2.2 Grow `efx_render_mesh` with the `cull` flag: run the test only when `cull` is set and the record's `skinned` flag is 0; on cull return `EFX_RENDER_OK` without pushing a record (no budget consumption, no error); verify with unit tests asserting record count/budget behavior for outside, straddling, skinned, and `cull: false` draws
+- [x] 2.1 Add the shared plane/box helpers: view basis from `efx_camera3d` (same construction as `screenRay`), 6-plane extraction (fov, active-surface aspect, near/far), 8-corner transform → world AABB, p-vertex per-plane test with early-out; verify with `tests/unit/render_tests.c` cases (box clearly inside → keep, fully behind one plane → cull, straddling → keep) including a degenerate-camera and an inverted-box case (both keep)
+- [x] 2.2 Grow `efx_render_mesh` with the `cull` flag: run the test only when `cull` is set and the record's `skinned` flag is 0; on cull return `EFX_RENDER_OK` without pushing a record (no budget consumption, no error); verify with unit tests asserting record count/budget behavior for outside, straddling, skinned, and `cull: false` draws
 
 ## 3. Desktop script API (quickjs)
 
-- [ ] 3.1 `src/api/api_3d.c`: add `cull` to the `drawMesh` known-field list (boolean, default true, non-boolean `TypeError`) and pass it through; verify via `tests/unit/api_tests.c` validation cases (`cull: 1` throws; `cull: false` records)
-- [ ] 3.2 `createMeshData`: add the third positional `opts` bag (`{ bounds? }`) with the spec's validation (TypeError for non-object/unknown field; RangeError for shape/length/non-finite) following that function's existing validation placement, and thread the override into 1.1; verify with validation unit tests
-- [ ] 3.3 Expose the `bounds` getter on the Mesh JS class per the `__efxResourceClass` getters mechanism; verify with the 1.2 API test through the JS surface
+- [x] 3.1 `src/api/api_3d.c`: add `cull` to the `drawMesh` known-field list (boolean, default true, non-boolean `TypeError`) and pass it through; verify via `tests/unit/api_tests.c` validation cases (`cull: 1` throws; `cull: false` records)
+- [x] 3.2 `createMeshData`: add the third positional `opts` bag (`{ bounds? }`) with the spec's validation (TypeError for non-object/unknown field; RangeError for shape/length/non-finite) following that function's existing validation placement, and thread the override into 1.1; verify with validation unit tests
+- [x] 3.3 Expose the `bounds` getter on the Mesh JS class per the `__efxResourceClass` getters mechanism; verify with the 1.2 API test through the JS surface
 
 ## 4. Web bridge parity (Emscripten)
 

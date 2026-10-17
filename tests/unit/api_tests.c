@@ -569,6 +569,62 @@ static int mesh_js(void) {
     return 0;
 }
 
+/* mesh bounds + frustum culling through the JS surface: the bounds query,
+ * the createMeshData { bounds } override, cull validation, and the
+ * record-level cull outcomes (mesh frustum culling, ADR 0065) */
+static int mesh_cull_js(void) {
+    /* outcomes: camera at [0,0,10] fov 60, viewport 1024x600 (aspect 1.707):
+       half-width 9.85 at the z=0 plane */
+    REQUIRE(!ok_js(
+        "const P = [0,0,0, 1,0,0, 0,1,0];"
+        "const md = efx.graphics.createMeshData([{ positions: P, indices: [0,1,2] }]);"
+        "const mesh = efx.graphics.createMesh(md);"
+        "const b = mesh.bounds;"
+        "if (b.min[0] !== 0 || b.min[2] !== 0 || b.max[0] !== 1 || b.max[1] !== 1)"
+        "  throw new Error('bounds values');"
+        "if (b.center[0] !== 0.5 || b.center[1] !== 0.5 || b.center[2] !== 0)"
+        "  throw new Error('bounds center');"
+        "if (Math.abs(b.radius - Math.SQRT1_2) > 1e-6) throw new Error('bounds radius');"
+        "efx.graphics.setCamera3D([0, 0, 10], [0, 0, 0], 60);"
+        "function T(x, y, z) { return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]; }"
+        "efx.graphics.drawMesh(mesh, { transform: T(15, 0, 0) });"  /* culled */
+        "efx.graphics.drawMesh(mesh, { transform: T(9, 0, 0) });"   /* straddles */
+        "efx.graphics.drawMesh(mesh, { transform: T(0, 0, 50) });"  /* behind */
+        "efx.graphics.drawMesh(mesh, { transform: T(15, 0, 0), cull: false });"
+        ), "mesh cull outcomes");
+    const efx_record *r = efx_render_records(NULL);
+    REQUIRE(rec_count() == 2, "cull record count");
+    REQUIRE(r[0].u.mesh.transform[12] == 9, "straddle record first");
+    REQUIRE(r[1].u.mesh.transform[12] == 15, "cull=false record second");
+    end_js();
+
+    /* the bounds override + the validation matrix */
+    REQUIRE(!ok_js(
+        "const P = [0,0,0, 1,0,0, 0,1,0];"
+        "function mk(o) { return efx.graphics.createMeshData("
+        "  [{ positions: P, indices: [0,1,2] }], null, o); }"
+        "const md = mk({ bounds: { min: [0,0,0], max: [10,10,10] } });"
+        "const mesh = efx.graphics.createMesh(md);"
+        "if (mesh.bounds.max[2] !== 10) throw new Error('override bounds');"
+        "if (mesh.bounds.radius === 0) throw new Error('override radius');"
+        T_HELPER
+        "t(() => mk(5), TypeError);"
+        "t(() => mk({ frobnicate: 1 }), TypeError);"
+        "t(() => mk({ bounds: 5 }), TypeError);"
+        "t(() => mk({ bounds: { min: [0,0] } }), TypeError);"
+        "t(() => mk({ bounds: { min: [0,0,0] } }), TypeError);"
+        "t(() => mk({ bounds: { min: [0,0], max: [1,1,1] } }), RangeError);"
+        "t(() => mk({ bounds: { min: [0,0,'x'], max: [1,1,1] } }), RangeError);"
+        "t(() => mk({ bounds: { min: [0,0,Infinity], max: [1,1,1] } }), RangeError);"
+        "t(() => mk({ bounds: { min: 0, max: [1,1,1] } }), TypeError);"
+        "t(() => efx.graphics.drawMesh(mesh, { cull: 1 }), TypeError);"
+        "mesh.destroy();"
+        "t(() => mesh.bounds, TypeError);"
+        ), "mesh bounds override validation");
+    end_js();
+    return 0;
+}
+
 /* setCamera3D: defaults, validation, separate from the 2D camera */
 static int camera3d_js(void) {
     const char *code =
@@ -2486,6 +2542,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(meshdata_cap_js),
     EFX_CASE(heightfield_js),
     EFX_CASE(mesh_js),
+    EFX_CASE(mesh_cull_js),
     EFX_CASE(camera3d_js),
     EFX_CASE(f4a_js),
     EFX_CASE(f4b_js),

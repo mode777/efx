@@ -765,7 +765,7 @@ static int alpha_route_snapshot(void) {
     if (efx_render_mesh_set_material(m, 0, &bm, 1) != EFX_RENDER_OK)
         return fail("set blend material");
     efx_render_begin_frame();
-    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 0) != EFX_RENDER_OK)
         return fail("record");
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -809,7 +809,7 @@ static int mesh_record_fields(void) {
     cam.near_z = 0.1f;
     cam.far_z = 100.0f;
     efx_render_set_camera3d(&cam);
-    efx_render_mesh(m, transform, tint, 0, 1);
+    efx_render_mesh(m, transform, tint, 0, 1, 0);
     /* value snapshot: a later camera change must not apply */
     efx_camera3d cam2;
     memset(&cam2, 0, sizeof(cam2));
@@ -817,7 +817,7 @@ static int mesh_record_fields(void) {
     cam2.fov = 30;
     efx_render_set_camera3d(&cam2);
     /* dead mesh handle rejected */
-    if (efx_render_mesh(0, NULL, NULL, 0, 1) != EFX_RENDER_ERR_HANDLE)
+    if (efx_render_mesh(0, NULL, NULL, 0, 1, 0) != EFX_RENDER_ERR_HANDLE)
         return fail("null mesh accepted");
 
     int count = 0;
@@ -837,7 +837,7 @@ static int mesh_record_fields(void) {
         return fail("camera depth range");
 
     /* default transform = identity, default tint = white */
-    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 0) != EFX_RENDER_OK)
         return fail("default args rejected");
     recs = efx_render_records(&count);
     mr = &recs[1].u.mesh;
@@ -851,7 +851,7 @@ static int mesh_record_fields(void) {
         return fail("new camera on later record");
     /* blend value-snapshots into mesh records too */
     efx_render_set_blend(EFX_BLEND_ADDITIVE);
-    efx_render_mesh(m, NULL, NULL, 0, 1);
+    efx_render_mesh(m, NULL, NULL, 0, 1, 0);
     recs = efx_render_records(&count);
     if (recs[2].u.mesh.blend != EFX_BLEND_ADDITIVE) return fail("mesh blend");
     efx_render_end_frame();
@@ -896,7 +896,7 @@ static int blend_overrides(void) {
     mat.blend = EFX_BLEND_ADDITIVE;
     efx_render_mesh_set_material(m, 0, &mat, 1);
     efx_render_set_blend(EFX_BLEND_SUBTRACTIVE);
-    efx_render_mesh(m, NULL, NULL, 0, 1);
+    efx_render_mesh(m, NULL, NULL, 0, 1, 0);
     recs = efx_render_records(&count);
     const efx_mesh_record *mr = &recs[count - 1].u.mesh;
     if (mr->surface_blend[0] != EFX_BLEND_ADDITIVE)
@@ -950,7 +950,7 @@ static int mesh_record_order(void) {    install_mock_sink();
     /* quads A A, mesh, quad B: quad runs must not span the mesh record */
     efx_render_quad(0, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     efx_render_quad(5, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
-    efx_render_mesh(m, NULL, NULL, 0, 1);
+    efx_render_mesh(m, NULL, NULL, 0, 1, 0);
     efx_render_quad(9, 0, 4, 4, t, NULL, 0, 1, NULL, 0, 2, 2, EFX_BLEND_INHERIT);
     int count = 0;
     const efx_record *recs = efx_render_records(&count);
@@ -991,7 +991,7 @@ static int mesh_record_budget(void) {
     uint64_t m = efx_render_mesh_create(md);
     efx_meshdata_destroy(md);
     if (!m) return fail("16-surface mesh create");
-    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 0) != EFX_RENDER_OK)
         return fail("16-surface mesh record");
     int count = 0;
     efx_render_records(&count);
@@ -999,7 +999,7 @@ static int mesh_record_budget(void) {
     /* and the budget still trips eventually on mesh records */
     int pushed = 0;
     for (;;) {
-        int rc = efx_render_mesh(m, NULL, NULL, 0, 1);
+        int rc = efx_render_mesh(m, NULL, NULL, 0, 1, 0);
         if (rc == EFX_RENDER_ERR_BUDGET) break;
         if (rc != EFX_RENDER_OK) return fail("mesh budget loop error");
         pushed++;
@@ -1007,6 +1007,243 @@ static int mesh_record_budget(void) {
     }
     if (pushed < 10000) return fail("mesh budget suspiciously small");
     efx_render_begin_frame();
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* mesh bounds (mesh frustum culling, ADR 0065): computed at ingest from all
+   surfaces' positions, replaced verbatim by the override, carried onto the
+   mesh slot */
+static int meshdata_bounds(void) {
+    static const float pos0[9] = {0, 0, 0, 2, 0, 0, 0, 2, 0};
+    static const float pos1[9] = {-1, 0, 5, 3, 0, 5, -1, 4, 5};
+    efx_surface_src src[2];
+    memset(src, 0, sizeof(src));
+    src[0].positions_len = 9;
+    src[0].positions = pos0;
+    src[1].positions_len = 9;
+    src[1].positions = pos1;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(src, 2, &err);
+    if (!md) return fail("fixture");
+    if (!feq(md->bounds_min[0], -1) || !feq(md->bounds_min[1], 0) ||
+        !feq(md->bounds_min[2], 0)) return fail("computed bounds min");
+    if (!feq(md->bounds_max[0], 3) || !feq(md->bounds_max[1], 4) ||
+        !feq(md->bounds_max[2], 5)) return fail("computed bounds max");
+
+    /* override: stored verbatim (an inverted box is the caller's statement) */
+    float omin[3] = {-9, -9, -9}, omax[3] = {9, 9, 1};
+    efx_meshdata_set_bounds(md, omin, omax);
+    if (!feq(md->bounds_min[0], -9) || !feq(md->bounds_max[2], 1))
+        return fail("override bounds");
+
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m) return fail("mesh create");
+    float gmin[3], gmax[3];
+    if (!efx_render_mesh_bounds(m, gmin, gmax)) return fail("mesh bounds query");
+    if (!feq(gmin[0], -9) || !feq(gmax[0], 9) || !feq(gmax[2], 1))
+        return fail("bounds not carried to mesh");
+    if (efx_render_mesh_bounds(0, gmin, gmax)) return fail("dead handle bounds");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* one-triangle mesh fixture (bounds 0..1 on x/y, z = 0) */
+static efx_meshdata *make_origin_tri_md(void) {
+    static const float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    static const uint32_t idx[3] = {0, 1, 2};
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9;
+    s.positions = pos;
+    s.indices_len = 3;
+    s.indices = idx;
+    int err = 0;
+    return efx_meshdata_create(&s, 1, &err);
+}
+
+static uint64_t make_origin_tri_mesh(void) {
+    efx_meshdata *md = make_origin_tri_md();
+    if (!md) return 0;
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    return m;
+}
+
+static void cull_camera(void) {
+    /* eye on +z looking at the origin, fov 60, surface 640x480
+       (aspect 4/3): half-height 5.77 and half-width 7.70 at the z=0 plane */
+    efx_camera3d cam;
+    memset(&cam, 0, sizeof(cam));
+    cam.pos[2] = 10.0f;
+    cam.fov = 60.0f;
+    cam.near_z = 0.1f;
+    cam.far_z = 100.0f;
+    efx_render_set_camera3d(&cam);
+    efx_render_set_viewport(640, 480);
+}
+
+static int mesh_frustum_cull(void) {
+    install_mock_sink();
+    cull_camera();
+    uint64_t m = make_origin_tri_mesh();
+    if (!m) return fail("fixture");
+
+    float t_in[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    float t_back[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 50, 1};
+    float t_right_out[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 9, 0, 0, 1};
+    float t_right_straddle[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 7, 0, 0, 1};
+    int count = 0;
+
+    /* inside: recorded */
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, t_in, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("inside record");
+    efx_render_records(&count);
+    if (count != 1) return fail("inside mesh was culled");
+
+    /* fully behind the camera plane: culled — no record, no error */
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, t_back, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("culled draw must not error");
+    efx_render_records(&count);
+    if (count != 0) return fail("behind-camera mesh not culled");
+
+    /* fully beyond the right plane: culled */
+    efx_render_begin_frame();
+    efx_render_mesh(m, t_right_out, NULL, 0, 1, 1);
+    efx_render_records(&count);
+    if (count != 0) return fail("off-frustum mesh not culled");
+
+    /* straddling the right plane: always recorded (conservative) */
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, t_right_straddle, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("straddle record");
+    efx_render_records(&count);
+    if (count != 1) return fail("straddling mesh was culled");
+
+    /* cull disabled: the same outside draw records */
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, t_right_out, NULL, 0, 1, 0) != EFX_RENDER_OK)
+        return fail("cull=0 record");
+    efx_render_records(&count);
+    if (count != 1) return fail("cull=0 outside mesh was dropped");
+
+    /* identity default transform (NULL) draws at the origin: recorded */
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("NULL transform record");
+    efx_render_records(&count);
+    if (count != 1) return fail("NULL transform mesh culled");
+
+    /* fail open: degenerate camera (eye == target) keeps the draw */
+    efx_camera3d deg;
+    memset(&deg, 0, sizeof(deg));
+    deg.pos[0] = deg.pos[1] = deg.pos[2] = 5.0f;
+    deg.target[0] = 5.0f;
+    deg.target[1] = 5.0f;
+    deg.target[2] = 5.0f;
+    deg.fov = 60.0f;
+    deg.near_z = 0.1f;
+    deg.far_z = 100.0f;
+    efx_render_set_camera3d(&deg);
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, t_right_out, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("degenerate camera record");
+    efx_render_records(&count);
+    if (count != 1) return fail("degenerate camera culled the draw");
+
+    /* fail open: inverted override bounds (min > max) keep the draw */
+    cull_camera();
+    float imin[3] = {5, 0, 0}, imax[3] = {-5, 0, 0};
+    efx_meshdata *md = make_origin_tri_md();
+    if (!md) return fail("fixture 2");
+    efx_meshdata_set_bounds(md, imin, imax);
+    uint64_t m2 = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m2) return fail("mesh create 2");
+    efx_render_begin_frame();
+    if (efx_render_mesh(m2, t_right_out, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("inverted bounds record");
+    efx_render_records(&count);
+    if (count != 1) return fail("inverted bounds culled the draw");
+
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* culled draws consume no display-list budget: off-screen draws leave the
+   record list empty and an in-view draw still records after them */
+static int mesh_cull_budget(void) {
+    install_mock_sink();
+    cull_camera();
+    uint64_t m = make_origin_tri_mesh();
+    if (!m) return fail("fixture");
+    float t_back[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 50, 1};
+    float t_in[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    efx_render_begin_frame();
+    for (int i = 0; i < 10000; i++) {
+        if (efx_render_mesh(m, t_back, NULL, 0, 1, 1) != EFX_RENDER_OK)
+            return fail("culled draw hit the budget");
+    }
+    if (efx_render_mesh(m, t_in, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("in-view draw after culled draws");
+    int count = 0;
+    efx_render_records(&count);
+    if (count != 1) return fail("culled draws consumed budget");
+    efx_render_begin_frame();
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+/* skinned draws are never frustum-culled (bind-pose bounds do not describe
+   posed geometry): a rig mesh drawn posed at a transform fully outside its
+   bind-pose bounds still records */
+static int mesh_cull_skinned(void) {
+    install_mock_sink();
+    cull_camera();
+    efx_meshdata *md = make_origin_tri_md();
+    if (!md) return fail("fixture");
+    /* minimal one-joint rig so skinned draws pass the rig gate */
+    efx_rig *rig = calloc(1, sizeof(efx_rig));
+    if (!rig) return fail("rig alloc");
+    rig->joint_count = 1;
+    rig->joint_nodes = malloc(sizeof(int));
+    rig->joint_parents = malloc(sizeof(int));
+    rig->inverse_bind = malloc(16 * sizeof(float));
+    if (!rig->joint_nodes || !rig->joint_parents || !rig->inverse_bind)
+        return fail("rig alloc");
+    rig->joint_nodes[0] = 0;
+    rig->joint_parents[0] = -1;
+    for (int i = 0; i < 16; i++) {
+        rig->inverse_bind[i] = (i % 5 == 0) ? 1.0f : 0.0f;
+    }
+    efx_meshdata_set_rig(md, rig);
+    uint64_t sm = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!sm) return fail("skinned mesh create");
+
+    float t_out[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 9, 0, 0, 1};
+    int count = 0;
+    /* posed draw beyond the bind-pose box: recorded (bypass) */
+    efx_render_begin_frame();
+    if (efx_render_mesh(sm, t_out, NULL, 1, 1, 1) != EFX_RENDER_OK)
+        return fail("skinned record");
+    efx_render_records(&count);
+    if (count != 1) return fail("skinned draw was culled");
+
+    /* the same outside transform with skinned=0 uses bind bounds: culled */
+    efx_render_begin_frame();
+    if (efx_render_mesh(sm, t_out, NULL, 0, 1, 1) != EFX_RENDER_OK)
+        return fail("bind draw");
+    efx_render_records(&count);
+    if (count != 0) return fail("bind-pose draw outside view not culled");
+
     efx_render_end_frame();
     efx_render_shutdown();
     return 0;
@@ -1089,7 +1326,7 @@ static int light_snapshot(void) {
     p.pos[0] = 1; p.pos[1] = 1; p.pos[2] = 1;
     p.color[0] = 1; p.color[3] = 1;
     efx_render_set_point_light(0, &p);
-    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 0) != EFX_RENDER_OK)
         return fail("record");
     /* later light change must not alter the recorded snapshot */
     efx_render_set_point_light(0, NULL);
@@ -1648,7 +1885,7 @@ static int feedback_guard(void) {
     efx_material_default(&mat);
     mat.diffuse_map = rt;
     efx_render_mesh_set_material(mesh, 0, &mat, 1);
-    if (efx_render_mesh(mesh, NULL, NULL, 0, 1) != EFX_RENDER_ERR_FEEDBACK)
+    if (efx_render_mesh(mesh, NULL, NULL, 0, 1, 0) != EFX_RENDER_ERR_FEEDBACK)
         return fail("mesh feedback accepted");
     int after = 0;
     efx_render_records(&after);
@@ -2243,15 +2480,15 @@ static int mesh_skinned_flag(void) {
     uint64_t sm = efx_render_mesh_create(smd);
     efx_meshdata_destroy(smd);
 
-    if (efx_render_mesh(sm, NULL, NULL, 1, 1) != EFX_RENDER_ERR_RIG)
+    if (efx_render_mesh(sm, NULL, NULL, 1, 1, 0) != EFX_RENDER_ERR_RIG)
         return fail("static skinned draw accepted");
     int count = 0;
     efx_render_records(&count);
     if (count != 0) return fail("rejected draw recorded");
 
-    if (efx_render_mesh(m, NULL, NULL, 1, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 1, 1, 0) != EFX_RENDER_OK)
         return fail("skinned draw");
-    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 0) != EFX_RENDER_OK)
         return fail("bind draw");
     const efx_record *recs = efx_render_records(&count);
     if (count != 2) return fail("record count");
@@ -2599,7 +2836,7 @@ static int billboard_batching(void) {
     efx_meshdata_destroy(md);
     efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
                          NULL, 0, EFX_BLEND_INHERIT);
-    efx_render_mesh(mesh, NULL, NULL, 0, 1);
+    efx_render_mesh(mesh, NULL, NULL, 0, 1, 0);
     efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
                          NULL, 0, EFX_BLEND_INHERIT);
     runs = efx_render_billboard_runs(&n);
@@ -2663,6 +2900,10 @@ static const efx_test_case cases[] = {
     EFX_CASE(blend_overrides),
     EFX_CASE(mesh_record_order),
     EFX_CASE(mesh_record_budget),
+    EFX_CASE(meshdata_bounds),
+    EFX_CASE(mesh_frustum_cull),
+    EFX_CASE(mesh_cull_budget),
+    EFX_CASE(mesh_cull_skinned),
     EFX_CASE(lights_state),
     EFX_CASE(light_snapshot),
     EFX_CASE(material_binding),
