@@ -69,6 +69,18 @@ Material object, or `null` to restore the engine default.
 
 ## Properties
 
+### bounds
+
+> `readonly` **bounds**: [`MeshBounds`](MeshBounds.md)
+
+Axis-aligned bounds of the mesh geometry (bind pose for skinned meshes),
+carried from the MeshData at upload: the box `min`/`max` and its derived
+`center` and bounding-sphere `radius`. Feeds the engine's frustum
+culling; read it to debug culled draws. Fresh plain data — mutating it
+does not affect the engine. Throws `TypeError` when destroyed.
+
+***
+
 ### surfaceCount
 
 > `readonly` **surfaceCount**: `number`

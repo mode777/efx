@@ -372,7 +372,7 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     JS_SetPropertyStr(rt->ctx, natives, "loadImage", n);
     n = JS_NewCFunction(rt->ctx, efx_js_load_meshdata_wire, "loadMeshData", 5);
     JS_SetPropertyStr(rt->ctx, natives, "loadMeshData", n);
-    n = JS_NewCFunction(rt->ctx, efx_js_create_meshdata_wire, "createMeshData", 12);
+    n = JS_NewCFunction(rt->ctx, efx_js_create_meshdata_wire, "createMeshData", 14);
     JS_SetPropertyStr(rt->ctx, natives, "createMeshData", n);
     n = JS_NewCFunction(rt->ctx, efx_js_make_heightfield_wire,
                         "makeHeightfieldWire", 11);

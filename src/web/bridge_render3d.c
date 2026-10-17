@@ -190,7 +190,26 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_commit(int id) {
     s->md->surfaces = s->staged;
     s->md->rig = NULL; /* script-built meshes carry no rig payload */
     s->staged = NULL; /* ownership moved into the meshdata */
+    /* the bridge assembles the MeshData by hand (no efx_meshdata_create),
+     * so the bounds scan happens here — keep paired with the override
+     * export below and src/web/js/audio.js */
+    efx_meshdata_compute_bounds(s->md);
     return EFX_MESHERR_OK;
+}
+
+/* createMeshData { bounds } override (mesh frustum culling): six floats
+ * min.xyz, max.xyz stored verbatim. Paired with the commit-path scan above. */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_meshdata_set_bounds(int id,
+                                                        const float *v,
+                                                        int has) {
+    wmd_slot *s = wmd_get(id);
+    if (!s || !s->alive || !s->md || !v) {
+        return -1;
+    }
+    if (has) {
+        efx_meshdata_set_bounds(s->md, v, v + 3);
+    }
+    return 0;
 }
 
 EMSCRIPTEN_KEEPALIVE void efx_bridge_meshdata_destroy(int id) {
@@ -309,13 +328,25 @@ EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_surface_count(double handle) {
     return efx_render_mesh_surface_count((uint64_t)handle);
 }
 
+/* Mesh.bounds: writes min.xyz, max.xyz (6 floats) into `out`; 1 ok */
+EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_bounds(double handle, float *out) {
+    float bmin[3], bmax[3];
+    if (!out || !efx_render_mesh_bounds((uint64_t)handle, bmin, bmax)) {
+        return 0;
+    }
+    memcpy(out, bmin, 3 * sizeof(float));
+    memcpy(out + 3, bmax, 3 * sizeof(float));
+    return 1;
+}
+
 EMSCRIPTEN_KEEPALIVE int efx_bridge_draw_mesh(double handle,
                                               const float *transform,
                                               const float *color,
                                               int skinned,
-                                              int depth_write) {
+                                              int depth_write,
+                                              int cull) {
     return efx_render_mesh((uint64_t)handle, transform, color, skinned,
-                           depth_write);
+                           depth_write, cull);
 }
 
 /* F7: one wire pose sample: [clip_index, time, weight] per entry */

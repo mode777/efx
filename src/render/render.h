@@ -344,12 +344,26 @@ typedef struct efx_meshdata {
     efx_surface *surfaces;
     int surface_count;
     efx_rig *rig;   /* NULL when the asset carries no skin/clips (F6c) */
+    /* axis-aligned bounds of all surface positions (bind pose), computed at
+     * creation; frustum culling + the Mesh.bounds query read these */
+    float bounds_min[3], bounds_max[3];
 } efx_meshdata;
 
 /* validates + deep-copies; NULL + one of the EFX_MESHERR_* codes */
 efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
                                   int *err);
 void efx_meshdata_destroy(efx_meshdata *md); /* idempotent, NULL safe */
+
+/* (re)compute bounds_min/bounds_max from every surface's positions. The
+ * create path calls this; the web bridge assembles MeshData by hand and
+ * calls it at commit. Paired with the web createMeshData fragment
+ * (src/web/js/audio.js), which forwards the bounds override. */
+void efx_meshdata_compute_bounds(efx_meshdata *md);
+
+/* replace the computed bounds verbatim (createMeshData { bounds } override;
+ * an inverted box is stored as given and fails open at cull time) */
+void efx_meshdata_set_bounds(efx_meshdata *md, const float bmin[3],
+                             const float bmax[3]);
 
 /* per-surface material binding on CPU MeshData (copied at createMesh);
  * has=0 clears the binding (engine default) */
@@ -613,7 +627,10 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
                     const float src_rect[4], int has_src,
                     float origin_x, float origin_y, int blend_override);
 int efx_render_mesh(uint64_t mesh, const float transform[16],
-                    const float color[4], int skinned, int depth_write);
+                    const float color[4], int skinned, int depth_write,
+                    int cull);
+/* mesh bounds query (Mesh.bounds; 1 ok, 0 no such mesh) */
+int efx_render_mesh_bounds(uint64_t mesh, float out_min[3], float out_max[3]);
 const efx_record *efx_render_records(int *count);
 const efx_draw_run *efx_render_runs(int *count); /* batched quad plan */
 const efx_billboard_run *efx_render_billboard_runs(int *count);

@@ -607,6 +607,14 @@ interface EfxMesh {
   /** Number of surfaces (1..16). */
   readonly surfaceCount: number;
   /**
+   * Axis-aligned bounds of the mesh geometry (bind pose for skinned meshes),
+   * carried from the MeshData at upload: the box `min`/`max` and its derived
+   * `center` and bounding-sphere `radius`. Feeds the engine's frustum
+   * culling; read it to debug culled draws. Fresh plain data — mutating it
+   * does not affect the engine. Throws `TypeError` when destroyed.
+   */
+  readonly bounds: MeshBounds;
+  /**
    * CPU-pose this skinned mesh in place. Keeps no playback state — the script
    * owns the clock.
    *
@@ -622,6 +630,22 @@ interface EfxMesh {
   setSurfaceMaterial(surfaceIndex: number, mat: Material | null): void;
   /** Release the native storage deterministically and idempotently. */
   destroy(): void;
+}
+
+/**
+ * Axis-aligned mesh bounds as returned by `EfxMesh.bounds`.
+ *
+ * @group Graphics
+ */
+interface MeshBounds {
+  /** Box minimum `[x, y, z]`. */
+  min: Vec3;
+  /** Box maximum `[x, y, z]`. */
+  max: Vec3;
+  /** Box center `[x, y, z]`. */
+  center: Vec3;
+  /** Bounding-sphere radius of the box. */
+  radius: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1055,6 +1079,15 @@ interface DrawMeshOptions {
    * draw a camera-locked sky before the scene.
    */
   depthWrite?: boolean;
+  /**
+   * Frustum culling (default `true`). When `true`, the draw is skipped
+   * entirely when the mesh's bounds, transformed by `transform`, lie fully
+   * outside the current 3D camera's view (posed/skinned draws are never
+   * culled — bind-pose bounds do not describe posed geometry). `false`
+   * disables the test for this draw. This is *frustum* culling only —
+   * unrelated to face culling.
+   */
+  cull?: boolean;
 }
 
 /**
@@ -1323,6 +1356,28 @@ interface RenderScaleOptions {
 interface LoadMeshDataOptions {
   /** Mesh selector: a non-negative index or a mesh name; defaults to the first mesh. */
   mesh?: number | string;
+}
+
+/**
+ * Options for `createMeshData`.
+ *
+ * @example
+ * ```js
+ * const md = efx.graphics.createMeshData(surfaces, null, {
+ *   bounds: { min: [-1, -1, -1], max: [1, 1, 1] }, // covers the posed range
+ * });
+ * ```
+ * @hidden
+ * @inline
+ */
+interface CreateMeshDataOptions {
+  /**
+   * Box replacing the engine-computed bounds (the axis-aligned hull of all
+   * surface positions). Stored verbatim — an inverted box fails open at
+   * cull time. Use it when post-processing MeshData moves geometry outside
+   * the original positions, or to cover a skinned mesh's whole animation.
+   */
+  bounds?: { min: Vec3; max: Vec3 };
 }
 
 // ---------------------------------------------------------------------------
@@ -2386,10 +2441,13 @@ interface EfxGraphics {
    *
    * @param surfaces - 1..16 surfaces, each a Godot surface / glTF primitive.
    * @param materials - Optional parallel array; `null` selects the engine default.
+   * @param opts - Optional bag; `bounds` replaces the engine-computed mesh
+   *   bounds (used by frustum culling) with the given box.
    * @returns The new CPU MeshData.
    */
   createMeshData(surfaces: MeshSurfaceData[],
-                 materials?: (Material | null)[]): EfxMeshData;
+                 materials?: (Material | null)[],
+                 opts?: CreateMeshDataOptions): EfxMeshData;
   /**
    * Upload all surfaces of MeshData to a GPU mesh.
    *
@@ -2400,8 +2458,12 @@ interface EfxGraphics {
   /**
    * Draw a whole mesh, depth-tested, under the recorded 3D camera.
    *
+   * The draw is frustum-culled by default: a mesh whose transformed bounds
+   * lie fully outside the current 3D camera's view records nothing (skinned
+   * draws are never culled). Pass `cull: false` to disable.
+   *
    * @param mesh - Live mesh to draw (required positional argument).
-   * @param opts - Optional transform, tint, and skinned flag.
+   * @param opts - Optional transform, tint, skinned flag, depth-write, and frustum-cull flag.
    */
   drawMesh(mesh: EfxMesh, opts?: DrawMeshOptions): void;
   /**

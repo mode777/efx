@@ -81,12 +81,14 @@ static uint32_t *wire_u32(JSContext *ctx, JSValueConst v, size_t *out_len) {
 
 /* (count, lens Int32Array(count*7), pos, nrm, uv, col, joints Uint32Array,
  * weights, indices Uint32Array, blocks Float32Array|null, maps Float64Array|null,
- * matHas Int32Array) */
+ * matHas Int32Array, bmin Float32Array(3)|null, bmax Float32Array(3)|null).
+ * bmin/bmax carry the prelude-validated { bounds } override (both present or
+ * both absent). */
 JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
                                     int argc, JSValueConst *argv) {
     (void)this_val;
-    if (argc < 12) {
-        return efx_api_type_error(ctx, "meshdata wire native requires 12 arguments");
+    if (argc < 14) {
+        return efx_api_type_error(ctx, "meshdata wire native requires 14 arguments");
     }
     int32_t count = 0;
     if (JS_ToInt32(ctx, &count, argv[0]) < 0 || count < 1 ||
@@ -127,6 +129,16 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
     int32_t *mat_has = wire_i32(ctx, argv[11], &nhas);
     if (!mat_has || nhas < (size_t)count) {
         return efx_api_type_error(ctx, "meshdata wire material flags");
+    }
+    float *bmin = NULL, *bmax = NULL;
+    size_t nbmin = 0, nbmax = 0;
+    if (!JS_IsNull(argv[12]) && !JS_IsUndefined(argv[12]) &&
+        !JS_IsNull(argv[13]) && !JS_IsUndefined(argv[13])) {
+        bmin = wire_f32(ctx, argv[12], &nbmin);
+        bmax = wire_f32(ctx, argv[13], &nbmax);
+        if (!bmin || !bmax || nbmin < 3 || nbmax < 3) {
+            return efx_api_type_error(ctx, "meshdata wire bounds override");
+        }
     }
 
     /* slice the streams per surface (efx_meshdata_create copies) */
@@ -178,6 +190,11 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
                                 maps + (size_t)i * 5);
             efx_meshdata_set_material(md, i, &m, 1);
         }
+    }
+    if (bmin && bmax) {
+        /* createMeshData { bounds } override: stored verbatim (an inverted
+         * box fails open at cull time, ADR 0065) */
+        efx_meshdata_set_bounds(md, bmin, bmax);
     }
     efxjs_meshdata *wrap = calloc(1, sizeof(efxjs_meshdata));
     if (!wrap) {
@@ -319,6 +336,7 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
     float color[4] = {1, 1, 1, 1};
     int skinned = 0;
     int depth_write = 1;
+    int cull = 1;
 
     if (argc >= 2 && !JS_IsUndefined(argv[1])) {
         JSValueConst opts = argv[1];
@@ -326,8 +344,8 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
             return efx_api_type_error(ctx, "drawMesh options must be an object");
         }
         static const char *known[] = {"transform", "color", "skinned",
-                                      "depthWrite"};
-        if (efx_api_check_known_fields(ctx, opts, known, 4, "drawMesh") != 0) {
+                                      "depthWrite", "cull"};
+        if (efx_api_check_known_fields(ctx, opts, known, 5, "drawMesh") != 0) {
             return JS_EXCEPTION;
         }
         JSValue tv = JS_GetPropertyStr(ctx, opts, "transform");
@@ -392,10 +410,20 @@ JSValue efx_js_drawMesh(JSContext *ctx, JSValueConst this_val,
             depth_write = JS_ToBool(ctx, dv) ? 1 : 0;
         }
         JS_FreeValue(ctx, dv);
+
+        JSValue cv2 = JS_GetPropertyStr(ctx, opts, "cull");
+        if (!JS_IsUndefined(cv2)) {
+            if (!JS_IsBool(cv2)) {
+                JS_FreeValue(ctx, cv2);
+                return efx_api_type_error(ctx, "cull must be a boolean");
+            }
+            cull = JS_ToBool(ctx, cv2) ? 1 : 0;
+        }
+        JS_FreeValue(ctx, cv2);
     }
 
     int rc = efx_render_mesh(mesh->handle, has_transform ? transform : NULL,
-                             color, skinned, depth_write);
+                             color, skinned, depth_write, cull);
     if (rc == EFX_RENDER_ERR_BUDGET) {
         return efx_api_range_error(ctx, "display list budget exceeded");
     }

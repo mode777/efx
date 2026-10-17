@@ -127,6 +127,135 @@ int efx_render_camera3d_active(void) {
     return R.camera3d_set;
 }
 
+/* ---- mesh frustum culling (add-mesh-frustum-culling, ADR 0065) ----
+ * Fail-open by contract: the test only ever says "cull" for a box it can
+ * prove fully outside one frustum plane; any degenerate or non-finite state
+ * keeps the draw. */
+
+#include <float.h>
+
+/* world-space AABB of the local bounds box transformed by the model matrix
+ * (8 corners, w-divide). Returns 0 on any non-finite or near-zero w
+ * (projective/degenerate matrix) — the caller keeps the draw. */
+static int mesh_world_box(const float m[16], const float bmin[3],
+                          const float bmax[3], float out_min[3],
+                          float out_max[3]) {
+    float wmn[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
+    float wmx[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (int i = 0; i < 8; i++) {
+        float c[3] = {(i & 1) ? bmax[0] : bmin[0],
+                      (i & 2) ? bmax[1] : bmin[1],
+                      (i & 4) ? bmax[2] : bmin[2]};
+        float w = m[3] * c[0] + m[7] * c[1] + m[11] * c[2] + m[15];
+        if (w > -1e-6f && w < 1e-6f) {
+            return 0;
+        }
+        float p[3] = {(m[0] * c[0] + m[4] * c[1] + m[8] * c[2] + m[12]) / w,
+                      (m[1] * c[0] + m[5] * c[1] + m[9] * c[2] + m[13]) / w,
+                      (m[2] * c[0] + m[6] * c[1] + m[10] * c[2] + m[14]) / w};
+        for (int k = 0; k < 3; k++) {
+            if (!isfinite(p[k])) {
+                return 0;
+            }
+            if (p[k] < wmn[k]) wmn[k] = p[k];
+            if (p[k] > wmx[k]) wmx[k] = p[k];
+        }
+    }
+    memcpy(out_min, wmn, sizeof(wmn));
+    memcpy(out_max, wmx, sizeof(wmx));
+    return 1;
+}
+
+/* 1 = the world box is fully outside at least one frustum plane (cull);
+ * 0 = keep (inside, straddling, or any state the test cannot prove).
+ * Planes use the same basis construction as efx_render_screen_ray
+ * (forward = target - pos, right = fwd × worldUp, up = right × fwd);
+ * aspect is the active rendering surface's (efx_render_surface_size). */
+static int mesh_frustum_cull(const efx_camera3d *cam, float aspect,
+                             const float bmin[3], const float bmax[3]) {
+    float f[3] = {cam->target[0] - cam->pos[0], cam->target[1] - cam->pos[1],
+                  cam->target[2] - cam->pos[2]};
+    float fl = sqrtf(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
+    if (!(fl > 0.0f) || !isfinite(fl)) {
+        return 0; /* degenerate camera: fail open */
+    }
+    f[0] /= fl; f[1] /= fl; f[2] /= fl;
+    float r[3] = {-f[2], 0.0f, f[0]};
+    float rl = sqrtf(r[0] * r[0] + r[2] * r[2]);
+    if (!(rl > 0.0f) || !isfinite(rl)) {
+        return 0; /* forward parallel to world up: fail open */
+    }
+    r[0] /= rl; r[2] /= rl;
+    float u[3] = {r[1] * f[2] - r[2] * f[1],
+                  r[2] * f[0] - r[0] * f[2],
+                  r[0] * f[1] - r[1] * f[0]};
+    if (!(cam->fov > 0.0f) || !isfinite(cam->fov) || !(aspect > 0.0f) ||
+        !isfinite(aspect) || !(cam->near_z >= 0.0f) ||
+        !isfinite(cam->near_z) || !(cam->far_z > cam->near_z) ||
+        !isfinite(cam->far_z)) {
+        return 0;
+    }
+    float t = tanf(cam->fov * DEG2RAD * 0.5f);
+    float ts = t * aspect;
+    if (!isfinite(t) || !isfinite(ts) || t <= 0.0f) {
+        return 0;
+    }
+    /* planes: (n, d), inside = dot(n, p) + d >= 0 */
+    float planes[6][4];
+    const float dot_eye_f = f[0] * cam->pos[0] + f[1] * cam->pos[1] +
+                            f[2] * cam->pos[2];
+    /* near / far */
+    planes[0][0] = f[0];  planes[0][1] = f[1];  planes[0][2] = f[2];
+    planes[0][3] = -(dot_eye_f + cam->near_z);
+    planes[1][0] = -f[0]; planes[1][1] = -f[1]; planes[1][2] = -f[2];
+    planes[1][3] = dot_eye_f + cam->far_z;
+    /* left (n = r + f·ts) / right (n = f·ts − r), normalized */
+    float nrm[3] = {r[0] + f[0] * ts, r[1] + f[1] * ts, r[2] + f[2] * ts};
+    float nl = sqrtf(nrm[0] * nrm[0] + nrm[1] * nrm[1] + nrm[2] * nrm[2]);
+    if (!(nl > 0.0f) || !isfinite(nl)) return 0;
+    planes[2][0] = nrm[0] / nl; planes[2][1] = nrm[1] / nl;
+    planes[2][2] = nrm[2] / nl;
+    planes[2][3] = -(planes[2][0] * cam->pos[0] + planes[2][1] * cam->pos[1] +
+                     planes[2][2] * cam->pos[2]);
+    nrm[0] = f[0] * ts - r[0]; nrm[1] = f[1] * ts - r[1]; nrm[2] = f[2] * ts - r[2];
+    nl = sqrtf(nrm[0] * nrm[0] + nrm[1] * nrm[1] + nrm[2] * nrm[2]);
+    if (!(nl > 0.0f) || !isfinite(nl)) return 0;
+    planes[3][0] = nrm[0] / nl; planes[3][1] = nrm[1] / nl;
+    planes[3][2] = nrm[2] / nl;
+    planes[3][3] = -(planes[3][0] * cam->pos[0] + planes[3][1] * cam->pos[1] +
+                     planes[3][2] * cam->pos[2]);
+    /* top (n = f·t − u) / bottom (n = u + f·t), normalized */
+    nrm[0] = f[0] * t - u[0]; nrm[1] = f[1] * t - u[1]; nrm[2] = f[2] * t - u[2];
+    nl = sqrtf(nrm[0] * nrm[0] + nrm[1] * nrm[1] + nrm[2] * nrm[2]);
+    if (!(nl > 0.0f) || !isfinite(nl)) return 0;
+    planes[4][0] = nrm[0] / nl; planes[4][1] = nrm[1] / nl;
+    planes[4][2] = nrm[2] / nl;
+    planes[4][3] = -(planes[4][0] * cam->pos[0] + planes[4][1] * cam->pos[1] +
+                     planes[4][2] * cam->pos[2]);
+    nrm[0] = u[0] + f[0] * t; nrm[1] = u[1] + f[1] * t; nrm[2] = u[2] + f[2] * t;
+    nl = sqrtf(nrm[0] * nrm[0] + nrm[1] * nrm[1] + nrm[2] * nrm[2]);
+    if (!(nl > 0.0f) || !isfinite(nl)) return 0;
+    planes[5][0] = nrm[0] / nl; planes[5][1] = nrm[1] / nl;
+    planes[5][2] = nrm[2] / nl;
+    planes[5][3] = -(planes[5][0] * cam->pos[0] + planes[5][1] * cam->pos[1] +
+                     planes[5][2] * cam->pos[2]);
+    /* p-vertex test per plane with early-out */
+    for (int i = 0; i < 6; i++) {
+        const float *n = planes[i];
+        float px = n[0] >= 0.0f ? bmax[0] : bmin[0];
+        float py = n[1] >= 0.0f ? bmax[1] : bmin[1];
+        float pz = n[2] >= 0.0f ? bmax[2] : bmin[2];
+        float dist = n[0] * px + n[1] * py + n[2] * pz + planes[i][3];
+        if (!isfinite(dist)) {
+            return 0;
+        }
+        if (dist < 0.0f) {
+            return 1; /* entirely beyond this plane */
+        }
+    }
+    return 0;
+}
+
 /* world-space ray through a screen point under the current 3D camera
  * (screenRay, script-api-ergonomics). `sx, sy` are frame pixels within
  * `extent_w × extent_h` (top-left origin, y down). rc 0 ok; -1 no 3D camera;
@@ -386,7 +515,8 @@ int efx_render_quad(float x, float y, float w, float h, uint64_t texture,
 }
 
 int efx_render_mesh(uint64_t mesh, const float transform[16],
-                    const float color[4], int skinned, int depth_write) {
+                    const float color[4], int skinned, int depth_write,
+                    int cull) {
     ensure_state();
     if (!mesh || !efx_render_mesh_alive(mesh)) {
         return EFX_RENDER_ERR_HANDLE;
@@ -407,6 +537,41 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
             for (int k = 0; k < 5; k++) {
                 if (maps[k] && maps[k] == R.active_target) {
                     return EFX_RENDER_ERR_FEEDBACK;
+                }
+            }
+        }
+    }
+    /* frustum culling (ADR 0065): skip the record entirely for a draw that
+       is provably fully outside the active camera's view. Posed (skinned)
+       draws bypass the test — bind-pose bounds do not describe posed
+       geometry — and every ambiguous state keeps the draw (fail open). */
+    if (cull && !skinned) {
+        mesh_slot *ms = mesh_get(mesh);
+        float bmin[3], bmax[3];
+        memcpy(bmin, ms->bmin, sizeof(bmin));
+        memcpy(bmax, ms->bmax, sizeof(bmax));
+        /* inverted override box (min > max): degenerate bounds, fail open */
+        int inverted = 0;
+        for (int k = 0; k < 3; k++) {
+            if (bmin[k] > bmax[k]) {
+                inverted = 1;
+            }
+        }
+        int sw = 0, sh = 0;
+        float aspect = 0.0f;
+        efx_render_surface_size(&sw, &sh);
+        if (!inverted && sw > 0 && sh > 0) {
+            /* the draw's model matrix: the option transform, else identity
+               (the record builds the same default below) */
+            float ident[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+            const float *model = transform ? transform : ident;
+            aspect = (float)sw / (float)sh;
+            if (aspect > 0.0f && isfinite(aspect)) {
+                float wmin[3], wmax[3];
+                if (mesh_world_box(
+                        model, bmin, bmax, wmin, wmax) &&
+                    mesh_frustum_cull(&R.camera3d, aspect, wmin, wmax)) {
+                    return EFX_RENDER_OK; /* culled: no record, no budget */
                 }
             }
         }

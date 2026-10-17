@@ -88,6 +88,22 @@ efx.graphics.endRenderTarget();
 efx.graphics.setPostEffects([{ effect: 'bloom', threshold: 0.7, strength: 0.8, mix: 0.5 }]);
 efx.graphics.setRenderScale(0.5, { filter: 'nearest' });
 
+// mesh bounds + frustum culling — the bounds query, the cull option, the
+// createMeshData bounds override
+const cb: MeshBounds = cube.bounds;
+const cbMin: Vec3 = cb.min;
+const cbRadius: number = cb.radius;
+efx.graphics.drawMesh(cube, { cull: false });
+efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] }], undefined, {
+  bounds: { min: [0, 0, 0], max: [1, 1, 1] },
+});
+// @ts-expect-error — cull is a boolean
+efx.graphics.drawMesh(cube, { cull: 1 });
+// @ts-expect-error — bounds holds min and max boxes
+efx.graphics.createMeshData([{ positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] }], null, {
+  bounds: { min: [0, 0, 0] },
+});
+
 // F6b — glTF import and per-texture samplers
 const imported: EfxMeshData = efx.graphics.loadMeshData('models/quad.glb');
 efx.graphics.createMesh(imported).destroy();

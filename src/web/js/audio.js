@@ -304,7 +304,8 @@
             return new EfxMeshData(id);
         },
         createMeshData: function (count, lens, pos, nrm, uv, col, joints,
-                                  weights, idx, blocks, maps, matHas) {
+                                  weights, idx, blocks, maps, matHas,
+                                  bmin, bmax) {
             var id = bridge['_efx_bridge_meshdata_create'](count);
             if (!id) {
                 throw new Error('out of memory');
@@ -354,6 +355,19 @@
                         bridge['_free'](mptr);
                         bridge['_free'](mapsptr);
                     }
+                }
+                /* bounds override (mesh frustum culling): both present or
+                   both absent; applied to the committed meshdata, verbatim.
+                   Pairs with the desktop scan in efx_meshdata_create /
+                   efx_meshdata_compute_bounds and the bridge commit path
+                   (bridge_render3d.c) — keep the two ingest sites in sync. */
+                if (bmin && bmax) {
+                    var six = new Float32Array(6);
+                    six.set(bmin.subarray(0, 3), 0);
+                    six.set(bmax.subarray(0, 3), 3);
+                    var bptr = mallocCopyF32(six);
+                    bridge['_efx_bridge_meshdata_set_bounds'](id, bptr, 1);
+                    bridge['_free'](bptr);
                 }
                 return new EfxMeshData(id);
             } catch (e) {

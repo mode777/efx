@@ -67,6 +67,7 @@ typedef struct {
     int surface_count;
     void *native;
     mesh_pending pending;
+    float bmin[3], bmax[3];   /* MeshData bounds carried at upload (culling) */
     efx_material *materials;  /* surface_count entries (F4a) */
     uint8_t *has_material;    /* surface_count flags */
     efx_rig *rig;             /* owned deep copy of MeshData rig (F6c) */

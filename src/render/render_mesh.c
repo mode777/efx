@@ -1,5 +1,7 @@
 #include "render_internal.h"
 
+#include <float.h>
+
 efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
                                   int *err) {
     if (err) *err = EFX_MESHERR_OK;
@@ -114,6 +116,7 @@ efx_meshdata *efx_meshdata_create(const efx_surface_src *src, int count,
             return NULL;
         }
     }
+    efx_meshdata_compute_bounds(md);
     return md;
 }
 
@@ -137,6 +140,35 @@ void efx_meshdata_destroy(efx_meshdata *md) {
     }
     efx_rig_free(md->rig);
     free(md);
+}
+
+void efx_meshdata_compute_bounds(efx_meshdata *md) {
+    if (!md || md->surface_count < 1) {
+        return;
+    }
+    float mn[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
+    float mx[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (int i = 0; i < md->surface_count; i++) {
+        const efx_surface *s = &md->surfaces[i];
+        for (int v = 0; v < s->vertex_count; v++) {
+            const float *p = &s->positions[(size_t)v * 3];
+            for (int c = 0; c < 3; c++) {
+                if (p[c] < mn[c]) mn[c] = p[c];
+                if (p[c] > mx[c]) mx[c] = p[c];
+            }
+        }
+    }
+    memcpy(md->bounds_min, mn, sizeof(mn));
+    memcpy(md->bounds_max, mx, sizeof(mx));
+}
+
+void efx_meshdata_set_bounds(efx_meshdata *md, const float bmin[3],
+                             const float bmax[3]) {
+    if (!md || !bmin || !bmax) {
+        return;
+    }
+    memcpy(md->bounds_min, bmin, sizeof(md->bounds_min));
+    memcpy(md->bounds_max, bmax, sizeof(md->bounds_max));
 }
 
 /* ------------------------------------------------------ F6c rig payload */
@@ -524,6 +556,8 @@ uint64_t efx_render_mesh_create(const efx_meshdata *md) {
     m->surface_count = md->surface_count;
     m->native = native;
     m->pending = pending;
+    memcpy(m->bmin, md->bounds_min, sizeof(m->bmin));
+    memcpy(m->bmax, md->bounds_max, sizeof(m->bmax));
     m->skinned = skinned;
     m->posed = posed;
     m->vert_count = vert_count;
@@ -629,6 +663,20 @@ int efx_render_mesh_alive(uint64_t h) {
 int efx_render_mesh_surface_count(uint64_t h) {
     mesh_slot *m = mesh_get(h);
     return m && m->alive ? m->surface_count : -1;
+}
+
+int efx_render_mesh_bounds(uint64_t h, float out_min[3], float out_max[3]) {
+    mesh_slot *m = mesh_get(h);
+    if (!m || !m->alive) {
+        return 0;
+    }
+    if (out_min) {
+        memcpy(out_min, m->bmin, sizeof(m->bmin));
+    }
+    if (out_max) {
+        memcpy(out_max, m->bmax, sizeof(m->bmax));
+    }
+    return 1;
 }
 
 void *efx_render_mesh_native(uint64_t h) {

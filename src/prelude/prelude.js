@@ -1649,10 +1649,34 @@ function __efxMaterialWire(v, sample) {
     return { blocks: out, maps: maps };
 }
 
-/* createMeshData(surfaces, materials?): validate the positional surface list
+/* createMeshData(surfaces, materials?, opts?): validate the positional surface list
  * and marshal the concatenated-buffers wire (7 attribute streams +
- * per-surface lengths + per-surface materials) */
-function __efxMeshDataWire(surfaces, materials, natives) {
+ * per-surface lengths + per-surface materials + the optional bounds
+ * override). The opts bag is restricted to { bounds?: { min, max } } — each
+ * a [x, y, z] array of 3 finite numbers replacing the computed mesh bounds
+ * (mesh frustum culling). */
+
+/* one bounds component: [x, y, z] of finite numbers (RangeError for shape,
+ * element type, or non-finite values; TypeError for a non-array) */
+function __efxBounds3(v, what) {
+    if (!Array.isArray(v)) {
+        throw new TypeError(what + ' must be an array');
+    }
+    if (v.length !== 3) {
+        throw new RangeError(what + ' must hold 3 numbers');
+    }
+    var out = new Float32Array(3);
+    for (var i = 0; i < 3; i++) {
+        var n = v[i];
+        if (typeof n !== 'number' || !isFinite(n)) {
+            throw new RangeError(what + ' must hold 3 finite numbers');
+        }
+        out[i] = n;
+    }
+    return out;
+}
+
+function __efxMeshDataWire(surfaces, materials, opts, natives) {
     if (surfaces === undefined) {
         throw new TypeError('createMeshData requires surfaces');
     }
@@ -1736,6 +1760,40 @@ function __efxMeshDataWire(surfaces, materials, natives) {
             matHas[mi] = 1;
         }
     }
+    /* opts: { bounds?: { min, max } } — mesh frustum culling override */
+    var bmin = null, bmax = null;
+    if (opts !== undefined && opts !== null) {
+        if (!__efxIsObject(opts)) {
+            throw new TypeError('createMeshData options must be an object');
+        }
+        var optKnown = { bounds: 1 };
+        var optNames = Object.getOwnPropertyNames(opts);
+        for (var ok = 0; ok < optNames.length; ok++) {
+            if (!optKnown[optNames[ok]]) {
+                throw new TypeError("unknown createMeshData option '" +
+                                    optNames[ok] + "'");
+            }
+        }
+        var bv = opts['bounds'];
+        if (bv !== undefined && bv !== null) {
+            if (!__efxIsObject(bv)) {
+                throw new TypeError('bounds must be an object');
+            }
+            var bNames = Object.getOwnPropertyNames(bv);
+            var bKnown = { min: 1, max: 1 };
+            for (ok = 0; ok < bNames.length; ok++) {
+                if (!bKnown[bNames[ok]]) {
+                    throw new TypeError("unknown bounds field '" +
+                                        bNames[ok] + "'");
+                }
+            }
+            if (bv['min'] === undefined || bv['max'] === undefined) {
+                throw new TypeError('bounds requires min and max');
+            }
+            bmin = __efxBounds3(bv['min'], 'bounds.min');
+            bmax = __efxBounds3(bv['max'], 'bounds.max');
+        }
+    }
     return {
         count: count,
         lens: lens,
@@ -1749,6 +1807,8 @@ function __efxMeshDataWire(surfaces, materials, natives) {
         blocks: blocks,
         maps: maps,
         matHas: matHas,
+        bmin: bmin,
+        bmax: bmax,
     };
 }
 
@@ -2256,11 +2316,12 @@ function __efxPreludeInstall(efx, natives) {
         };
     }
     if (natives && natives.createMeshData) {
-        g.createMeshData = function (surfaces, materials) {
-            var w = __efxMeshDataWire(surfaces, materials, natives);
+        g.createMeshData = function (surfaces, materials, opts) {
+            var w = __efxMeshDataWire(surfaces, materials, opts, natives);
             return natives.createMeshData(w.count, w.lens, w.pos, w.nrm, w.uv,
                                           w.col, w.joints, w.weights, w.idx,
-                                          w.blocks, w.maps, w.matHas);
+                                          w.blocks, w.maps, w.matHas,
+                                          w.bmin, w.bmax);
         };
     }
     if (natives && natives.playAudio) {
