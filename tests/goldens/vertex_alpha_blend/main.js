@@ -10,10 +10,10 @@
 efx.graphics.setClearColor([0.02, 0.02, 0.04, 1]);
 efx.graphics.setCamera3D([0, 0, 5], [0, 0, 0], 50);
 
-function quad(size, z) {
+function quad(size) {
     const h = size / 2;
     return {
-        positions: [-h, -h, z, h, -h, z, h, h, z, -h, h, z],
+        positions: [-h, -h, 0, h, -h, 0, h, h, 0, -h, h, 0],
         normals: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
         uvs: [0, 0, 1, 0, 1, 1, 0, 1],
         indices: [0, 1, 2, 0, 2, 3],
@@ -21,14 +21,14 @@ function quad(size, z) {
 }
 
 const backdrop = efx.graphics.createMesh(
-    efx.graphics.createMeshData([quad(14, 0)],
+    efx.graphics.createMeshData([quad(14)],
         [{ unlit: true, diffuse: { color: [0.25, 0.25, 0.28, 1] } }]));
 
 // vertex alpha gradient: alpha 1 down the left column, 0 down the right
 // column (vertices BL, BR, TR, TL — linear in x only, so the interpolation
 // is seam-free across both triangles); rgb = red
 function gradPlane() {
-    const q = quad(2.6, 0.5);
+    const q = quad(2.6);
     q.colors = [1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1];
     return q;
 }
@@ -41,14 +41,14 @@ const opaquePanel = efx.graphics.createMesh(
     efx.graphics.createMeshData([gradPlane()],
         [{ unlit: true, diffuse: { color: [1, 1, 1, 1] } }]));
 
-function move(x, y) {
-    return efx.math.mat4.translate(efx.math.mat4.identity(), [x, y, 0]);
+function move(x, y, z) {
+    return efx.math.mat4.translate(efx.math.mat4.identity(), [x, y, z]);
 }
 
 function update() {}
 
 function render() {
-    efx.graphics.drawMesh(backdrop);
-    efx.graphics.drawMesh(blendPanel, { transform: move(-1.6, 0) });
-    efx.graphics.drawMesh(opaquePanel, { transform: move(1.6, 0) });
+    efx.graphics.drawMesh(backdrop, { transform: move(0, 0, -2) });
+    efx.graphics.drawMesh(blendPanel, { transform: move(-1.3, 0, 0.5) });
+    efx.graphics.drawMesh(opaquePanel, { transform: move(1.3, 0, 0.5) });
 }
