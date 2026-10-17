@@ -2444,6 +2444,139 @@ static int billboard_record_fields(void) {
     return 0;
 }
 
+static int billboard_batching(void) {
+    install_mock_sink();
+    uint8_t px[4] = {255, 255, 255, 255};
+    uint64_t t1 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0, 0);
+    uint64_t t2 = efx_render_texture_create(4, 4, px, EFX_TEX_WRAP_REPEAT,
+                                            EFX_FILTER_LINEAR, 0, 0);
+    efx_camera3d cam = {{0, 2, 5}, {0, 0, 0}, 60, 0.1f, 100};
+    efx_render_set_camera3d(&cam);
+    float pos[3] = {0, 0, 0};
+
+    /* empty frame: no runs */
+    int n = 0;
+    efx_render_billboard_runs(&n);
+    if (n != 0) return fail("empty frame runs");
+
+    /* single record: one run */
+    if (efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                             NULL, 0, EFX_BLEND_INHERIT) != EFX_RENDER_OK)
+        return fail("billboard 1");
+    const efx_billboard_run *runs = efx_render_billboard_runs(&n);
+    if (n != 1 || runs[0].start != 0 || runs[0].count != 1 ||
+        runs[0].texture != t1 || runs[0].blend != EFX_BLEND_ALPHA ||
+        runs[0].depth_test != 1)
+        return fail("single run");
+
+    /* record-adjacent same-state records coalesce */
+    if (efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                             NULL, 0, EFX_BLEND_INHERIT) != EFX_RENDER_OK ||
+        efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                             NULL, 0, EFX_BLEND_INHERIT) != EFX_RENDER_OK)
+        return fail("billboards 2-3");
+    runs = efx_render_billboard_runs(&n);
+    if (n != 1 || runs[0].count != 3) return fail("adjacent coalesce");
+
+    /* texture difference splits */
+    if (efx_render_billboard(t2, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                             NULL, 0, EFX_BLEND_INHERIT) != EFX_RENDER_OK)
+        return fail("billboard 4");
+    runs = efx_render_billboard_runs(&n);
+    if (n != 2 || runs[1].texture != t2 || runs[1].start != 3)
+        return fail("texture split");
+
+    /* blend difference splits */
+    if (efx_render_billboard(t2, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                             NULL, 0, EFX_BLEND_ADDITIVE) != EFX_RENDER_OK)
+        return fail("billboard 5");
+    runs = efx_render_billboard_runs(&n);
+    if (n != 3 || runs[2].blend != EFX_BLEND_ADDITIVE)
+        return fail("blend split");
+
+    /* depth-test difference splits */
+    if (efx_render_billboard(t2, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 0,
+                             NULL, 0, EFX_BLEND_ADDITIVE) != EFX_RENDER_OK)
+        return fail("billboard 6");
+    runs = efx_render_billboard_runs(&n);
+    if (n != 4 || runs[3].depth_test != 0)
+        return fail("depth_test split");
+    efx_render_begin_frame();
+
+    /* an intervening quad record breaks the run even though everything
+       else matches (A quad B: two runs) */
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    efx_render_quad(0, 0, 4, 4, t1, NULL, 0, 1, NULL, 0, 2, 2,
+                    EFX_BLEND_INHERIT);
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    runs = efx_render_billboard_runs(&n);
+    if (n != 2 || runs[0].start != 0 || runs[1].start != 2 ||
+        runs[0].count != 1 || runs[1].count != 1)
+        return fail("quad break");
+    efx_render_begin_frame();
+
+    /* a target switch breaks the run (records land in different segments) */
+    uint64_t rt = efx_render_target_create(64, 64);
+    if (!rt) return fail("target create");
+    efx_render_begin_target(rt);
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    efx_render_end_target();
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    runs = efx_render_billboard_runs(&n);
+    if (n != 2) return fail("target break");
+    efx_render_begin_frame();
+
+    /* a mesh record breaks the run */
+    efx_meshdata *md = make_two_surface_mesh();
+    uint64_t mesh = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    efx_render_mesh(mesh, NULL, NULL, 0, 1);
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    runs = efx_render_billboard_runs(&n);
+    if (n != 2) return fail("mesh break");
+    efx_render_begin_frame();
+
+    /* a particle record breaks the run */
+    efx_particle_config pc;
+    memset(&pc, 0, sizeof(pc));
+    pc.texture = t1;
+    pc.max = 8;
+    pc.space = EFX_SPACE_WORLD;
+    pc.facing = EFX_FACING_VIEW;
+    pc.blend = EFX_BLEND_INHERIT;
+    pc.life_min = 1;
+    pc.life_max = 1;
+    pc.emitter_lifetime = -1;
+    pc.speed_scale = 1;
+    pc.size_count = 1;
+    pc.sizes[0] = 1;
+    pc.color_count = 1;
+    pc.colors[0][0] = pc.colors[0][1] = pc.colors[0][2] = pc.colors[0][3] = 1;
+    int err = 0;
+    uint64_t psys = efx_render_particles_create(&pc, &err);
+    if (!psys) return fail("particle create");
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    efx_render_particles_draw(psys);
+    efx_render_billboard(t1, pos, 1, 1, NULL, 0, EFX_FACING_VIEW, NULL, 1,
+                         NULL, 0, EFX_BLEND_INHERIT);
+    runs = efx_render_billboard_runs(&n);
+    if (n != 2) return fail("particle break");
+    efx_render_particles_destroy(psys);
+    efx_render_mesh_destroy(mesh);
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
 static const efx_test_case cases[] = {
     EFX_CASE(compose_camera),
     EFX_CASE(compose_quad),
@@ -2498,6 +2631,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(particle_emit_step),
     EFX_CASE(particle_interpolation),
     EFX_CASE(billboard_record_fields),
+    EFX_CASE(billboard_batching),
 };
 
 int main(int argc, char **argv) {

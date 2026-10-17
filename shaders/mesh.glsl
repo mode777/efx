@@ -94,25 +94,29 @@ vec3 efx_light_term(vec3 N, vec3 V, vec3 L, float atten, vec3 light_color,
 }
 
 void main() {
-    vec3 m_amb = texture(sampler2D(efx_map_ambient, efx_smp_ambient), efx_uv).rgb;
-    vec3 m_dif = texture(sampler2D(efx_map_diffuse, efx_smp_diffuse), efx_uv).rgb;
-    vec3 m_spe = texture(sampler2D(efx_map_specular, efx_smp_specular), efx_uv).rgb;
-    vec3 m_emi = texture(sampler2D(efx_map_emissive, efx_smp_emissive), efx_uv).rgb;
+    /* fetch order (playback-quick-wins D5): mask + diffuse first, so the
+       unlit early-out below skips the three color-map fetches it never
+       reads; the lit path samples the rest after the branch. Identical
+       output to sampling all five up front. */
     float mask_alpha = texture(sampler2D(efx_map_alpha, efx_smp_alpha), efx_uv).a;
     if (mask_alpha < 0.5) {
         discard; /* binary alpha-mask cutout (F4b D2) */
     }
-    vec3 diff_c = diffuse.rgb * m_dif;
-    vec3 spec_c = specular.rgb * m_spe;
+    vec3 m_dif = texture(sampler2D(efx_map_diffuse, efx_smp_diffuse), efx_uv).rgb;
     vec3 albedo = efx_color.rgb * tint.rgb;
     if (mat_params.y > 0.5) {
         /* unlit (F14+): diffuse color × map × albedo; no light contribution.
            alpha mask and albedo alpha already handled above, blend is
            pipeline state, so this is the whole shading path. */
-        frag_color = vec4(clamp(diff_c * albedo, 0.0, 1.0),
+        frag_color = vec4(clamp(diffuse.rgb * m_dif * albedo, 0.0, 1.0),
                           efx_color.a * tint.a);
         return;
     }
+    vec3 m_amb = texture(sampler2D(efx_map_ambient, efx_smp_ambient), efx_uv).rgb;
+    vec3 m_spe = texture(sampler2D(efx_map_specular, efx_smp_specular), efx_uv).rgb;
+    vec3 m_emi = texture(sampler2D(efx_map_emissive, efx_smp_emissive), efx_uv).rgb;
+    vec3 diff_c = diffuse.rgb * m_dif;
+    vec3 spec_c = specular.rgb * m_spe;
     vec3 N = normalize(efx_normal);
     vec3 V = normalize(camera_pos.xyz - efx_world_pos);
     vec3 col = ambient.rgb * m_amb * albedo + emissive.rgb * m_emi;
