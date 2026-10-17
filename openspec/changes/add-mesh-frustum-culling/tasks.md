@@ -19,13 +19,13 @@
 
 ## 4. Web bridge parity (Emscripten)
 
-- [ ] 4.1 Web `createMeshData` (`src/web/js/audio.js`): compute bounds identically in the fragment and support the `opts.bounds` override with the same error classes/messages; `src/web/js/render3d.js`: accept and forward `cull`; bridge: forward both to `efx_render_mesh`; verify with the portable validation script tests (5.2) on the web runtime
-- [ ] 4.2 Cross-runtime check: run the culling script test through `tools/run_web_compare.mjs` (or the established web-compare harness) and confirm desktop and web record identical draws for outside/straddling/`cull: false`/skinned scenes
+- [x] 4.1 Web `createMeshData` (`src/web/js/audio.js`): compute bounds identically in the fragment and support the `opts.bounds` override with the same error classes/messages; `src/web/js/render3d.js`: accept and forward `cull`; bridge: forward both to `efx_render_mesh`; verify with the portable validation script tests (5.2) on the web runtime
+- [x] 4.2 Cross-runtime check: run the culling script test through `tools/run_web_compare.mjs` (or the established web-compare harness) and confirm desktop and web record identical draws for outside/straddling/`cull: false`/skinned scenes
 
 ## 5. Test corpus
 
 - [x] 5.1 Portable script tests: extend the 3D validation script (`tests/scripts/s_3d_validation.js` or a new `s_*` following its pattern) to cover the new error cases and the `bounds` getter on both runtimes; verify via the ctest script-test suite
-- [ ] 5.2 Golden scenes: confirm the existing golden suite is unchanged (all goldens draw visible content) by running the golden harness on the verification server; add one golden only if a scene with a partially-straddling mesh is needed to pin the conservative path
+- [x] 5.2 Golden scenes: confirm the existing golden suite is unchanged (all goldens draw visible content) by running the golden harness on the verification server; add one golden only if a scene with a partially-straddling mesh is needed to pin the conservative path
 - [x] 5.3 Budget-interaction audit: find existing tests that rely on off-screen mesh draws counting against the record budget and update them to the new normative behavior; verify the budget unit tests pass
 
 ## 6. Docs and type surface
@@ -37,5 +37,5 @@
 
 - [x] 7.1 Local headless: `cmake -B build -DEFX_HEADLESS=ON` + full unit ctest green
 - [x] 7.2 Strict validation: `npx openspec validate "add-mesh-frustum-culling" --type change --strict` passes
-- [ ] 7.3 Pre-gate: commit, push the branch, and run `python3 tools/verify_remote.py all <branch>` until green (golden-bearing jobs; see `docs/verification-server.md`)
+- [x] 7.3 Pre-gate: commit, push the branch, and run `python3 tools/verify_remote.py all <branch>` until green (golden-bearing jobs; see `docs/verification-server.md`)
 - [ ] 7.4 Dispatch the CI gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS to green per the ADR 0023 policy
