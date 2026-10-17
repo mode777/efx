@@ -17,7 +17,7 @@
 
 ## 4. Unlit fetch reorder (single canned shader)
 
-- [ ] 4.1 Reorder `shaders/mesh.glsl` `mesh_fs`: alpha-mask sample → discard → diffuse sample → `unlit` early-out → ambient/specular/emissive samples → lighting; regenerate committed `shaders/mesh.h` with the pinned sokol-shdc (`cmake -B build -DEFX_SHDC=...`). Verify: diff review confirms no math change; unit CPU-reference tests (render/skin/lit-mesh tests) stay green.
+- [x] 4.1 Reorder `shaders/mesh.glsl` `mesh_fs`: alpha-mask sample → discard → diffuse sample → `unlit` early-out → ambient/specular/emissive samples → lighting; regenerate committed `shaders/mesh.h` with the pinned sokol-shdc (`cmake -B build -DEFX_SHDC=...`). Verify: diff review confirms no math change; unit CPU-reference tests (render/skin/lit-mesh tests) stay green.
 - [ ] 4.2 Verify pixel-identical rendering: run the lighting/unlit/skybox golden scenes — all bit-identical to pre-change captures. Verify: `python3 tools/verify_remote.py native <branch>`.
 
 ## 5. Gate and merge
