@@ -489,6 +489,45 @@ const efx_draw_run *efx_render_runs(int *count) {
     return runs;
 }
 
+const efx_billboard_run *efx_render_billboard_runs(int *count) {
+    /* batch record-adjacent billboard records sharing texture, blend and
+       depth-test setting (playback-quick-wins D1/D2); any intervening
+       record of another kind breaks adjacency and the run */
+    static efx_billboard_run *runs = NULL;
+    static int run_cap = 0;
+    int n = 0;
+    for (int i = 0; i < R.record_count; i++) {
+        efx_record *r = &R.records[i];
+        if (r->type != EFX_RECORD_BILLBOARD) {
+            continue;
+        }
+        if (n > 0 && runs[n - 1].texture == r->u.billboard.texture &&
+            runs[n - 1].blend == r->u.billboard.blend &&
+            runs[n - 1].depth_test == r->u.billboard.depth_test &&
+            runs[n - 1].start + runs[n - 1].count == i) {
+            runs[n - 1].count++;
+        } else {
+            if (n >= run_cap) {
+                if (!pool_grow((void **)&runs, &run_cap, n + 1,
+                               sizeof(efx_billboard_run), 64)) {
+                    if (count) *count = 0;
+                    return NULL;
+                }
+            }
+            runs[n].start = i;
+            runs[n].count = 1;
+            runs[n].texture = r->u.billboard.texture;
+            runs[n].blend = r->u.billboard.blend;
+            runs[n].depth_test = r->u.billboard.depth_test;
+            n++;
+        }
+    }
+    if (count) {
+        *count = n;
+    }
+    return runs;
+}
+
 void efx_render_begin_frame(void) {
     ensure_state();
     R.record_count = 0;

@@ -96,6 +96,8 @@ typedef struct {
     int scratch_cap;
     int *run_first, *run_verts; /* per-run first vertex / vertex count */
     int run_cap;
+    int *brun_first, *brun_verts; /* per-billboard-run first vertex / count */
+    int brun_cap;
     int *rec_boff;  /* F11: per-record first vertex (billboard/particles) */
     int *rec_bcnt;  /* F11: per-record vertex count */
     int rec_cap;
@@ -1094,15 +1096,19 @@ static void bill_axes(const efx_camera3d *cam, int facing, const float normal[3]
     }
 }
 
+/* append one billboard in strip order; `bridge` continues the previous
+ * billboard's strip: duplicate its last vertex, then this billboard's first
+ * vertex twice (two degenerate triangles) — the emit_quad pattern */
 static pipe_vertex *emit_billboard(pipe_vertex *v,
                                    const efx_billboard_record *b, float aspect,
-                                   int flip) {
+                                   int flip, int bridge) {
     const float *vp = view_projection(&b->camera, aspect, flip);
     float mvp[16];
     memcpy(mvp, vp, sizeof(mvp));
     float rr[3], uu[3];
     bill_axes(&b->camera, b->facing, b->normal, b->rotation, rr, uu);
     uint32_t packed = pack_color(b->color);
+    pipe_vertex q4[4];
     for (int i = 0; i < 4; i++) {
         float w[3];
         for (int k = 0; k < 3; k++) {
@@ -1111,16 +1117,23 @@ static pipe_vertex *emit_billboard(pipe_vertex *v,
         }
         float ndc[3];
         bill_clip(mvp, w, ndc);
-        v->x = ndc[0];
-        v->y = ndc[1];
-        v->z = ndc[2];
-        v->u = (b->sx + BILL_SU[i] * b->sw) / (b->tw > 0 ? b->tw : 1.0f);
-        v->v = (b->sy + BILL_SV[i] * b->sh) / (b->th > 0 ? b->th : 1.0f);
-        v->r = (uint8_t)(packed & 0xff);
-        v->g = (uint8_t)((packed >> 8) & 0xff);
-        v->b = (uint8_t)((packed >> 16) & 0xff);
-        v->a = (uint8_t)((packed >> 24) & 0xff);
-        v++;
+        q4[i].x = ndc[0];
+        q4[i].y = ndc[1];
+        q4[i].z = ndc[2];
+        q4[i].u = (b->sx + BILL_SU[i] * b->sw) / (b->tw > 0 ? b->tw : 1.0f);
+        q4[i].v = (b->sy + BILL_SV[i] * b->sh) / (b->th > 0 ? b->th : 1.0f);
+        q4[i].r = (uint8_t)(packed & 0xff);
+        q4[i].g = (uint8_t)((packed >> 8) & 0xff);
+        q4[i].b = (uint8_t)((packed >> 16) & 0xff);
+        q4[i].a = (uint8_t)((packed >> 24) & 0xff);
+    }
+    if (bridge) {
+        v[0] = v[-1];
+        v[1] = q4[0];
+        v += 2;
+    }
+    for (int i = 0; i < 4; i++) {
+        *v++ = q4[i];
     }
     return v;
 }
@@ -1295,23 +1308,38 @@ static particle_sort *sort_particles_back_to_front(
 }
 
 /* F11: emit billboard and particle vertices after the quad batch (same
- * vertex format; drawn with the depth-tested billboard pipeline); returns the
- * total vertex count, or -1 on allocation failure */
+ * vertex format; drawn with the depth-tested billboard pipeline). Billboard
+ * records are emitted run-aware (playback-quick-wins D3): the first record
+ * of each run writes 4 vertices, each later record continues the strip with
+ * a 2-vertex bridge; `boff/bcnt` stay particles-only. Returns the total
+ * vertex count, or -1 on allocation failure */
 static int emit_billboards_and_particles(const efx_record *records, int count,
-                                         int *boff, int *bcnt, int use_post,
-                                         int scene_w, int scene_h, int vw,
-                                         int vh, int total) {
+                                         const efx_billboard_run *bruns,
+                                         int brun_count, int *brun_first,
+                                         int *brun_verts, int *boff, int *bcnt,
+                                         int use_post, int scene_w, int scene_h,
+                                         int vw, int vh, int total) {
+    int ri = 0;
     for (int i = 0; i < count; i++) {
         const efx_record *r = &records[i];
         if (r->type == EFX_RECORD_BILLBOARD) {
-            if (!scratch_reserve(total + 4)) return -1;
+            while (ri < brun_count && bruns[ri].start + bruns[ri].count <= i) {
+                ri++;
+            }
+            int first = ri < brun_count && bruns[ri].start == i;
+            if (first) {
+                /* reserve the whole run: 4 verts + a 2-vert bridge each
+                   for every later record in the run */
+                int need = 4 + (bruns[ri].count - 1) * 6;
+                if (!scratch_reserve(total + need)) return -1;
+                brun_first[ri] = total;
+            }
             pipe_vertex *v = P.scratch + total;
             v = emit_billboard(v, &r->u.billboard,
                               rec_aspect(r, use_post, scene_w, scene_h, vw, vh),
-                              rec_flip(r, use_post));
-            boff[i] = total;
-            bcnt[i] = 4;
-            total += 4;
+                              rec_flip(r, use_post), !first);
+            total = (int)(v - P.scratch);
+            brun_verts[ri] = total - brun_first[ri];
         } else if (r->type == EFX_RECORD_PARTICLES) {
             uint64_t sys = r->u.particles.system;
             int pc = 0;
@@ -1450,6 +1478,8 @@ static void switch_to_default(const float clear[4], int *cur_w, int *cur_h,
 static void play_records(const efx_record *records, int count,
                          const efx_draw_run *runs, int run_count,
                          const int *run_first, const int *run_verts,
+                         const efx_billboard_run *bruns, int brun_count,
+                         const int *brun_first, const int *brun_verts,
                          const int *boff, const int *bcnt, int use_post,
                          int scene_w, int scene_h, int vw, int vh,
                          uint64_t default_surface) {
@@ -1459,6 +1489,7 @@ static void play_records(const efx_record *records, int count,
     int cur_h = use_post ? scene_h : vh;
     post_begin_pass(default_surface, frame_clear);
     int run_i = 0;
+    int brun_i = 0;
     for (int i = 0; i < count; i++) {
         const efx_record *r = &records[i];
         if (r->type == EFX_RECORD_BEGIN_TARGET) {
@@ -1485,9 +1516,21 @@ static void play_records(const efx_record *records, int count,
         } else if (r->type == EFX_RECORD_MESH) {
             play_mesh_record(&r->u.mesh, aspect,
                              P.rt_flip && (use_post || r->target != 0));
-        } else if (r->type == EFX_RECORD_BILLBOARD && bcnt[i] > 0) {
-            draw_textured(P.bill_pip[r->u.billboard.blend],
-                          r->u.billboard.texture, boff[i], bcnt[i]);
+        } else if (r->type == EFX_RECORD_BILLBOARD) {
+            if (brun_i < brun_count && bruns[brun_i].start == i) {
+                /* playback-quick-wins D4: quad_pip is today the identical
+                   pipeline with depth compare ALWAYS instead of LESS_EQUAL,
+                   so it serves depthTest:false billboards; revisit the
+                   selection if the quad pipeline's depth state ever
+                   diverges from test-only/no-write */
+                sg_pipeline pip = bruns[brun_i].depth_test
+                                      ? P.bill_pip[bruns[brun_i].blend]
+                                      : P.quad_pip[bruns[brun_i].blend];
+                draw_textured(pip, bruns[brun_i].texture,
+                              brun_first[brun_i], brun_verts[brun_i]);
+                brun_i++;
+                i += bruns[brun_i - 1].count - 1;
+            }
         } else if (r->type == EFX_RECORD_PARTICLES && bcnt[i] > 0) {
             int space = efx_render_particles_space(r->u.particles.system);
             int blend = r->u.particles.blend;
@@ -1558,7 +1601,16 @@ void efx_pipeline_play(void) {
                                     run_verts, use_post);
 
     /* F11: emit billboard and particle vertices after the quad batch (same
-       vertex format; drawn with the depth-tested billboard pipeline) */
+       vertex format; drawn with the billboard pipeline, run-batched) */
+    int brun_count = 0;
+    const efx_billboard_run *bruns =
+        count > 0 ? efx_render_billboard_runs(&brun_count) : NULL;
+    if (brun_count > 0 && !bruns) {
+        return;
+    }
+    if (!grow_int_pair(&P.brun_first, &P.brun_verts, &P.brun_cap, brun_count)) {
+        return;
+    }
     if (!grow_int_pair(&P.rec_boff, &P.rec_bcnt, &P.rec_cap, count)) {
         return;
     }
@@ -1568,16 +1620,18 @@ void efx_pipeline_play(void) {
         boff[i] = -1;
         bcnt[i] = 0;
     }
-    int total = emit_billboards_and_particles(records, count, boff, bcnt,
-                                              use_post, scene_w, scene_h,
+    int total = emit_billboards_and_particles(records, count, bruns, brun_count,
+                                              P.brun_first, P.brun_verts, boff,
+                                              bcnt, use_post, scene_w, scene_h,
                                               vw, vh, quad_verts);
     if (total < 0) {
         return;
     }
     upload_vertices(total);
 
-    play_records(records, count, runs, run_count, run_first, run_verts, boff,
-                 bcnt, use_post, scene_w, scene_h, vw, vh, default_surface);
+    play_records(records, count, runs, run_count, run_first, run_verts, bruns,
+                 brun_count, P.brun_first, P.brun_verts, boff, bcnt, use_post,
+                 scene_w, scene_h, vw, vh, default_surface);
 }
 
 void efx_pipeline_shutdown(void) {
@@ -1614,6 +1668,8 @@ void efx_pipeline_shutdown(void) {
     free(P.scratch);
     free(P.run_first);
     free(P.run_verts);
+    free(P.brun_first);
+    free(P.brun_verts);
     free(P.rec_boff);
     free(P.rec_bcnt);
     memset(&P, 0, sizeof(P));

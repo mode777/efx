@@ -235,6 +235,17 @@ typedef struct efx_draw_run {
     uint8_t blend;
 } efx_draw_run;
 
+/* one batched billboard playback run: record-adjacent billboard records
+ * sharing texture + blend + depth-test setting; any intervening record of
+ * another kind breaks the run */
+typedef struct efx_billboard_run {
+    int start;          /* index of first record */
+    int count;          /* number of records in the run */
+    uint64_t texture;
+    uint8_t blend;
+    uint8_t depth_test;
+} efx_billboard_run;
+
 /* four influences per vertex (glTF JOINTS_0 / WEIGHTS_0), F6c */
 #define EFX_JOINTS_PER_VERTEX 4
 #define EFX_WEIGHTS_PER_VERTEX 4
@@ -594,6 +605,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
                     const float color[4], int skinned, int depth_write);
 const efx_record *efx_render_records(int *count);
 const efx_draw_run *efx_render_runs(int *count); /* batched quad plan */
+const efx_billboard_run *efx_render_billboard_runs(int *count);
 
 /* frame boundaries */
 void efx_render_begin_frame(void); /* rewind record arena */
