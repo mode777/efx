@@ -38,4 +38,4 @@
 - [x] 7.1 Local headless: `cmake -B build -DEFX_HEADLESS=ON` + full unit ctest green
 - [x] 7.2 Strict validation: `npx openspec validate "add-mesh-frustum-culling" --type change --strict` passes
 - [x] 7.3 Pre-gate: commit, push the branch, and run `python3 tools/verify_remote.py all <branch>` until green (golden-bearing jobs; see `docs/verification-server.md`)
-- [ ] 7.4 Dispatch the CI gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS to green per the ADR 0023 policy
+- [x] 7.4 Dispatch the CI gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS to green per the ADR 0023 policy
