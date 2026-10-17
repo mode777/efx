@@ -749,6 +749,45 @@ static int mesh_sinkless(void) {
     return 0;
 }
 
+/* material-alpha-modes: the transparent-pass route is snapshotted into the
+   mesh record at record time and survives a later rebind */
+static int alpha_route_snapshot(void) {
+    install_mock_sink();
+    efx_meshdata *md = make_two_surface_mesh();
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m) return fail("mesh create");
+
+    /* surface 0 bound blend, surface 1 left default (opaque) */
+    efx_material bm;
+    efx_material_default(&bm);
+    bm.alpha_mode = EFX_ALPHA_BLEND;
+    if (efx_render_mesh_set_material(m, 0, &bm, 1) != EFX_RENDER_OK)
+        return fail("set blend material");
+    efx_render_begin_frame();
+    if (efx_render_mesh(m, NULL, NULL, 0, 1) != EFX_RENDER_OK)
+        return fail("record");
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 1 || recs[0].type != EFX_RECORD_MESH) return fail("record");
+    const efx_mesh_record *mr = &recs[0].u.mesh;
+    if (mr->surface_alpha[0] != EFX_ALPHA_BLEND)
+        return fail("surface 0 route not blend");
+    if (mr->surface_alpha[1] != EFX_ALPHA_OPAQUE)
+        return fail("surface 1 route not opaque");
+
+    /* a rebind after record time must not change the snapshotted route */
+    efx_material om;
+    efx_material_default(&om);
+    if (efx_render_mesh_set_material(m, 0, &om, 1) != EFX_RENDER_OK)
+        return fail("rebind opaque");
+    if (mr->surface_alpha[0] != EFX_ALPHA_BLEND)
+        return fail("route changed after rebind");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
 static int mesh_record_fields(void) {
     install_mock_sink();
     efx_meshdata *md = make_two_surface_mesh();
@@ -2628,6 +2667,7 @@ static const efx_test_case cases[] = {
     EFX_CASE(light_snapshot),
     EFX_CASE(material_binding),
     EFX_CASE(lighting_reference),
+    EFX_CASE(alpha_route_snapshot),
     EFX_CASE(material_maps),
     EFX_CASE(map_retention),
     EFX_CASE(lighting_maps),

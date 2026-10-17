@@ -24,10 +24,12 @@ const backdrop = efx.graphics.createMesh(
     efx.graphics.createMeshData([quad(14, 0)],
         [{ unlit: true, diffuse: { color: [0.25, 0.25, 0.28, 1] } }]));
 
-// vertex alpha gradient: 1, 2/3, 1/3, 0 across the four columns; rgb = red
+// vertex alpha gradient: alpha 1 down the left column, 0 down the right
+// column (vertices BL, BR, TR, TL — linear in x only, so the interpolation
+// is seam-free across both triangles); rgb = red
 function gradPlane() {
     const q = quad(2.6, 0.5);
-    q.colors = [1, 0, 0, 1, 1, 0, 0, 0.666, 1, 0, 0, 0.333, 1, 0, 0, 0];
+    q.colors = [1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1];
     return q;
 }
 
