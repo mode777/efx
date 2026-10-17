@@ -24,18 +24,18 @@
 
 ## 5. Test corpus
 
-- [ ] 5.1 Portable script tests: extend the 3D validation script (`tests/scripts/s_3d_validation.js` or a new `s_*` following its pattern) to cover the new error cases and the `bounds` getter on both runtimes; verify via the ctest script-test suite
+- [x] 5.1 Portable script tests: extend the 3D validation script (`tests/scripts/s_3d_validation.js` or a new `s_*` following its pattern) to cover the new error cases and the `bounds` getter on both runtimes; verify via the ctest script-test suite
 - [ ] 5.2 Golden scenes: confirm the existing golden suite is unchanged (all goldens draw visible content) by running the golden harness on the verification server; add one golden only if a scene with a partially-straddling mesh is needed to pin the conservative path
-- [ ] 5.3 Budget-interaction audit: find existing tests that rely on off-screen mesh draws counting against the record budget and update them to the new normative behavior; verify the budget unit tests pass
+- [x] 5.3 Budget-interaction audit: find existing tests that rely on off-screen mesh draws counting against the record budget and update them to the new normative behavior; verify the budget unit tests pass
 
 ## 6. Docs and type surface
 
-- [ ] 6.1 Update `gallery/src/api/efx.d.ts`: `createMeshData(surfaces, materials?, opts?)` with the `bounds` override, `drawMesh` `cull` option (documented as *frustum* culling), `Mesh.bounds` property; regenerate `docs/api/` (`npm --prefix gallery run docs:markdown`) and pass `npm --prefix gallery run docs:check` + `npm --prefix gallery run check` (type tests)
-- [ ] 6.2 Write ADR `docs/decisions/0065` (record-time engine-side fail-open frustum culling; alternatives: script-side frustum, sphere test, playback-time cull) and add the index row in `docs/decisions/README.md`
+- [x] 6.1 Update `gallery/src/api/efx.d.ts`: `createMeshData(surfaces, materials?, opts?)` with the `bounds` override, `drawMesh` `cull` option (documented as *frustum* culling), `Mesh.bounds` property; regenerate `docs/api/` (`npm --prefix gallery run docs:markdown`) and pass `npm --prefix gallery run docs:check` + `npm --prefix gallery run check` (type tests)
+- [x] 6.2 Write ADR `docs/decisions/0065` (record-time engine-side fail-open frustum culling; alternatives: script-side frustum, sphere test, playback-time cull) and add the index row in `docs/decisions/README.md`
 
 ## 7. Verification gate
 
-- [ ] 7.1 Local headless: `cmake -B build -DEFX_HEADLESS=ON` + full unit ctest green
-- [ ] 7.2 Strict validation: `npx openspec validate "add-mesh-frustum-culling" --type change --strict` passes
+- [x] 7.1 Local headless: `cmake -B build -DEFX_HEADLESS=ON` + full unit ctest green
+- [x] 7.2 Strict validation: `npx openspec validate "add-mesh-frustum-culling" --type change --strict` passes
 - [ ] 7.3 Pre-gate: commit, push the branch, and run `python3 tools/verify_remote.py all <branch>` until green (golden-bearing jobs; see `docs/verification-server.md`)
 - [ ] 7.4 Dispatch the CI gate (`gh workflow run ci.yml --ref <branch>`) and iterate Linux → Windows → macOS to green per the ADR 0023 policy

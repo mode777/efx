@@ -67,6 +67,31 @@ efx.graphics.setCamera3D([0, 2, 5], [0, 0, 0], 60);
 efx.graphics.drawMesh(mesh, { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1], color: [0.5, 0.25, 1, 1] });
 efx.graphics.drawMesh(mesh);
 
+// mesh bounds + frustum culling (identical on both runtimes)
+const b = mesh.bounds;
+if (b.min[0] !== 0 || b.min[2] !== 0 || b.max[0] !== 1 || b.max[1] !== 1) {
+    efx.log('FAIL bounds values'); efx.quit(3);
+}
+if (b.center[0] !== 0.5 || b.center[1] !== 0.5) { efx.log('FAIL bounds center'); efx.quit(3); }
+if (Math.abs(b.radius - Math.SQRT1_2) > 1e-6) { efx.log('FAIL bounds radius'); efx.quit(3); }
+const obs = { min: [0, 0, 0], max: [2, 2, 2] };
+const omd = efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], null, { bounds: obs });
+const omesh = efx.graphics.createMesh(omd);
+if (omesh.bounds.max[0] !== 2 || omesh.bounds.radius === 0) {
+    efx.log('FAIL bounds override'); efx.quit(3);
+}
+expectThrow('md-opts-nonobject', TE, () => efx.graphics.createMeshData([{ positions: P }], null, 5));
+expectThrow('md-opts-unknown', TE, () => efx.graphics.createMeshData([{ positions: P }], null, { frobnicate: 1 }));
+expectThrow('md-bounds-nonobject', TE, () => efx.graphics.createMeshData([{ positions: P }], null, { bounds: 5 }));
+expectThrow('md-bounds-short', RE, () => efx.graphics.createMeshData([{ positions: P }], null, { bounds: { min: [0, 0], max: [1, 1, 1] } }));
+expectThrow('md-bounds-type-elem', RE, () => efx.graphics.createMeshData([{ positions: P }], null, { bounds: { min: [0, 0, 'x'], max: [1, 1, 1] } }));
+expectThrow('md-bounds-inf', RE, () => efx.graphics.createMeshData([{ positions: P }], null, { bounds: { min: [0, 0, Infinity], max: [1, 1, 1] } }));
+expectThrow('md-bounds-min-nonarray', TE, () => efx.graphics.createMeshData([{ positions: P }], null, { bounds: { min: 0, max: [1, 1, 1] } }));
+expectThrow('dm-cull-type', TE, () => efx.graphics.drawMesh(mesh, { cull: 1 }));
+efx.graphics.drawMesh(mesh, { cull: false }); // accepted: disables the frustum test
+omesh.destroy();
+expectThrow('bounds-destroyed', TE, () => omesh.bounds);
+
 mesh.destroy();
 mesh.destroy(); // idempotent
 expectThrow('dm-destroyed', TE, () => efx.graphics.drawMesh(mesh));

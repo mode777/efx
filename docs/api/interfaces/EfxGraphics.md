@@ -158,7 +158,7 @@ The new GPU mesh.
 
 ### createMeshData()
 
-> **createMeshData**(`surfaces`, `materials?`): [`EfxMeshData`](EfxMeshData.md)
+> **createMeshData**(`surfaces`, `materials?`, `opts?`): [`EfxMeshData`](EfxMeshData.md)
 
 Build multi-surface MeshData from a surface list.
 
@@ -175,6 +175,28 @@ Build multi-surface MeshData from a surface list.
 ([`Material`](Material.md) \| `null`)[]
 
 Optional parallel array; `null` selects the engine default.
+
+##### opts?
+
+Optional bag; `bounds` replaces the engine-computed mesh
+  bounds (used by frustum culling) with the given box.
+
+###### bounds?
+
+\{ `max`: [`Vec3`](../type-aliases/Vec3.md); `min`: [`Vec3`](../type-aliases/Vec3.md); \}
+
+Box replacing the engine-computed bounds (the axis-aligned hull of all
+surface positions). Stored verbatim — an inverted box fails open at
+cull time. Use it when post-processing MeshData moves geometry outside
+the original positions, or to cover a skinned mesh's whole animation.
+
+###### bounds.max
+
+[`Vec3`](../type-aliases/Vec3.md)
+
+###### bounds.min
+
+[`Vec3`](../type-aliases/Vec3.md)
 
 #### Returns
 
@@ -389,6 +411,10 @@ Texture-pixel atlas region; defaults to the full texture.
 
 Draw a whole mesh, depth-tested, under the recorded 3D camera.
 
+The draw is frustum-culled by default: a mesh whose transformed bounds
+lie fully outside the current 3D camera's view records nothing (skinned
+draws are never culled). Pass `cull: false` to disable.
+
 #### Parameters
 
 ##### mesh
@@ -399,13 +425,24 @@ Live mesh to draw (required positional argument).
 
 ##### opts?
 
-Optional transform, tint, and skinned flag.
+Optional transform, tint, skinned flag, depth-write, and frustum-cull flag.
 
 ###### color?
 
 [`Color`](../type-aliases/Color.md)
 
 Tint multiplying vertex colors (default opaque white).
+
+###### cull?
+
+`boolean`
+
+Frustum culling (default `true`). When `true`, the draw is skipped
+entirely when the mesh's bounds, transformed by `transform`, lie fully
+outside the current 3D camera's view (posed/skinned draws are never
+culled — bind-pose bounds do not describe posed geometry). `false`
+disables the test for this draw. This is *frustum* culling only —
+unrelated to face culling.
 
 ###### depthWrite?
 

@@ -85,6 +85,7 @@ The `efx` global and the sub-namespaces it offers.
 | [EfxParticleSystem](interfaces/EfxParticleSystem.md) | A native-backed CPU particle system. |
 | [EfxRenderTarget](interfaces/EfxRenderTarget.md) | A GPU render target with color and depth attachments (opaque native-backed class). |
 | [EfxTexture](interfaces/EfxTexture.md) | A GPU texture (opaque native-backed class). |
+| [MeshBounds](interfaces/MeshBounds.md) | Axis-aligned mesh bounds as returned by `EfxMesh.bounds`. |
 | [EfxSample](type-aliases/EfxSample.md) | A live Texture or RenderTarget — accepted anywhere a texture is sampled. |
 
 ## Math
