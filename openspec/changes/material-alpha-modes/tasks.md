@@ -14,8 +14,8 @@
 ## 3. Transparent pass at playback
 
 - [x] 3.1 Add the per-segment transparent side list to `play_records` in `src/platform/pipeline.c`: main sweep skips `'blend'` surfaces in mesh records and pushes `(record, surface_index)` entries; list resets at `BEGIN_TARGET`/`END_TARGET`; verify a scene with one blend mesh still renders (deferred draw present)
-- [ ] 3.2 Implement the stable origin sort — view-space z of `record.transform` translation through the recorded camera, composite key `(depth, sequence)` — and the one-surface replay pinned to the `[blend][0]` (or `_cw`) pipeline row with `depth_write` forced off; verify with a debug scene that a far blend mesh recorded before a near one draws far-first
-- [ ] 3.3 Confirm quads/sprites/text/billboards/particles are untouched by the split and that GL-family RT passes select the `_cw` row correctly inside the transparent replay; verify existing goldens (`blend`, `map_alpha_mask`, `vertcolor3d`, `2d` scenes) capture unchanged under `tests/run_golden` on a golden-enabled build
+- [x] 3.2 Implement the stable origin sort — view-space z of `record.transform` translation through the recorded camera, composite key `(depth, sequence)` — and the one-surface replay pinned to the `[blend][0]` (or `_cw`) pipeline row with `depth_write` forced off; verify with a debug scene that a far blend mesh recorded before a near one draws far-first
+- [x] 3.3 Confirm quads/sprites/text/billboards/particles are untouched by the split and that GL-family RT passes select the `_cw` row correctly inside the transparent replay; verify existing goldens (`blend`, `map_alpha_mask`, `vertcolor3d`, `2d` scenes) capture unchanged under `tests/run_golden` on a golden-enabled build
 
 ## 4. glTF import
 
@@ -28,7 +28,7 @@
 
 ## 6. Goldens and verification
 
-- [ ] 6.1 Add `tests/goldens/material_alpha_modes/` — opaque + mask + blend surfaces with a blend box straddling an opaque one and a far/near blend pair recorded out of order — and `tests/goldens/vertex_alpha_blend/` (vertex-color alpha gradient over a checker); capture server-side per `docs/verification-server.md` and verify the desktop-vs-web compare matches
-- [ ] 6.2 Sweep the existing golden corpus for alpha < 1 on default-mode materials (tint fades, vertex alpha) and re-baseline only scenes in the breaking class; verify the full golden suite is green after any re-baseline
-- [ ] 6.3 Write `docs/decisions/0064-material-alpha-modes-and-transparent-pass.md` (routing policy, origin sort, saturation rule, mode-over-mask, blend-equation orthogonality) and index it in `docs/decisions/README.md`; verify the index renders and statuses are consistent
+(- [x] 6.1 Add `tests/goldens/material_alpha_modes/` — opaque + mask + blend surfaces with a blend box straddling an opaque one and a far/near blend pair recorded out of order — and `tests/goldens/vertex_alpha_blend/` (vertex-color alpha gradient over a checker); capture server-side per `docs/verification-server.md` and verify the desktop-vs-web compare matches
+- [x] 6.2 Sweep the existing golden corpus for alpha < 1 on default-mode materials (tint fades, vertex alpha) and re-baseline only scenes in the breaking class; verify the full golden suite is green after any re-baseline
+- [x] 6.3 Write `docs/decisions/0064-material-alpha-modes-and-transparent-pass.md` (routing policy, origin sort, saturation rule, mode-over-mask, blend-equation orthogonality) and index it in `docs/decisions/README.md`; verify the index renders and statuses are consistent
 - [ ] 6.4 Commit, push the branch, and run `python3 tools/verify_remote.py all <branch>` until green; then dispatch `gh workflow run ci.yml --ref <branch>` and iterate Linux → Windows → macOS to green (four-target gate, ADR 0020/0023)

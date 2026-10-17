@@ -75,6 +75,7 @@ directory holds only what stays true after a change is archived.
 | [0061](0061-streaming-texture-updates.md) | Accepted | Texture mutability is a create-time opt-in (`{ dynamic: true }` → Sokol `dynamic_update` usage) with full-texture `update(imageData)` replacement, `dynamic`+`mipmaps` rejected, live binding semantics, and one shared `sg_update_image` sink hook for all four targets |
 | [0062](0062-image-heightfield-primitive.md) | Accepted | `makeHeightfield` builds MeshData natively from decoded image pixels (Rec. 709 luminance, clamped region + step decimation, full-image uv, central-difference normals) behind a shared-prelude option bag, with FP contraction disabled for byte-identical cross-target streams |
 | [0063](0063-mpeg1-video-playback.md) | Accepted | Video is software MPEG-1 via vendored pl_mpeg (MIT, ~0.1 MB wasm) behind a pure-C `efx_video` wrapper; `efx.video.openVideo` exposes an engine-owned dynamic texture + playback state; audio is an implicit engine-managed pull-voice in the F14 core |
+| [0064](0064-material-alpha-modes-and-transparent-pass.md) | Accepted | `Material.alphaMode` (`'opaque'`/`'mask'`/`'blend'`) is the exact, record-time-snapshotted transparency router: opaque/mask keep the full depth-writing path (mask = 0.5 scissor), blend defers to a per-pass sorted back-to-front transparent sub-pass with depth writing forced off and `diffuse.a × vertex.a × tint.a` honored; blend equations never route |
 
 ## Adding a decision
 
