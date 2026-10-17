@@ -37,7 +37,7 @@
 ## 8. Docs + ADR
 
 - [x] 8.1 Write `docs/decisions/0059-procedural-noise-fastnoise-lite.md` (stateless surface, FNL choice, raw ranges, determinism policy) per `TEMPLATE.md` and index it in `docs/decisions/README.md`; update `docs/js-api.md` only if a guideline-level rule changed
-- [ ] 8.2 Verify `npx openspec validate "noise-api" --type change --strict` passes and the change's spec scenarios all map to implemented behavior
+- [x] 8.2 Verify `npx openspec validate "noise-api" --type change --strict` passes and the change's spec scenarios all map to implemented behavior
 
 ## 9. Full verification gate
 

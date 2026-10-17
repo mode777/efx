@@ -50,7 +50,7 @@
       `update` non-ImageData, size mismatch, non-dynamic texture, destroyed
       texture, `dynamic` + `mipmaps` combination, non-boolean `dynamic`.
       Verify: headless `--script` suite passes.
-- [ ] 4.2 Golden scene `tests/goldens/texture_update/`: dynamic texture
+- [x] 4.2 Golden scene `tests/goldens/texture_update/`: dynamic texture
       updated per frame with a frame-index-driven pattern, drawn full-frame;
       capture pins a deterministic frame. Verify: golden passes in the
       Linux llvmpipe job first, then all four targets via

@@ -163,14 +163,28 @@ SHALL upload image data to a GPU Texture — an opaque native-backed class
 released by `destroy()` with GC finalizer backstop (ADR 0011/0013); the
 ImageData remains valid afterwards. The optional `opts` object SHALL accept
 `wrap` (`'repeat'` default, `'clamp'`, or `'mirror'`), `filter`
-(`'linear'` default or `'nearest'`), and `mipmaps` (boolean, `false`
-default); an unknown field or an unknown/wrongly-typed value SHALL throw
-`TypeError`. When `mipmaps` is `true`, the texture SHALL be created with a
-full mip chain and minification SHALL select mip levels, using the mipmap
-variant of `filter` (`'linear'` → linear-mipmap/trilinear, `'nearest'` →
-nearest-mipmap); when `mipmaps` is `false` or omitted, the texture SHALL
-have a single level and minification SHALL NOT use mipmaps, preserving the
-existing behavior exactly. A live Texture SHALL expose read-only `width` and
+(`'linear'` default or `'nearest'`), `mipmaps` (boolean, `false` default),
+and `dynamic` (boolean, `false` default); an unknown field or an
+unknown/wrongly-typed value SHALL throw `TypeError`. When `mipmaps` is
+`true`, the texture SHALL be created with a full mip chain and minification
+SHALL select mip levels, using the mipmap variant of `filter` (`'linear'` →
+linear-mipmap/trilinear, `'nearest'` → nearest-mipmap); when `mipmaps` is
+`false` or omitted, the texture SHALL have a single level and minification
+SHALL NOT use mipmaps, preserving the existing behavior exactly. When
+`dynamic` is `true`, the texture SHALL be created for streaming updates: its
+pixels MAY be replaced after creation via `update(imageData)`, which SHALL
+accept only an ImageData of exactly the texture's `width` × `height` size and
+SHALL replace the full texture contents in one operation. `update` SHALL
+throw `TypeError` when the argument is not an ImageData, when its size does
+not match the texture, when the texture was not created with `dynamic: true`,
+or when the texture has been destroyed. An `update` SHALL be visible to every
+draw played after the call: texture bindings resolve at playback time, so a
+draw recorded before an `update` SHALL sample the updated pixels when it is
+played after it. A dynamic texture SHALL have a single mip level and SHALL
+NOT combine `mipmaps: true` with `dynamic: true` (passing both SHALL throw
+`TypeError`). In a run mode without a rendering surface, creating a dynamic
+texture and calling `update` SHALL be validated and accepted but upload
+nothing, like any created resource (ADR 0052). A live Texture SHALL expose read-only `width` and
 `height` properties naming its pixel size; reading either on a destroyed
 texture SHALL throw `TypeError`. The engine SHALL expose
 `efx.graphics.whiteTexture`, an engine-owned 1×1 opaque-white Texture usable
@@ -242,6 +256,45 @@ SHALL be removed (hard cut, no alias).
 - **WHEN** `createTexture` receives a `mipmaps` value that is present but not a
   boolean
 - **THEN** the call throws `TypeError` and creates no texture
+
+#### Scenario: Dynamic texture shows updated pixels
+- **WHEN** a script creates a texture with `dynamic: true` from an ImageData,
+  draws it full-frame, then calls `update` with a differently colored
+  same-size ImageData and draws it again in the same frame
+- **THEN** the first draw samples the original colors and the second draw
+  samples the updated colors
+
+#### Scenario: Update requires a matching size
+- **WHEN** a script calls `update` on a dynamic texture with an ImageData
+  whose width or height differs from the texture
+- **THEN** the call throws `TypeError` and the texture keeps its previous
+  pixels
+
+#### Scenario: Update on a default texture throws
+- **WHEN** a script calls `update` on a texture created without
+  `dynamic: true`
+- **THEN** the call throws `TypeError` and the texture is unchanged
+
+#### Scenario: Update on a destroyed texture throws
+- **WHEN** a script calls `update` on a dynamic texture after `destroy()`
+- **THEN** the call throws `TypeError`
+
+#### Scenario: Recorded draws sample the latest pixels at playback
+- **WHEN** a script records a draw of a dynamic texture, then updates the
+  texture, then the display list plays
+- **THEN** the played draw shows the updated pixels, not the pixels current
+  when the draw was recorded
+
+#### Scenario: Dynamic and mipmap options are exclusive
+- **WHEN** a script creates a texture with both `dynamic: true` and
+  `mipmaps: true`
+- **THEN** the call throws `TypeError` and creates no texture
+
+#### Scenario: Dynamic texture is CPU-only without a surface
+- **WHEN** a `--script` run creates a texture with `dynamic: true` and calls
+  `update` on it with a valid same-size ImageData
+- **THEN** the call succeeds, size queries still work, and nothing is
+  uploaded or rendered
 
 ### Requirement: Blending modes
 `setBlendMode(mode)` SHALL select how recorded draws that do not carry their

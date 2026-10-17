@@ -69,8 +69,8 @@ error behavior: `beginRenderTarget`, `createFont`, `createImageData`,
 `createMesh`, `createMeshData`, `createParticleSystem`, `createRenderTarget`,
 `createTexture`, `drawBillboard`, `drawMesh`, `drawParticles`, `drawQuad`,
 `drawSprites`, `drawText`, `endRenderTarget`, `loadFontData`, `loadImage`,
-`loadMeshData`, `makeCapsule`, `makeCube`, `makePlane`, `makeSphere`,
-`screenRay`, `setBlendMode`, `setCamera2D`, `setCamera3D`, `setClearColor`,
+`loadMeshData`, `makeCapsule`, `makeCube`, `makeHeightfield`, `makePlane`,
+`makeSphere`, `screenRay`, `setBlendMode`, `setCamera2D`, `setCamera3D`, `setClearColor`,
 `setDirectionalLight`, `setLight`, `setPostEffects`, and `setRenderScale` —
 plus the engine-owned read-only `whiteTexture` Texture property. The
 operations on a native-backed class instance SHALL be methods on that class,
