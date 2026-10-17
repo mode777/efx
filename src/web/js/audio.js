@@ -345,8 +345,8 @@
                         if (!matHas[mi]) {
                             continue;
                         }
-                        var mptr = mallocCopyF32(blocks.subarray(mi * 19,
-                                                                 mi * 19 + 19));
+                        var mptr = mallocCopyF32(blocks.subarray(mi * 20,
+                                                                 mi * 20 + 20));
                         var mapsptr = mallocCopyF64(maps.subarray(mi * 5,
                                                                   mi * 5 + 5));
                         bridge['_efx_bridge_meshdata_set_material'](

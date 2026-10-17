@@ -11,11 +11,17 @@
  *
  * F4b: four per-channel maps sample at the interpolated uv and scale their
  * channel's color; a material-level alpha mask discards fragments below 0.5
- * (design D1/D2/D4). Still one uniform-driven shader, no per-material
- * permutations (ADR 0026 upheld): every map sampler is declared and bound,
- * an absent color map binds the engine white texture (sample = (1,1,1,1),
- * neutral), and an absent mask binds the same white texture (alpha 1, never
- * discards).
+ * in opaque/mask mode (design D1/D2/D4). Still one uniform-driven shader, no
+ * per-material permutations (ADR 0026 upheld): every map sampler is declared
+ * and bound, an absent color map binds the engine white texture (sample =
+ * (1,1,1,1), neutral), and an absent mask binds the same white texture
+ * (alpha 1, never discards).
+ *
+ * Alpha modes (material-alpha-modes): mat_params.z carries the material's
+ * alphaMode — 0 opaque, 1 mask, 2 blend. Opaque/mask discard on the mask
+ * sample below 0.5 and saturate the output alpha to 1; blend never discards
+ * and honors fragment alpha = diffuse.a × vertex alpha × tint alpha (glTF
+ * BLEND semantics; the mask does not cut out in blend mode).
  */
 
 @vs mesh_vs
@@ -55,7 +61,8 @@ layout(binding=1) uniform fs_params {
     vec4 diffuse;         /* material diffuse (rgb) */
     vec4 specular;        /* material specular (rgb) */
     vec4 emissive;        /* material emissive (rgb) */
-    vec4 mat_params;      /* x = shininess, y = unlit flag (1 = bypass lighting) */
+    vec4 mat_params;      /* x = shininess, y = unlit flag (1 = bypass lighting),
+                             z = alpha mode (0 opaque, 1 mask, 2 blend) */
     vec4 camera_pos;      /* xyz = eye position */
     vec4 point_pos[4];    /* xyz = position, w = range (0 = no falloff) */
     vec4 point_color[4];  /* rgb = color, w = enabled (1/0) */
@@ -99,17 +106,21 @@ void main() {
        reads; the lit path samples the rest after the branch. Identical
        output to sampling all five up front. */
     float mask_alpha = texture(sampler2D(efx_map_alpha, efx_smp_alpha), efx_uv).a;
-    if (mask_alpha < 0.5) {
-        discard; /* binary alpha-mask cutout (F4b D2) */
+    if (mat_params.z < 1.5 && mask_alpha < 0.5) {
+        discard; /* binary alpha-mask cutout, opaque/mask modes only */
     }
+    /* alpha modes: opaque/mask render fully opaque; blend honors the alpha
+       product (diffuse.a × vertex alpha × tint alpha) */
+    float out_a = mat_params.z > 1.5
+                      ? clamp(diffuse.a * efx_color.a * tint.a, 0.0, 1.0)
+                      : 1.0;
     vec3 m_dif = texture(sampler2D(efx_map_diffuse, efx_smp_diffuse), efx_uv).rgb;
     vec3 albedo = efx_color.rgb * tint.rgb;
     if (mat_params.y > 0.5) {
         /* unlit (F14+): diffuse color × map × albedo; no light contribution.
-           alpha mask and albedo alpha already handled above, blend is
+           alpha mask and output alpha already handled above, blend is
            pipeline state, so this is the whole shading path. */
-        frag_color = vec4(clamp(diffuse.rgb * m_dif * albedo, 0.0, 1.0),
-                          efx_color.a * tint.a);
+        frag_color = vec4(clamp(diffuse.rgb * m_dif * albedo, 0.0, 1.0), out_a);
         return;
     }
     vec3 m_amb = texture(sampler2D(efx_map_ambient, efx_smp_ambient), efx_uv).rgb;
@@ -136,7 +147,7 @@ void main() {
         col += efx_light_term(N, V, L, 1.0, dir_color.rgb, albedo,
                               diff_c, spec_c);
     }
-    frag_color = vec4(clamp(col, 0.0, 1.0), efx_color.a * tint.a);
+    frag_color = vec4(clamp(col, 0.0, 1.0), out_a);
 }
 @end
 

@@ -2,14 +2,14 @@
 
 ## 1. Material model and wire format
 
-- [ ] 1.1 Add `EFX_ALPHA_*` constants and `alpha_mode` to `efx_material` in `src/render/render.h`; update the DEFAULT_MATERIAL default (opaque) and the wire-lockstep mirror list comment; verify the header builds (`cmake --build build --target efx` compiles clean)
-- [ ] 1.2 Grow the material wire block 19 → 20 floats in all five mirrors — `src/prelude/prelude.js` `__efxMaterialWire`, `src/web/js/core.js` `__efxMaterial`, `src/api/api_3d.c` `wire_mat_from_block`, `src/web/bridge_render3d.c` `bridge_mat_from_wire`, and the web `createMeshData` stride — and regenerate `src/prelude/prelude.h` via `tools/gen_prelude.py`; verify `python3 tools/gen_prelude.py --check` passes and the headless unit suite builds
-- [ ] 1.3 Extend `efx_api_read_material` in `src/api/api.c` to parse `alphaMode` (`'opaque'`/`'mask'`/`'blend'`/`null`, default opaque, `TypeError` otherwise) with the same error-shape conventions as `blend`; verify with a quickjs headless script test that valid modes bind and `'multiply'`/`1` throw `TypeError` with nothing recorded
+- [x] 1.1 Add `EFX_ALPHA_*` constants and `alpha_mode` to `efx_material` in `src/render/render.h`; update the DEFAULT_MATERIAL default (opaque) and the wire-lockstep mirror list comment; verify the header builds (`cmake --build build --target efx` compiles clean)
+- [x] 1.2 Grow the material wire block 19 → 20 floats in all five mirrors — `src/prelude/prelude.js` `__efxMaterialWire`, `src/web/js/core.js` `__efxMaterial`, `src/api/api_3d.c` `wire_mat_from_block`, `src/web/bridge_render3d.c` `bridge_mat_from_wire`, and the web `createMeshData` stride — and regenerate `src/prelude/prelude.h` via `tools/gen_prelude.py`; verify `python3 tools/gen_prelude.py --check` passes and the headless unit suite builds
+- [x] 1.3 Extend `efx_api_read_material` in `src/api/api.c` to parse `alphaMode` (`'opaque'`/`'mask'`/`'blend'`/`null`, default opaque, `TypeError` otherwise) with the same error-shape conventions as `blend`; verify with a quickjs headless script test that valid modes bind and `'multiply'`/`1` throw `TypeError` with nothing recorded
 
 ## 2. Shader and CPU reference alpha rule
 
-- [ ] 2.1 Update `shaders/mesh.glsl`: pack `alpha_mode` into the free `mat_params` component, make the alpha-mask discard conditional on mode (`'blend'` never discards), and compute output alpha = `1.0` outside `'blend'`, `clamp(diffuse.a * efx_color.a * tint.a)` inside — in both lit and unlit paths; regenerate the sokol-shdc headers and verify all four targets compile
-- [ ] 2.2 Mirror the rule in the CPU reference `efx_lighting_shade` (mode-gated alpha, mode-conditional discard) and extend its unit tests: opaque saturates to 1, blend yields the clamped product, discard boundary unchanged in mask path; verify `ctest` unit tests pass headless (`cmake -B build -DEFX_HEADLESS=ON`)
+- [x] 2.1 Update `shaders/mesh.glsl`: pack `alpha_mode` into the free `mat_params` component, make the alpha-mask discard conditional on mode (`'blend'` never discards), and compute output alpha = `1.0` outside `'blend'`, `clamp(diffuse.a * efx_color.a * tint.a)` inside — in both lit and unlit paths; regenerate the sokol-shdc headers and verify all four targets compile
+- [x] 2.2 Mirror the rule in the CPU reference `efx_lighting_shade` (mode-gated alpha, mode-conditional discard) and extend its unit tests: opaque saturates to 1, blend yields the clamped product, discard boundary unchanged in mask path; verify `ctest` unit tests pass headless (`cmake -B build -DEFX_HEADLESS=ON`)
 
 ## 3. Transparent pass at playback
 

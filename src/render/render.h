@@ -21,6 +21,14 @@
 #define EFX_BLEND_SUBTRACTIVE 2
 #define EFX_BLEND_INHERIT (-1)
 
+/* material alpha modes (transparent-pass routing): OPAQUE/MASK take the
+ * full rendering path (depth write, unsorted; MASK discards on the alpha
+ * mask below 0.5), BLEND defers to the sorted depth-write-free transparent
+ * pass and honors fragment alpha (diffuse × vertex × tint) */
+#define EFX_ALPHA_OPAQUE 0
+#define EFX_ALPHA_MASK 1
+#define EFX_ALPHA_BLEND 2
+
 /* error codes */
 #define EFX_RENDER_OK 0
 #define EFX_RENDER_ERR_BUDGET 1
@@ -105,8 +113,8 @@ typedef struct efx_light_set {
  * may reference a Texture or a RenderTarget (texture coercion).
  *
  * This struct is marshalled as a parallel float block (channels + shininess
- * + blend + unlit); adding a field means updating every copy together:
- * src/prelude/prelude.js __efxMaterialWire, src/web/js/core.js
+ * + blend + unlit + alpha_mode); adding a field means updating every copy
+ * together: src/prelude/prelude.js __efxMaterialWire, src/web/js/core.js
  * __efxMaterial, src/api/api_3d.c wire_mat_from_block,
  * src/web/bridge_render3d.c bridge_mat_from_wire, and the web createMeshData
  * stride in src/web/js/audio.js. */
@@ -121,8 +129,9 @@ typedef struct efx_material {
     uint64_t specular_map;
     uint64_t emissive_map;
     uint64_t alpha_mask;
-    int blend; /* EFX_BLEND_* override, or EFX_BLEND_INHERIT (frame state) */
-    int unlit; /* 1 = bypass lighting: diffuse color × map × albedo (F14+) */
+    int blend;      /* EFX_BLEND_* override, or EFX_BLEND_INHERIT (frame state) */
+    int unlit;      /* 1 = bypass lighting: diffuse color × map × albedo (F14+) */
+    int alpha_mode; /* EFX_ALPHA_*: opaque (default) / mask / blend */
 } efx_material;
 
 /* documented default material: white diffuse Phong, no maps */
@@ -622,8 +631,9 @@ efx_affine efx_quad_matrix(float x, float y,
  * `normal` may be non-unit (normalized
  * internally); `albedo` is the per-fragment vertex color × tint; `maps` is
  * the optional F4b map-sample set (NULL = neutral). Returns 1 when the
- * fragment is discarded by the alpha mask, else 0; out[4] receives the
- * per-channel clamped lit color with out[3] = albedo[3]. */
+ * fragment is discarded by the alpha mask (opaque/mask modes only), else 0;
+ * out[4] receives the per-channel clamped lit color with out[3] = 1 in
+ * opaque/mask mode and clamp(diffuse.a × albedo[3]) in blend mode. */
 int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
                        const float world_pos[3], const float normal[3],
                        const float camera_pos[3], const float albedo[4],

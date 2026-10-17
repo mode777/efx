@@ -813,6 +813,7 @@ static void play_mesh_record(const efx_mesh_record *mr, float aspect, int flip) 
         memcpy(fs.emissive, mat.emissive, sizeof(fs.emissive));
         fs.mat_params[0] = mat.shininess;
         fs.mat_params[1] = mat.unlit ? 1.0f : 0.0f;
+        fs.mat_params[2] = (float)mat.alpha_mode;
 
         /* F4b D3: bind all five maps; absent ones fall back to the engine
            white texture (color maps sample (1,1,1,1); the mask samples

@@ -31,7 +31,8 @@ static const efx_material DEFAULT_MATERIAL = {
     .emissive = {0.0f, 0.0f, 0.0f, 1.0f},
     .shininess = 32.0f,
     .blend = EFX_BLEND_INHERIT,
-    .unlit = 0};
+    .unlit = 0,
+    .alpha_mode = EFX_ALPHA_OPAQUE};
 
 static void apply_default_state(void) {
     R.camera = DEFAULT_CAMERA2D;

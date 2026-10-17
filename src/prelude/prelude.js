@@ -477,7 +477,7 @@ function __efxMakeHeightfield(image, opts, natives) {
     var blocks = null, maps = null, matHas = 0;
     if (material !== undefined && material !== null) {
         var mf = __efxMaterialWire(material, natives.liveSample);
-        blocks = new Float32Array(19);
+        blocks = new Float32Array(20);
         maps = new Float64Array(5);
         blocks.set(mf.blocks);
         maps.set(mf.maps);
@@ -1576,15 +1576,16 @@ function __efxSampleHandle(sample) {
                                                            : sample;
 }
 
-/* Phong material -> the 19-float block + 5 map-handles wire (the layout of
+/* Phong material -> the 20-float block + 5 map-handles wire (the layout of
  * the bindings' material marshalling); `sample` resolves map resources */
 function __efxMaterialWire(v, sample) {
     if (!__efxIsObject(v)) {
         throw new TypeError('material must be an object');
     }
     __efxCheckKnown(v, { ambient: 1, diffuse: 1, specular: 1, emissive: 1,
-                         alphaMask: 1, blend: 1, unlit: 1 }, 'material');
-    var out = new Float32Array(19);
+                         alphaMask: 1, blend: 1, unlit: 1, alphaMode: 1 },
+                    'material');
+    var out = new Float32Array(20);
     out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 1;     /* ambient */
     out[4] = 1; out[5] = 1; out[6] = 1; out[7] = 1;     /* diffuse */
     out[8] = 0; out[9] = 0; out[10] = 0; out[11] = 1;   /* specular */
@@ -1592,6 +1593,7 @@ function __efxMaterialWire(v, sample) {
     out[16] = 32;                                       /* shininess */
     out[17] = -1;                                       /* blend: inherit */
     out[18] = 0;                                        /* unlit: false */
+    out[19] = 0;                                        /* alphaMode: opaque */
     var maps = new Float64Array(5);                     /* all absent (0) */
     var chan = ['ambient', 'diffuse', 'specular', 'emissive'];
     for (var ci = 0; ci < 4; ci++) {
@@ -1638,6 +1640,11 @@ function __efxMaterialWire(v, sample) {
             throw new TypeError('unlit must be a boolean');
         }
         out[18] = v['unlit'] ? 1 : 0;
+    }
+    if (v['alphaMode'] !== undefined && v['alphaMode'] !== null) {
+        out[19] = __efxPartEnum(v['alphaMode'],
+                                { opaque: 0, mask: 1, blend: 2 }, 0,
+                                'alphaMode', 'unknown alpha mode');
     }
     return { blocks: out, maps: maps };
 }
@@ -1716,7 +1723,7 @@ function __efxMeshDataWire(surfaces, materials, natives) {
     }
     var blocks = null, maps = null, matHas = new Int32Array(count);
     if (materials !== undefined) {
-        blocks = new Float32Array(count * 19);
+        blocks = new Float32Array(count * 20);
         maps = new Float64Array(count * 5);
         for (var mi = 0; mi < count; mi++) {
             var mv = materials[mi];
@@ -1724,7 +1731,7 @@ function __efxMeshDataWire(surfaces, materials, natives) {
                 continue;
             }
             var mf = __efxMaterialWire(mv, natives.liveSample);
-            blocks.set(mf.blocks, mi * 19);
+            blocks.set(mf.blocks, mi * 20);
             maps.set(mf.maps, mi * 5);
             matHas[mi] = 1;
         }

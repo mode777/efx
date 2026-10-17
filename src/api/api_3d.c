@@ -20,6 +20,7 @@ static void wire_mat_from_block(efx_material *m, const float *f,
     m->shininess = f[16];
     m->blend = (int)f[17];
     m->unlit = (int)f[18];
+    m->alpha_mode = (int)f[19];
     m->ambient_map = (uint64_t)maps[0];
     m->diffuse_map = (uint64_t)maps[1];
     m->specular_map = (uint64_t)maps[2];
@@ -173,7 +174,7 @@ JSValue efx_js_create_meshdata_wire(JSContext *ctx, JSValueConst this_val,
                 continue;
             }
             efx_material m;
-            wire_mat_from_block(&m, blocks + (size_t)i * 19,
+            wire_mat_from_block(&m, blocks + (size_t)i * 20,
                                 maps + (size_t)i * 5);
             efx_meshdata_set_material(md, i, &m, 1);
         }
@@ -257,7 +258,7 @@ JSValue efx_js_make_heightfield_wire(JSContext *ctx, JSValueConst this_val,
         }
         return efx_api_range_error(ctx, "heightfield region is degenerate");
     }
-    if (mat_has && blocks && maps && nb >= 19u && nm >= 5u) {
+    if (mat_has && blocks && maps && nb >= 20u && nm >= 5u) {
         efx_material m;
         wire_mat_from_block(&m, blocks, maps);
         efx_meshdata_set_material(md, 0, &m, 1);

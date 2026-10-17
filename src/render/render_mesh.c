@@ -868,9 +868,15 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
         neutral.has_mask = 0;
         maps = &neutral;
     }
-    if (maps->has_mask && maps->mask_alpha < 0.5f) {
-        return 1; /* alpha-mask cutout (ADR 0027) */
+    if (mat->alpha_mode != EFX_ALPHA_BLEND && maps->has_mask &&
+        maps->mask_alpha < 0.5f) {
+        return 1; /* alpha-mask cutout (ADR 0027); never in blend mode */
     }
+    /* alpha-mode output alpha (material-alpha-modes): opaque/mask saturate
+       to 1; blend honors diffuse.a × albedo.a (albedo = vertex × tint) */
+    float out_a = mat->alpha_mode == EFX_ALPHA_BLEND
+                      ? lclampf(mat->diffuse[3] * albedo[3], 0.0f, 1.0f)
+                      : 1.0f;
     if (mat->unlit) {
         /* unlit bypass: diffuse color × map × albedo, no light contribution
            (mirrors the shader's mat_params.y branch) */
@@ -878,7 +884,7 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
             out[c] = lclampf(mat->diffuse[c] * maps->diffuse[c] * albedo[c],
                              0.0f, 1.0f);
         }
-        out[3] = albedo[3];
+        out[3] = out_a;
         return 0;
     }
     float N[3];
@@ -923,6 +929,6 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
     out[0] = lclampf(col[0], 0.0f, 1.0f);
     out[1] = lclampf(col[1], 0.0f, 1.0f);
     out[2] = lclampf(col[2], 0.0f, 1.0f);
-    out[3] = albedo[3];
+    out[3] = out_a;
     return 0;
 }
