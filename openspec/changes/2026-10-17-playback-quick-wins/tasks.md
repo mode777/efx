@@ -22,6 +22,6 @@
 
 ## 5. Gate and merge
 
-- [ ] 5.1 Local headless sweep: fresh `cmake -B build -DEFX_HEADLESS=ON` configure + `ctest -E golden` fully green. Verify: clean local ctest log.
+- [x] 5.1 Local headless sweep: fresh `cmake -B build -DEFX_HEADLESS=ON` configure + `ctest -E golden` fully green. Verify: clean local ctest log.
 - [ ] 5.2 Commit the series, push the branch, run `python3 tools/verify_remote.py all <branch>` and iterate until green (both golden-bearing jobs). Verify: verify_remote exits 0.
 - [ ] 5.3 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`), iterate Linux → Windows → macOS; on green, merge `--no-ff` per the repo lifecycle and let Pages redeploy. Verify: gate run green on all targets.
