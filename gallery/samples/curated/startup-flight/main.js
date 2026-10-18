@@ -88,10 +88,13 @@ function makeBillow(seed, freq, octaves) {
             // carry structure and only creases fall to the base density
             let b = Math.abs(buf[y * TEX + x]) * 1.9;
             if (b > 1) b = 1;
-            const d = env * (0.62 + 0.55 * b);
+            // interior detail dents but never holes: |n| creases are
+            // connected curves, and a knee that reaches for zero turns them
+            // into dark webbing under source-over
+            const d = env * (0.78 + 0.28 * b);
             const i = (y * TEX + x) * 4;
             px[i] = 255; px[i + 1] = 255; px[i + 2] = 255;
-            px[i + 3] = smoothstep(0.12, 0.72, d) * 255; // opaque core, soft rim
+            px[i + 3] = (d > 1 ? 255 : d * 255);
         }
     }
     return efx.graphics.createTexture(efx.graphics.createImageData(TEX, TEX, px),
