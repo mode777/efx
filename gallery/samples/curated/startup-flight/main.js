@@ -9,10 +9,10 @@
 // (efx.noise) — the logo is the only image asset.
 
 // ---- palette ------------------------------------------------------------
-const SKY_ZENITH = [0.10, 0.42, 0.90];   // saturated Sega blue overhead
-const SKY_HORIZON = [0.62, 0.82, 1.00];  // pale haze at the vanishing point
-const SKY_UNDER_TOP = [0.52, 0.65, 0.84]; // haze shadow just under the deck
-const SKY_UNDER_DEEP = [0.12, 0.22, 0.42]; // deep gaps toward frame bottom
+const SKY_ZENITH = [0.06, 0.36, 0.92];   // deep saturated Sega blue overhead
+const SKY_HORIZON = [0.44, 0.72, 1.00];  // blue haze at the vanishing point
+const SKY_UNDER_TOP = [0.44, 0.58, 0.82]; // haze shadow just under the deck
+const SKY_UNDER_DEEP = [0.10, 0.20, 0.40]; // deep gaps toward frame bottom
 const CLOUD_TINT = [0.96, 0.98, 1.00];   // thin: shadow blue; stacked: white
 
 // ---- layout: derived from the live surface at boot -----------------------
@@ -20,7 +20,7 @@ const W = efx.window.width || 640;
 const H = efx.window.height || 480;
 const CX = W * 0.5;
 const CY = H * 0.5;
-const HORIZON_Y = H * 0.42; // vanishing point above center: slight pitch-down
+const HORIZON_Y = H * 0.30; // low camera angle: pitched into the cloud sea
 const FOCAL = (H * 0.5) / Math.tan(30 * Math.PI / 180); // 60 deg vertical fov
 
 // ---- flight ---------------------------------------------------------------
@@ -88,10 +88,10 @@ function makeBillow(seed, freq, octaves) {
             // carry structure and only creases fall to the base density
             let b = Math.abs(buf[y * TEX + x]) * 1.9;
             if (b > 1) b = 1;
-            const d = env * (0.34 + 0.95 * b);
+            const d = env * (0.55 + 0.60 * b);
             const i = (y * TEX + x) * 4;
             px[i] = 255; px[i + 1] = 255; px[i + 2] = 255;
-            px[i + 3] = d > 1 ? 255 : d * 255;
+            px[i + 3] = smoothstep(0.25, 0.92, d) * 255; // opaque core, soft rim
         }
     }
     return efx.graphics.createTexture(efx.graphics.createImageData(TEX, TEX, px),
@@ -155,22 +155,22 @@ function respawn(c, z) {
     c.z = z;
     c.x = (rand() * 2 - 1) * (26 + 74 * (z / Z_FAR));
     c.tex = SEA_TEX[(rand() * SEA_TEX.length) | 0];
-    if (z > 55) {                 // far floor: broad, faint, continuous
+    if (z > 55) {                 // far floor: broad, hazy, continuous
         c.w = 55 + rand() * 45;
         c.aspect = 0.35 + rand() * 0.15;
-        c.alpha = 0.13 + rand() * 0.07;
+        c.alpha = 0.55 + rand() * 0.20;
         setTop(c, -(1 + rand() * 8));
     } else if (z > 20) {          // mid billows: the visible topography
         c.w = 44 + rand() * 36;
         c.aspect = 0.50 + rand() * 0.25;
-        c.alpha = 0.30 + rand() * 0.22;
+        c.alpha = 0.75 + rand() * 0.20;
         // world-top shrinks with distance so the poke above the horizon
         // stays a modest, roughly constant number of pixels
         setTop(c, (1 + rand() * 5.5) * (z / 45));
     } else {                      // near rim: tall tops brushing the path
         c.w = 50 + rand() * 40;
         c.aspect = 0.52 + rand() * 0.26;
-        c.alpha = 0.34 + rand() * 0.24;
+        c.alpha = 0.85 + rand() * 0.15;
         c.tex = SEA_TEX[3 + ((rand() * 3) | 0)]; // fine variants near the eye
         setTop(c, (0.5 + rand() * 3) * (z / 20));
     }
@@ -182,7 +182,7 @@ function spawnHorizonBand(c) {    // extra-wide haze bridge at the horizon
     c.w = 140 + rand() * 80;
     c.aspect = 0.07 + rand() * 0.04;
     c.tex = SEA_TEX[(rand() * 2) | 0]; // broad soft variants only
-    c.alpha = 0.09 + rand() * 0.05;
+    c.alpha = 0.30 + rand() * 0.15;
     setTop(c, 1 + rand() * 4); // straddle the vanishing point: bridge haze
 }
 
@@ -204,6 +204,7 @@ function addSea(count) {
 }
 addSea(136);
 
+const byZDesc = (a, b) => b.z - a.z;
 const tintScratch = [1, 1, 1, 1];
 let time = 0;
 
@@ -229,7 +230,7 @@ function drawCloud(c, cb, sb) {
     const sy = HORIZON_Y - FOCAL * ry * inv;
     const farT = smoothstep(Z_FAR * FAR_FADE_START, Z_FAR * 0.98, c.z);
     const a = c.alpha
-        * (1 - farT * 0.55) // thin out ahead, but keep feeding the horizon band
+        * (1 - farT * 0.7) // dissolve into the horizon band up ahead
         * smoothstep(Z_RESPAWN, NEAR_FADE_END, c.z);
     if (a <= 0.004) return;
     const sky = skyColorAt(sy);
@@ -238,7 +239,7 @@ function drawCloud(c, cb, sb) {
     tintScratch[2] = CLOUD_TINT[2] + (sky[2] - CLOUD_TINT[2]) * farT;
     tintScratch[3] = a;
     efx.graphics.drawQuad(c.tex, sx - w * 0.5, sy - h * 0.5,
-        { size: [w, h], color: tintScratch, blend: 'additive' });
+        { size: [w, h], color: tintScratch });
 }
 
 function render() {
@@ -251,7 +252,8 @@ function render() {
     efx.graphics.drawQuad(skyTex, CX - SKY_Q * 0.5, CY - SKY_Q * 0.5,
         { size: [SKY_Q, SKY_Q], rotation: bankDeg });
 
-    // additive blending is order-independent: no sort needed
+    // source-over needs back-to-front painter's order
+    sea.sort(byZDesc);
     for (const c of sea) drawCloud(c, cb, sb);
 
     // logo last: always on top
