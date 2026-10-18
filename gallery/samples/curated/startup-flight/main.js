@@ -10,7 +10,7 @@
 const SKY_ZENITH = [0.13, 0.38, 0.78];   // deep blue overhead
 const SKY_HORIZON = [0.80, 0.89, 0.97];  // pale haze at the vanishing point
 const SKY_UNDER = [0.58, 0.69, 0.84];    // undercast haze below the deck
-const PUFF_SHADOW = [0.87, 0.91, 0.96];  // blue-gray underside shading
+const PUFF_SHADOW = [0.90, 0.93, 0.97];  // blue-gray underside shading
 const WISP_TINT = [0.93, 0.96, 1.0];
 
 // ---- layout: derived from the live surface at boot -----------------------
@@ -62,45 +62,73 @@ function skyColorAt(sy) {
 }
 
 // ---- procedural cloud sprites ---------------------------------------------
-// fill2 gives seeded fBm; the per-pixel pass applies an elliptical edge
-// falloff, a bottom-heavy density bias, and a knee that clears low densities
-// away from the silhouette, then bakes top-light shading into RGB (2D quads
-// are unlit, so draw-time tint alone could not shade them).
+// Puffs are one smooth lobed mass: the silhouette radius wobbles with
+// periodic ring-sampled noise (cumulus lobes), the interior stays solid so
+// mip filtering can never produce lace, and shading bakes into RGB only at
+// the lowest band (2D quads are unlit). Wisps keep a streaky noise carve.
 const TEX = 256;
 
-function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBoost) {
-    const buf = new Float32Array(TEX * TEX);
-    efx.noise.fill2(buf, TEX, TEX, {
-        seed, type: 'opensimplex2', frequency: freq,
-        octaves, lacunarity: 2.0, gain,
+function makePuff(seed, lobesFreq, lobeAmp, ax, ay, bottomBoost) {
+    const mott = new Float32Array(TEX * TEX);
+    efx.noise.fill2(mott, TEX, TEX, {
+        seed: seed + 31, type: 'opensimplex2', frequency: 0.014,
+        octaves: 3, lacunarity: 2.0, gain: 0.5,
     });
+    const LUTN = 720;
+    const lobe = new Float32Array(LUTN);
+    for (let i = 0; i < LUTN; i++) {
+        const a = (i / LUTN) * Math.PI * 2;
+        const n1 = efx.noise.noise2(Math.cos(a) * lobesFreq, Math.sin(a) * lobesFreq, { seed });
+        const n2 = efx.noise.noise2(Math.cos(a) * lobesFreq * 2.3, Math.sin(a) * lobesFreq * 2.3,
+            { seed: seed + 7 });
+        lobe[i] = 1 + lobeAmp * n1 + lobeAmp * 0.35 * n2;
+    }
     const px = new Uint8Array(TEX * TEX * 4);
     for (let y = 0; y < TEX; y++) {
         const ny = (y / (TEX - 1)) * 2 - 1; // -1 top, +1 bottom
         const ny01 = (ny + 1) * 0.5;
-        const b2 = Math.max(0, ny01 - 0.72) / 0.28; // shade only the lowest band
-        const bottom = b2 * b2;
-        const r = 255 * (1 + (PUFF_SHADOW[0] - 1) * bottom);
-        const g = 255 * (1 + (PUFF_SHADOW[1] - 1) * bottom);
-        const b = 255 * (1 + (PUFF_SHADOW[2] - 1) * bottom);
+        const b2 = Math.max(0, ny01 - 0.68) / 0.32;
+        const bottom = b2 * b2 * bottomBoost;
+        for (let x = 0; x < TEX; x++) {
+            const nx = (x / (TEX - 1)) * 2 - 1;
+            const ex = nx / ax, ey = ny / ay;
+            const r = Math.sqrt(ex * ex + ey * ey);
+            const ang = Math.atan2(ey, ex);
+            const li = Math.round(((ang + Math.PI) / (Math.PI * 2)) * LUTN) % LUTN;
+            let alpha = smoothstep(1.0, 0.80, r / lobe[li]);
+            alpha *= 0.955 + 0.045 * (mott[y * TEX + x] * 0.5 + 0.5);
+            const i = (y * TEX + x) * 4;
+            const shade = bottom * alpha * alpha; // partial-alpha rim stays white
+            px[i] = 255 * (1 + (PUFF_SHADOW[0] - 1) * shade);
+            px[i + 1] = 255 * (1 + (PUFF_SHADOW[1] - 1) * shade);
+            px[i + 2] = 255 * (1 + (PUFF_SHADOW[2] - 1) * shade);
+            px[i + 3] = alpha * 255;
+        }
+    }
+    return efx.graphics.createTexture(efx.graphics.createImageData(TEX, TEX, px),
+        { wrap: 'clamp', mipmaps: true });
+}
+
+function makeWisp(seed, freq, ax, ay) {
+    const buf = new Float32Array(TEX * TEX);
+    efx.noise.fill2(buf, TEX, TEX, {
+        seed, type: 'opensimplex2', frequency: freq, octaves: 4, lacunarity: 2.0, gain: 0.5,
+    });
+    const px = new Uint8Array(TEX * TEX * 4);
+    for (let y = 0; y < TEX; y++) {
+        const ny = (y / (TEX - 1)) * 2 - 1;
         for (let x = 0; x < TEX; x++) {
             const nx = (x / (TEX - 1)) * 2 - 1;
             const d2 = (nx * nx) / (ax * ax) + (ny * ny) / (ay * ay);
             const fall = 1 - d2;
-            // plateau mask: full density out to ~mid-radius, smooth rim
-            const fallS = fall <= 0 ? 0 : smoothstep(0, 0.45, fall);
-            // billow shaping: |fBm| makes rounded lobes (cumulus), valleys
-            // stay clear; measured |n| p90~0.43, p97~0.57 so ~a quarter of
-            // the interior saturates through the knee
+            const fallS = fall <= 0 ? 0 : smoothstep(0, 0.4, fall);
+            // carve around the median: |n| p75~0.24 (measured), so streaks
+            // cover ~a quarter of the mask
             const an = Math.abs(buf[y * TEX + x]);
-            let dens = (an * 1.35 - 0.12) * fallS;
-            dens *= 1 + bottomBoost * (ny01 * 2 - 1); // fuller underside
-            // RGB is written even where alpha is 0 — linear filtering blends
-            // neighboring texel colors, and black zeros would fringe the
-            // silhouette gray
+            const dens = smoothstep(0.18, 0.5, (an * 1.9 - 0.2) * fallS);
             const i = (y * TEX + x) * 4;
-            px[i] = r; px[i + 1] = g; px[i + 2] = b;
-            px[i + 3] = fall <= 0 ? 0 : smoothstep(kneeLo, kneeHi, dens) * 255;
+            px[i] = 255; px[i + 1] = 255; px[i + 2] = 255;
+            px[i + 3] = dens * 255;
         }
     }
     return efx.graphics.createTexture(efx.graphics.createImageData(TEX, TEX, px),
@@ -110,12 +138,12 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
 const PUFFS = [];
 const PUFF_SEEDS = [11, 23, 37, 41, 53];
 for (let i = 0; i < PUFF_SEEDS.length; i++) {
-    PUFFS.push(sculptCloud(PUFF_SEEDS[i], 0.017 + 0.0025 * i, 4, 0.50,
-        0.92, 0.88, 0.12 + 0.01 * i, 0.62 + 0.02 * i, 0.35));
+    PUFFS.push(makePuff(PUFF_SEEDS[i], 1.3 + 0.35 * i, 0.10,
+        0.92, 0.88, 0.5));
 }
 const WISPS = [
-    sculptCloud(7, 0.013, 4, 0.50, 0.98, 0.40, 0.30, 0.95, 0),
-    sculptCloud(19, 0.017, 4, 0.55, 0.98, 0.46, 0.34, 0.98, 0),
+    makeWisp(7, 0.013, 0.98, 0.40),
+    makeWisp(19, 0.017, 0.98, 0.46),
 ];
 
 // ---- sky gradient ----------------------------------------------------------
@@ -151,7 +179,7 @@ function respawn(c, z) {
     c.z = z;
     if (c.band === 0) {          // deck
         c.x = (rand() * 2 - 1) * (34 + 66 * (c.z / Z_FAR));
-        c.y = -16 - rand() * 10;
+        c.y = -22 - rand() * 12;
         c.w = 32 + rand() * 30;
         c.aspect = 0.40 + rand() * 0.18;
         c.tex = PUFFS[(rand() * PUFFS.length) | 0];
@@ -167,7 +195,7 @@ function respawn(c, z) {
         c.x = (rand() * 2 - 1) * (26 + 38 * (c.z / Z_FAR));
         c.y = 16 + rand() * 16;
         c.w = 44 + rand() * 28;
-        c.aspect = 0.24 + rand() * 0.10;
+        c.aspect = 0.17 + rand() * 0.07;
         c.tex = WISPS[(rand() * WISPS.length) | 0];
         c.tint = WISP_TINT;
     }
@@ -180,9 +208,9 @@ function addBand(band, count) {
         clouds.push(c);
     }
 }
-addBand(0, 30);
-addBand(1, 10);
-addBand(2, 6);
+addBand(0, 18);
+addBand(1, 12);
+addBand(2, 8);
 
 const byZDesc = (a, b) => b.z - a.z;
 const tintScratch = [1, 1, 1, 1];
