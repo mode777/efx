@@ -23,4 +23,4 @@
 
 - [x] 5.1 Dispatch `gh workflow run ci.yml --ref <branch>` and iterate Linux → Windows → macOS until the four-target matrix is green
 - [ ] 5.2 Merge to `main` with `git merge --no-ff` using the repo's `Merge <change>: <summary> (ADR 0059)` message shape and push (Pages gallery redeploy follows)
-- [ ] 5.3 Run `npx openspec validate "noise-imagedata-alpha" --type change --strict`, then archive the change (`/opsx-archive`) and push; no new ADR per design D5 — ADR 0059 already indexes the noise surface
+- [x] 5.3 Run `npx openspec validate "noise-imagedata-alpha" --type change --strict`, then archive the change (`/opsx-archive`) and push; no new ADR per design D5 — ADR 0059 already indexes the noise surface
