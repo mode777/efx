@@ -142,5 +142,11 @@
     "title": "Video Showcase",
     "category": "Showcase",
     "description": "MPEG-1 video playback: the engine decodes the clip and uploads each frame to video.texture, an ordinary dynamic texture drawn with drawQuad. Audio is engine-managed (it plays through the mixer and mutes with vid.muted). Space pauses/resumes, M mutes, L toggles looping. Clip: \"Big Buck Bunny\" excerpt (c) Blender Foundation, CC-BY 3.0."
+  },
+  {
+    "dir": "startup-flight",
+    "title": "Startup Flight",
+    "category": "Showcase",
+    "description": "A startup-screen flight along the edge of a cloud deck under a clear sky, the EFX logo swaying in the center. Every cloud sprite is procedural: seeded fBm noise sculpted per-pixel in JS, flown with 2D quads and hand-rolled perspective."
   }
 ]

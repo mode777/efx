@@ -131,6 +131,7 @@ add_player_test(smoke_showcase_text ARGS "--script;${GALLERY}/text-showcase/main
 add_player_test(smoke_showcase_physics ARGS "--script;${GALLERY}/physics-showcase/main.js" EXPECT 0)
 add_player_test(smoke_showcase_gamepad ARGS "--script;${GALLERY}/gamepad-tester/main.js;--root;${GALLERY}/gamepad-tester" EXPECT 0)
 add_player_test(smoke_showcase_audio ARGS "--script;${GALLERY}/audio-showcase/main.js;--root;${GALLERY}/audio-showcase" EXPECT 0)
+add_player_test(smoke_showcase_startup_flight ARGS "--script;${GALLERY}/startup-flight/main.js;--root;${GALLERY}/startup-flight" EXPECT 0)
 add_player_test(smoke_root_zip ARGS "${F}/root_zip.zip" EXPECT 0 EXPECT_OUT "zip-entry-ok")
 # dropped-root acceptance + load (ADR 0056): the test-only env seam runs the
 # same validation as a real drop, then loads the root in-process (no spawn),
