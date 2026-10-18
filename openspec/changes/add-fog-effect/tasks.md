@@ -30,4 +30,4 @@
 ## 6. Verification gate
 
 - [x] 6.1 Full unit + golden verification on the SSH server (`python3 tools/verify_remote.py all <branch>`) until green before dispatching the gate
-- [ ] 6.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`); iterate Linux → Windows → macOS until green; merge on green per AGENTS.md
+- [x] 6.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`); iterate Linux → Windows → macOS until green; merge on green per AGENTS.md
