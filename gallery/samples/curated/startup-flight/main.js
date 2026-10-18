@@ -183,11 +183,11 @@ function respawnShadow(c, z) {
     c.z = z;
     c.shadow = 1;
     c.x = (rand() * 2 - 1) * (26 + 74 * (z / Z_FAR));
-    c.w = 50 + rand() * 55;
-    c.aspect = 0.30 + rand() * 0.20;
+    c.w = 60 + rand() * 50;
+    c.aspect = 0.25 + rand() * 0.20;
     c.tex = SEA_TEX[(rand() * SEA_TEX.length) | 0];
-    c.alpha = 0.20 + rand() * 0.18;
-    setTop(c, -(2 + rand() * 7) * (z / 45));
+    c.alpha = 0.12 + rand() * 0.10;
+    setTop(c, -(5 + rand() * 8)); // deep inside the saturated zone only
 }
 
 function spawnHorizonBand(c) {    // extra-wide haze bridge at the horizon
@@ -212,9 +212,9 @@ function addSea(count) {
         c.shadow = 0;
         sea.push(c);
     }
-    for (let i = 0; i < 34; i++) {
+    for (let i = 0; i < 16; i++) {
         const c = { z: 0, x: 0, y: 0, w: 0, aspect: 1, tex: null, alpha: 1, shadow: 0 };
-        respawnShadow(c, 15 + rand() * 55);
+        respawnShadow(c, 25 + rand() * 35);
         sea.push(c);
     }
     for (let i = 0; i < 6; i++) {
@@ -266,9 +266,9 @@ function drawCloud(c, pass, cb, sb) {
     const sky = skyColorAt(sy);
     if (isShadow) {
         // cool cloud-shadow tone; recedes with distance like the rest
-        tintScratch[0] = 0.52 + (sky[0] - 0.52) * farT;
-        tintScratch[1] = 0.63 + (sky[1] - 0.63) * farT;
-        tintScratch[2] = 0.80 + (sky[2] - 0.80) * farT;
+        tintScratch[0] = 0.68 + (sky[0] - 0.68) * farT;
+        tintScratch[1] = 0.76 + (sky[1] - 0.76) * farT;
+        tintScratch[2] = 0.90 + (sky[2] - 0.90) * farT;
         tintScratch[3] = a;
         efx.graphics.drawQuad(c.tex, sx - w * 0.5, sy - h * 0.5,
             { size: [w, h], color: tintScratch });
