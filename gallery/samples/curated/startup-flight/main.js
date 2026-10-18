@@ -139,7 +139,7 @@ const PUFFS = [];
 const PUFF_SEEDS = [11, 23, 37, 41, 53];
 for (let i = 0; i < PUFF_SEEDS.length; i++) {
     PUFFS.push(makePuff(PUFF_SEEDS[i], 1.3 + 0.35 * i, 0.10,
-        0.92, 0.88, 0.5));
+        0.92, 0.88, 0.35));
 }
 const WISPS = [
     makeWisp(7, 0.013, 0.98, 0.40),
@@ -179,7 +179,7 @@ function respawn(c, z) {
     c.z = z;
     if (c.band === 0) {          // deck
         c.x = (rand() * 2 - 1) * (34 + 66 * (c.z / Z_FAR));
-        c.y = -22 - rand() * 12;
+        c.y = -24 - rand() * 12;
         c.w = 32 + rand() * 30;
         c.aspect = 0.40 + rand() * 0.18;
         c.tex = PUFFS[(rand() * PUFFS.length) | 0];
@@ -208,7 +208,7 @@ function addBand(band, count) {
         clouds.push(c);
     }
 }
-addBand(0, 18);
+addBand(0, 16);
 addBand(1, 12);
 addBand(2, 8);
 
@@ -249,7 +249,7 @@ function render() {
         if (a <= 0.003) continue;
         // aerial perspective: gentle distance whiten plus a strong dissolve
         // into the sky color inside the horizon haze band
-        const zT = smoothstep(0.45, 0.95, c.z / Z_FAR) * 0.42;
+        const zT = smoothstep(0.55, 0.95, c.z / Z_FAR) * 0.30;
         const bandT = smoothstep(0.22, 0.04, Math.abs(sy - HORIZON_Y) / H) * 0.8;
         const hazeT = Math.min(1, zT + bandT);
         const sky = skyColorAt(sy);
