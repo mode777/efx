@@ -7,8 +7,8 @@ efx.graphics.setDirectionalLight({ dir: [0.3, -1, -0.2], color: [1.0, 0.98, 0.9,
 efx.graphics.setFog({ mode: 'exp2', color: [0.42, 0.5, 0.6, 1], density: 0.09 });
 
 const P = [
-    -8, 0, 6,  -8, 0, -50,  8, 0, -50,
-    -8, 0, 6,   8, 0, -50,  8, 0, 6,
+    -8, 0, 6,   8, 0, -50,  -8, 0, -50,
+    -8, 0, 6,   8, 0,   6,   8, 0, -50,
 ];
 const N = [
     0, 1, 0, 0, 1, 0, 0, 1, 0,

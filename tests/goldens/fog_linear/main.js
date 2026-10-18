@@ -6,10 +6,10 @@ efx.graphics.setCamera3D([0, 2.5, 10], [0, 0, -8], 55);
 efx.graphics.setDirectionalLight({ dir: [0.3, -1, -0.2], color: [1.0, 0.98, 0.9, 1] });
 efx.graphics.setFog({ color: [0.45, 0.55, 0.65, 1], near: 10, far: 45 });
 
-// single quad, x in [-8, 8], z in [+6, -50]; up normals
+// single quad, x in [-8, 8], z in [+6, -50]; up normals; wound CCW from +y
 const P = [
-    -8, 0, 6,  -8, 0, -50,  8, 0, -50,
-    -8, 0, 6,   8, 0, -50,  8, 0, 6,
+    -8, 0, 6,   8, 0, -50,  -8, 0, -50,
+    -8, 0, 6,   8, 0,   6,   8, 0, -50,
 ];
 const N = [
     0, 1, 0, 0, 1, 0, 0, 1, 0,
