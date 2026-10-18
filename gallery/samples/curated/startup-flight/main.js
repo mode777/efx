@@ -10,7 +10,7 @@
 const SKY_ZENITH = [0.13, 0.38, 0.78];   // deep blue overhead
 const SKY_HORIZON = [0.80, 0.89, 0.97];  // pale haze at the vanishing point
 const SKY_UNDER = [0.58, 0.69, 0.84];    // undercast haze below the deck
-const PUFF_SHADOW = [0.80, 0.86, 0.94];  // blue-gray underside shading
+const PUFF_SHADOW = [0.87, 0.91, 0.96];  // blue-gray underside shading
 const WISP_TINT = [0.93, 0.96, 1.0];
 
 // ---- layout: derived from the live surface at boot -----------------------
@@ -78,7 +78,7 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
     for (let y = 0; y < TEX; y++) {
         const ny = (y / (TEX - 1)) * 2 - 1; // -1 top, +1 bottom
         const ny01 = (ny + 1) * 0.5;
-        const b2 = Math.max(0, ny01 - 0.6) / 0.4; // shade only the lower band
+        const b2 = Math.max(0, ny01 - 0.72) / 0.28; // shade only the lowest band
         const bottom = b2 * b2;
         const r = 255 * (1 + (PUFF_SHADOW[0] - 1) * bottom);
         const g = 255 * (1 + (PUFF_SHADOW[1] - 1) * bottom);
@@ -89,11 +89,11 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
             const fall = 1 - d2;
             // plateau mask: full density out to ~mid-radius, smooth rim
             const fallS = fall <= 0 ? 0 : smoothstep(0, 0.45, fall);
-            // carve: opensimplex2 fBm clusters near 0.5 (measured p25=0.39,
-            // p75=0.62), so expand around a p~25 threshold: ~a third of the
-            // interior carves to zero, the peaks saturate after the knee
-            const n01 = buf[y * TEX + x] * 0.5 + 0.5;
-            let dens = (n01 - 0.36) * 2.9 * fallS;
+            // billow shaping: |fBm| makes rounded lobes (cumulus), valleys
+            // stay clear; measured |n| p90~0.43, p97~0.57 so ~a quarter of
+            // the interior saturates through the knee
+            const an = Math.abs(buf[y * TEX + x]);
+            let dens = (an * 1.35 - 0.12) * fallS;
             dens *= 1 + bottomBoost * (ny01 * 2 - 1); // fuller underside
             // RGB is written even where alpha is 0 — linear filtering blends
             // neighboring texel colors, and black zeros would fringe the
@@ -110,8 +110,8 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
 const PUFFS = [];
 const PUFF_SEEDS = [11, 23, 37, 41, 53];
 for (let i = 0; i < PUFF_SEEDS.length; i++) {
-    PUFFS.push(sculptCloud(PUFF_SEEDS[i], 0.021 + 0.003 * i, 5, 0.52,
-        0.92, 0.88, 0.15 + 0.01 * i, 0.72 + 0.02 * i, 0.35));
+    PUFFS.push(sculptCloud(PUFF_SEEDS[i], 0.017 + 0.0025 * i, 4, 0.50,
+        0.92, 0.88, 0.12 + 0.01 * i, 0.62 + 0.02 * i, 0.35));
 }
 const WISPS = [
     sculptCloud(7, 0.013, 4, 0.50, 0.98, 0.40, 0.30, 0.95, 0),
