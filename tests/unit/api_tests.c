@@ -2325,6 +2325,22 @@ static int noise_imagedata_js(void) {
         "if (im2.width !== 4 || im2.height !== 4) throw new Error('extent2');"
         "im2.destroy();"),
         "imageData helper");
+    /* alpha flag: strict boolean, accepted true/false, unknown keys still
+     * rejected (byte placement is the golden scene's job) */
+    REQUIRE(!ok_js(
+        T_HELPER
+        "var a = efx.noise.imageData(4, 4, {alpha: true});"
+        "if (a.width !== 4 || a.height !== 4) throw new Error('alpha extent');"
+        "a.destroy();"
+        "var f = efx.noise.imageData(4, 4, {alpha: false});"
+        "if (f.width !== 4 || f.height !== 4) throw new Error('false extent');"
+        "f.destroy();"
+        "t(function () { efx.noise.imageData(4, 4, {alpha: 'yes'}); },"
+        " TypeError);"
+        "t(function () { efx.noise.imageData(4, 4, {alpha: 1}); }, TypeError);"
+        "t(function () { efx.noise.imageData(4, 4,"
+        "  {alpha: true, seedd: 1}); }, TypeError);"),
+        "imageData alpha flag");
     end_js();
     return 0;
 }

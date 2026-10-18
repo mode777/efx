@@ -3132,7 +3132,8 @@ interface NoiseOptions {
 
 /**
  * Options for `noise.imageData`: the shared noise options plus the raw
- * value range mapped onto the grayscale byte range.
+ * value range mapped onto the grayscale byte range, and an alpha-channel
+ * mode.
  *
  * @hidden
  * @inline
@@ -3145,6 +3146,15 @@ interface NoiseImageDataOptions extends NoiseOptions {
    * pass a matching domain for a full-contrast image.
    */
   domain?: [number, number];
+  /**
+   * Write the normalized noise into the alpha channel instead of the RGB
+   * channels (default `false`). With `alpha: true` every pixel is white
+   * (`R = G = B = 255`) and the alpha byte is the same normalized value the
+   * grayscale mode would have produced — a white texture whose opacity
+   * follows the noise, ready for a draw-time tint (soft particles, glow and
+   * fog sprites).
+   */
+  alpha?: boolean;
 }
 
 /**
@@ -3200,15 +3210,16 @@ interface EfxNoise {
    */
   fill2(buf: Float32Array, w: number, h: number, opts?: NoiseOptions): void;
   /**
-   * Build a grayscale `ImageData` of `w*h` noise pixels in one call:
-   * the raw values are mapped linearly from `domain` onto `[0, 255]`
-   * (clamped). Pure JS over `fill2` and `createImageData`.
-   *
-   * @param w - Image width in pixels (positive integer).
-   * @param h - Image height in pixels (positive integer).
-   * @param opts - Noise options plus the `domain` mapping.
-   * @returns The new ImageData; upload it with `graphics.createTexture`.
-   */
+    * Build a `w*h` noise `ImageData` in one call: the raw values are mapped
+    * linearly from `domain` onto `[0, 255]` (clamped) into grayscale RGB, or
+    * into the alpha channel with white RGB when `alpha: true`. Pure JS over
+    * `fill2` and `createImageData`.
+    *
+    * @param w - Image width in pixels (positive integer).
+    * @param h - Image height in pixels (positive integer).
+    * @param opts - Noise options plus the `domain` mapping and `alpha` mode.
+    * @returns The new ImageData; upload it with `graphics.createTexture`.
+    */
   imageData(w: number, h: number, opts?: NoiseImageDataOptions): EfxImageData;
 }
 

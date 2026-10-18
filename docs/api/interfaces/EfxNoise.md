@@ -111,9 +111,10 @@ Domain warp applied before sampling (default `'none'`).
 
 > **imageData**(`w`, `h`, `opts?`): [`EfxImageData`](EfxImageData.md)
 
-Build a grayscale `ImageData` of `w*h` noise pixels in one call:
-the raw values are mapped linearly from `domain` onto `[0, 255]`
-(clamped). Pure JS over `fill2` and `createImageData`.
+Build a `w*h` noise `ImageData` in one call: the raw values are mapped
+linearly from `domain` onto `[0, 255]` (clamped) into grayscale RGB, or
+into the alpha channel with white RGB when `alpha: true`. Pure JS over
+`fill2` and `createImageData`.
 
 #### Parameters
 
@@ -131,7 +132,18 @@ Image height in pixels (positive integer).
 
 ##### opts?
 
-Noise options plus the `domain` mapping.
+Noise options plus the `domain` mapping and `alpha` mode.
+
+###### alpha?
+
+`boolean`
+
+Write the normalized noise into the alpha channel instead of the RGB
+channels (default `false`). With `alpha: true` every pixel is white
+(`R = G = B = 255`) and the alpha byte is the same normalized value the
+grayscale mode would have produced — a white texture whose opacity
+follows the noise, ready for a draw-time tint (soft particles, glow and
+fog sprites).
 
 ###### domain?
 
