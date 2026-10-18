@@ -76,7 +76,8 @@ nothing. The directional light contributes no attenuation.
 
 ### Requirement: Phong material model
 A material is a **JS-managed** plain object (ADR 0011; no native class, no
-`destroy()`) with four optional Phong channels plus an optional `unlit` flag.
+`destroy()`) with four optional Phong channels plus optional `unlit` and
+`alphaMode` flags.
 Channel values are snapshotted by the engine when the material is bound —
 later mutation of the script object MUST NOT change the bound material.
 Channel maps are held by **handle** (ADR 0019) and the referenced Textures and
@@ -94,26 +95,38 @@ channels or fields take documented defaults:
   `'subtractive'`) selecting how the surfaces bound to this material combine
   with the existing frame content; absent or `null` means the surface uses the
   frame's blend render state at draw record time (see the `2d-layer` blending
-  requirement).
+  requirement). The blend equation is orthogonal to `alphaMode`: it selects
+  how fragments combine inside whichever pass `alphaMode` routes the surface
+  to, and never selects the pass itself.
 - `unlit?` — an optional boolean (default `false`). When `true`, the surface
   is shaded without the lighting equation and without any light contribution:
   its color is the `diffuse` channel color multiplied by the `diffuse` map
-  sample and the albedo (see the F4a lit shading requirement). `alphaMask`
-  and `blend` still apply; `ambient`, `specular`, `emissive`, and every light
-  are ignored.
+  sample and the albedo (see the F4a lit shading requirement). `alphaMask`,
+  `alphaMode`, and `blend` still apply; `ambient`, `specular`, `emissive`, and
+  every light are ignored.
+- `alphaMode?` — an optional transparency-mode string selecting the render
+  path the surface takes (see the `3d-core` whole-mesh drawing requirement for
+  the playback routing): `'opaque'` (the default), `'mask'` (the alpha-scissor
+  path — full rendering path with depth writing, fragments sampling
+  `alphaMask` alpha below `0.5` discarded), or `'blend'` (the transparent
+  path — drawn last in the pass, depth-sorted, no depth writing, fragment
+  alpha honored). Absent or `null` means `'opaque'`.
 
-Each channel `color` SHALL be a `[r, g, b, a]` array of normalized floats;
-the alpha component SHALL be ignored by shading. `shininess` SHALL be a finite
+Each channel `color` SHALL be a `[r, g, b, a]` array of normalized floats.
+The channel alphas are ignored by shading **except** the `diffuse` alpha in
+`'blend'` mode, where it multiplies the fragment alpha (see the F4a lit
+shading requirement). `shininess` SHALL be a finite
 number `> 0`. A `map` field and the material-level `alphaMask`, when present,
 MUST be a live `Texture` or a live `RenderTarget` (F5a). A non-object
 material, an unknown field, a wrong-typed or wrong-length `color`, a
 non-number `shininess`, a wrongly-typed `map`/`alphaMask`, a non-boolean
 `unlit`, or a destroyed `Texture` or destroyed `RenderTarget` passed as a map
 SHALL throw `TypeError`; a `blend` that is present and is neither one of the
-three mode strings nor `null` SHALL throw `TypeError`; a non-positive or
-non-finite `shininess` SHALL throw `RangeError`; the call that was passed the
-material SHALL record nothing. `map`/`alphaMask` were rejected as unknown in
-F4a and are now accepted.
+three mode strings nor `null` SHALL throw `TypeError`; an `alphaMode` that is
+present and is neither `'opaque'`, `'mask'`, `'blend'`, nor `null` SHALL throw
+`TypeError`; a non-positive or non-finite `shininess` SHALL throw
+`RangeError`; the call that was passed the material SHALL record nothing.
+`map`/`alphaMask` were rejected as unknown in F4a and are now accepted.
 
 The engine SHALL **retain** each bound map's `Texture` or `RenderTarget`:
 calling `destroy()` on the bound resource releases the script's handle, and
@@ -124,7 +137,7 @@ handle. An omitted or `null` map means no modulation.
 
 #### Scenario: Omitted channels take defaults
 - **WHEN** `mesh.setSurfaceMaterial(0, {})` is called
-- **THEN** the surface uses the default white-diffuse Phong material with no maps, no alpha mask, no unlit flag, and no blend override
+- **THEN** the surface uses the default white-diffuse Phong material with no maps, no alpha mask, no unlit flag, no blend override, and `alphaMode` `'opaque'`
 
 #### Scenario: Specular channel accepts color and shininess
 - **WHEN** a material sets `specular: { color: [1, 1, 1, 1], shininess: 64 }`
@@ -140,7 +153,7 @@ handle. An omitted or `null` map means no modulation.
 
 #### Scenario: Alpha mask cuts out below the threshold
 - **WHEN** a material with an `alphaMask` whose alpha is `0` over part of the surface and `1` over the rest is drawn
-- **THEN** fragments sampling mask alpha below `0.5` are not written, the rest show the lit surface with the albedo alpha, and the mask RGB is ignored
+- **THEN** fragments sampling mask alpha below `0.5` are not written, the rest show the lit surface, and the mask RGB is ignored
 
 #### Scenario: Material blend is snapshotted at binding
 - **WHEN** a material with `blend: 'additive'` is bound to a surface and the
@@ -158,6 +171,19 @@ handle. An omitted or `null` map means no modulation.
 - **WHEN** a material sets `unlit: 1` or `unlit: 'yes'`
 - **THEN** the binding call throws `TypeError` and the surface's previous
   binding is unchanged
+
+#### Scenario: Alpha mode validates and defaults to opaque
+- **WHEN** a material sets `alphaMode: 'blend'`, `alphaMode: 'mask'`, or omits
+  it, and another material sets `alphaMode: 'multiply'` or `alphaMode: 1`
+- **THEN** the valid materials bind with the named mode (`'opaque'` when
+  omitted or `null`), and the invalid ones throw `TypeError` leaving the
+  surface's previous binding unchanged
+
+#### Scenario: Alpha mode is snapshotted at binding
+- **WHEN** a material with `alphaMode: 'blend'` is bound to a surface and the
+  script object's `alphaMode` is later changed before the surface is drawn
+- **THEN** the surface's recorded draw routes by `'blend'`, the value at
+  binding time
 
 #### Scenario: Bound map texture is retained
 - **WHEN** a live `Texture` is bound as a map and the script then calls `Texture.destroy()` while the binding is in effect, and later re-binds the surface without that map
@@ -246,33 +272,45 @@ position, `d` is the distance, and attenuation is `atten = 1` when `range` is
 `0`, else `atten = clamp(1 - d / range, 0, 1)`. For the directional light, `L`
 is the unit direction toward the light (`normalize(-dir)`) and `atten = 1`.
 
+The fragment's **output alpha** SHALL be selected by the material's
+`alphaMode`. In `'opaque'` and `'mask'` mode the output alpha SHALL be `1`:
+the fragment is fully opaque regardless of vertex, tint, or channel alpha
+(glTF OPAQUE/MASK semantics — translucency requires declaring `'blend'`).
+In `'blend'` mode the output alpha SHALL be the product
+`material.diffuse.color.a × vertex-color alpha × tint alpha`, clamped to
+`[0, 1]`, and the fragment combines with the framebuffer by the resolved blend
+equation. In `'blend'` mode the `alphaMask` map, if bound, SHALL NOT discard —
+the mode wins over the mask, and a material that wants cutout transparency
+declares `'mask'`.
+
+The mask-discard rule otherwise stands: when the mode is `'opaque'` or
+`'mask'` and the material has an `alphaMask`, the fragment SHALL sample
+`texture(alphaMask, uv).a` and be **discarded** when that value is `< 0.5`;
+otherwise the fragment is written with output alpha `1` — the mask never
+modulates the output alpha and no alpha blending or dithering is applied by
+the mask.
+
 When the material has `unlit: true`, the surface SHALL bypass the entire
 lighting equation and the light bank: the final fragment color SHALL be the
 **unlit color** `material.diffuse.color × M_diffuse × albedo`, clamped to
-`[0, 1]`. The `alphaMask`, the albedo alpha, and the blend mode SHALL behave
-exactly as in the lit path; `ambient`, `specular`, `emissive`, and every
-point/directional light SHALL have no effect. A material with `unlit: true`
-and no `diffuse.map` therefore renders its `diffuse` color scaled by the
-albedo, and a material with no lights enabled but `unlit: false` continues to
-render its lit result (which is black except for its emissive term).
+`[0, 1]`. The `alphaMask`, the `alphaMode` output-alpha rule, and the blend
+mode SHALL behave exactly as in the lit path; `ambient`, `specular`,
+`emissive`, and every point/directional light SHALL have no effect. A material
+with `unlit: true` and no `diffuse.map` therefore renders its `diffuse` color
+scaled by the albedo, and a material with no lights enabled but `unlit: false`
+continues to render its lit result (which is black except for its emissive
+term).
 
 A surface without `normals` SHALL use the F3 default normal `(0, 0, 1)` in
 object space. A surface without `uvs` SHALL sample every map at the F3 default
 `(0, 0)`. Absent maps contribute the neutral factor `1`, so a material that
 binds no maps shades exactly as in F4a.
 
-When the material has an `alphaMask`, the fragment SHALL sample
-`texture(alphaMask, uv).a` and be **discarded** when that value is `< 0.5`;
-otherwise the fragment is written and its alpha SHALL be the albedo alpha
-(vertex-color alpha × tint alpha) — the mask does not modulate the output
-alpha and no alpha blending or dithering is applied by the mask. Material
-channel alphas remain ignored by shading.
-
 2D quad records SHALL be unaffected and the committed F2 goldens SHALL remain
 valid. Because absent maps are neutral and `unlit` defaults to `false`, the
-committed F3 and F4a goldens SHALL remain byte-identical. With every light
-disabled, a default-material surface renders black except for its emissive
-term.
+committed F3 and F4a goldens SHALL remain byte-identical for fully opaque
+materials. With every light disabled, a default-material surface renders black
+except for its emissive term.
 
 #### Scenario: Ambient alone is flat
 
@@ -330,9 +368,31 @@ term.
 
 #### Scenario: Alpha mask does not change surviving alpha
 
-- **WHEN** a masked surface is drawn with a tint alpha below `1`
-- **THEN** fragments that survive the mask keep the tint-modulated albedo
-  alpha, and the mask's own alpha does not alter it
+- **WHEN** a masked surface is drawn in `'opaque'` or `'mask'` mode with a
+  tint alpha below `1`
+- **THEN** fragments that survive the mask render fully opaque (output alpha
+  `1`), and the mask's own alpha and the tint alpha do not alter that
+
+#### Scenario: Blend mode honors material, vertex, and tint alpha
+
+- **WHEN** a surface is drawn with `alphaMode: 'blend'`, a `diffuse` color
+  alpha of `0.5`, vertex-color alpha `0.8`, and tint alpha `1`
+- **THEN** the output alpha is `0.4` and the fragment alpha-blends over the
+  existing frame content
+
+#### Scenario: Opaque mode saturates fragment alpha
+
+- **WHEN** the same surface with a `diffuse` alpha of `0.5` and vertex alpha
+  `0.8` is drawn with the default mode
+- **THEN** every surviving fragment renders fully opaque, with no in-place
+  blending
+
+#### Scenario: Blend mode ignores the alpha-mask discard
+
+- **WHEN** a material with an `alphaMask` sampling alpha `0` over part of the
+  surface is drawn with `alphaMode: 'blend'`
+- **THEN** no fragment is discarded by the mask; all fragments alpha-blend per
+  the blend equation
 
 #### Scenario: Unlit ignores lights and the lit channels
 
@@ -344,8 +404,8 @@ term.
 
 #### Scenario: Unlit still honors alpha mask and blend
 
-- **WHEN** an unlit surface with an `alphaMask` and `blend: 'additive'` is
-  drawn
+- **WHEN** an unlit surface with an `alphaMask`, `blend: 'additive'`, and the
+  default `alphaMode` is drawn
 - **THEN** fragments below the mask threshold are discarded and the survivors
   blend additively, exactly as in the lit path
 
@@ -353,16 +413,20 @@ term.
 
 The repository SHALL contain a CPU implementation of the F4 lighting equation
 independent of the GPU path. It SHALL accept, per shaded fragment, the
-material, the light set, the world position and normal, the camera position,
-the albedo, the per-channel map samples `(rgb)` and the alpha-mask sample, so
-that map modulation and the cutout threshold are testable without a GPU. Unit
+material, the material's `alphaMode`, the light set, the world position and
+normal, the camera position, the albedo, the per-channel map samples `(rgb)`
+and the alpha-mask sample, so that map modulation, the cutout threshold, and
+the alpha-mode output-alpha rule are testable without a GPU. It SHALL apply
+the same output-alpha rule as the GPU path: alpha `1` in `'opaque'` and
+`'mask'` mode, and the clamped product of `diffuse` alpha × albedo alpha ×
+tint alpha in `'blend'` mode. Unit
 tests SHALL assert its values for analytic configurations — ambient-only, a
 surface perpendicular to a light (diffuse maximum), the specular peak,
 attenuation at exactly `range`, directional-only lighting, emissive-only, a
-channel map scaling exactly one channel, and the `0.5` alpha-mask cutout
-boundary. These tests SHALL run headless on all four targets as part of the
-standard suite, and at least one committed golden scene SHALL confirm the
-rendered GPU result agrees with the reference.
+channel map scaling exactly one channel, the `0.5` alpha-mask cutout
+boundary, and both alpha-mode outputs. These tests SHALL run headless on all
+four targets as part of the standard suite, and at least one committed golden
+scene SHALL confirm the rendered GPU result agrees with the reference.
 
 #### Scenario: CPU reference is analytically correct
 
@@ -382,11 +446,19 @@ rendered GPU result agrees with the reference.
 
 - **WHEN** the CPU reference is given an alpha-mask sample below `0.5`
 - **THEN** it reports the fragment discarded, and at `0.5` or above it reports
-  the shaded color with the albedo alpha
+  the shaded color with the mode's output alpha
+
+#### Scenario: CPU reference applies the alpha mode
+
+- **WHEN** the CPU reference shades the same fragment once in `'opaque'` mode
+  and once in `'blend'` mode with a `diffuse` alpha of `0.5` and an albedo
+  alpha of `0.8`
+- **THEN** the opaque result carries alpha `1` and the blend result carries
+  alpha `0.4`
 
 #### Scenario: GPU agrees with the reference
 
-- **WHEN** a golden scene renders a surface under a known light, material, map,
-  and alpha-mask configuration
+- **WHEN** a golden scene renders a surface under a known light, material,
+  map, alpha-mask, and alpha-mode configuration
 - **THEN** the captured pixels match the value computed by the CPU reference
   within the golden tolerance
