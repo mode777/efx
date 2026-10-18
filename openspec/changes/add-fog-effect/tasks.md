@@ -24,10 +24,10 @@
 
 ## 5. Golden scenes
 
-- [ ] 5.1 Add golden scene `fog_linear` (ground plane receding from camera, near=2 far=20) and `fog_exp2` (same plane, density=0.09) with captures per docs/verification-server.md; wire into the golden harness; verify `tools/run_web_compare.mjs` diffs desktop vs web clean and the goldens pass locally on an ON build dir
-- [ ] 5.2 Confirm all pre-existing golden scenes are unchanged (fog-off byte-identity); verify the golden ctest suite green except the new scenes pending server capture
+- [x] 5.1 Add golden scene `fog_linear` (ground plane receding from camera, near=2 far=20) and `fog_exp2` (same plane, density=0.09) with captures per docs/verification-server.md; wire into the golden harness; verify `tools/run_web_compare.mjs` diffs desktop vs web clean and the goldens pass locally on an ON build dir
+- [x] 5.2 Confirm all pre-existing golden scenes are unchanged (fog-off byte-identity); verify the golden ctest suite green except the new scenes pending server capture
 
 ## 6. Verification gate
 
-- [ ] 6.1 Full unit + golden verification on the SSH server (`python3 tools/verify_remote.py all <branch>`) until green before dispatching the gate
+- [x] 6.1 Full unit + golden verification on the SSH server (`python3 tools/verify_remote.py all <branch>`) until green before dispatching the gate
 - [ ] 6.2 Dispatch the four-target gate (`gh workflow run ci.yml --ref <branch>`); iterate Linux → Windows → macOS until green; merge on green per AGENTS.md
