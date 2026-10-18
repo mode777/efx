@@ -83,8 +83,9 @@ color at the sprite's own screen height while alpha eases at both z ends
 - *Rejected: alpha-only distance fade.* White ghosts over blue sky; the
   haze lerp is the aerial-perspective cue that dissolves far clouds into
   the sky instead of floating over it.
-- *Rejected: painter's back-to-front sort.* Meaningful only for source-over;
-  additive accumulation is commutative, so the sort was dropped.
+- *Rejected (then un-rejected): painter's back-to-front sort.* Dropped
+  during the additive experiment, restored when the review moved the sea
+  back to source-over alpha, where it is required for correct occlusion.
 
 ### D4 — Composition derives from the live frame size, not 640×480
 

@@ -30,3 +30,9 @@
 - [x] 5.3 Sega-blue palette: saturated zenith, pale horizon, cloud-shadow under-gradient (gaps read as holes); verify in captures and the local exact-noise preview harness.
 - [x] 5.4 Try and evaluate a crevice-shadow source-over pass; reject and revert after server captures showed gray fog in floor gaps (recorded in design.md D2).
 - [x] 5.5 Refresh the catalog description and re-run the full pre-CI verification (`tools/verify_remote.py all`).
+
+## 6. Alpha-blend revision (review feedback)
+
+- [x] 6.1 Replace additive stacking with source-over alpha: tier alphas raised to coverage (0.82..1.0), painter's z-sort restored, texture interior dents-not-holes (0.78+0.28·|n|, no zero-reaching knee); verify no dark webbing and a solid white sea in llvmpipe captures.
+- [x] 6.2 Lower the camera angle (vanishing point 0.42H → 0.30H) so the scene reads as flying into the cloud sea; verify the sea fills ~70% of frame across phases.
+- [x] 6.3 Deepen the sky palette (zenith 0.06,0.36,0.92; blue horizon haze); verify measured blue dominance (B > R+60) and per-phase pixel acceptance on server captures (sea mean ≥ 225/235/250-class, floor luminance floor > 90).
