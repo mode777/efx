@@ -1343,6 +1343,161 @@ static int light_snapshot(void) {
     return 0;
 }
 
+static int fog_state(void) {
+    install_mock_sink();
+    efx_fog f;
+    efx_render_fog(&f);
+    if (f.enabled) return fail("fog default disabled");
+
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = EFX_FOG_LINEAR;
+    f.color[0] = 0.4f; f.color[1] = 0.5f; f.color[2] = 0.6f; f.color[3] = 1;
+    f.near_z = 2; f.far_z = 20;
+    efx_render_set_fog(&f);
+    efx_fog g;
+    efx_render_fog(&g);
+    if (!g.enabled || g.mode != EFX_FOG_LINEAR) return fail("fog set");
+    if (!feq(g.color[1], 0.5f) || !feq(g.near_z, 2) || !feq(g.far_z, 20))
+        return fail("fog values");
+
+    /* replace: exp2 overwrites the whole state */
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = EFX_FOG_EXP2;
+    f.density = 0.05f;
+    f.color[0] = 0.1f; f.color[3] = 1;
+    efx_render_set_fog(&f);
+    efx_render_fog(&g);
+    if (g.mode != EFX_FOG_EXP2 || !feq(g.density, 0.05f))
+        return fail("fog replaced");
+
+    /* null / disabled clear */
+    efx_render_set_fog(NULL);
+    efx_render_fog(&g);
+    if (g.enabled) return fail("null disables fog");
+
+    /* record-time snapshot: the record carries the fog set at record time */
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = EFX_FOG_LINEAR;
+    f.color[0] = 0.9f; f.color[3] = 1;
+    f.near_z = 1; f.far_z = 9;
+    efx_render_set_fog(&f);
+    float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+    uint32_t idx[3] = {0, 1, 2};
+    efx_surface_src s;
+    memset(&s, 0, sizeof(s));
+    s.positions_len = 9;
+    s.positions = pos;
+    s.indices_len = 3;
+    s.indices = idx;
+    int err = 0;
+    efx_meshdata *md = efx_meshdata_create(&s, 1, &err);
+    if (!md) return fail("fixture");
+    uint64_t m = efx_render_mesh_create(md);
+    efx_meshdata_destroy(md);
+    if (!m) return fail("mesh create");
+    if (efx_render_mesh(m, NULL, NULL, 0, 1, 0) != EFX_RENDER_OK)
+        return fail("record");
+    efx_render_set_fog(NULL); /* later change must not alter the record */
+    int count = 0;
+    const efx_record *recs = efx_render_records(&count);
+    if (count != 1) return fail("record count");
+    if (!recs[0].u.mesh.fog.enabled ||
+        recs[0].u.mesh.fog.mode != EFX_FOG_LINEAR ||
+        !feq(recs[0].u.mesh.fog.color[0], 0.9f) ||
+        !feq(recs[0].u.mesh.fog.far_z, 9))
+        return fail("fog snapshot in record");
+
+    /* reset_state restores disabled fog */
+    efx_render_end_frame();
+    efx_render_shutdown();
+    efx_render_set_fog(&f);
+    efx_render_reset_state();
+    efx_render_fog(&g);
+    if (g.enabled) return fail("reset clears fog");
+    efx_render_end_frame();
+    efx_render_shutdown();
+    return 0;
+}
+
+static int fog_reference(void) {
+    /* linear ramp: 0 at/below near, 1 at/beyond far, monotone between */
+    efx_fog f;
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = EFX_FOG_LINEAR;
+    f.color[0] = 1; f.color[1] = 0; f.color[2] = 0; f.color[3] = 1;
+    f.near_z = 10; f.far_z = 50;
+    float c[4] = {0, 0, 1, 1}; /* blue -> blends toward red */
+    efx_fog_apply(&f, 5, c);
+    if (!feq(c[2], 1) || !feq(c[0], 0)) return fail("linear below near");
+    efx_fog_apply(&f, 50, c);
+    if (!feq(c[2], 0) || !feq(c[0], 1)) return fail("linear at far");
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 60, c);
+    if (!feq(c[0], 1)) return fail("linear beyond far clamps");
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 30, c); /* midpoint */
+    if (!feq(c[0], 0.5f) || !feq(c[2], 0.5f)) return fail("linear midpoint");
+    efx_fog_apply(&f, 30, c);
+    float mid[4] = {0, 0, 1, 1};
+    efx_fog_apply(&f, 20, mid);
+    if (!(c[0] > mid[0])) return fail("linear monotone");
+
+    /* exp: 1 - exp(-density*d); d=0 -> no fog */
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = EFX_FOG_EXP;
+    f.density = 0.1f;
+    f.color[0] = 1; f.color[3] = 1;
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 0, c);
+    if (!feq(c[2], 1)) return fail("exp at zero distance");
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 10, c); /* factor = 1 - e^-1 = 0.6321 */
+    if (!feq(c[0], 1.0f - expf(-1.0f))) return fail("exp formula");
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 100, c);
+    if (!(c[0] > 0.99f)) return fail("exp asymptote");
+
+    /* exp2: 1 - exp(-(density*d)^2) */
+    f.mode = EFX_FOG_EXP2;
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 10, c); /* k = 1 -> 1 - e^-1 */
+    if (!feq(c[0], 1.0f - expf(-1.0f))) return fail("exp2 formula");
+    c[0] = 0; c[2] = 1;
+    efx_fog_apply(&f, 5, c); /* k = 0.5 -> 1 - e^-0.25 */
+    if (!feq(c[0], 1.0f - expf(-0.25f))) return fail("exp2 quarter");
+
+    /* disabled fog is a no-op; alpha never changes */
+    f.enabled = 0;
+    c[0] = 0.25f; c[1] = 0.5f; c[2] = 0.75f; c[3] = 0.4f;
+    efx_fog_apply(&f, 100, c);
+    if (!feq(c[0], 0.25f) || !feq(c[3], 0.4f)) return fail("disabled no-op");
+
+    /* unlit shade results carry no fog: the fog state is not part of
+       efx_lighting_shade's inputs, and the lit/fog contract is call-site
+       composition — assert the unlit bypass output is independent of fog */
+    efx_material mat;
+    efx_material_default(&mat);
+    mat.unlit = 1;
+    float out[4];
+    float wp[3] = {0, 0, -50}; /* far away: would be fully fogged if applied */
+    float cp[3] = {0, 0, 0};
+    float n[3] = {0, 0, 1};
+    float alb[4] = {1, 1, 1, 1};
+    f.enabled = 1;
+    f.mode = EFX_FOG_LINEAR;
+    f.near_z = 1; f.far_z = 10;
+    if (efx_lighting_shade(&mat, NULL, wp, n, cp, alb, NULL, out) != 0)
+        return fail("unlit shade rc");
+    if (!feq(out[0], 1) || !feq(out[2], 1)) return fail("unlit unfogged rgb");
+    if (!feq(out[3], 1)) return fail("unlit alpha");
+    return 0;
+}
+
 static int material_binding(void) {
     install_mock_sink();
     float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
@@ -2906,6 +3061,8 @@ static const efx_test_case cases[] = {
     EFX_CASE(mesh_cull_skinned),
     EFX_CASE(lights_state),
     EFX_CASE(light_snapshot),
+    EFX_CASE(fog_state),
+    EFX_CASE(fog_reference),
     EFX_CASE(material_binding),
     EFX_CASE(lighting_reference),
     EFX_CASE(alpha_route_snapshot),

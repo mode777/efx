@@ -224,6 +224,15 @@ C('4a.light-unknown', function () { efx.graphics.setLight(0, { pos: [0, 0, 0], c
 C('4a.dir-no-dir', function () { efx.graphics.setDirectionalLight({ color: [1, 1, 1, 1] }); });
 C('4a.dir-zero', function () { efx.graphics.setDirectionalLight({ dir: [0, 0, 0], color: [1, 1, 1, 1] }); });
 C('4a.dir-unknown', function () { efx.graphics.setDirectionalLight({ dir: [0, -1, 0], color: [1, 1, 1, 1], foo: 1 }); });
+C('4a.fog-no-color', function () { efx.graphics.setFog({ near: 0, far: 10 }); });
+C('4a.fog-range-inverted', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], near: 10, far: 5 }); });
+C('4a.fog-near-neg', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], near: -1, far: 5 }); });
+C('4a.fog-density-in-linear', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'linear', density: 0.1 }); });
+C('4a.fog-exp-missing-density', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp' }); });
+C('4a.fog-near-in-exp', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp2', density: 0.1, near: 1 }); });
+C('4a.fog-bad-mode', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'volumetric', density: 1 }); });
+C('4a.fog-unknown', function () { efx.graphics.setFog({ color: [1, 1, 1, 1], near: 1, far: 2, fog: 1 }); });
+C('4a.fog-null-ok', function () { efx.graphics.setFog(null); });
 C('4a.md-mat-length', function () {
     efx.graphics.createMeshData([{ positions: P, indices: [0, 1, 2] }], []);
 });

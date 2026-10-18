@@ -444,6 +444,26 @@ EMSCRIPTEN_KEEPALIVE void efx_bridge_set_directional_light(int enabled,
     efx_render_set_directional_light(&l);
 }
 
+EMSCRIPTEN_KEEPALIVE void efx_bridge_set_fog(int enabled, int mode, float r,
+                                             float g, float b, float a,
+                                             float near_z, float far_z,
+                                             float density) {
+    (void)a; /* alpha ignored by fog */
+    if (!enabled) {
+        efx_render_set_fog(NULL);
+        return;
+    }
+    efx_fog f;
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = mode;
+    f.color[0] = r; f.color[1] = g; f.color[2] = b; f.color[3] = 1;
+    f.near_z = near_z;
+    f.far_z = far_z;
+    f.density = density;
+    efx_render_set_fog(&f);
+}
+
 EMSCRIPTEN_KEEPALIVE int efx_bridge_mesh_set_material(double handle, int index,
                                                       const float *mat,
                                                       const double *maps,

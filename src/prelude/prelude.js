@@ -2122,6 +2122,70 @@ function __efxPreludeInstall(efx, natives) {
                                         dc[0], dc[1], dc[2], dc[3]);
         };
     }
+    if (natives && natives.setFog) {
+        /* fog: one engine-wide state; mode gates which of near/far (linear)
+         * or density (exp/exp2) is required — the other set is rejected so
+         * a stale option cannot silently change meaning with the mode */
+        g.setFog = function (opts) {
+            if (arguments.length < 1) {
+                throw new TypeError('setFog requires an options object or null');
+            }
+            if (opts === null || opts === undefined) {
+                natives.setFog(0, 0, 0, 0, 0, 0, 0, 0, 0);
+                return;
+            }
+            if (!__efxIsObject(opts)) {
+                throw new TypeError('setFog options must be an object or null');
+            }
+            __efxCheckKnown(opts, { color: 1, mode: 1, near: 1, far: 1,
+                                    density: 1 }, 'setFog');
+            if (opts['color'] === undefined) {
+                throw new TypeError('setFog requires color');
+            }
+            var fc = __efxColor(opts['color']);
+            var mode = 0; /* 0 linear, 1 exp, 2 exp2 */
+            if (opts['mode'] !== undefined) {
+                if (opts['mode'] === 'exp') {
+                    mode = 1;
+                } else if (opts['mode'] === 'exp2') {
+                    mode = 2;
+                } else if (opts['mode'] !== 'linear') {
+                    throw new TypeError("mode must be 'linear', 'exp' or 'exp2'");
+                }
+            }
+            var near = 0, far = 0, density = 0;
+            if (mode === 0) {
+                if (opts['density'] !== undefined) {
+                    throw new TypeError('density is only valid with exp modes');
+                }
+                if (opts['near'] === undefined || opts['far'] === undefined) {
+                    throw new TypeError('linear fog requires near and far');
+                }
+                near = __efxFinite(opts['near'], 'near must be a finite number');
+                far = __efxFinite(opts['far'], 'far must be a finite number');
+                if (near < 0) {
+                    throw new RangeError('near must be >= 0');
+                }
+                if (!(far > near)) {
+                    throw new RangeError('far must be > near');
+                }
+            } else {
+                if (opts['near'] !== undefined || opts['far'] !== undefined) {
+                    throw new TypeError('near/far are only valid with linear mode');
+                }
+                if (opts['density'] === undefined) {
+                    throw new TypeError('exp fog requires density');
+                }
+                density = __efxFinite(opts['density'],
+                                      'density must be a finite number');
+                if (!(density > 0)) {
+                    throw new RangeError('density must be > 0');
+                }
+            }
+            natives.setFog(1, mode, fc[0], fc[1], fc[2], fc[3],
+                           near, far, density);
+        };
+    }
     if (natives && natives.setCamera2D) {
         g.setCamera2D = function (opts) {
             if (arguments.length < 1 || !__efxIsObject(opts)) {

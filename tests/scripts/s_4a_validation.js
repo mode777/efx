@@ -61,4 +61,24 @@ mesh.destroy();
 expectThrow('smsm-destroyed', TE, () => mesh.setSurfaceMaterial(0, M));
 md.destroy();
 
+// setFog: valid (all modes), null, errors
+efx.graphics.setFog({ color: [0.5, 0.6, 0.7, 1], near: 2, far: 20 });
+efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'linear', near: 0, far: 5 });
+efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp', density: 0.05 });
+efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp2', density: 0.05 });
+efx.graphics.setFog(null);
+expectThrow('fog-no-color', TE, () => efx.graphics.setFog({ near: 0, far: 10 }));
+expectThrow('fog-range-inverted', RE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], near: 10, far: 5 }));
+expectThrow('fog-range-equal', RE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], near: 5, far: 5 }));
+expectThrow('fog-near-neg', RE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], near: -1, far: 5 }));
+expectThrow('fog-density-neg', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], density: -1 }));
+expectThrow('fog-density-zero', RE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp', density: 0 }));
+expectThrow('fog-density-type', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp2', density: 'hazy' }));
+expectThrow('fog-linear-missing-range', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1] }));
+expectThrow('fog-exp-missing-density', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp' }));
+expectThrow('fog-density-in-linear', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'linear', density: 0.1 }));
+expectThrow('fog-near-in-exp', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'exp2', density: 0.1, near: 1 }));
+expectThrow('fog-bad-mode', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], mode: 'volumetric', density: 1 }));
+expectThrow('fog-unknown', TE, () => efx.graphics.setFog({ color: [1, 1, 1, 1], near: 1, far: 2, fog: 1 }));
+
 efx.log('s-4a-validation-ok');

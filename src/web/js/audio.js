@@ -217,6 +217,10 @@
             bridge['_efx_bridge_set_directional_light'](enabled, dx, dy, dz,
                                                         r, g, b, a);
         },
+        setFog: function (enabled, mode, r, g, b, a, nearZ, farZ, density) {
+            bridge['_efx_bridge_set_fog'](enabled, mode, r, g, b, a,
+                                          nearZ, farZ, density);
+        },
         setCamera2D: function (frameW, frameH, x, y, zoom, rotation) {
             bridge['_efx_bridge_set_camera'](frameW, frameH, x, y, zoom,
                                              rotation);

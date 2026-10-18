@@ -1260,6 +1260,33 @@ interface DirectionalLightOptions {
   color: Color;
 }
 
+/**
+ * Options for `setFog`. `mode` selects which distance options apply:
+ * `'linear'` (default) requires `near`/`far`; `'exp'`/`'exp2'` require
+ * `density`.
+ *
+ * @example
+ * ```js
+ * efx.graphics.setFog({ color: [0.55, 0.65, 0.75, 1], near: 8, far: 60 });
+ * efx.graphics.setFog({ mode: 'exp2', color: [0.1, 0.12, 0.15, 1], density: 0.035 });
+ * efx.graphics.setFog(null); // disable
+ * ```
+ * @hidden
+ * @inline
+ */
+interface FogOptions {
+  /** Fog color `[r, g, b, a]` (alpha ignored). */
+  color: Color;
+  /** Fog model (default `'linear'`). */
+  mode?: 'linear' | 'exp' | 'exp2';
+  /** Linear mode: fog starts at this distance (`0 <= near < far`). */
+  near?: number;
+  /** Linear mode: full fog at this distance. */
+  far?: number;
+  /** Exp modes: fog density (`> 0`). */
+  density?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Post effects & render scale
 // ---------------------------------------------------------------------------
@@ -2537,6 +2564,19 @@ interface EfxGraphics {
    * @param opts - Light options, or `null` to disable it.
    */
   setDirectionalLight(opts: DirectionalLightOptions | null): void;
+  /**
+   * Set the engine-wide fog (mesh draws only; unlit materials are
+   * unaffected). Distance-based: linear `near`→`far` ramp, or exponential
+   * density falloff. Fragments blend toward the fog color after lighting.
+   *
+   * Fog affects mesh draws only — billboards, particles and 2D quads are
+   * unaffected — and never unlit materials, so unlit-rendered skyboxes stay
+   * crisp above a fogged scene. For seamless horizons set the clear color
+   * to the fog color: the engine does not tint the clear color for you.
+   *
+   * @param opts - Fog options, or `null` to disable fog (the default).
+   */
+  setFog(opts: FogOptions | null): void;
 
   // Render targets
 

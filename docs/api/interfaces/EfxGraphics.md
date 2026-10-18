@@ -54,7 +54,7 @@ Optional charset, gutter, filter, and baked effects.
 
 ###### filter?
 
-`"nearest"` \| `"linear"`
+`"linear"` \| `"nearest"`
 
 Atlas sampler filter (default `'linear'`).
 
@@ -303,7 +303,7 @@ single-level: combining `dynamic: true` with `mipmaps: true` throws
 
 ###### filter?
 
-`"nearest"` \| `"linear"`
+`"linear"` \| `"nearest"`
 
 Texture filter (default `'linear'`); also drives the mipmap filter.
 
@@ -1249,6 +1249,73 @@ Direction the light travels (the direction to the light is `-dir`).
 
 ***
 
+### setFog()
+
+> **setFog**(`opts`): `void`
+
+Set the engine-wide fog (mesh draws only; unlit materials are
+unaffected). Distance-based: linear `near`→`far` ramp, or exponential
+density falloff. Fragments blend toward the fog color after lighting.
+
+Fog affects mesh draws only — billboards, particles and 2D quads are
+unaffected — and never unlit materials, so unlit-rendered skyboxes stay
+crisp above a fogged scene. For seamless horizons set the clear color
+to the fog color: the engine does not tint the clear color for you.
+
+#### Parameters
+
+##### opts
+
+\{ `color`: [`Color`](../type-aliases/Color.md); `density?`: `number`; `far?`: `number`; `mode?`: `"linear"` \| `"exp"` \| `"exp2"`; `near?`: `number`; \} \| `null`
+
+Fog options, or `null` to disable fog (the default).
+
+###### Type Literal
+
+\{ `color`: [`Color`](../type-aliases/Color.md); `density?`: `number`; `far?`: `number`; `mode?`: `"linear"` \| `"exp"` \| `"exp2"`; `near?`: `number`; \}
+
+Fog options, or `null` to disable fog (the default).
+
+###### color
+
+[`Color`](../type-aliases/Color.md)
+
+Fog color `[r, g, b, a]` (alpha ignored).
+
+###### density?
+
+`number`
+
+Exp modes: fog density (`> 0`).
+
+###### far?
+
+`number`
+
+Linear mode: full fog at this distance.
+
+###### mode?
+
+`"linear"` \| `"exp"` \| `"exp2"`
+
+Fog model (default `'linear'`).
+
+###### near?
+
+`number`
+
+Linear mode: fog starts at this distance (`0 <= near < far`).
+
+***
+
+`null`
+
+#### Returns
+
+`void`
+
+***
+
 ### setLight()
 
 > **setLight**(`slot`, `opts`): `void`
@@ -1343,7 +1410,7 @@ Optional blit filter.
 
 ###### filter?
 
-`"nearest"` \| `"linear"`
+`"linear"` \| `"nearest"`
 
 Final blit filter (default `'linear'`).
 

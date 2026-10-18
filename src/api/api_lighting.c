@@ -80,6 +80,44 @@ JSValue efx_js_set_directional_light_wire(JSContext *ctx,
 }
 
 
+/* (enabled, mode, r, g, b, a, near, far, density) */
+JSValue efx_js_set_fog_wire(JSContext *ctx, JSValueConst this_val,
+                            int argc, JSValueConst *argv) {
+    (void)this_val;
+    if (argc < 9) {
+        return efx_api_type_error(ctx, "fog wire native requires 9 arguments");
+    }
+    int32_t enabled = 0, mode = 0;
+    if (JS_ToInt32(ctx, &enabled, argv[0]) < 0 ||
+        JS_ToInt32(ctx, &mode, argv[1]) < 0) {
+        return JS_EXCEPTION;
+    }
+    if (!enabled) {
+        efx_render_set_fog(NULL);
+        return JS_UNDEFINED;
+    }
+    double v[7];
+    for (int i = 0; i < 7; i++) {
+        if (JS_ToFloat64(ctx, &v[i], argv[2 + i]) < 0) {
+            return JS_EXCEPTION;
+        }
+    }
+    efx_fog f;
+    memset(&f, 0, sizeof(f));
+    f.enabled = 1;
+    f.mode = mode;
+    f.color[0] = (float)v[0];
+    f.color[1] = (float)v[1];
+    f.color[2] = (float)v[2];
+    f.color[3] = (float)v[3];
+    f.near_z = (float)v[4];
+    f.far_z = (float)v[5];
+    f.density = (float)v[6];
+    efx_render_set_fog(&f);
+    return JS_UNDEFINED;
+}
+
+
 /* Mesh.setSurfaceMaterial(surfaceIndex, mat) — the receiver is the subject,
  * so it is resolved first; the receiver errors match the web class liveness
  * guard. */

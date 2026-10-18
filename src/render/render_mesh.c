@@ -980,3 +980,30 @@ int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
     out[3] = out_a;
     return 0;
 }
+
+/* fog factor for a view distance (shares the exact formulas with the mesh
+ * shader): linear near/far ramp clamped to [0,1], exp, exp2 */
+static float fog_factor(const efx_fog *fog, float d) {
+    if (fog->mode == EFX_FOG_LINEAR) {
+        float span = fog->far_z - fog->near_z;
+        if (!(span > 0.0f)) {
+            return d >= fog->far_z ? 1.0f : 0.0f;
+        }
+        return lclampf((d - fog->near_z) / span, 0.0f, 1.0f);
+    }
+    if (fog->mode == EFX_FOG_EXP2) {
+        float k = fog->density * d;
+        return 1.0f - expf(-k * k);
+    }
+    return 1.0f - expf(-fog->density * d); /* EFX_FOG_EXP */
+}
+
+void efx_fog_apply(const efx_fog *fog, float view_distance, float color[4]) {
+    if (!fog || !fog->enabled) {
+        return;
+    }
+    float f = fog_factor(fog, view_distance);
+    for (int c = 0; c < 3; c++) {
+        color[c] = color[c] + (fog->color[c] - color[c]) * f;
+    }
+}

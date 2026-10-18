@@ -118,6 +118,7 @@ typedef struct {
     efx_camera3d camera3d;
     int camera3d_set;         /* a 3D camera was explicitly set (screenRay) */
     efx_light_set lights;     /* fixed bank; all disabled until set (F4a) */
+    efx_fog fog;              /* engine-wide fog; disabled until set */
     float clear_color[4];
     int blend;
     uint64_t active_target;   /* F5a: rendering surface for new records */

@@ -352,6 +352,8 @@ static JSValue build_prelude_natives(efx_runtime *rt) {
     n = JS_NewCFunction(rt->ctx, efx_js_set_directional_light_wire,
                         "setDirectionalLight", 8);
     JS_SetPropertyStr(rt->ctx, natives, "setDirectionalLight", n);
+    n = JS_NewCFunction(rt->ctx, efx_js_set_fog_wire, "setFog", 9);
+    JS_SetPropertyStr(rt->ctx, natives, "setFog", n);
     n = JS_NewCFunction(rt->ctx, efx_js_set_camera2d_wire, "setCamera2D", 6);
     JS_SetPropertyStr(rt->ctx, natives, "setCamera2D", n);
     n = JS_NewCFunction(rt->ctx, efx_js_set_camera3d_wire, "setCamera3D", 9);
