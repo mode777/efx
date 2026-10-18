@@ -88,10 +88,10 @@ function makeBillow(seed, freq, octaves) {
             // carry structure and only creases fall to the base density
             let b = Math.abs(buf[y * TEX + x]) * 1.9;
             if (b > 1) b = 1;
-            const d = env * (0.55 + 0.60 * b);
+            const d = env * (0.62 + 0.55 * b);
             const i = (y * TEX + x) * 4;
             px[i] = 255; px[i + 1] = 255; px[i + 2] = 255;
-            px[i + 3] = smoothstep(0.25, 0.92, d) * 255; // opaque core, soft rim
+            px[i + 3] = smoothstep(0.12, 0.72, d) * 255; // opaque core, soft rim
         }
     }
     return efx.graphics.createTexture(efx.graphics.createImageData(TEX, TEX, px),
@@ -158,12 +158,12 @@ function respawn(c, z) {
     if (z > 55) {                 // far floor: broad, hazy, continuous
         c.w = 55 + rand() * 45;
         c.aspect = 0.35 + rand() * 0.15;
-        c.alpha = 0.55 + rand() * 0.20;
+        c.alpha = 0.82 + rand() * 0.15;
         setTop(c, -(1 + rand() * 8));
     } else if (z > 20) {          // mid billows: the visible topography
         c.w = 44 + rand() * 36;
         c.aspect = 0.50 + rand() * 0.25;
-        c.alpha = 0.75 + rand() * 0.20;
+        c.alpha = 0.88 + rand() * 0.12;
         // world-top shrinks with distance so the poke above the horizon
         // stays a modest, roughly constant number of pixels
         setTop(c, (1 + rand() * 5.5) * (z / 45));
@@ -182,7 +182,7 @@ function spawnHorizonBand(c) {    // extra-wide haze bridge at the horizon
     c.w = 140 + rand() * 80;
     c.aspect = 0.07 + rand() * 0.04;
     c.tex = SEA_TEX[(rand() * 2) | 0]; // broad soft variants only
-    c.alpha = 0.30 + rand() * 0.15;
+    c.alpha = 0.45 + rand() * 0.20;
     setTop(c, 1 + rand() * 4); // straddle the vanishing point: bridge haze
 }
 
@@ -190,9 +190,9 @@ function addSea(count) {
     for (let i = 0; i < count; i++) {
         const c = { z: 0, x: 0, y: 0, w: 0, aspect: 1, tex: null, alpha: 1 };
         const u = (i + rand() * 0.8) / count;
-        const z = u < 0.30 ? 55 + (u / 0.30) * (Z_FAR - 60)
-            : u < 0.78 ? 22 + ((u - 0.30) / 0.48) * 28
-                : Z_RESPAWN + 6 + ((u - 0.78) / 0.22) * 10;
+        const z = u < 0.38 ? 55 + (u / 0.38) * (Z_FAR - 60)
+            : u < 0.80 ? 22 + ((u - 0.38) / 0.42) * 28
+                : Z_RESPAWN + 6 + ((u - 0.80) / 0.20) * 10;
         respawn(c, z);
         sea.push(c);
     }
@@ -230,7 +230,7 @@ function drawCloud(c, cb, sb) {
     const sy = HORIZON_Y - FOCAL * ry * inv;
     const farT = smoothstep(Z_FAR * FAR_FADE_START, Z_FAR * 0.98, c.z);
     const a = c.alpha
-        * (1 - farT * 0.7) // dissolve into the horizon band up ahead
+        * (1 - farT * 0.45) // dissolve into the horizon band up ahead
         * smoothstep(Z_RESPAWN, NEAR_FADE_END, c.z);
     if (a <= 0.004) return;
     const sky = skyColorAt(sy);
