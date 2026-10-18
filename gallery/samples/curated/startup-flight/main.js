@@ -166,7 +166,7 @@ function respawn(c, z) {
         c.alpha = 0.30 + rand() * 0.22;
         // world-top shrinks with distance so the poke above the horizon
         // stays a modest, roughly constant number of pixels
-        setTop(c, (0.5 + rand() * 4) * (z / 45));
+        setTop(c, (1 + rand() * 5.5) * (z / 45));
     } else {                      // near rim: tall tops brushing the path
         c.w = 50 + rand() * 40;
         c.aspect = 0.52 + rand() * 0.26;
@@ -202,7 +202,7 @@ function addSea(count) {
         sea.push(c);
     }
 }
-addSea(130);
+addSea(136);
 
 const tintScratch = [1, 1, 1, 1];
 let time = 0;

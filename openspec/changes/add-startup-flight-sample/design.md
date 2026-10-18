@@ -65,17 +65,26 @@ clamp-wrapped mipmapped textures. Runtime draws tint them.
   weakens the noise-API showcase; the sample's pitch is "this entire sky is
   seeded calls plus one logo".
 
-### D3 — Motion is a recycler; ordering is a per-frame z sort
+### D3 — The sea is three depth tiers plus a horizon band; tops are
+### pinned, motion is a recycler (revised after review: realism pass)
 
-Each cloud stores camera-relative `(x, y, z)`; `z` shrinks with speed·dt;
-below `zNear` the cloud respawns at `zFar` with fresh lateral/vertical
-jitter and a new sprite variant. Frame render sorts the (≤ ~60) clouds by
-`z` descending and draws far→near. Distance treatment: tint lerps white →
-horizon haze color while alpha smoothsteps in at `zFar` and out at `zNear`.
+One recycler (z shrinks with speed·dt; below the near threshold a billow
+respawns at the far end) drives ~130 sprites in three tiers: a broad faint
+**far floor** keeping the horizon line solid, **mid billows** carrying the
+visible topography, and a sparse **near rim** whose tall tops brush the
+flight path. Six extra-wide sprites straddle the vanishing point as a
+horizon haze band. Each sprite's center is derived from a target top height
+(`setTop`) — the far floor pins just under the horizon, mid/near tops rise
+a distance-scaled poke above it — so the sea's upper edge stays at the
+flight path at every phase. Distance treatment: tint lerps toward the sky
+color at the sprite's own screen height while alpha eases at both z ends
+(additive feeds the horizon band instead of cutting off).
 
 - *Rejected: alpha-only distance fade.* White ghosts over blue sky; the
-  haze lerp is the aerial-perspective cue that makes far clouds dissolve
-  into the sky instead of floating over it.
+  haze lerp is the aerial-perspective cue that dissolves far clouds into
+  the sky instead of floating over it.
+- *Rejected: painter's back-to-front sort.* Meaningful only for source-over;
+  additive accumulation is commutative, so the sort was dropped.
 
 ### D4 — Composition derives from the live frame size, not 640×480
 

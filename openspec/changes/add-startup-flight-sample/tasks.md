@@ -22,3 +22,11 @@
 - [x] 4.1 Add `smoke_showcase_startup_flight` to `tests/CMakeLists.txt` mirroring the other `smoke_showcase_*` entries (`--script;…/main.js;--root;…`); verified via `ctest -R smoke_showcase_startup_flight` on the verification server's full build (headless builds define no smoke targets by design — they live in the `NOT EFX_HEADLESS` block of tests/CMakeLists.txt).
 - [x] 4.2 Run the full local gate: headless `ctest` suite green and `npm --prefix gallery run check` + `npm --prefix gallery run build` green (catalog embeds the new sample); verify the sample appears in the generated gallery catalog.
 - [x] 4.3 Commit to a branch, push, and run `python3 tools/verify_remote.py all <branch>` until green (both golden-bearing jobs per AGENTS.md lifecycle step 3) before dispatching the CI gate.
+
+## 5. Realism pass (review feedback)
+
+- [x] 5.1 Rewrite the cloud field as an additive density-field sea: per-pixel envelope × |fBm| billow textures (6 variants, 256², clamp+mipmaps), `blend: 'additive'`, no sort; verify the deck reads as one continuous sea with no sprite boundaries in llvmpipe captures.
+- [x] 5.2 Three depth tiers + horizon haze band with `setTop`-pinned silhouette; verify the sea's upper edge hugs the flight path at frames 2/150/300/480 (server captures), with no clouds above the rim or below the deck.
+- [x] 5.3 Sega-blue palette: saturated zenith, pale horizon, cloud-shadow under-gradient (gaps read as holes); verify in captures and the local exact-noise preview harness.
+- [x] 5.4 Try and evaluate a crevice-shadow source-over pass; reject and revert after server captures showed gray fog in floor gaps (recorded in design.md D2).
+- [x] 5.5 Refresh the catalog description and re-run the full pre-CI verification (`tools/verify_remote.py all`).

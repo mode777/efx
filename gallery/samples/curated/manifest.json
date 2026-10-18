@@ -147,6 +147,6 @@
     "dir": "startup-flight",
     "title": "Startup Flight",
     "category": "Showcase",
-    "description": "A startup-screen flight along the edge of a cloud deck under a clear sky, the EFX logo swaying in the center. Every cloud sprite is procedural: seeded fBm noise sculpted per-pixel in JS, flown with 2D quads and hand-rolled perspective."
+    "description": "A startup-screen flight skimming the upper edge of a sea of clouds under a saturated blue sky, the EFX logo swaying in the center. The deck is procedural: seeded fBm billow fields stacked with additive blending, perspective hand-rolled in JS on 2D quads."
   }
 ]
