@@ -109,6 +109,15 @@ video.texture-destroyed: TypeError: using a destroyed resource
 4a.dir-no-dir: TypeError: setDirectionalLight requires dir
 4a.dir-zero: TypeError: dir must be non-zero
 4a.dir-unknown: TypeError: unknown setDirectionalLight option 'foo'
+4a.fog-no-color: TypeError: setFog requires color
+4a.fog-range-inverted: RangeError: far must be > near
+4a.fog-near-neg: RangeError: near must be >= 0
+4a.fog-density-in-linear: TypeError: density is only valid with exp modes
+4a.fog-exp-missing-density: TypeError: exp fog requires density
+4a.fog-near-in-exp: TypeError: near/far are only valid with linear mode
+4a.fog-bad-mode: TypeError: mode must be 'linear', 'exp' or 'exp2'
+4a.fog-unknown: TypeError: unknown setFog option 'fog'
+4a.fog-null-ok: none: 
 4a.md-mat-length: RangeError: materials must have one entry per surface
 4a.md-mat-not-array: TypeError: materials must be an array
 4a.md-mat-bad-entry: TypeError: material must be an object

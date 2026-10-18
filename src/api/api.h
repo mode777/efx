@@ -40,6 +40,7 @@ JSValue efx_js_poseMesh(JSContext *ctx, JSValueConst this_val, int argc, JSValue
 /* F4a — lighting + Phong materials */
 JSValue efx_js_set_point_light_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue efx_js_set_directional_light_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue efx_js_set_fog_wire(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 /* Mesh.setSurfaceMaterial method (ADR 0055) */
 JSValue efx_js_setMeshSurfaceMaterial(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 

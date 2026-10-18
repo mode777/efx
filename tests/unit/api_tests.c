@@ -2069,7 +2069,7 @@ static int graphics_ns_js(void) {
         "  'makeSphere',"
         "  'screenRay',"
         "  'setBlendMode', 'setCamera2D', 'setCamera3D',"
-        "  'setClearColor', 'setDirectionalLight', 'setLight',"
+         "  'setClearColor', 'setDirectionalLight', 'setFog', 'setLight',"
         "  'setPostEffects', 'setRenderScale'];"
         "for (var i = 0; i < names.length; i++) {"
         "  if (typeof g[names[i]] !== 'function')"

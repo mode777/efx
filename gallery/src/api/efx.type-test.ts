@@ -8,6 +8,9 @@ efx.graphics.setClearColor(clear);
 efx.graphics.setCamera3D([0, 1, 4], [0, 0, 0], 60);
 efx.graphics.setLight(0, { pos: [1, 2, 3], color: [1, 1, 1, 1], range: 20 });
 efx.graphics.setDirectionalLight({ dir: [-0.4, -1, -0.3], color: [0.2, 0.2, 0.3, 1] });
+efx.graphics.setFog({ color: [0.55, 0.65, 0.75, 1], near: 8, far: 60 });
+efx.graphics.setFog({ color: [0.1, 0.12, 0.15, 1], mode: 'exp2', density: 0.035 });
+efx.graphics.setFog(null);
 
 const cube: EfxMesh = efx.graphics.createMesh(efx.graphics.makeCube({ size: 1 }));
 cube.setSurfaceMaterial(0, {

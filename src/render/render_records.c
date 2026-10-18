@@ -39,6 +39,7 @@ static void apply_default_state(void) {
     R.camera3d = DEFAULT_CAMERA3D;
     R.camera3d_set = 0;
     memset(&R.lights, 0, sizeof(R.lights)); /* every light disabled */
+    memset(&R.fog, 0, sizeof(R.fog));       /* fog disabled */
     R.clear_color[0] = 0.0f;
     R.clear_color[1] = 0.0f;
     R.clear_color[2] = 0.0f;
@@ -348,6 +349,23 @@ void efx_render_lights(efx_light_set *out) {
     }
 }
 
+void efx_render_set_fog(const efx_fog *fog) {
+    ensure_state();
+    if (!fog || !fog->enabled) {
+        R.fog.enabled = 0;
+        return;
+    }
+    R.fog = *fog;
+    R.fog.enabled = 1;
+}
+
+void efx_render_fog(efx_fog *out) {
+    ensure_state();
+    if (out) {
+        *out = R.fog;
+    }
+}
+
 void efx_render_clear_color(float out_rgba[4]) {
     ensure_state();
     for (int i = 0; i < 4; i++) {
@@ -593,6 +611,7 @@ int efx_render_mesh(uint64_t mesh, const float transform[16],
     color_or_white(mr->color, color);
     mr->camera = R.camera3d;
     mr->lights = R.lights;   /* value snapshot (ADR 0026) */
+    mr->fog = R.fog;         /* value snapshot (ADR 0019) */
     mr->blend = (uint8_t)R.blend;
     {
         /* D4: resolve each surface's blend at record time — its material

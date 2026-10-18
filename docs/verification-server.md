@@ -120,6 +120,13 @@ means every requested suite passed.
   - **Determinism check:** after copying the PNG in, `ctest --test-dir
     build -R '^golden_<scene>$'` re-captures and compares against it, so a
     pass proves two captures agree (no separate second capture needed).
+  - **Stale web `.data` trap** (f2c, 2026-10): `player_web_golden.data`
+    packages `tests/goldens/` at link time and the link does not depend on
+    that directory — adding or editing a scene's files re-runs neither the
+    packager nor the link, so the web suite silently replays the OLD scenes
+    (`[serve] /player_web_golden.data <bytes>` staying constant is the tell).
+    Force `rm build-web-golden/player_web_golden.{js,data}` before the
+    rebuild after any scene change. CI is unaffected (fresh checkouts).
   - **Scene design:** a blend/alpha difference is invisible over the clear
     color — over black, alpha and additive coincide. Give the mode something
     to blend onto (a base draw underneath) or the golden cannot distinguish

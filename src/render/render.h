@@ -105,6 +105,20 @@ typedef struct efx_light_set {
     efx_dir_light directional;
 } efx_light_set;
 
+/* Fog (plain value state, snapshot into mesh records at record time like
+ * the light bank). One engine-wide fog state; disabled unless set. */
+#define EFX_FOG_LINEAR 0
+#define EFX_FOG_EXP 1
+#define EFX_FOG_EXP2 2
+
+typedef struct efx_fog {
+    int enabled;
+    int mode;             /* EFX_FOG_* */
+    float color[4];       /* rgb used; alpha ignored (light-set convention) */
+    float near_z, far_z;  /* linear mode: 0 <= near_z < far_z */
+    float density;        /* exp modes: > 0 */
+} efx_fog;
+
 /* Per-surface Phong material snapshot (ADR 0026/0027): plain values,
  * JS-managed on the script side (no native handle,
  * no destroy). Colors/shininess are value-snapshotted; channel maps and the
@@ -170,6 +184,7 @@ typedef struct efx_mesh_record {
     float color[4];        /* tint */
     efx_camera3d camera;
     efx_light_set lights;  /* value snapshot at record time (ADR 0026) */
+    efx_fog fog;           /* value snapshot at record time (ADR 0019) */
     uint8_t blend;         /* frame-state fallback for surfaces without one */
     uint8_t surface_blend[EFX_MESH_MAX_SURFACES]; /* per-surface resolved */
     uint8_t surface_alpha[EFX_MESH_MAX_SURFACES]; /* per-surface resolved
@@ -444,6 +459,12 @@ void efx_render_set_point_light(int slot, const efx_point_light *light);
 void efx_render_set_directional_light(const efx_dir_light *light);
 void efx_render_lights(efx_light_set *out);
 
+/* engine-wide fog (value snapshot into mesh records at record time); NULL
+ * disables. The binding validates mode/option coherence and ranges; the
+ * render module stores the value as given. */
+void efx_render_set_fog(const efx_fog *fog);
+void efx_render_fog(efx_fog *out);
+
 /* texture sampler options (F6b). Wrap: repeat (default) / clamp / mirror.
  * Filter names reuse EFX_FILTER_NEAREST / EFX_FILTER_LINEAR. Out-of-range
  * values fall back to the defaults rather than failing. */
@@ -654,9 +675,15 @@ efx_affine efx_quad_matrix(float x, float y,
  * out[4] receives the per-channel clamped lit color with out[3] = 1 in
  * opaque/mask mode and clamp(diffuse.a × albedo[3]) in blend mode. */
 int efx_lighting_shade(const efx_material *mat, const efx_light_set *lights,
-                       const float world_pos[3], const float normal[3],
-                       const float camera_pos[3], const float albedo[4],
-                       const efx_map_samples *maps, float out[4]);
+                        const float world_pos[3], const float normal[3],
+                        const float camera_pos[3], const float albedo[4],
+                        const efx_map_samples *maps, float out[4]);
+
+/* Fog application (fog requirement): blends color[0..2] toward the fog color
+ * by the mode's distance factor (linear near/far ramp, exp, exp2 — the exact
+ * shader formulas), color[3] unchanged. No-op when fog is disabled. Lit path
+ * only: callers never fog unlit results. */
+void efx_fog_apply(const efx_fog *fog, float view_distance, float color[4]);
 
 /* ------------------------------------------------- F11 billboards + particles */
 

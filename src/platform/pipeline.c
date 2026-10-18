@@ -799,6 +799,18 @@ static pipe_mesh *mesh_record_setup(const efx_mesh_record *mr, float aspect,
         fs->dir_color[1] = mr->lights.directional.color[1];
         fs->dir_color[2] = mr->lights.directional.color[2];
     }
+    if (mr->fog.enabled) {
+        /* fog (lit path only): rgb + enabled flag in a; mode/density/near/far
+           match the shader's fog_params packing */
+        fs->fog_color[0] = mr->fog.color[0];
+        fs->fog_color[1] = mr->fog.color[1];
+        fs->fog_color[2] = mr->fog.color[2];
+        fs->fog_color[3] = 1.0f;
+        fs->fog_params[0] = (float)mr->fog.mode;
+        fs->fog_params[1] = mr->fog.density;
+        fs->fog_params[2] = mr->fog.near_z;
+        fs->fog_params[3] = mr->fog.far_z;
+    }
 
     uint64_t white = efx_render_white_texture(); /* absent-map fallback (D3) */
     pipe_tex *white_tex = (pipe_tex *)efx_render_texture_native(white);

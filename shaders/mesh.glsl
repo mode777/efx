@@ -68,6 +68,10 @@ layout(binding=1) uniform fs_params {
     vec4 point_color[4];  /* rgb = color, w = enabled (1/0) */
     vec4 dir_dir;         /* xyz = travel direction, w = enabled (1/0) */
     vec4 dir_color;       /* rgb = color */
+    vec4 fog_color;       /* rgb = fog color, a = enabled (1/0) */
+    vec4 fog_params;      /* x = mode (0 linear, 1 exp, 2 exp2), y = density,
+                             z = near, w = far (lit path only; unlit is
+                             fog-free — skyboxes render unlit) */
 };
 
 layout(binding=0) uniform texture2D efx_map_ambient;
@@ -147,7 +151,25 @@ void main() {
         col += efx_light_term(N, V, L, 1.0, dir_color.rgb, albedo,
                               diff_c, spec_c);
     }
-    frag_color = vec4(clamp(col, 0.0, 1.0), out_a);
+    vec3 lit = clamp(col, 0.0, 1.0);
+    if (fog_color.a > 0.5) {
+        /* fog (lit path only; the unlit branch above returned fog-free):
+           distance factor per mode, then blend toward the fog color —
+           alpha untouched */
+        float fd = length(camera_pos.xyz - efx_world_pos);
+        float ff;
+        if (fog_params.x < 0.5) {
+            ff = clamp((fd - fog_params.z) / (fog_params.w - fog_params.z),
+                       0.0, 1.0);
+        } else if (fog_params.x < 1.5) {
+            ff = 1.0 - exp(-fog_params.y * fd);
+        } else {
+            float k = fog_params.y * fd;
+            ff = 1.0 - exp(-k * k);
+        }
+        lit = mix(lit, fog_color.rgb, ff);
+    }
+    frag_color = vec4(lit, out_a);
 }
 @end
 
