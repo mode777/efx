@@ -336,7 +336,9 @@ const n2: number = efx.noise.noise2(0.5, 0.25);
 const n2c: number = efx.noise.noise2(3, 4, { type: 'cellular', seed: 9 });
 const n3: number = efx.noise.noise3(0.5, 0.25, 0.75, { warp: 'gradient' });
 const nimg = efx.noise.imageData(64, 64, { seed: 9, type: 'cellular', domain: [-1, 0.15] });
-n2; n2c; n3; hmap; nimg;
+const nimgAlpha = efx.noise.imageData(64, 64, { alpha: true });
+const nimgAlphaOff = efx.noise.imageData(64, 64, { alpha: false });
+n2; n2c; n3; hmap; nimg; nimgAlpha; nimgAlphaOff;
 // @ts-expect-error — fill2 requires a Float32Array
 efx.noise.fill2([0.1, 0.2], 2, 1);
 // @ts-expect-error — the value buffer is positional, not a bag field
@@ -345,6 +347,8 @@ efx.noise.fill2({ buf: new Float32Array(4) }, 2, 2);
 efx.noise.noise2(0, 0, { type: 'worley' });
 // @ts-expect-error — domain is a [lo, hi] tuple
 efx.noise.imageData(4, 4, { domain: 3 });
+// @ts-expect-error — alpha is a boolean flag
+efx.noise.imageData(4, 4, { alpha: 'yes' });
 
 // video-playback — MPEG-1 Video surface
 const vid: EfxVideo = efx.video.openVideo('intro.mpg', { loop: true, muted: false });

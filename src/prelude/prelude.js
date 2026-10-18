@@ -2589,6 +2589,7 @@ function __efxPreludeInstall(efx, natives) {
             var wv = __efxNoiseInt(w, 1, 2147483647, 'w');
             var hv = __efxNoiseInt(h, 1, 2147483647, 'h');
             var domain = [-1, 1];
+            var alpha = false;
             if (opts !== undefined && opts !== null) {
                 if (!__efxIsObject(opts) || Array.isArray(opts)) {
                     throw new TypeError('imageData options must be an object');
@@ -2607,14 +2608,23 @@ function __efxPreludeInstall(efx, natives) {
                     }
                     domain = [lo, hi];
                 }
+                var av = opts['alpha'];
+                if (av !== undefined) {
+                    if (typeof av !== 'boolean') {
+                        throw new TypeError('alpha must be a boolean');
+                    }
+                    alpha = av;
+                }
             }
-            var p = __efxNoiseParse(opts, 'imageData', ['domain']);
+            var p = __efxNoiseParse(opts, 'imageData', ['domain', 'alpha']);
             var count = wv * hv;
             var buf = new Float32Array(count);
             natives.noiseFill2(p[0], p[1], p[2], p[3], p[4], p[5], p[6],
                                buf, wv, hv);
             /* raw value -> byte: linear map of `domain` onto [0, 255],
-             * clamped at both ends (deterministic floor rounding) */
+             * clamped at both ends (deterministic floor rounding);
+             * alpha mode places the byte in the alpha channel and leaves
+             * RGB white so a draw-time tint colors the noise */
             var lo = domain[0], span = domain[1] - domain[0];
             var px = new Uint8Array(count * 4);
             for (var i = 0, j = 0; i < count; i++, j += 4) {
@@ -2625,10 +2635,17 @@ function __efxPreludeInstall(efx, natives) {
                     t = 1;
                 }
                 var b = (t * 255 + 0.5) | 0;
-                px[j] = b;
-                px[j + 1] = b;
-                px[j + 2] = b;
-                px[j + 3] = 255;
+                if (alpha) {
+                    px[j] = 255;
+                    px[j + 1] = 255;
+                    px[j + 2] = 255;
+                    px[j + 3] = b;
+                } else {
+                    px[j] = b;
+                    px[j + 1] = b;
+                    px[j + 2] = b;
+                    px[j + 3] = 255;
+                }
             }
             return g.createImageData(wv, hv, px);
         };
