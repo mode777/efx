@@ -72,7 +72,7 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
     const buf = new Float32Array(TEX * TEX);
     efx.noise.fill2(buf, TEX, TEX, {
         seed, type: 'opensimplex2', frequency: freq,
-        octaves, lacunarity: 2.1, gain,
+        octaves, lacunarity: 2.0, gain,
     });
     const px = new Uint8Array(TEX * TEX * 4);
     for (let y = 0; y < TEX; y++) {
@@ -87,9 +87,13 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
             const d2 = (nx * nx) / (ax * ax) + (ny * ny) / (ay * ay);
             const fall = 1 - d2;
             if (fall <= 0) continue; // outside the mask: alpha stays 0
-            let dens = (buf[y * TEX + x] * 0.5 + 0.5) * fall * fall * (3 - 2 * fall);
+            // carve: opensimplex2 fBm clusters near 0.5 (measured p25=0.39,
+            // p75=0.62), so expand around a p~25 threshold: ~a third of the
+            // interior carves to zero, the peaks saturate after the knee
+            const n01 = buf[y * TEX + x] * 0.5 + 0.5;
+            let dens = (n01 - 0.36) * 2.9 * fall * fall * (3 - 2 * fall);
             dens *= 1 + bottomBoost * (ny01 * 2 - 1); // fuller underside
-            dens = smoothstep(kneeLo, kneeHi, dens * 1.15);
+            dens = smoothstep(kneeLo, kneeHi, dens);
             const i = (y * TEX + x) * 4;
             px[i] = r; px[i + 1] = g; px[i + 2] = b; px[i + 3] = dens * 255;
         }
@@ -101,12 +105,12 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
 const PUFFS = [];
 const PUFF_SEEDS = [11, 23, 37, 41, 53];
 for (let i = 0; i < PUFF_SEEDS.length; i++) {
-    PUFFS.push(sculptCloud(PUFF_SEEDS[i], 0.026 + 0.004 * i, 5, 0.52,
-        0.92, 0.88, 0.24 + 0.01 * i, 0.62 + 0.02 * i, 0.35));
+    PUFFS.push(sculptCloud(PUFF_SEEDS[i], 0.021 + 0.003 * i, 5, 0.52,
+        0.92, 0.88, 0.15 + 0.01 * i, 0.72 + 0.02 * i, 0.35));
 }
 const WISPS = [
-    sculptCloud(7, 0.013, 4, 0.50, 0.98, 0.40, 0.52, 0.88, 0),
-    sculptCloud(19, 0.017, 4, 0.55, 0.98, 0.46, 0.55, 0.90, 0),
+    sculptCloud(7, 0.013, 4, 0.50, 0.98, 0.40, 0.30, 0.95, 0),
+    sculptCloud(19, 0.017, 4, 0.55, 0.98, 0.46, 0.34, 0.98, 0),
 ];
 
 // ---- sky gradient ----------------------------------------------------------
