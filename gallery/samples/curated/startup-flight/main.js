@@ -10,7 +10,7 @@
 const SKY_ZENITH = [0.13, 0.38, 0.78];   // deep blue overhead
 const SKY_HORIZON = [0.80, 0.89, 0.97];  // pale haze at the vanishing point
 const SKY_UNDER = [0.58, 0.69, 0.84];    // undercast haze below the deck
-const PUFF_SHADOW = [0.72, 0.79, 0.90];  // blue-gray underside shading
+const PUFF_SHADOW = [0.80, 0.86, 0.94];  // blue-gray underside shading
 const WISP_TINT = [0.93, 0.96, 1.0];
 
 // ---- layout: derived from the live surface at boot -----------------------
@@ -78,7 +78,8 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
     for (let y = 0; y < TEX; y++) {
         const ny = (y / (TEX - 1)) * 2 - 1; // -1 top, +1 bottom
         const ny01 = (ny + 1) * 0.5;
-        const bottom = ny01 * ny01; // quadratic: tops stay white
+        const b2 = Math.max(0, ny01 - 0.6) / 0.4; // shade only the lower band
+        const bottom = b2 * b2;
         const r = 255 * (1 + (PUFF_SHADOW[0] - 1) * bottom);
         const g = 255 * (1 + (PUFF_SHADOW[1] - 1) * bottom);
         const b = 255 * (1 + (PUFF_SHADOW[2] - 1) * bottom);
@@ -87,11 +88,13 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
             const d2 = (nx * nx) / (ax * ax) + (ny * ny) / (ay * ay);
             const fall = 1 - d2;
             if (fall <= 0) continue; // outside the mask: alpha stays 0
+            // plateau mask: full density out to ~mid-radius, smooth rim
+            const fallS = smoothstep(0, 0.45, fall);
             // carve: opensimplex2 fBm clusters near 0.5 (measured p25=0.39,
             // p75=0.62), so expand around a p~25 threshold: ~a third of the
             // interior carves to zero, the peaks saturate after the knee
             const n01 = buf[y * TEX + x] * 0.5 + 0.5;
-            let dens = (n01 - 0.36) * 2.9 * fall * fall * (3 - 2 * fall);
+            let dens = (n01 - 0.36) * 2.9 * fallS;
             dens *= 1 + bottomBoost * (ny01 * 2 - 1); // fuller underside
             dens = smoothstep(kneeLo, kneeHi, dens);
             const i = (y * TEX + x) * 4;
