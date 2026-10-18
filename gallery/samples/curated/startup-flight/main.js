@@ -88,7 +88,7 @@ function makeBillow(seed, freq, octaves) {
             // carry structure and only creases fall to the base density
             let b = Math.abs(buf[y * TEX + x]) * 1.9;
             if (b > 1) b = 1;
-            const d = env * (0.42 + 0.88 * b);
+            const d = env * (0.34 + 0.95 * b);
             const i = (y * TEX + x) * 4;
             px[i] = 255; px[i + 1] = 255; px[i + 2] = 255;
             px[i + 3] = d > 1 ? 255 : d * 255;
@@ -163,7 +163,7 @@ function respawn(c, z) {
     } else if (z > 20) {          // mid billows: the visible topography
         c.w = 44 + rand() * 36;
         c.aspect = 0.50 + rand() * 0.25;
-        c.alpha = 0.34 + rand() * 0.26;
+        c.alpha = 0.30 + rand() * 0.22;
         // world-top shrinks with distance so the poke above the horizon
         // stays a modest, roughly constant number of pixels
         setTop(c, (0.5 + rand() * 4) * (z / 45));
@@ -176,20 +176,6 @@ function respawn(c, z) {
     }
 }
 
-// crevice shadows: additive can only brighten, so the sea's interior
-// topography is drawn as a dark source-over pass sandwiched between the
-// saturated far floor and the additive mid/near highlights
-function respawnShadow(c, z) {
-    c.z = z;
-    c.shadow = 1;
-    c.x = (rand() * 2 - 1) * (26 + 74 * (z / Z_FAR));
-    c.w = 60 + rand() * 50;
-    c.aspect = 0.25 + rand() * 0.20;
-    c.tex = SEA_TEX[(rand() * SEA_TEX.length) | 0];
-    c.alpha = 0.12 + rand() * 0.10;
-    setTop(c, -(5 + rand() * 8)); // deep inside the saturated zone only
-}
-
 function spawnHorizonBand(c) {    // extra-wide haze bridge at the horizon
     c.z = 88 + rand() * 18;
     c.x = (rand() * 2 - 1) * 95;
@@ -198,7 +184,6 @@ function spawnHorizonBand(c) {    // extra-wide haze bridge at the horizon
     c.tex = SEA_TEX[(rand() * 2) | 0]; // broad soft variants only
     c.alpha = 0.09 + rand() * 0.05;
     setTop(c, 1 + rand() * 4); // straddle the vanishing point: bridge haze
-    c.shadow = 0;
 }
 
 function addSea(count) {
@@ -209,12 +194,6 @@ function addSea(count) {
             : u < 0.78 ? 22 + ((u - 0.30) / 0.48) * 28
                 : Z_RESPAWN + 6 + ((u - 0.78) / 0.22) * 10;
         respawn(c, z);
-        c.shadow = 0;
-        sea.push(c);
-    }
-    for (let i = 0; i < 16; i++) {
-        const c = { z: 0, x: 0, y: 0, w: 0, aspect: 1, tex: null, alpha: 1, shadow: 0 };
-        respawnShadow(c, 25 + rand() * 35);
         sea.push(c);
     }
     for (let i = 0; i < 6; i++) {
@@ -234,22 +213,12 @@ function update(dt) {
         c.z -= SEA_SPEED * dt;
         if (c.z < Z_RESPAWN) {
             // recycled billows return as far floor (the horizon band stays put)
-            if (c.shadow) {
-                respawnShadow(c, Z_FAR - (Z_RESPAWN - c.z));
-            } else {
-                respawn(c, Z_FAR - (Z_RESPAWN - c.z));
-            }
+            respawn(c, Z_FAR - (Z_RESPAWN - c.z));
         }
     }
 }
 
-function drawCloud(c, pass, cb, sb) {
-    const isShadow = !!c.shadow;
-    // pass routing: 0 = far floor + horizon band, 1 = shadows, 2 = mid/near
-    if (pass === 0 && (isShadow || c.z <= 55)) return;
-    if (pass === 1 && !isShadow) return;
-    if (pass === 2 && (isShadow || c.z > 55)) return;
-
+function drawCloud(c, cb, sb) {
     const rx = c.x * cb - c.y * sb; // bank rotates the world, not the billows
     const ry = c.x * sb + c.y * cb;
     const inv = 1 / c.z;
@@ -264,16 +233,6 @@ function drawCloud(c, pass, cb, sb) {
         * smoothstep(Z_RESPAWN, NEAR_FADE_END, c.z);
     if (a <= 0.004) return;
     const sky = skyColorAt(sy);
-    if (isShadow) {
-        // cool cloud-shadow tone; recedes with distance like the rest
-        tintScratch[0] = 0.68 + (sky[0] - 0.68) * farT;
-        tintScratch[1] = 0.76 + (sky[1] - 0.76) * farT;
-        tintScratch[2] = 0.90 + (sky[2] - 0.90) * farT;
-        tintScratch[3] = a;
-        efx.graphics.drawQuad(c.tex, sx - w * 0.5, sy - h * 0.5,
-            { size: [w, h], color: tintScratch });
-        return;
-    }
     tintScratch[0] = CLOUD_TINT[0] + (sky[0] - CLOUD_TINT[0]) * farT;
     tintScratch[1] = CLOUD_TINT[1] + (sky[1] - CLOUD_TINT[1]) * farT;
     tintScratch[2] = CLOUD_TINT[2] + (sky[2] - CLOUD_TINT[2]) * farT;
@@ -292,13 +251,8 @@ function render() {
     efx.graphics.drawQuad(skyTex, CX - SKY_Q * 0.5, CY - SKY_Q * 0.5,
         { size: [SKY_Q, SKY_Q], rotation: bankDeg });
 
-    // pass 1: far floor + horizon band, additive
-    for (const c of sea) drawCloud(c, 0, cb, sb);
-    // pass 2: mid/near highlights, additive
-    for (const c of sea) drawCloud(c, 2, cb, sb);
-    // pass 3: cloud-shadow dapple on top (source-over) — the interior
-    // topography; additive alone can only brighten, never shade
-    for (const c of sea) drawCloud(c, 1, cb, sb);
+    // additive blending is order-independent: no sort needed
+    for (const c of sea) drawCloud(c, cb, sb);
 
     // logo last: always on top
     const ly = CY + LOGO_SWAY * Math.sin((time * 2 * Math.PI) / LOGO_PERIOD);
