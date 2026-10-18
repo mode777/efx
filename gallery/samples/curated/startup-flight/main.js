@@ -87,18 +87,20 @@ function sculptCloud(seed, freq, octaves, gain, ax, ay, kneeLo, kneeHi, bottomBo
             const nx = (x / (TEX - 1)) * 2 - 1;
             const d2 = (nx * nx) / (ax * ax) + (ny * ny) / (ay * ay);
             const fall = 1 - d2;
-            if (fall <= 0) continue; // outside the mask: alpha stays 0
             // plateau mask: full density out to ~mid-radius, smooth rim
-            const fallS = smoothstep(0, 0.45, fall);
+            const fallS = fall <= 0 ? 0 : smoothstep(0, 0.45, fall);
             // carve: opensimplex2 fBm clusters near 0.5 (measured p25=0.39,
             // p75=0.62), so expand around a p~25 threshold: ~a third of the
             // interior carves to zero, the peaks saturate after the knee
             const n01 = buf[y * TEX + x] * 0.5 + 0.5;
             let dens = (n01 - 0.36) * 2.9 * fallS;
             dens *= 1 + bottomBoost * (ny01 * 2 - 1); // fuller underside
-            dens = smoothstep(kneeLo, kneeHi, dens);
+            // RGB is written even where alpha is 0 — linear filtering blends
+            // neighboring texel colors, and black zeros would fringe the
+            // silhouette gray
             const i = (y * TEX + x) * 4;
-            px[i] = r; px[i + 1] = g; px[i + 2] = b; px[i + 3] = dens * 255;
+            px[i] = r; px[i + 1] = g; px[i + 2] = b;
+            px[i + 3] = fall <= 0 ? 0 : smoothstep(kneeLo, kneeHi, dens) * 255;
         }
     }
     return efx.graphics.createTexture(efx.graphics.createImageData(TEX, TEX, px),
