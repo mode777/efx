@@ -180,7 +180,7 @@ function respawn(c, z) {
     if (c.band === 0) {          // deck
         c.x = (rand() * 2 - 1) * (34 + 66 * (c.z / Z_FAR));
         c.y = -24 - rand() * 12;
-        c.w = 32 + rand() * 30;
+        c.w = 40 + rand() * 34;
         c.aspect = 0.40 + rand() * 0.18;
         c.tex = PUFFS[(rand() * PUFFS.length) | 0];
         c.tint = null;
@@ -208,7 +208,7 @@ function addBand(band, count) {
         clouds.push(c);
     }
 }
-addBand(0, 16);
+addBand(0, 13);
 addBand(1, 12);
 addBand(2, 8);
 
