@@ -94,6 +94,12 @@ Review the regenerated `golden.png` carefully before committing: goldens are
 the reference, so a diff here is a deliberate rendering change. CI fails if the
 toolchain or a code change alters output without a committed regen.
 
+Capture mode does not fix the timestep: frame 1 gets `dt = 0`, every later
+frame the real `sapp_frame_duration()` (`src/platform/platform.c`). A scene
+whose pixels depend on accumulated `dt` is therefore not reproducible across
+launches — golden scenes must derive animation from a frame counter or a
+constant step, not from `dt`.
+
 ## Verifying before CI
 
 A Linux verification server (Xvfb + llvmpipe, pinned emsdk and

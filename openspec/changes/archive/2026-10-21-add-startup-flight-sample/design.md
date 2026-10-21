@@ -19,7 +19,8 @@ for motivation. Renderer facts this design relies on:
 
 ## Goals / Non-Goals
 
-- Goals: deterministic frame-for-frame animation; composition derived from
+- Goals: seeded, repeatable scene content (animation itself follows the
+  frame `dt`); composition derived from
   the actual frame size so the same code survives promotion to a real boot
   screen; no per-frame heap churn beyond the unavoidable option bags; two
   files only (`main.js`, `efx_logo.png`).

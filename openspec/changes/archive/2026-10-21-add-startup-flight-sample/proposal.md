@@ -63,9 +63,10 @@ so no capability spec is created or modified.
 
 - Wiring the sample into the player as the no-args boot screen (future
   change; would touch `src/player`, vision.md, and the player-runtime spec).
-- A golden-image baseline for the scene (the scene is deterministic and is
-  a strong future golden candidate, but new goldens need the server-side
-  llvmpipe capture recipe; not required for a sample-only change).
+- A golden-image baseline for the scene (its layout is seeded, but the
+  animation advances by the frame `dt`, which capture mode does not fix,
+  so a golden would first need a constant-step mode; not required for a
+  sample-only change).
 - Fly-through beat (screen washing white when a puff crosses the camera) —
   billows tall enough to reach eye level only spawn clear of the flight lane.
 - Audio or input reactions.
