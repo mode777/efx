@@ -147,6 +147,6 @@
     "dir": "startup-flight",
     "title": "Startup Flight",
     "category": "Showcase",
-    "description": "A startup-screen flight skimming the upper edge of a sea of clouds under a saturated blue sky, the EFX logo swaying in the center. The deck is procedural: seeded fBm billow fields stacked with additive blending, perspective hand-rolled in JS on 2D quads."
+    "description": "A startup-screen flight straight ahead over a rolling sea of cumulus under a deep blue sky, sun rays and lens flare overhead, the EFX logo popping in with a flash, a shine sweep and twinkling glints. Pure 2D painter's algorithm: lit billow sprites baked at load from smooth-unioned sphere caps and seeded noise, perspective hand-rolled in JS, one z-sorted sprite batch, finished with bloom."
   }
 ]

@@ -16,17 +16,20 @@ built so it can later be promoted to the player's actual boot screen
   (single `main.js` plus a copy of the repo-owned `assets/efx_logo.png`;
   every other asset is generated procedurally at load).
 - The scene is 100% 2D in one painter's-ordered record sequence:
-  fullscreen sky-gradient quad → cloud sprites drawn far-to-near → logo.
-- Cloud sprites are generated at boot with engine means only:
-  `noise.fill2` fBm sculpted per-pixel in JS (radial falloff, vertical
-  density bias, baked top-light shading) into a small library of
-  white-RGB / alpha textures (`createImageData` → `createTexture`,
-  clamped, mipmapped).
+  sky gradient + haze + sun rays → cloud billows drawn far-to-near in one
+  sprite batch → lens flare → logo effects, finished by a bloom pass.
+- Cloud billows are generated at boot with engine means only: smooth-
+  unioned sphere-cap height fields with `noise.fill2`-wobbled rims, lit
+  per-pixel in JS (sun-lit normals, crest-to-base blue-grey gradient) into
+  one atlas texture (`createImageData` → `createTexture`, clamped,
+  mipmapped).
 - Perspective is computed in JS (screen pos + size from `f·x/z`); clouds
-  stream toward the camera, recycler-style, tint-lerped toward the horizon
-  haze color with distance, drawn back-to-front. No 3D camera, no
+  stream straight toward the camera, recycler-style, tint-lerped toward the
+  horizon haze color with distance, drawn back-to-front. No 3D camera, no
   billboards, no render targets in the frame path.
-- The logo is a 2D `drawQuad` recorded last, swaying on a slow sine.
+- The logo floats in the sky above the deck with a pop-in, flash, shine
+  sweep and glints; a sun with god rays and a lens flare, and a bloom post
+  chain, make the boot moment flashy (design D7).
 - Register the sample in `gallery/samples/curated/manifest.json` and add a
   gallery smoke test in `tests/CMakeLists.txt`.
 
@@ -64,5 +67,5 @@ so no capability spec is created or modified.
   a strong future golden candidate, but new goldens need the server-side
   llvmpipe capture recipe; not required for a sample-only change).
 - Fly-through beat (screen washing white when a puff crosses the camera) —
-  v1 fades puffs out before they engulf the camera.
-- Audio, input reactions, or any post-effect chain.
+  billows tall enough to reach eye level only spawn clear of the flight lane.
+- Audio or input reactions.
